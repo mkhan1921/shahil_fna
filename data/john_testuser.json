@@ -1,0 +1,218 @@
+[
+  {
+    "clientName": "John TestUser",
+    "primaryMember": {
+      "title": "Mr.",
+      "firstName": "John",
+      "surname": "TestUser",
+      "idNumber": "9001015009087",
+      "passportNumber": "",
+      "countryOfBirth": "",
+      "gender": "Male",
+      "dateOfBirth": "01/01/1990",
+      "currentAge": 36,
+      "ageNextBirthday": 37,
+      "daysToNextBirthday": 313,
+      "dobMonthAbbr": "JAN"
+    },
+    "familyMembers": [],
+    "contactDetails": {
+      "primaryAddress": {
+        "street": "123 Test Street",
+        "city": "Johannesburg",
+        "province": "Gauteng",
+        "zipCode": "2000"
+      },
+      "mailingAddress": {
+        "street": "",
+        "city": "",
+        "province": "",
+        "zipCode": ""
+      },
+      "mailingAddressDifferent": false,
+      "primaryPhone": "0821234567",
+      "primaryPhoneType": "Mobile",
+      "secondaryPhone": "0111234567",
+      "secondaryPhoneType": "Mobile",
+      "email": "john.test@example.com",
+      "whatsapp": "",
+      "priorityEmergencyFund": "1000000",
+      "priorityDebtPayoff": "2000000",
+      "priorityRetirement": "3000000",
+      "priorityInsuranceCoverage": "4000000",
+      "priorityEstatePreservation": "5000000",
+      "priorityCashFlow": "6000000",
+      "priorityEducationFunding": "7000000",
+      "priorityIncomeReplacement": "8000000",
+      "lifeInsuranceRecommend": "",
+      "criticalIllnessRecommend": "",
+      "disabilityCoverageType": "",
+      "disabilityCoverageRecommend": "",
+      "incomeProtectionRecommend": ""
+    },
+    "education": {
+      "level": "Bachelor's Degree",
+      "institution": "University of Witwatersrand"
+    },
+    "employment": {
+      "employmentStatus": "Full-time",
+      "industry": "Finance",
+      "jobTitle": "",
+      "primarySource": "",
+      "employer": "",
+      "occupation": "Financial Analyst",
+      "tenure": "",
+      "primaryIncomeAmount": "50000",
+      "paysTax": true,
+      "yearsInWorkforce": "5",
+      "otherSources": [],
+      "partnerSources": [],
+      "employmentBreaks": [],
+      "careerPlans": {
+        "plannedChange": "",
+        "potentialSalary": "",
+        "notes": ""
+      },
+      "futureIncome": [],
+      "medicalMembers": 10,
+      "retirementContribution": "",
+      "salaryDate": "ABC Corporation"
+    },
+    "assets": [
+      {
+        "id": "vbfbc3dik",
+        "name": "Family Home",
+        "type": "",
+        "category": "Physical",
+        "isFinanced": false,
+        "planToSell": false,
+        "sellAtRetirement": "Unsure",
+        "settleDebtOnDeath": false,
+        "purchasePrice": "4500000"
+      }
+    ],
+    "liabilities": [
+      {
+        "id": "vun3kgdyc",
+        "type": "Loan",
+        "name": "Standard Bank",
+        "isSecured": false,
+        "currentBalance": "",
+        "interestRate": "",
+        "monthlyPayment": "",
+        "status": "Current",
+        "earlyPayoff": false,
+        "termUnit": "Years",
+        "originalAmount": "2500000",
+        "term": "25000"
+      }
+    ],
+    "retirement": {
+      "retirementFunds": [],
+      "otherIncomeSources": [],
+      "activeAnnuities": [],
+      "employerMatchPercentage": "10000",
+      "employerContribution": "20000",
+      "employerContributionIncrease": "30000",
+      "employeeContribution": "40000",
+      "employeeContributionIncrease": "50000"
+    },
+    "goals": [
+      {
+        "id": "9c9e4e6a-5d38-4ddb-a94d-664a97706745",
+        "category": "Other",
+        "name": "Child's University",
+        "type": "Short-Term",
+        "currentCost": "0",
+        "financingRequired": false,
+        "lumpSumSaved": "6",
+        "monthlyContributionCurrent": "150000",
+        "ongoingExpenses": "10000"
+      }
+    ],
+    "emergencyFund": {
+      "targetMonths": "500000",
+      "currentSavings": "",
+      "monthlyContribution": ""
+    },
+    "relationshipStatus": {
+      "maritalStatus": "Single",
+      "partnershipDate": ""
+    },
+    "financialPlanning": {
+      "preferredInsurers": "Allan Gray, Old Mutual",
+      "dislikedInsurers": "None",
+      "plannedChanges": "Review all policies",
+      "hasFinancialAdvisor": false,
+      "hasAccountant": false,
+      "accountantServices": {
+        "taxPlanning": false,
+        "investmentManagement": false
+      },
+      "hasAttorney": false,
+      "attorneyServices": {
+        "estatePlanning": false
+      }
+    },
+    "expenses": {
+      "transportMode": "",
+      "fuelCost": "",
+      "autoInsurance": "",
+      "vehicleRepayment": "",
+      "hasMaintenancePlan": false,
+      "maintenanceCost": "",
+      "tollsAndTracker": "",
+      "livingSituation": "",
+      "timeAtAddress": "",
+      "groceries": "4500",
+      "diningOut": "5000",
+      "onFamilyPlan": false,
+      "medicalAidPlan": "",
+      "medicalAidPremium": "11000",
+      "openToMedicalOptions": false,
+      "gapCoverPlan": "",
+      "gapCoverPremium": "11500",
+      "openToGapOptions": false,
+      "otherMedicalCosts": "12000",
+      "childCare": "12500",
+      "childEducationAnnual": "13500",
+      "educationalExpenses": "14000",
+      "cleaningServices": "3500",
+      "landscaping": "4000",
+      "mortgagePayment": "",
+      "rentPayment": "",
+      "ratesAndTaxes": "",
+      "householdInsurance": "",
+      "otherHouseholdCosts": "",
+      "electricity": "500",
+      "gas": "1500",
+      "water": "1000",
+      "internet": "2000",
+      "dstv": "2500",
+      "trashCollection": "3000",
+      "clothing": "5500",
+      "personalCare": "6000",
+      "petCare": "6500",
+      "hobbies": "7000",
+      "subscriptions": {
+        "gym": "7500",
+        "netflix": "8000",
+        "youtube": "8500",
+        "spotify": "9000",
+        "other": "9500"
+      },
+      "cellphoneData": "10000",
+      "travelBudget": "10500",
+      "giftsDonations": "14500",
+      "charitableDonations": "15000",
+      "creditCardPayments": "",
+      "personalLoans": "",
+      "studentLoans": "",
+      "otherDebt": "",
+      "childSupport": "13000"
+    },
+    "lineItemNotes": {},
+    "savedAt": "2026-02-22T00:31:26.979Z",
+    "isAutosave": true
+  }
+]

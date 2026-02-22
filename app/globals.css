@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --primary: #0000cc;    /* Professional Blue */
+  --nardo-grey: #686a6c; /* The requested Nardo Grey */
+  --border-grid: #e5e7eb; /* Light grey for faint grid lines */
+  --font-serif: 'Times New Roman', Times, serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-nardo: var(--nardo-grey);
+  --color-grid: var(--border-grid);
+  --font-serif: var(--font-serif);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Clean up form elements for print */
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: none !important;
+    border: none !important;
+    padding: 0;
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: transparent !important;
+  }
+
+  /* Ensure inputs look like text */
+  input, select, textarea {
+    background-color: transparent !important;
+  }
+}
+
+/* Base Input Styles for Grid */
+input, textarea, select {
+  font-family: var(--font-serif);
+  background-color: transparent !important; /* Force no background */
+  border: none;
+  width: 100%;
+  outline: none;
+  color: #000000;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #d1d5db; /* Very light grey for placeholders */
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+/* Remove default focus styles and add subtle indication if needed, 
+   but user requested 'faint-line grid', so we keep it minimal. 
+   We'll remove the blue tint background on focus to strictly follow 'no background colors'.
+*/
+input:focus, textarea:focus, select:focus {
+  background-color: transparent !important;
+  box-shadow: none; /* No shadow */
+  /* Optional: maybe a text decoration or thicker cursor? 
+     For now, we leave it clean as requested. */
+}
+
+/* Global Label Styles */
+label, .label-text {
+  color: var(--nardo-grey);
+  font-weight: 700; /* Bold */
+  text-transform: uppercase;
+  font-size: 0.65rem; /* Small, crisp labels */
+  letter-spacing: 0.05em;
+}
+
+/* Utility classes for the grid */
+.grid-label {
+  color: var(--nardo-grey);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.grid-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent !important;
+  padding: 0.5rem;
+  font-family: var(--font-serif);
+}
