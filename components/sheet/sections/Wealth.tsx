@@ -37,7 +37,7 @@ export function AssetsSection({ doc, update, analysis }: SectionProps) {
   return (
     <Section
       id="assets"
-      title="5 · Assets & retirement funds"
+      n={5} title="Assets & retirement funds"
       right={
         <>
           <span>
@@ -58,7 +58,7 @@ export function AssetsSection({ doc, update, analysis }: SectionProps) {
         const pre = PRE_RETIREMENT_FUNDS.includes(f.type);
         const employer = f.type === 'pension' || f.type === 'provident';
         return (
-          <Item key={f.id} id={f.id} n={i + 1} onRemove={() => update((d) => void d.retirementFunds.splice(i, 1))}>
+          <Item key={f.id} id={f.id} n={i + 1} lock={spouse ? 5 : 4} onRemove={() => update((d) => void d.retirementFunds.splice(i, 1))}>
             <SelectC label="Type" value={f.type} onChange={(v) => set((x) => void (x.type = v))} options={RETIREMENT_FUND_TYPE} span={1.75} />
             {spouse && <SelectC label="Member" value={f.owner} onChange={(v) => set((x) => void (x.owner = v))} options={personOptions(doc)} span={1} />}
             <TextC label="Provider" value={f.provider} onChange={(v) => set((x) => void (x.provider = v))} span={1.5} />
@@ -90,7 +90,7 @@ export function AssetsSection({ doc, update, analysis }: SectionProps) {
         const b = ASSET_BEHAVIOUR[a.type];
         const investment = b.group === 'investment' || b.group === 'liquid';
         return (
-          <Item key={a.id} id={a.id} n={i + 1} onRemove={() => update((d) => void d.assets.splice(i, 1))}>
+          <Item key={a.id} id={a.id} n={i + 1} lock={spouse ? 4 : 3} onRemove={() => update((d) => void d.assets.splice(i, 1))}>
             <SelectC label="Type" value={a.type} onChange={(v) => set((x) => void (x.type = v))} options={ASSET_TYPE} span={2} />
             <TextC label="Description" value={a.description} onChange={(v) => set((x) => void (x.description = v))} span={2} />
             {spouse && <SelectC label="Owner" value={a.owner} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={1} />}
@@ -132,7 +132,7 @@ export function LiabilitiesSection({ doc, update, analysis }: SectionProps) {
   return (
     <Section
       id="liabilities"
-      title="6 · Liabilities"
+      n={6} title="Liabilities"
       right={
         <>
           <span>
@@ -153,10 +153,14 @@ export function LiabilitiesSection({ doc, update, analysis }: SectionProps) {
         const interest = remainingInterest(l.balance, l.interestRate, l.monthlyRepayment);
         const expensive = UNSECURED_DEBT.includes(l.type) && l.interestRate >= 0.18;
         return (
-          <Item key={l.id} id={l.id} n={i + 1} onRemove={() => update((d) => void d.liabilities.splice(i, 1))}>
+          <Item key={l.id} id={l.id} n={i + 1} lock={spouse ? 7 : 6} onRemove={() => update((d) => void d.liabilities.splice(i, 1))}>
             <SelectC label="Type" value={l.type} onChange={(v) => set((x) => void (x.type = v))} options={LIABILITY_TYPE} span={1.45} />
             <TextC label="Description" value={l.description} onChange={(v) => set((x) => void (x.description = v))} span={1} />
             <TextC label="Lender" value={l.lender} onChange={(v) => set((x) => void (x.lender = v))} span={1} />
+            {spouse && <SelectC label="Debtor" value={l.owner} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={0.75} />}
+            <MoneyC label="Balance" value={l.balance} onChange={(v) => set((x) => void (x.balance = v))} span={1.25} />
+            <PctC label="Rate" value={l.interestRate} onChange={(v) => set((x) => void (x.interestRate = v))} decimals={2} span={0.75} hint={expensive ? 'high' : undefined} />
+            <MoneyC label="Instalment" value={l.monthlyRepayment} onChange={(v) => set((x) => void (x.monthlyRepayment = v))} span={1} />
             {(l.type === 'home-loan' || l.type === 'vehicle-finance') && (
               <SelectC
                 label="Secured against"
@@ -167,10 +171,6 @@ export function LiabilitiesSection({ doc, update, analysis }: SectionProps) {
                 span={1.1}
               />
             )}
-            {spouse && <SelectC label="Debtor" value={l.owner} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={0.75} />}
-            <MoneyC label="Balance" value={l.balance} onChange={(v) => set((x) => void (x.balance = v))} span={1.25} />
-            <PctC label="Rate" value={l.interestRate} onChange={(v) => set((x) => void (x.interestRate = v))} decimals={2} span={0.75} hint={expensive ? 'high' : undefined} />
-            <MoneyC label="Instalment" value={l.monthlyRepayment} onChange={(v) => set((x) => void (x.monthlyRepayment = v))} span={1} />
             <YesNoC label="Credit life" value={l.creditLifeCover} onChange={(v) => set((x) => void (x.creditLifeCover = v))} span={0.9} />
             <YesNoC label="Settle death" value={l.settleOnDeath} onChange={(v) => set((x) => void (x.settleOnDeath = v))} span={0.9} />
             <YesNoC label="Settle disab." value={l.settleOnDisability} onChange={(v) => set((x) => void (x.settleOnDisability = v))} span={0.9} />
@@ -219,7 +219,7 @@ export function CoverSection({ doc, update }: SectionProps) {
   return (
     <Section
       id="cover"
-      title="7 · Existing cover"
+      n={7} title="Existing cover"
       right={lives.map((k) => (
         <span key={k}>
           {firstNameOf(doc, k)}: life <strong className="text-ink tabular">{moneyCompact(total(k, 'life'))}</strong> · IP{' '}
@@ -232,7 +232,7 @@ export function CoverSection({ doc, update }: SectionProps) {
         const set = (fn: (x: typeof p) => void) => update((d) => fn(d.policies[i]));
         const monthly = p.type === 'income-protection' || p.type === 'family-income';
         return (
-          <Item key={p.id} id={p.id} n={i + 1} onRemove={() => update((d) => void d.policies.splice(i, 1))}>
+          <Item key={p.id} id={p.id} n={i + 1} lock={lives.length > 1 ? 5 : 4} onRemove={() => update((d) => void d.policies.splice(i, 1))}>
             <SelectC label="Benefit" value={p.type} onChange={(v) => set((x) => void (x.type = v))} options={POLICY_TYPE} span={2} />
             {lives.length > 1 && <SelectC label="Life assured" value={p.lifeAssured} onChange={(v) => set((x) => void (x.lifeAssured = v))} options={personOptions(doc)} span={1} />}
             <TextC label="Insurer / scheme" value={p.insurer} onChange={(v) => set((x) => void (x.insurer = v))} span={2} />
@@ -257,9 +257,9 @@ export function CoverSection({ doc, update }: SectionProps) {
             {!p.isGroup && <MoneyC label="Premium p.m." value={p.premiumMonthly} onChange={(v) => set((x) => void (x.premiumMonthly = v))} span={1} />}
             {!p.isGroup && <PctC label="Prem. esc." value={p.premiumEscalation} onChange={(v) => set((x) => void (x.premiumEscalation = v))} span={1} />}
             {!p.isGroup && <PctC label="Cover esc." value={p.coverEscalation} onChange={(v) => set((x) => void (x.coverEscalation = v))} span={1} />}
-            <TextC label="Policy no." value={p.policyNumber} onChange={(v) => set((x) => void (x.policyNumber = v))} span={1} />
-            {!p.isGroup && <DateC label="Inception" value={p.inceptionDate} onChange={(v) => set((x) => void (x.inceptionDate = v))} span={1} />}
-            <TextC label="Notes" value={p.notes} onChange={(v) => set((x) => void (x.notes = v))} span={2} placeholder="3× salary, exclusions…" />
+            <TextC label="Policy no." value={p.policyNumber} onChange={(v) => set((x) => void (x.policyNumber = v))} span={1.5} />
+            {!p.isGroup && <DateC label="Inception" value={p.inceptionDate} onChange={(v) => set((x) => void (x.inceptionDate = v))} span={1.5} />}
+            <TextC label="Notes" value={p.notes} onChange={(v) => set((x) => void (x.notes = v))} span={4} placeholder="3× salary, exclusions…" />
           </Item>
         );
       })}

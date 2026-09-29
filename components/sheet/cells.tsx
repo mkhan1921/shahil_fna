@@ -23,26 +23,41 @@ const input = 'w-full min-w-0 bg-transparent text-[13px] leading-5 text-ink outl
 
 export function Section({
   id,
+  n,
   title,
   right,
   children,
   note,
 }: {
   id: string;
+  n: number;
   title: string;
   right?: ReactNode;
   note?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section id={id} data-section className="scroll-mt-14 border-b border-line-strong last:border-b-0">
-      <header className="flex min-h-9 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line bg-[#eef2f6] px-3 py-1.5">
-        <h2 className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-ink">{title}</h2>
-        {right && <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-ink-2">{right}</div>}
+    <section id={id} data-section className="scroll-mt-16 overflow-hidden rounded-xl border border-line-strong bg-white shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+      <header className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-line-strong px-3 py-2">
+        <h2 className="flex items-center gap-2 text-[14px] font-semibold leading-5 text-ink">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] bg-brand px-1 text-[11px] font-semibold text-white tabular">{n}</span>
+          {title}
+        </h2>
+        {right && <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-2">{right}</div>}
       </header>
       {note && <div className="border-b border-line bg-wash px-3 py-1.5 text-[11.5px] leading-4 text-muted">{note}</div>}
-      {children}
+      {/* -mb-px tucks the last row's bottom hairline under the card border */}
+      <div className="-mb-px">{children}</div>
     </section>
+  );
+}
+
+/** Marks a field the analysis or record of advice still needs. */
+function NeedDot() {
+  return (
+    <span className="mr-1 inline-block h-1.5 w-1.5 shrink-0 -translate-y-px rounded-full bg-warning align-middle" title="Needed for the analysis or record of advice">
+      <span className="sr-only">(needed)</span>
+    </span>
   );
 }
 
@@ -80,19 +95,25 @@ export function PairHead({ children, right }: { children: ReactNode; right?: Rea
 /* Cells                                                               */
 /* ------------------------------------------------------------------ */
 
-function Cell({ label, span = 3, children, hint, tone, className }: { label: ReactNode; span?: number; children: ReactNode; hint?: ReactNode; tone?: 'error'; className?: string }) {
+const labelText = 'text-[11px] font-medium leading-[13px] text-[#5b6b7e]';
+
+function Cell({ label, span = 3, children, hint, tone, need, className }: { label: ReactNode; span?: number; children: ReactNode; hint?: ReactNode; tone?: 'error'; need?: boolean; className?: string }) {
   return (
     <label
       className={cx(
-        'sheet-cell relative flex min-h-[40px] min-w-0 flex-col justify-center bg-white px-2 pb-1 pt-[3px] focus-within:bg-[#eaf3fb] focus-within:shadow-[inset_2px_0_0_var(--color-brand-2)]',
+        'group sheet-cell relative flex min-h-[40px] min-w-0 flex-col justify-center bg-white px-2 pb-1 pt-[3px] focus-within:bg-[#eaf3fb] focus-within:shadow-[inset_2px_0_0_var(--color-brand-2)]',
         tone === 'error' && 'bg-critical-soft',
         className,
       )}
       style={cellStyle(span)}
     >
-      <span className="flex items-baseline justify-between gap-2 truncate text-[9.5px] font-semibold uppercase leading-3 tracking-[0.05em] text-muted">
-        <span className="truncate">{label}</span>
-        {hint && <span className="shrink-0 font-normal normal-case tracking-normal text-faint">{hint}</span>}
+      {/* One clipped line: a hint that doesn't fit beside the label wraps out of view. */}
+      <span className={cx('flex h-[13px] flex-wrap items-baseline gap-x-2 overflow-hidden group-focus-within:text-brand-2', labelText)}>
+        <span className="max-w-full truncate">
+          {need && <NeedDot />}
+          {label}
+        </span>
+        {hint && <span className="ml-auto whitespace-nowrap font-normal text-faint">{hint}</span>}
       </span>
       {children}
     </label>
@@ -111,6 +132,7 @@ export function TextC({
   maxLength,
   inputMode,
   id,
+  need,
 }: {
   label: ReactNode;
   value: string;
@@ -123,17 +145,18 @@ export function TextC({
   maxLength?: number;
   inputMode?: 'numeric' | 'text' | 'email' | 'tel';
   id?: string;
+  need?: boolean;
 }) {
   return (
-    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined}>
+    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined} need={need}>
       <input id={id} type={type} className={input} value={value ?? ''} placeholder={placeholder} maxLength={maxLength} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
     </Cell>
   );
 }
 
-export function AreaC({ label, value, onChange, span = 12, placeholder, rows = 1 }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; placeholder?: string; rows?: number }) {
+export function AreaC({ label, value, onChange, span = 12, placeholder, rows = 1, need }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; placeholder?: string; rows?: number; need?: boolean }) {
   return (
-    <Cell label={label} span={span}>
+    <Cell label={label} span={span} need={need}>
       <textarea
         className={cx(input, 'resize-y py-0')}
         rows={Math.max(rows, (value?.split('\n').length ?? 1) || 1)}
@@ -145,9 +168,9 @@ export function AreaC({ label, value, onChange, span = 12, placeholder, rows = 1
   );
 }
 
-export function DateC({ label, value, onChange, span = 2, hint, error }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; hint?: ReactNode; error?: boolean }) {
+export function DateC({ label, value, onChange, span = 2, hint, error, need }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; hint?: ReactNode; error?: boolean; need?: boolean }) {
   return (
-    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined}>
+    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined} need={need}>
       <input type="date" max="2100-12-31" className={cx(input, 'tabular')} value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
     </Cell>
   );
@@ -161,6 +184,7 @@ export function SelectC<T extends string>({
   span = 2,
   placeholder,
   hint,
+  need,
 }: {
   label: ReactNode;
   value: T;
@@ -169,10 +193,11 @@ export function SelectC<T extends string>({
   span?: number;
   placeholder?: string;
   hint?: ReactNode;
+  need?: boolean;
 }) {
   const list = Array.isArray(options) ? options : (Object.entries(options) as [T, string][]).map(([v, l]) => ({ value: v, label: l }));
   return (
-    <Cell label={label} span={span} hint={hint}>
+    <Cell label={label} span={span} hint={hint} need={need}>
       <select className={cx(input, '-ml-1 cursor-pointer appearance-none bg-no-repeat pr-4')} value={value} onChange={(e) => onChange(e.target.value as T)} style={{ backgroundImage: CARET, backgroundPosition: 'right 0 center' }}>
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {list.map((o) => (
@@ -203,7 +228,7 @@ export function YesNoC({ label, value, onChange, span = 1, yes = 'Yes', no = 'No
   );
 }
 
-export function CheckC({ label, checked, onChange, span = 3, detail }: { label: ReactNode; checked: boolean; onChange: (v: boolean) => void; span?: number; detail?: ReactNode }) {
+export function CheckC({ label, checked, onChange, span = 3, detail, need }: { label: ReactNode; checked: boolean; onChange: (v: boolean) => void; span?: number; detail?: ReactNode; need?: boolean }) {
   return (
     <label
       className="sheet-cell flex min-h-[40px] min-w-0 cursor-pointer items-center gap-2.5 bg-white px-2 py-1 focus-within:bg-[#eaf3fb] focus-within:shadow-[inset_2px_0_0_var(--color-brand-2)]"
@@ -211,6 +236,7 @@ export function CheckC({ label, checked, onChange, span = 3, detail }: { label: 
     >
       <input type="checkbox" className="h-[15px] w-[15px] shrink-0 accent-[var(--color-brand-2)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span className="min-w-0 text-[12.5px] leading-4 text-ink">
+        {need && <NeedDot />}
         {label}
         {detail && <span className="block text-[10.5px] leading-[14px] text-muted">{detail}</span>}
       </span>
@@ -221,11 +247,11 @@ export function CheckC({ label, checked, onChange, span = 3, detail }: { label: 
 /** Computed, read-only value (not a tab stop). */
 export function ReadC({ label, value, span = 2, tone, sub }: { label: ReactNode; value: ReactNode; span?: number; tone?: 'good' | 'bad' | 'strong'; sub?: ReactNode }) {
   return (
-    <div className="sheet-cell flex min-h-[40px] min-w-0 flex-col justify-center bg-[#f7f9fb] px-2 pb-1 pt-[3px]" style={cellStyle(span)}>
-      <span className="truncate text-[9.5px] font-semibold uppercase leading-3 tracking-[0.05em] text-faint">{label}</span>
+    <div className="sheet-cell flex min-h-[40px] min-w-0 flex-col justify-center bg-[#eff3f7] px-2 pb-1 pt-[3px]" style={cellStyle(span)}>
+      <span className={cx('truncate', labelText)}>{label}</span>
       <span
         className={cx(
-          'truncate text-[13px] leading-5 tabular',
+          'truncate text-[13px] font-medium leading-5 tabular',
           tone === 'good' && 'font-semibold text-good-ink',
           tone === 'bad' && 'font-semibold text-critical-ink',
           tone === 'strong' && 'font-semibold text-ink',
@@ -265,6 +291,7 @@ function NumberInput({
   placeholder,
   min,
   max,
+  plain = false,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
@@ -276,6 +303,8 @@ function NumberInput({
   placeholder?: string;
   min?: number;
   max?: number;
+  /** No thousands grouping (years, codes). */
+  plain?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const shown = (() => {
@@ -283,7 +312,8 @@ function NumberInput({
     if (value === null || value === undefined) return '';
     const v = value * scale;
     if (!v) return '';
-    return group(Number(v.toFixed(decimals)).toString());
+    const text = Number(v.toFixed(decimals)).toString();
+    return plain ? text : group(text);
   })();
   const commit = (text: string) => {
     const cleaned = text.replace(/[^\d.\-]/g, '');
@@ -320,9 +350,9 @@ function NumberInput({
   );
 }
 
-export function MoneyC({ label, value, onChange, span = 2, hint, suffix }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; hint?: ReactNode; suffix?: string }) {
+export function MoneyC({ label, value, onChange, span = 2, hint, suffix, need }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; hint?: ReactNode; suffix?: string; need?: boolean }) {
   return (
-    <Cell label={label} span={span} hint={hint}>
+    <Cell label={label} span={span} hint={hint} need={need}>
       <NumberInput value={value} onChange={(v) => onChange(v ?? 0)} prefix="R" suffix={suffix} min={0} />
     </Cell>
   );
@@ -344,10 +374,10 @@ export function PctC({ label, value, onChange, span = 1, decimals = 1, hint }: {
   );
 }
 
-export function NumC({ label, value, onChange, span = 1, suffix, min, max, hint }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; suffix?: string; min?: number; max?: number; hint?: ReactNode }) {
+export function NumC({ label, value, onChange, span = 1, suffix, min, max, hint, plain }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; suffix?: string; min?: number; max?: number; hint?: ReactNode; plain?: boolean }) {
   return (
     <Cell label={label} span={span} hint={hint}>
-      <NumberInput value={value} onChange={(v) => onChange(v ?? 0)} suffix={suffix} decimals={1} min={min} max={max} />
+      <NumberInput value={value} onChange={(v) => onChange(v ?? 0)} suffix={suffix} decimals={1} min={min} max={max} plain={plain} />
     </Cell>
   );
 }
@@ -356,12 +386,16 @@ export function NumC({ label, value, onChange, span = 1, suffix, min, max, hint 
 /* Repeating rows                                                      */
 /* ------------------------------------------------------------------ */
 
-/** One repeating record: a numbered gutter with a remove button, then its cells. */
-export function Item({ n, id, onRemove, children, tone }: { n: number; id: string; onRemove: () => void; children: ReactNode; tone?: 'muted' }) {
+/**
+ * One repeating record: a numbered gutter with a remove button, then its cells.
+ * `lock` pins the first N cells to their span so those columns line up from
+ * row to row; the cells after them absorb the leftover width.
+ */
+export function Item({ n, id, onRemove, children, tone, lock }: { n: number; id: string; onRemove: () => void; children: ReactNode; tone?: 'muted'; lock?: number }) {
   return (
-    <div data-row={id} className={cx('flex border-b border-line', tone === 'muted' && 'opacity-80')}>
+    <div data-row={id} className={cx('flex border-b border-line-strong', tone === 'muted' && 'opacity-80')}>
       <div className="flex w-7 shrink-0 flex-col items-center justify-between border-r border-line bg-wash py-1">
-        <span className="text-[10px] font-semibold text-muted tabular">{n}</span>
+        <span className="text-[11px] font-semibold text-ink-2 tabular">{n}</span>
         <button
           type="button"
           tabIndex={-1}
@@ -373,7 +407,9 @@ export function Item({ n, id, onRemove, children, tone }: { n: number; id: strin
           <X size={12} strokeWidth={2.5} />
         </button>
       </div>
-      <div className="sheet-cells flex min-w-0 flex-1 flex-wrap gap-px bg-line">{children}</div>
+      <div data-lock={lock} className="sheet-cells flex min-w-0 flex-1 flex-wrap gap-px bg-line">
+        {children}
+      </div>
     </div>
   );
 }

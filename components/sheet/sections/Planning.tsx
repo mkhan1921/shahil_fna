@@ -21,7 +21,7 @@ import type { SectionProps } from '../types';
 export function GoalsSection({ doc, update, analysis }: SectionProps) {
   const lives = people(doc);
   return (
-    <Section id="goals" title="8 · Goals" right={<span>Targets in today’s money — the analysis inflates them</span>}>
+    <Section id="goals" n={8} title="Goals" right={<span>Targets in today’s money — the analysis inflates them</span>}>
       <Sub>Retirement</Sub>
       <Pair>
         {lives.map((k: PersonKey) => {
@@ -88,7 +88,7 @@ export function GoalsSection({ doc, update, analysis }: SectionProps) {
             <TextC label="Goal" value={g.name} onChange={(v) => set((x) => void (x.name = v))} span={3} />
             {ownerOptions(doc).length > 1 && <SelectC label="For" value={g.owner} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={1} />}
             <MoneyC label="Cost (today)" value={g.cost} onChange={(v) => set((x) => void (x.cost = v))} span={2} />
-            <NumC label="Target year" value={g.targetYear} onChange={(v) => set((x) => void (x.targetYear = Math.round(v)))} min={2000} max={2100} span={1} />
+            <NumC label="Target year" value={g.targetYear} onChange={(v) => set((x) => void (x.targetYear = Math.round(v)))} min={2000} max={2100} span={1} plain />
             <SelectC label="Priority" value={g.priority} onChange={(v) => set((x) => void (x.priority = v))} options={{ high: 'High', medium: 'Medium', low: 'Low' }} span={1} />
             <MoneyC label="Saved" value={g.existingSavings} onChange={(v) => set((x) => void (x.existingSavings = v))} span={1} />
             <MoneyC label="Saving p.m." value={g.monthlyContribution} onChange={(v) => set((x) => void (x.monthlyContribution = v))} span={1} />
@@ -119,7 +119,7 @@ export function EstateSection({ doc, update, analysis }: SectionProps) {
   const accrual = doc.household.maritalStatus === 'married' && doc.household.maritalRegime === 'anc-accrual';
   const widowed = doc.household.maritalStatus === 'widowed';
   return (
-    <Section id="estate" title="9 · Estate planning" right={<span>Estate duty, executor’s fees and CGT on death are calculated from Assets</span>}>
+    <Section id="estate" n={9} title="Estate planning" right={<span>Estate duty, executor’s fees and CGT on death are calculated from Assets</span>}>
       <Pair>
         {lives.map((k) => {
           const e = doc.estate[k];
@@ -131,7 +131,7 @@ export function EstateSection({ doc, update, analysis }: SectionProps) {
                 {firstNameOf(doc, k)}
               </PairHead>
               <Cells>
-                <SelectC label="Valid will" value={e.hasWill} onChange={(v) => set((x) => void (x.hasWill = v))} options={{ yes: 'Yes', no: 'No', unsure: 'Unsure' }} span={2} />
+                <SelectC label="Valid will" value={e.hasWill} onChange={(v) => set((x) => void (x.hasWill = v))} options={{ yes: 'Yes', no: 'No', unsure: 'Unsure' }} span={2} need={e.hasWill === 'unsure'} />
                 {e.hasWill === 'yes' && (
                   <>
                     <DateC label="Will signed" value={e.willDate} onChange={(v) => set((x) => void (x.willDate = v))} span={3} />
@@ -175,7 +175,7 @@ export function RiskSection({ doc, update, analysis }: SectionProps) {
   return (
     <Section
       id="risk"
-      title="10 · Risk profile"
+      n={10} title="Risk profile"
       right={
         r.profile ? (
           <span>
@@ -204,6 +204,7 @@ export function RiskSection({ doc, update, analysis }: SectionProps) {
               })
             }
             placeholder="—"
+            need={doc.riskProfile.answers[q.id] === undefined}
             options={q.options.map((o, i) => ({ value: String(i), label: `(${i + 1}) ${o.label}` }))}
           />
         ))}
@@ -234,7 +235,7 @@ export function AssumptionsSection({ doc, update, practice }: SectionProps) {
   return (
     <Section
       id="assumptions"
-      title="11 · Assumptions"
+      n={11} title="Assumptions"
       right={
         <button type="button" tabIndex={-1} onClick={() => update((d) => void (d.assumptions = { ...base }))} className="inline-flex items-center gap-1 font-semibold text-brand-2 hover:underline">
           <RotateCcw size={12} /> Practice defaults

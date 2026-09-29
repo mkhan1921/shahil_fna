@@ -48,7 +48,7 @@ export function AnalysisSection({ doc, analysis: a }: SectionProps) {
   const critical = a.findings.filter((f) => f.severity === 'critical').length;
 
   return (
-    <Section id="analysis" title="12 · Needs analysis" right={<span>{critical} critical finding{critical === 1 ? '' : 's'} · updates as you type</span>}>
+    <Section id="analysis" n={12} title="Needs analysis" right={<span>{critical} critical finding{critical === 1 ? '' : 's'} · updates as you type</span>}>
       <Cells>
         <ReadC label="Take-home p.m." value={money(cf.takeHome)} span={2} />
         <ReadC label={cf.surplus < 0 ? 'Deficit p.m.' : 'Surplus p.m.'} value={money(cf.surplus)} tone={cf.surplus < 0 ? 'bad' : 'good'} span={2} />
@@ -169,7 +169,7 @@ export function AdviceSection({ doc, update, analysis }: SectionProps) {
   return (
     <Section
       id="advice"
-      title="13 · Advice & record of advice"
+      n={13} title="Advice & record of advice"
       right={
         <>
           <span>
@@ -206,10 +206,11 @@ export function AdviceSection({ doc, update, analysis }: SectionProps) {
               onChange={(v: ClientDecision) => set((x) => void (x.clientDecision = v))}
               options={{ pending: 'Pending', accepted: 'Accepted', deferred: 'Deferred', declined: 'Declined' }}
               span={2}
+              need={r.clientDecision === 'pending'}
             />
             {(r.clientDecision === 'declined' || r.clientDecision === 'deferred') && <TextC label="Client’s reason" value={r.clientReason} onChange={(v) => set((x) => void (x.clientReason = v))} span={3} />}
             <YesNoC label="Replacement" value={r.isReplacement} onChange={(v) => set((x) => void (x.isReplacement = v))} span={1} />
-            <AreaC label="Why this is suitable (s9(1)(c))" value={r.rationale} onChange={(v) => set((x) => void (x.rationale = v))} span={12} />
+            <AreaC label="Why this is suitable (s9(1)(c))" value={r.rationale} onChange={(v) => set((x) => void (x.rationale = v))} span={12} need={r.rationale.trim().length <= 20} />
             {r.isReplacement && (
               <>
                 <TextC label="Product replaced (insurer, policy, cover, premium)" value={r.replacedPolicy} onChange={(v) => set((x) => void (x.replacedPolicy = v))} span={12} />
@@ -287,7 +288,7 @@ export function ReportSection({ doc, analysis, practice }: SectionProps) {
   return (
     <Section
       id="report"
-      title="14 · Report"
+      n={14} title="Report"
       right={
         <>
           <span>

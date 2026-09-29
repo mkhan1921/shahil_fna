@@ -25,14 +25,14 @@ export function EngagementSection({ doc, update }: SectionProps) {
   const e = doc.engagement;
   const set = <K extends keyof typeof e>(k: K, v: (typeof e)[K]) => update((d) => void (d.engagement[k] = v));
   return (
-    <Section id="engagement" title="1 · Engagement & consent" right={<span>FAIS s4–s8 · POPIA · FICA</span>}>
+    <Section id="engagement" n={1} title="Engagement & consent" right={<span>FAIS s4–s8 · POPIA · FICA</span>}>
       <Cells>
         <DateC label="Meeting date" value={e.meetingDate} onChange={(v) => set('meetingDate', v)} span={2} />
         <SelectC label="Meeting" value={e.meetingType} onChange={(v) => set('meetingType', v)} options={{ 'in-person': 'In person', virtual: 'Video', telephonic: 'Telephone' }} span={2} />
         <SelectC label="Advice type" value={e.adviceType} onChange={(v) => set('adviceType', v)} options={{ comprehensive: 'Comprehensive FNA', limited: 'Limited advice' }} span={2} />
         <SelectC label="PEP / DPIP" value={e.pepStatus} onChange={(v) => set('pepStatus', v)} options={{ no: 'No', yes: 'Yes', unknown: 'Not screened' }} span={2} />
         <TextC label="Reason for meeting" value={e.reasonForAdvice} onChange={(v) => set('reasonForAdvice', v)} span={4} placeholder="Annual review, new baby, new bond…" />
-        <AreaC label="Client objectives (own words)" value={e.clientObjectives} onChange={(v) => set('clientObjectives', v)} span={6} />
+        <AreaC label="Client objectives (own words)" value={e.clientObjectives} onChange={(v) => set('clientObjectives', v)} span={6} need={!e.clientObjectives.trim()} />
         <AreaC label="Concerns & priorities" value={e.clientConcerns} onChange={(v) => set('clientConcerns', v)} span={3} />
         <AreaC label="Other advisers (attorney, accountant…)" value={e.otherAdvisers} onChange={(v) => set('otherAdvisers', v)} span={3} />
       </Cells>
@@ -60,14 +60,15 @@ export function EngagementSection({ doc, update }: SectionProps) {
       </Cells>
       <Sub>Disclosures & consents</Sub>
       <Cells>
-        <CheckC span={3} label="FSP & rep disclosures given" detail="GCC s4, s5, s7" checked={e.disclosureLetterProvided} onChange={(v) => set('disclosureLetterProvided', v)} />
+        <CheckC span={3} label="FSP & rep disclosures given" detail="GCC s4, s5, s7" checked={e.disclosureLetterProvided} onChange={(v) => set('disclosureLetterProvided', v)} need={!e.disclosureLetterProvided} />
         <CheckC span={3} label="Conflict of interest policy disclosed" checked={e.conflictsDisclosed} onChange={(v) => set('conflictsDisclosed', v)} />
         <CheckC span={3} label="Fees & commission explained in rand" checked={e.remunerationDisclosed} onChange={(v) => set('remunerationDisclosed', v)} />
-        <CheckC span={3} label="FICA: identity & address verified" checked={e.ficaVerified} onChange={(v) => set('ficaVerified', v)} />
+        <CheckC span={3} label="FICA: identity & address verified" checked={e.ficaVerified} onChange={(v) => set('ficaVerified', v)} need={!e.ficaVerified} />
         <CheckC
           span={3}
-          label="POPIA consent to process personal info"
+          label="POPIA consent to process info"
           checked={e.popiaConsent}
+          need={!e.popiaConsent}
           onChange={(v) =>
             update((d) => {
               d.engagement.popiaConsent = v;
@@ -96,8 +97,8 @@ function PersonCells({ person, set, firstId }: { person: Person; set: (fn: (p: P
   return (
     <Cells>
       <SelectC label="Title" value={person.title} onChange={(v) => set((p) => void (p.title = v))} options={TITLES.map((t) => ({ value: t, label: t }))} placeholder="—" span={2} />
-      <TextC id={firstId} label="First names" value={person.firstName} onChange={(v) => set((p) => void (p.firstName = v))} span={5} />
-      <TextC label="Surname" value={person.surname} onChange={(v) => set((p) => void (p.surname = v))} span={5} />
+      <TextC id={firstId} label="First names" value={person.firstName} onChange={(v) => set((p) => void (p.firstName = v))} span={5} need={!person.firstName.trim()} />
+      <TextC label="Surname" value={person.surname} onChange={(v) => set((p) => void (p.surname = v))} span={5} need={!person.surname.trim()} />
       <TextC
         label="SA ID number"
         value={person.idNumber}
@@ -117,8 +118,8 @@ function PersonCells({ person, set, firstId }: { person: Person; set: (fn: (p: P
         }
         span={3.75}
       />
-      <DateC label="Born" value={person.dateOfBirth} onChange={(v) => set((p) => void (p.dateOfBirth = v))} span={3} error={mismatch} hint={age !== null ? `${age} · ANB ${ageNextBirthday(person.dateOfBirth)}` : undefined} />
-      <SelectC label="Gender" value={person.gender} onChange={(v) => set((p) => void (p.gender = v))} options={GENDER} placeholder="—" span={1.75} />
+      <DateC label="Born" value={person.dateOfBirth} onChange={(v) => set((p) => void (p.dateOfBirth = v))} span={3} error={mismatch} need={!person.dateOfBirth} hint={age !== null ? `${age} · ANB ${ageNextBirthday(person.dateOfBirth)}` : undefined} />
+      <SelectC label="Gender" value={person.gender} onChange={(v) => set((p) => void (p.gender = v))} options={GENDER} placeholder="—" span={1.75} need={!person.gender} />
       <YesNoC label="Smoker" value={person.smoker} onChange={(v) => set((p) => void (p.smoker = v))} span={1.5} />
       <TextC label="Passport" value={person.passportNumber} onChange={(v) => set((p) => void (p.passportNumber = v))} span={2} />
       <SelectC label="Employment" value={person.employmentType} onChange={(v) => set((p) => void (p.employmentType = v))} options={EMPLOYMENT_TYPE} span={4} />
@@ -141,7 +142,7 @@ export function PeopleSection({ doc, update }: SectionProps) {
   const spouse = hasSpouse(doc);
   const children = doc.dependants.filter((d) => d.relationship === 'child');
   return (
-    <Section id="people" title="2 · Client & family" right={<span>{doc.dependants.length} dependant{doc.dependants.length === 1 ? '' : 's'}</span>}>
+    <Section id="people" n={2} title="Client & family" right={<span>{doc.dependants.length} dependant{doc.dependants.length === 1 ? '' : 's'}</span>}>
       <Cells>
         <SelectC
           label="Marital status"
@@ -190,7 +191,7 @@ export function PeopleSection({ doc, update }: SectionProps) {
         const set = (fn: (x: typeof dep) => void) => update((d) => fn(d.dependants[i]));
         const child = dep.relationship === 'child';
         return (
-          <Item key={dep.id} id={dep.id} n={i + 1} onRemove={() => update((d) => void d.dependants.splice(i, 1))}>
+          <Item key={dep.id} id={dep.id} n={i + 1} lock={4} onRemove={() => update((d) => void d.dependants.splice(i, 1))}>
             <TextC label="Name" value={dep.name} onChange={(v) => set((x) => void (x.name = v))} span={3} />
             <SelectC
               label="Relationship"
@@ -259,7 +260,7 @@ export function IncomeSection({ doc, update, analysis }: SectionProps) {
   return (
     <Section
       id="income"
-      title="3 · Income & tax"
+      n={3} title="Income & tax"
       right={
         <label className="flex items-center gap-1.5">
           Tax year
@@ -287,7 +288,7 @@ export function IncomeSection({ doc, update, analysis }: SectionProps) {
             <div key={k}>
               <PairHead right={`Marginal ${pct(r.tax.marginalRate)} · effective ${pct(r.tax.effectiveRate, 1)}`}>{firstNameOf(doc, k)}</PairHead>
               <Cells>
-                <MoneyC label="Gross salary / income p.m." value={inc.grossMonthly} onChange={(v) => set((x) => void (x.grossMonthly = v))} span={4} />
+                <MoneyC label="Gross salary / income p.m." value={inc.grossMonthly} onChange={(v) => set((x) => void (x.grossMonthly = v))} span={4} need={k === 'client' && !inc.grossMonthly && !inc.otherTaxableMonthly} />
                 <MoneyC label="Annual bonus" value={inc.annualBonus} onChange={(v) => set((x) => void (x.annualBonus = v))} span={4} />
                 <MoneyC label="Other taxable p.m." value={inc.otherTaxableMonthly} onChange={(v) => set((x) => void (x.otherTaxableMonthly = v))} span={4} hint="rental, annuity" />
                 <MoneyC label="Non-taxable p.m." value={inc.nonTaxableMonthly} onChange={(v) => set((x) => void (x.nonTaxableMonthly = v))} span={4} />
@@ -320,7 +321,7 @@ export function BudgetSection({ doc, update, analysis }: SectionProps) {
   return (
     <Section
       id="budget"
-      title="4 · Monthly budget"
+      n={4} title="Monthly budget"
       right={
         <>
           <span>

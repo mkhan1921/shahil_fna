@@ -192,13 +192,16 @@ export default function Sheet() {
               <kbd className="font-sans font-semibold">Shift</kbd> + either: back
             </div>
             <div>Type to pick in lists (Y/N)</div>
+            <div className="flex items-center gap-1 pt-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" aria-hidden /> still needed
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="inline-block h-2.5 w-3 rounded-sm border border-line bg-[#eff3f7]" aria-hidden /> calculated
+            </div>
           </div>
         </aside>
 
-        <main
-          className="min-w-0 flex-1 overflow-hidden rounded-xl border border-line-strong bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06)]"
-          onKeyDown={handleEnterNavigation}
-        >
+        <main className="min-w-0 flex-1 space-y-3" onKeyDown={handleEnterNavigation}>
           <EngagementSection {...props} />
           <PeopleSection {...props} />
           <IncomeSection {...props} />

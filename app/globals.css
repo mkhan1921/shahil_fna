@@ -115,6 +115,24 @@ textarea.control {
 .sheet-cell {
   flex: var(--g) 1 calc(var(--b) - 1px);
 }
+/* Repeating rows: the first N cells keep their span so columns align across rows. */
+[data-lock='1'] > .sheet-cell:nth-child(-n + 1),
+[data-lock='2'] > .sheet-cell:nth-child(-n + 2),
+[data-lock='3'] > .sheet-cell:nth-child(-n + 3),
+[data-lock='4'] > .sheet-cell:nth-child(-n + 4),
+[data-lock='5'] > .sheet-cell:nth-child(-n + 5),
+[data-lock='6'] > .sheet-cell:nth-child(-n + 6),
+[data-lock='7'] > .sheet-cell:nth-child(-n + 7) {
+  flex-grow: 0;
+}
+/* ...and the row's last line ends in blank space rather than one stretched cell.
+   Zero basis and -1px margin (cancelling the gap) so it never forces a wrap. */
+[data-lock]::after {
+  content: '';
+  flex: 999 1 0;
+  margin-left: -1px;
+  background: var(--color-surface);
+}
 @media (max-width: 767px) {
   .sheet-cell {
     flex-basis: calc(50% - 1px);
