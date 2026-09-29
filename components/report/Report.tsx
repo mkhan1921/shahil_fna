@@ -18,11 +18,12 @@ import { ageNextBirthday, ageOn } from '@/lib/fna/idNumber';
 import { RISK_QUESTIONS } from '@/lib/fna/riskProfile';
 import type { FnaDocument, PersonKey, PracticeProfile, Recommendation } from '@/lib/fna/types';
 import { dateLong, money, moneyCompact, pct } from '@/lib/format';
-import { AllocationBar, RetirementChart } from '../charts';
+import { AllocationBar, BarList, RetirementChart } from '../charts';
 import Findings from '../Findings';
 import NeedBreakdown from '../NeedBreakdown';
 import { CompareRows, GlanceTable, NeedCompare, type GlanceCell } from './Compare';
 import { KV, Note, ReportSection, Signature, SubHeading, Table } from './parts';
+import { CostColumns, Figure, FundedBars, RatioGauges, RiskScale, StackedBars, StatusTally, topSegments, type FundedRow, type StackBar } from './Visuals';
 
 const STATUS_WORD: Record<Status, string> = { covered: 'On track', partial: 'Partially funded', shortfall: 'Shortfall', na: 'No need identified' };
 
@@ -70,6 +71,10 @@ export default function Report({
   const as = doc.assumptions;
   let n = 0;
   const no = () => String(++n);
+  let f = 0;
+  const fig = () => String(++f);
+  const basis = 'Source: the information you provided and the assumptions in the Assumptions section. Exact figures are in the table alongside.';
+  const projectionBasis = `${basis} Projections are illustrations, not guarantees.`;
 
   const glanceRows: { label: string; cells: (GlanceCell | undefined)[]; household?: boolean }[] = [
     { label: 'Life cover', cells: P.map((p) => p.death) },
@@ -84,6 +89,39 @@ export default function Report({
     { label: 'Emergency fund', cells: [a.emergency], household: true },
   ];
   if (a.educationTotal.need > 0) glanceRows.push({ label: 'Education (present value)', cells: [a.educationTotal], household: true });
+
+  const tallied = glanceRows.flatMap((r) => (r.household ? r.cells.slice(0, 1) : r.cells)).filter((c): c is GlanceCell => !!c && c.status !== 'na');
+
+  const protectionRows: FundedRow[] = P.flatMap((p) =>
+    [p.death, p.incomeProtection, p.disability, p.severeIllness, p.funeral].map((x) => ({
+      label: x.title,
+      sub: people.length > 1 ? p.name.split(' ')[0] : undefined,
+      funded: x.funded,
+      status: x.status,
+      detail: x.shortfall > 0.5 ? `${moneyCompact(x.shortfall)}${x.monthly ? ' p.m.' : ''} short` : undefined,
+    })),
+  );
+
+  /** Need, built up from its parts, against what is in place plus the gap. */
+  const needVsCover = (pick: (p: PersonAnalysis) => typeof p.death): StackBar[] =>
+    P.flatMap((p) => {
+      const x = pick(p);
+      const who = people.length > 1 ? p.name.split(' ')[0] : undefined;
+      return [
+        { label: 'Needed', sub: who, segments: topSegments(x.needLines, 4, 'Other needs') },
+        {
+          label: 'In place',
+          sub: who,
+          segments: [...topSegments(x.provisionLines, 3, 'Other cover'), { label: 'Shortfall', value: x.shortfall, shortfall: true }],
+          total: x.shortfall > 0.5 ? <span className="text-critical-ink">−{moneyCompact(x.shortfall)}</span> : moneyCompact(x.provision),
+        },
+      ];
+    });
+
+  const fundingRows: FundedRow[] = [
+    ...a.education.map((x) => ({ label: `Education — ${x.name.split(' ')[0]}`, funded: x.funded, status: x.status, detail: x.monthlyRequired > 0 ? `save ${money(x.monthlyRequired)} p.m.` : undefined })),
+    ...a.goals.map((g) => ({ label: g.name, funded: g.funded, status: g.status, detail: g.monthlyRequired > 0 ? `save ${money(g.monthlyRequired)} p.m.` : undefined })),
+  ];
 
   const recName = (r: Recommendation) => `${r.productType || NEED_AREA[r.area]}`;
   const amountText = (r: Recommendation) => (r.amount ? (r.area === 'income-protection' ? `${money(r.amount)} p.m.` : money(r.amount)) : '—');
@@ -148,6 +186,11 @@ export default function Report({
         </div>
         <div>
           <SubHeading aside="Existing provision compared with each need">Needs at a glance</SubHeading>
+          {tallied.length > 0 && (
+            <div className="mb-3">
+              <StatusTally statuses={tallied.map((c) => c.status)} />
+            </div>
+          )}
           <GlanceTable names={names} rows={glanceRows} />
         </div>
         <div>
@@ -237,6 +280,19 @@ export default function Report({
                 { label: 'Marginal tax rate', values: a.incomes.map((i) => pct(i.tax.marginalRate)) },
               ]}
             />
+            <Figure number={fig()} title="Where each rand of gross income goes" caption={`Monthly, SARS ${t.label} tables.`} className="mt-3">
+              <StackedBars
+                bars={a.incomes.map((i) => ({
+                  label: i.name.split(' ')[0],
+                  segments: [
+                    { label: 'Take-home pay', value: i.takeHomeMonthly },
+                    { label: 'PAYE & UIF', value: i.payeMonthly + i.uifMonthly },
+                    { label: 'Retirement, medical & other', value: i.retirementPayrollMonthly + i.medicalPayrollMonthly + i.otherDeductionsMonthly },
+                  ],
+                  total: money(i.grossMonthly),
+                }))}
+              />
+            </Figure>
           </div>
           <div>
             <SubHeading aside={`Net worth ${moneyCompact(nw.netWorth)}`}>Assets and liabilities</SubHeading>
@@ -249,6 +305,15 @@ export default function Report({
               ]}
               foot={['Net worth', money(nw.netWorth)]}
             />
+            <Figure number={fig()} title="What you own and what you owe" className="mt-3">
+              <StackedBars
+                bars={[
+                  { label: 'Assets', segments: nw.byGroup.filter((g) => g.amount > 0).map((g) => ({ label: g.label, value: g.amount })) },
+                  { label: 'Liabilities', segments: [{ label: 'Debt', value: nw.liabilities }] },
+                  { label: 'Net worth', segments: [{ label: 'Net worth', value: Math.max(0, nw.netWorth) }], total: moneyCompact(nw.netWorth) },
+                ]}
+              />
+            </Figure>
           </div>
         </div>
 
@@ -264,22 +329,38 @@ export default function Report({
               { label: 'Unallocated surplus', value: Math.max(0, cf.surplus) },
             ]}
           />
-          <div className="mt-3 grid grid-cols-5 gap-2 text-[10px]">
-            {[
-              ['Debt / gross income', pct(a.ratios.debtToIncome), '< 36%'],
-              ['Housing / gross income', pct(a.ratios.housingToIncome), '< 30%'],
-              ['Savings rate', pct(a.ratios.savingsRate), '≥ 15%'],
-              ['Risk premiums', pct(a.ratios.premiumsToIncome, 1), '5–10%'],
-              ['Emergency fund', `${a.ratios.emergencyMonths.toFixed(1)} mo`, `${as.emergencyMonths}+ mo`],
-            ].map(([k, v, g]) => (
-              <div key={k} className="rounded bg-wash px-2 py-1.5">
-                <div className="text-muted">{k}</div>
-                <div className="font-semibold text-ink tabular">
-                  {v} <span className="font-normal text-muted">({g})</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          {cf.byCategory.some((c) => c.amount > 0) && (
+            <Figure number={fig()} title="Living expenses by category" caption="Monthly amounts from your budget.">
+              <BarList
+                items={[...cf.byCategory]
+                  .filter((c) => c.amount > 0)
+                  .sort((x, y) => y.amount - x.amount)
+                  .slice(0, 8)
+                  .map((c) => ({ label: c.label, value: c.amount }))}
+              />
+            </Figure>
+          )}
+          <Figure number={fig()} title="Financial health against common guidelines" caption="Ratios use gross monthly income; the emergency fund is measured in months of essential expenses.">
+            <RatioGauges
+              items={[
+                { label: 'Debt repayments / income', value: a.ratios.debtToIncome, display: pct(a.ratios.debtToIncome), good: { max: 0.36 }, guide: '< 36%', scaleMax: 0.6 },
+                { label: 'Housing / income', value: a.ratios.housingToIncome, display: pct(a.ratios.housingToIncome), good: { max: 0.3 }, guide: '< 30%', scaleMax: 0.5 },
+                { label: 'Savings rate', value: a.ratios.savingsRate, display: pct(a.ratios.savingsRate), good: { min: 0.15 }, guide: '≥ 15%', scaleMax: 0.4 },
+                { label: 'Risk premiums / income', value: a.ratios.premiumsToIncome, display: pct(a.ratios.premiumsToIncome, 1), good: { min: 0.05, max: 0.1 }, guide: '5–10%', scaleMax: 0.2 },
+                {
+                  label: 'Emergency fund',
+                  value: a.ratios.emergencyMonths,
+                  display: `${a.ratios.emergencyMonths.toFixed(1)} mo`,
+                  good: { min: as.emergencyMonths },
+                  guide: `${as.emergencyMonths}+ mo`,
+                  scaleMax: Math.max(as.emergencyMonths * 2, Math.ceil(a.ratios.emergencyMonths) + 1),
+                },
+              ]}
+            />
+          </Figure>
         </div>
 
         <div>
@@ -312,8 +393,16 @@ export default function Report({
         breakBefore={false}
         intro={`Each need is calculated, then reduced by what is already in place. Income needs are converted to a lump sum as the present value of an income that rises with inflation (${pct(as.cpi, 1)}), invested at ${pct(as.riskCapitalReturn, 1)} a year.`}
       >
+        <Figure number={fig()} title="How much of each protection need is already covered" caption={basis}>
+          <FundedBars rows={protectionRows} />
+        </Figure>
         <div>
           <SubHeading aside="If death occurred today">Life cover</SubHeading>
+          {P.some((p) => p.death.need > 0) && (
+            <Figure number={fig()} title="What your family would need, and what is in place" className="mb-3">
+              <StackedBars bars={needVsCover((p) => p.death)} />
+            </Figure>
+          )}
           <NeedCompare names={names} needs={P.map((p) => p.death)} />
           <p className="mt-1.5 text-[10px] leading-[1.5] text-muted">
             Family income: {pct(as.deathIncomeReplacement)} of after-tax income for {P.map((p) => `${p.name.split(' ')[0]} ${p.deathIncomeYears} yrs`).join(', ')}. Retirement fund death
@@ -342,6 +431,11 @@ export default function Report({
         </div>
         <div>
           <SubHeading aside="Permanent disability">Disability lump sum</SubHeading>
+          {P.some((p) => p.disability.need > 0) && (
+            <Figure number={fig()} title="Disability need compared with cover in place" className="mb-3">
+              <StackedBars bars={needVsCover((p) => p.disability)} />
+            </Figure>
+          )}
           <NeedCompare names={names} needs={P.map((p) => p.disability)} />
           <p className="mt-1.5 text-[10px] leading-[1.5] text-muted">
             Income on disability is replaced through income protection; the lump sum settles debt, pays for adaptations and replaces retirement contributions that stop.
@@ -350,6 +444,27 @@ export default function Report({
 
         <div>
           <SubHeading aside="If death occurred today">Estate liquidity and estate duty</SubHeading>
+          {P.some((p) => p.estate.cashRequired > 0) && (
+            <Figure number={fig()} title="Cash your executor would need, against cash available in the estate" className="mb-3">
+              <StackedBars
+                bars={P.flatMap((p) => {
+                  const who = people.length > 1 ? p.name.split(' ')[0] : undefined;
+                  return [
+                    { label: 'Cash required', sub: who, segments: topSegments(p.estate.lines, 6) },
+                    {
+                      label: 'Cash available',
+                      sub: who,
+                      segments: [
+                        { label: 'Cash & policies to the estate', value: Math.min(p.estate.cashAvailable, p.estate.cashRequired) },
+                        { label: 'Shortfall', value: p.estate.liquidityShortfall, shortfall: true },
+                      ],
+                      total: p.estate.liquidityShortfall > 0 ? <span className="text-critical-ink">−{moneyCompact(p.estate.liquidityShortfall)}</span> : moneyCompact(p.estate.cashAvailable),
+                    },
+                  ];
+                })}
+              />
+            </Figure>
+          )}
           <CompareRows
             names={names}
             strongRows={['Net estate', 'Estate duty', 'Cash required by the executor', 'Liquidity shortfall']}
@@ -388,23 +503,49 @@ export default function Report({
         breakBefore={false}
         intro={`Savings are projected at ${pct(as.preRetirementReturn, 1)} a year with contributions rising ${pct(as.salaryEscalation, 1)} a year, then tested against the target income, rising with inflation, to the planning age at ${pct(as.postRetirementReturn, 1)} a year. Amounts are in today’s money.`}
       >
-        <div className={people.length > 1 ? 'grid grid-cols-2 gap-6' : ''}>
-          {P.map((p) => (
-            <div key={p.key} className="avoid-break">
-              <div className="mb-1 text-[11px] font-semibold text-ink">
-                {p.name} <span className="font-normal text-muted">· {STATUS_WORD[p.retirement.status]}</span>
+        <Figure number={fig()} title="Projected retirement savings compared with the capital needed" caption={projectionBasis}>
+          <div className={people.length > 1 ? 'grid grid-cols-2 gap-6' : ''}>
+            {P.map((p) => (
+              <div key={p.key} className="avoid-break">
+                <div className="mb-1 text-[11px] font-semibold text-ink">
+                  {p.name} <span className="font-normal text-muted">· {STATUS_WORD[p.retirement.status]}</span>
+                </div>
+                <RetirementChart
+                  timeline={p.retirement.timeline}
+                  retirementAge={p.retirement.retirementAge}
+                  requiredReal={p.retirement.requiredCapitalReal}
+                  interactive={false}
+                  height={people.length > 1 ? 190 : 200}
+                  viewWidth={people.length > 1 ? 380 : 640}
+                />
               </div>
-              <RetirementChart
-                timeline={p.retirement.timeline}
-                retirementAge={p.retirement.retirementAge}
-                requiredReal={p.retirement.requiredCapitalReal}
-                interactive={false}
-                height={people.length > 1 ? 190 : 200}
-                viewWidth={people.length > 1 ? 380 : 640}
-              />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Figure>
+        {P.some((p) => p.retirement.targetMonthlyToday > 0) && (
+          <Figure number={fig()} title="Monthly income in retirement: your target and what your savings could sustain" caption={`In today’s money. ${projectionBasis}`}>
+            <StackedBars
+              format={money}
+              bars={P.flatMap((p) => {
+                const who = people.length > 1 ? p.name.split(' ')[0] : undefined;
+                const r = p.retirement;
+                const gap = Math.max(0, r.targetMonthlyToday - r.sustainableMonthlyToday);
+                return [
+                  { label: 'Target income', sub: who, segments: [{ label: 'Target income', value: r.targetMonthlyToday }], total: money(r.targetMonthlyToday) },
+                  {
+                    label: 'Sustainable',
+                    sub: who,
+                    segments: [
+                      { label: 'Sustainable income', value: Math.min(r.sustainableMonthlyToday, r.targetMonthlyToday || r.sustainableMonthlyToday) },
+                      { label: 'Shortfall', value: gap, shortfall: true },
+                    ],
+                    total: money(r.sustainableMonthlyToday),
+                  },
+                ];
+              })}
+            />
+          </Figure>
+        )}
         <CompareRows
           names={names}
           strongRows={['Income replacement', 'Extra saving needed (p.m., escalating)']}
@@ -428,6 +569,11 @@ export default function Report({
           </Note>
         )}
 
+        {fundingRows.some((r) => r.status !== 'na') && (
+          <Figure number={fig()} title="How well each education plan and goal is funded" caption={projectionBasis}>
+            <FundedBars rows={fundingRows} />
+          </Figure>
+        )}
         {(a.education.length > 0 || a.goals.length > 0) && (
           <div className="avoid-break grid grid-cols-2 gap-6">
             {a.education.length > 0 && (
@@ -461,11 +607,14 @@ export default function Report({
         <div>
           <SubHeading>Investor risk profile</SubHeading>
           {a.risk.profile ? (
-            <p className="text-[11px] leading-[1.6] text-ink-2">
-              Recommended profile: <strong className="text-ink">{a.risk.profile.label}</strong> (tolerance {a.risk.tolerance?.label.toLowerCase()}, capacity{' '}
-              {a.risk.capacity?.label.toLowerCase()}). {a.risk.profile.description} Typical portfolio {a.risk.profile.equity}, horizon {a.risk.profile.horizon}, objective{' '}
-              {a.risk.profile.target}.
-            </p>
+            <div className="space-y-2">
+              <RiskScale profile={a.risk.profile} tolerance={a.risk.tolerance} capacity={a.risk.capacity} />
+              <p className="text-[11px] leading-[1.6] text-ink-2">
+                Recommended profile: <strong className="text-ink">{a.risk.profile.label}</strong> (tolerance {a.risk.tolerance?.label.toLowerCase()}, capacity{' '}
+                {a.risk.capacity?.label.toLowerCase()}). {a.risk.profile.description} Typical portfolio {a.risk.profile.equity}, horizon {a.risk.profile.horizon}, objective{' '}
+                {a.risk.profile.target}.
+              </p>
+            </div>
           ) : (
             <p className="text-[11px] text-muted">The risk profile questionnaire was not completed.</p>
           )}
@@ -530,6 +679,9 @@ export default function Report({
         {patterned.length > 0 && (
           <div className="avoid-break">
             <SubHeading aside="Monthly premium or contribution at the stated escalation">Cost over 20 years</SubHeading>
+            <Figure number={fig()} title="Total monthly cost of the recommendations, year by year" caption="Premiums shown at the escalation quoted by each provider. Actual premiums may differ; see each product’s quotation for the guaranteed premium pattern." className="mb-3">
+              <CostColumns series={patterned.map((r) => ({ label: `${recs.indexOf(r) + 1}. ${recName(r)} (${first(doc, r.lifeAssured)})`, monthly: r.premiumMonthly, escalation: r.premiumEscalation }))} />
+            </Figure>
             <Table
               head={['Recommendation', ...PATTERN_YEARS.map((y) => `Yr ${y}`)]}
               align={['l', ...PATTERN_YEARS.map(() => 'r' as const)]}
