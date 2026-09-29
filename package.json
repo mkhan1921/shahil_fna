@@ -1,36 +1,30 @@
 {
-  "name": "shahil_fna",
-  "version": "0.1.0",
+  "name": "shahil-fna",
+  "version": "2.0.0",
   "private": true,
+  "description": "Financial Needs Analysis for South African financial advisers — FAIS-aligned record of advice, SARS-accurate calculations, privacy-first.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "test:api": "node tests/check-server.js",
-    "test:pdf": "node tests/test-pdf-gen.js"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "date-fns": "^4.1.0",
-    "highcharts": "^12.5.0",
-    "highcharts-react-official": "^3.2.3",
-    "next": "16.1.6",
-    "pdf-parse": "^2.4.5",
-    "playwright": "^1.58.2",
-    "puppeteer": "^24.37.2",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "immer": "^11.1.18",
+    "lucide-react": "^1.48.0",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9",
+    "vitest": "^5.0.2"
   }
 }

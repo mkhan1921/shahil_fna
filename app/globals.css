@@ -1,113 +1,138 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: var(--font-serif-face), ui-serif, Georgia, 'Times New Roman', serif;
+
+  --color-ink: #0b1b2b;
+  --color-ink-2: #3a4a5c;
+  --color-muted: #6b7a8c;
+  --color-faint: #98a4b3;
+  --color-line: #e3e8ee;
+  --color-line-strong: #cbd4de;
+  --color-canvas: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-wash: #f8fafb;
+
+  --color-brand: #0f3d5e;
+  --color-brand-2: #1a5a86;
+  --color-brand-soft: #e8f0f6;
+  --color-accent: #0e7c66;
+
+  /* Status (fixed, always paired with an icon + label) */
+  --color-good: #0ca30c;
+  --color-good-ink: #006300;
+  --color-good-soft: #e7f6e7;
+  --color-warning: #fab219;
+  --color-warning-ink: #8a5a00;
+  --color-warning-soft: #fff6e0;
+  --color-serious: #ec835a;
+  --color-critical: #d03b3b;
+  --color-critical-ink: #a4262c;
+  --color-critical-soft: #fdecec;
+
+  /* Categorical series (fixed order) */
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+  --color-series-3: #1baf7a;
+  --color-series-4: #eda100;
+  --color-series-5: #e87ba4;
+  --color-series-6: #008300;
+  --color-series-7: #4a3aa7;
+  --color-series-8: #e34948;
+
+  --color-grid: #e1e0d9;
+  --color-axis: #c3c2b7;
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #000000;
-  --primary: #0000cc;    /* Professional Blue */
-  --nardo-grey: #686a6c; /* The requested Nardo Grey */
-  --border-grid: #e5e7eb; /* Light grey for faint grid lines */
-  --font-serif: 'Times New Roman', Times, serif;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-nardo: var(--nardo-grey);
-  --color-grid: var(--border-grid);
-  --font-serif: var(--font-serif);
-}
-
-html {
-  scroll-behavior: smooth;
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-serif);
+  font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
 }
 
-/* Print styles */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Form controls — in the components layer so utilities (pl-7 etc.) can override */
+@layer components {
+.control {
+  width: 100%;
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-ink);
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.control::placeholder {
+  color: var(--color-faint);
+}
+.control:hover {
+  border-color: #aebbc9;
+}
+.control:focus {
+  outline: none;
+  border-color: var(--color-brand-2);
+  box-shadow: 0 0 0 3px rgb(26 90 134 / 0.15);
+}
+.control[aria-invalid='true'] {
+  border-color: var(--color-critical);
+}
+select.control {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7a8c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+textarea.control {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-brand-2);
+  outline-offset: 2px;
+}
+
+}
+
+/* Print: the report is designed for A4 */
+@page {
+  size: A4;
+  margin: 16mm 14mm 18mm 14mm;
+}
+
 @media print {
+  html,
   body {
-    background: white;
-    color: black;
+    background: #fff !important;
   }
   .no-print {
     display: none !important;
   }
-  
-  /* Clean up form elements for print */
-  select {
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: none !important;
-    border: none !important;
-    padding: 0;
+  .print-break {
+    break-before: page;
   }
-  
-  input::placeholder, textarea::placeholder {
-    color: transparent !important;
+  .avoid-break {
+    break-inside: avoid;
   }
-
-  /* Ensure inputs look like text */
-  input, select, textarea {
-    background-color: transparent !important;
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-}
-
-/* Base Input Styles for Grid */
-input, textarea, select {
-  font-family: var(--font-serif);
-  background-color: transparent !important; /* Force no background */
-  border: none;
-  width: 100%;
-  outline: none;
-  color: #000000;
-}
-
-input::placeholder, textarea::placeholder {
-  color: #d1d5db; /* Very light grey for placeholders */
-  text-transform: uppercase;
-  font-size: 0.75rem;
-}
-
-/* Remove default focus styles and add subtle indication if needed, 
-   but user requested 'faint-line grid', so we keep it minimal. 
-   We'll remove the blue tint background on focus to strictly follow 'no background colors'.
-*/
-input:focus, textarea:focus, select:focus {
-  background-color: transparent !important;
-  box-shadow: none; /* No shadow */
-  /* Optional: maybe a text decoration or thicker cursor? 
-     For now, we leave it clean as requested. */
-}
-
-/* Global Label Styles */
-label, .label-text {
-  color: var(--nardo-grey);
-  font-weight: 700; /* Bold */
-  text-transform: uppercase;
-  font-size: 0.65rem; /* Small, crisp labels */
-  letter-spacing: 0.05em;
-}
-
-/* Utility classes for the grid */
-.grid-label {
-  color: var(--nardo-grey);
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.grid-input {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: transparent !important;
-  padding: 0.5rem;
-  font-family: var(--font-serif);
 }
