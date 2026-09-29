@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyse, computeEstate, computeIncome } from '@/lib/fna/analysis';
-import { newAsset, newDocument, newLiability, newPolicy, newRetirementFund } from '@/lib/fna/defaults';
+import { newAsset, newDependant, newDocument, newLiability, newPolicy, newRetirementFund } from '@/lib/fna/defaults';
 import { conveyancingGuidelineFee, mastersFee } from '@/lib/fna/estate';
 import {
   annuityFactor,
@@ -343,5 +343,112 @@ describe('Edge cases', () => {
     const r = scoreRiskProfile({ horizon: 0, 'income-stability': 0, emergency: 0, proportion: 0, knowledge: 4, objective: 4, drawdown: 4, tradeoff: 4 });
     expect(r.profile?.key).toBe('conservative');
     expect(r.mismatch).toBe(true);
+  });
+});
+
+describe('Regression tests from the calculation audit', () => {
+  const base = () => {
+    const doc = newDocument();
+    doc.client.dateOfBirth = '1980-06-15';
+    doc.income.client.grossMonthly = 100_000;
+    return doc;
+  };
+
+  it('capitalises the actual support for parents instead of extending full income replacement', () => {
+    const doc = base();
+    doc.dependants = [{ ...newDependant(), relationship: 'parent', dateOfBirth: '1955-01-01', monthlySupport: 3_500, supportYears: 15, tertiary: false, schoolType: 'none' }];
+    const a = analyse(doc, NOW);
+    const death = a.persons.client!.death;
+    const support = death.needLines.find((l) => l.label.startsWith('Support for parents'))!;
+    expect(support.amount).toBeGreaterThan(400_000);
+    expect(support.amount).toBeLessThan(700_000);
+    expect(a.persons.client!.deathIncomeYears).toBe(0);
+  });
+
+  it('starts drawdown today for someone who retired early', () => {
+    const doc = newDocument();
+    doc.client.dateOfBirth = '1971-09-01';
+    doc.client.employmentType = 'retired';
+    const la = newRetirementFund('client');
+    Object.assign(la, { type: 'living-annuity', value: 5_000_000 });
+    doc.retirementFunds = [la];
+    doc.retirement.client = { ...doc.retirement.client, targetMode: 'amount', targetMonthly: 30_000, planningAge: 92 };
+    const r = analyse(doc, NOW).persons.client!.retirement;
+    expect(r.retired).toBe(true);
+    expect(r.yearsInRetirement).toBeGreaterThan(36);
+    expect(r.retirementAge).toBe(55);
+    expect(r.depletionAge!).toBeLessThan(80);
+  });
+
+  it('gives retirees no income protection, disability or severe illness need', () => {
+    const doc = newDocument();
+    doc.client.dateOfBirth = '1954-01-01';
+    doc.client.employmentType = 'retired';
+    doc.income.client.otherTaxableMonthly = 30_000;
+    const a = analyse(doc, NOW);
+    const p = a.persons.client!;
+    expect(p.incomeProtection.need).toBe(0);
+    expect(p.disability.need).toBe(0);
+    expect(p.severeIllness.need).toBe(0);
+    expect(a.findings.some((f) => f.area === 'income-protection')).toBe(false);
+  });
+
+  it('respects "settle on death" for debts', () => {
+    const doc = base();
+    const l = newLiability('client');
+    Object.assign(l, { balance: 1_000_000, settleOnDeath: false });
+    doc.liabilities = [l];
+    const e = analyse(doc, NOW).persons.client!.estate;
+    expect(e.liabilities).toBe(0);
+  });
+
+  it('never produces an infinite saving requirement just before retirement', () => {
+    const doc = newDocument();
+    doc.client.dateOfBirth = '1961-10-05';
+    doc.income.client.grossMonthly = 50_000;
+    const a = analyse(doc, NOW);
+    expect(Number.isFinite(a.persons.client!.retirement.additionalMonthly)).toBe(true);
+    expect(JSON.stringify(a).includes('Infinity')).toBe(false);
+  });
+
+  it('applies the secondary rebate based on age at the end of the tax year', () => {
+    const doc = newDocument();
+    doc.client.dateOfBirth = '1961-12-01';
+    doc.income.client.grossMonthly = 40_000;
+    const inc = computeIncome(doc, 'client', T27, NOW);
+    expect(inc.age).toBe(64);
+    expect(inc.taxAge).toBe(65);
+    expect(inc.tax.rebates).toBe(T27.rebates.primary + T27.rebates.secondary);
+  });
+
+  it('counts funeral cover as provision against the funeral cost in the death need', () => {
+    const doc = base();
+    const f = newPolicy('client');
+    Object.assign(f, { type: 'funeral', cover: 50_000 });
+    doc.policies = [f];
+    const death = analyse(doc, NOW).persons.client!.death;
+    expect(death.provisionLines.find((l) => l.label === 'Funeral cover')?.amount).toBe(50_000);
+  });
+
+  it('reports a lump sum for a child already studying and uses education-earmarked assets', () => {
+    const doc = base();
+    doc.dependants = [{ ...newDependant(), name: 'Student', dateOfBirth: '2006-03-01', tertiaryStartAge: 19, tertiaryYears: 4, tertiaryCostAnnual: 150_000 }];
+    const a1 = analyse(doc, NOW).education[0];
+    expect(a1.yearsToTertiary).toBe(0);
+    expect(a1.lumpSumRequired).toBeGreaterThan(0);
+    const ed = newAsset('client');
+    Object.assign(ed, { type: 'unit-trust', value: 1_000_000, earmark: 'education' });
+    doc.assets = [ed];
+    const a2 = analyse(doc, NOW).education[0];
+    expect(a2.lumpSumRequired).toBe(0);
+    expect(a2.status).toBe('covered');
+  });
+
+  it('excludes credit-life debt from the deceased side of the accrual calculation', () => {
+    const doc = sampleDocument();
+    const withCl = analyse(doc, NOW).persons.client!.estate.accrualPayable;
+    doc.liabilities = doc.liabilities.map((l) => ({ ...l, creditLifeCover: false }));
+    const without = analyse(doc, NOW).persons.client!.estate.accrualPayable;
+    expect(withCl).toBeGreaterThan(without);
   });
 });

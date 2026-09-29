@@ -56,9 +56,17 @@ export interface PersonIncome {
   key: PersonKey;
   name: string;
   age: number;
+  /** Age at the end of the tax year (used for rebates). */
+  taxAge: number;
   ageKnown: boolean;
   exactAge: number;
   tax: PersonTaxResult;
+  /** Salary / business income plus bonus, per month (excludes passive income). */
+  earnedGrossMonthly: number;
+  /** After-tax earned income per month; 0 when not working. */
+  earnedAfterTaxMonthly: number;
+  /** Economically active and below retirement age. */
+  working: boolean;
   /** Regular (non-bonus) monthly gross incl. other taxable income. */
   grossMonthly: number;
   /** Gross monthly equivalent incl. bonus (annual / 12). */
@@ -208,6 +216,8 @@ export interface EducationResult {
   shortfallAtStart: number;
   shortfallToday: number;
   monthlyRequired: number;
+  /** Shortfall that must be funded now (study already under way). */
+  lumpSumRequired: number;
   funded: number;
   status: Status;
   schedule: { year: number; age: number; cost: number }[];
@@ -331,25 +341,33 @@ export const computeIncome = (doc: FnaDocument, key: PersonKey, table: TaxTable,
   const inc = doc.income[key];
   const knownAge = ageOn(person.dateOfBirth, now);
   const age = knownAge ?? FALLBACK_AGE;
+  // Rebates depend on age on the last day of the year of assessment.
+  const taxAge = ageOn(person.dateOfBirth, new Date(`${table.endDate}T00:00:00`)) ?? age;
   const funds = fundsFor(doc, key);
   const retirementPayroll = sum(funds.filter((f) => f.viaPayroll), (f) => f.employeeMonthly);
   const retirementOwn = sum(funds.filter((f) => !f.viaPayroll), (f) => f.employeeMonthly);
   const retirementEmployer = sum(funds, (f) => f.employerMonthly);
+  const notEmployed = ['self-employed', 'retired', 'unemployed', 'student'].includes(person.employmentType);
 
   const baseInput = {
-    age,
+    age: taxAge,
     grossMonthly: inc.grossMonthly,
     otherTaxableMonthly: inc.otherTaxableMonthly,
     retirementContributionsAnnual: (retirementPayroll + retirementOwn + retirementEmployer) * 12,
     employerRetirementAnnual: retirementEmployer * 12,
     medicalSchemeMembers: inc.medicalSchemeMembers,
-    uifApplies: inc.uifApplies && doc[key].employmentType !== 'self-employed',
+    uifApplies: inc.uifApplies && !notEmployed,
   };
+  // Assessed tax (all deductions) and the payroll view (debit-order RA relief only arrives on assessment).
   const tax = personTax({ ...baseInput, annualBonus: inc.annualBonus }, table);
   const taxExBonus = personTax({ ...baseInput, annualBonus: 0 }, table);
+  const payroll = personTax(
+    { ...baseInput, annualBonus: 0, retirementContributionsAnnual: (retirementPayroll + retirementEmployer) * 12 },
+    table,
+  );
   const bonusTax = Math.max(0, tax.annualTax - taxExBonus.annualTax);
 
-  const payeMonthly = inc.payeOverrideMonthly ?? taxExBonus.monthlyPaye;
+  const payeMonthly = inc.payeOverrideMonthly ?? payroll.monthlyPaye;
   const grossMonthly = inc.grossMonthly + inc.otherTaxableMonthly;
   const takeHome =
     grossMonthly +
@@ -360,17 +378,28 @@ export const computeIncome = (doc: FnaDocument, key: PersonKey, table: TaxTable,
     inc.medicalAidPayrollMonthly -
     inc.otherPayrollDeductionsMonthly;
   const bonusNet = Math.max(0, inc.annualBonus - bonusTax);
-  const afterTaxMonthly = grossMonthly + inc.nonTaxableMonthly - payeMonthly - tax.monthlyUif + bonusNet / 12;
+  const annualTax = inc.payeOverrideMonthly !== null ? inc.payeOverrideMonthly * 12 + bonusTax : tax.annualTax;
+  const afterTaxMonthly = (tax.grossAnnual + inc.nonTaxableMonthly * 12 - annualTax - tax.monthlyUif * 12) / 12;
+
+  // Earned income (salary/business income and bonus) is what income protection and illness cover insure.
+  const earnedAnnual = inc.grossMonthly * 12 + inc.annualBonus;
+  const avgTaxRate = tax.grossAnnual > 0 ? annualTax / tax.grossAnnual : 0;
+  const earnedAfterTaxMonthly = Math.max(0, (earnedAnnual * (1 - avgTaxRate) - tax.monthlyUif * 12) / 12);
+  const working = !['retired', 'unemployed', 'student'].includes(person.employmentType) && age < doc.retirement[key].retirementAge;
 
   return {
     key,
     name: personName(person, key === 'client' ? 'Client' : 'Spouse'),
     age,
+    taxAge,
     ageKnown: knownAge !== null,
     exactAge: exactAge(person.dateOfBirth, now) ?? age + 0.5,
     tax,
     grossMonthly,
     grossMonthlyEquivalent: grossMonthly + inc.annualBonus / 12,
+    earnedGrossMonthly: earnedAnnual / 12,
+    earnedAfterTaxMonthly: working ? earnedAfterTaxMonthly : 0,
+    working,
     payeMonthly,
     uifMonthly: tax.monthlyUif,
     retirementPayrollMonthly: retirementPayroll,
@@ -457,7 +486,8 @@ const computeNetWorth = (doc: FnaDocument): NetWorth => {
     const g = ASSET_BEHAVIOUR[a.type].group;
     groups.set(g, (groups.get(g) ?? 0) + a.value);
   }
-  const retirement = sum(doc.retirementFunds, (f) => f.value);
+  // Guaranteed (life) annuities have no capital value to the household once purchased.
+  const retirement = sum(doc.retirementFunds.filter((f) => f.type !== 'life-annuity'), (f) => f.value);
   if (retirement) groups.set('retirement', retirement);
   const assets = sum(doc.assets, (a) => a.value);
   const liabilities = sum(doc.liabilities, (l) => l.balance);
@@ -480,15 +510,20 @@ const computeNetWorth = (doc: FnaDocument): NetWorth => {
 export const computeEducation = (doc: FnaDocument, now: Date): EducationResult[] => {
   const a = doc.assumptions;
   const year = now.getFullYear();
-  return doc.dependants
+  // Assets earmarked for education are shared across children in proportion to each child's need.
+  const pool = doc.assets.filter((x) => x.earmark === 'education');
+  const poolValue = sum(pool, (x) => x.value);
+  const poolMonthly = sum(pool, (x) => x.monthlyContribution);
+
+  const base = doc.dependants
     .filter((d) => d.relationship === 'child')
     .map((d) => {
       const age = ageOn(d.dateOfBirth, now) ?? 0;
       const schedule: EducationResult['schedule'] = [];
-      // School fees: Grade R (age 6) to matric (age 18), payable in advance each year.
+      // School fees: Grade R (the year the child turns 6) to matric (turns 18), paid in advance.
       let schoolPV = 0;
       if (d.schoolType !== 'none' && d.schoolFeesAnnual > 0) {
-        for (let t = Math.max(0, 6 - age); age + t < 18; t++) {
+        for (let t = Math.max(0, 6 - age); age + t <= 18; t++) {
           const cost = d.schoolFeesAnnual * Math.pow(1 + a.educationInflation, t);
           schoolPV += pv(cost, a.riskCapitalReturn, t);
         }
@@ -507,33 +542,38 @@ export const computeEducation = (doc: FnaDocument, now: Date): EducationResult[]
           capitalAtStart += pv(cost, a.riskCapitalReturn, k);
         }
       }
-      const projectedSavings =
-        fv(d.educationSavings, a.riskCapitalReturn, yearsToTertiary) +
-        fvEscalatingContributions(d.educationSavingsMonthly, yearsToTertiary, a.riskCapitalReturn, a.cpi);
-      const shortfallAtStart = Math.max(0, capitalAtStart - projectedSavings);
-      const shortfallToday = pv(shortfallAtStart, a.riskCapitalReturn, yearsToTertiary);
-      const monthlyRequired =
-        shortfallAtStart > 0 && yearsToTertiary > 0
-          ? requiredEscalatingSaving(shortfallAtStart, yearsToTertiary, a.riskCapitalReturn, a.cpi)
-          : 0;
-      const funded = capitalAtStart > 0 ? Math.min(1, projectedSavings / capitalAtStart) : 1;
-      return {
-        dependantId: d.id,
-        name: d.name || 'Child',
-        age,
-        yearsToTertiary,
-        tertiaryPV,
-        schoolPV,
-        capitalAtStart,
-        projectedSavings,
-        shortfallAtStart,
-        shortfallToday,
-        monthlyRequired,
-        funded,
-        status: statusFor(funded, capitalAtStart),
-        schedule,
-      };
+      return { d, age, schedule, schoolPV, tertiaryPV, capitalAtStart, yearsToTertiary };
     });
+
+  const totalPV = sum(base, (b) => b.tertiaryPV);
+  return base.map(({ d, age, schedule, schoolPV, tertiaryPV, capitalAtStart, yearsToTertiary }) => {
+    const share = totalPV > 0 ? tertiaryPV / totalPV : 0;
+    const savings = d.educationSavings + poolValue * share;
+    const monthly = d.educationSavingsMonthly + poolMonthly * share;
+    const projectedSavings = fv(savings, a.riskCapitalReturn, yearsToTertiary) + fvEscalatingContributions(monthly, yearsToTertiary, a.riskCapitalReturn, a.cpi);
+    const shortfallAtStart = Math.max(0, capitalAtStart - projectedSavings);
+    const shortfallToday = pv(shortfallAtStart, a.riskCapitalReturn, yearsToTertiary);
+    const canSave = yearsToTertiary >= 1;
+    const monthlyRequired = shortfallAtStart > 0 && canSave ? requiredEscalatingSaving(shortfallAtStart, yearsToTertiary, a.riskCapitalReturn, a.cpi) : 0;
+    const funded = capitalAtStart > 0 ? Math.min(1, projectedSavings / capitalAtStart) : 1;
+    return {
+      dependantId: d.id,
+      name: d.name || 'Child',
+      age,
+      yearsToTertiary,
+      tertiaryPV,
+      schoolPV,
+      capitalAtStart,
+      projectedSavings,
+      shortfallAtStart,
+      shortfallToday,
+      monthlyRequired,
+      lumpSumRequired: shortfallAtStart > 0 && !canSave ? shortfallAtStart : 0,
+      funded,
+      status: statusFor(funded, capitalAtStart),
+      schedule,
+    };
+  });
 };
 
 /* ------------------------------------------------------------------ */
@@ -543,10 +583,16 @@ export const computeEducation = (doc: FnaDocument, now: Date): EducationResult[]
 const lifePoliciesOn = (doc: FnaDocument, key: PersonKey) =>
   doc.policies.filter((p) => p.lifeAssured === key && p.type === 'life');
 
-/** Net value (excl. retirement funds and policies) owned by `key` — used for accrual. */
-const ownNetEstate = (doc: FnaDocument, key: PersonKey): number =>
+/**
+ * Net value (excl. retirement funds and policies) owned by `key` — used for accrual.
+ * For the deceased, debts settled by credit life on death are excluded.
+ */
+const ownNetEstate = (doc: FnaDocument, key: PersonKey, deceased: boolean): number =>
   sum(doc.assets, (a) => a.value * shareOf(a.owner, key, false)) -
-  sum(doc.liabilities, (l) => l.balance * shareOf(l.owner, key, false));
+  sum(
+    doc.liabilities.filter((l) => !(deceased && l.creditLifeCover)),
+    (l) => l.balance * shareOf(l.owner, key, false),
+  );
 
 export const computeEstate = (
   doc: FnaDocument,
@@ -574,20 +620,28 @@ export const computeEstate = (
   let accrualPayable = 0;
   let accrualReceivable = 0;
   if (hasSpouse && doc.household.maritalStatus === 'married' && doc.household.maritalRegime === 'anc-accrual') {
-    const mine = Math.max(0, ownNetEstate(doc, key) - profile.accrualCommencementValue);
-    const theirs = Math.max(0, ownNetEstate(doc, other) - doc.estate[other].accrualCommencementValue);
+    const mine = Math.max(0, ownNetEstate(doc, key, true) - profile.accrualCommencementValue);
+    const theirs = Math.max(0, ownNetEstate(doc, other, false) - doc.estate[other].accrualCommencementValue);
     if (mine > theirs) accrualPayable = (mine - theirs) / 2;
     else accrualReceivable = (theirs - mine) / 2;
     notes.push('Accrual claim estimated from current net asset values less commencement values in the antenuptial contract.');
   }
-  if (icop) notes.push('Married in community of property: half of the joint estate is attributed to the deceased.');
+  if (icop) {
+    notes.push(
+      "Married in community of property: half of the joint estate is attributed to the deceased, but the executor administers — and charges fees on — the whole joint estate.",
+    );
+  }
 
   const grossEstate = assetValue + policiesToEstate + accrualReceivable;
-  const debtLines = liabilities.filter((x) => !x.l.creditLifeCover);
-  const debts = sum(debtLines, (x) => x.l.balance * x.share);
+  const unsecured = liabilities.filter((x) => !x.l.creditLifeCover);
+  // All debts reduce the dutiable estate; only those to be settled need cash (others are taken over by heirs).
+  const debtsAll = sum(unsecured, (x) => x.l.balance * x.share);
+  const debts = sum(unsecured.filter((x) => x.l.settleOnDeath), (x) => x.l.balance * x.share);
+  if (debtsAll > debts) notes.push('Some debts are assumed to be taken over by heirs rather than settled; lenders must consent to this.');
 
-  const executorFees = grossEstate * a.executorFeeRate * (1 + a.vatRate);
-  const masters = mastersFee(grossEstate);
+  const feeBase = icop ? sum(doc.assets, (x) => x.value) + policiesToEstate : grossEstate;
+  const executorFees = feeBase * a.executorFeeRate * (1 + a.vatRate);
+  const masters = mastersFee(feeBase);
   const properties = assets.filter((x) =>
     ['primary-residence', 'residential-property', 'commercial-property'].includes(x.asset.type),
   );
@@ -610,13 +664,13 @@ export const computeEstate = (
   }
   const netGain = Math.max(0, gains - table.cgt.deathExclusion);
   const taxableGain = netGain * table.cgt.inclusionRate;
-  const cgt = incrementalTax(income.tax.taxable, taxableGain, income.age, table);
+  const cgt = incrementalTax(income.tax.taxable, taxableGain, income.taxAge, table);
   if (assets.some((x) => !ASSET_BEHAVIOUR[x.asset.type].cgtExempt && x.asset.baseCost <= 0 && !(hasSpouse && x.asset.bequeathToSpouse))) {
     notes.push('Some assets have no base cost captured, so CGT on death may be understated.');
   }
 
   const costs = executorFees + masters + conveyancing + bondCancellation + sundries + funeral;
-  const netEstate = Math.max(0, grossEstate + deemedProperty - debts - costs - cgt - accrualPayable);
+  const netEstate = Math.max(0, grossEstate + deemedProperty - debtsAll - costs - cgt - accrualPayable);
 
   // s4(q): property accruing to the surviving spouse.
   const toSpouse = hasSpouse
@@ -624,7 +678,8 @@ export const computeEstate = (
       sum(deemedPolicies.filter((p) => p.beneficiary === 'spouse'), (p) => p.cover)
     : 0;
   const spouseDeduction = Math.min(netEstate, toSpouse);
-  const abatement = table.estateDuty.abatement + profile.portedAbatement;
+  // s4A: the surviving spouse can use the predeceased spouse's unused abatement (total max 2 × R3.5m).
+  const abatement = table.estateDuty.abatement + Math.min(Math.max(0, profile.portedAbatement), table.estateDuty.abatement);
   const dutiable = Math.max(0, netEstate - spouseDeduction - abatement);
   const duty = estateDuty(dutiable, table);
 
@@ -709,15 +764,15 @@ const deathIncomeTerm = (
         return isChildDependent(d, age) ? d.dependencyEndAge - age : 0;
       }),
   );
-  const otherYears = Math.max(0, ...doc.dependants.filter((d) => d.relationship !== 'child' && d.monthlySupport > 0).map((d) => d.supportYears));
   const other: PersonKey = key === 'client' ? 'spouse' : 'client';
   const spouseYears =
     hasSpouse && spouseIncome ? Math.max(0, doc.retirement[other].retirementAge - spouseIncome.age) : 0;
-  if (a.deathIncomeTerm === 'youngest-independent') return Math.max(childYears, otherYears);
+  if (a.deathIncomeTerm === 'youngest-independent') return childYears;
   if (a.deathIncomeTerm === 'spouse-retirement') return spouseYears;
-  // auto: children and supported dependants; a non-earning spouse to retirement age.
+  // auto: until the youngest child is independent; a non-earning spouse to retirement age.
+  // Support for parents and other dependants is capitalised separately.
   const spouseDependent = hasSpouse && spouseIncome ? spouseIncome.afterTaxMonthly < 1 : false;
-  return Math.max(childYears, otherYears, spouseDependent ? spouseYears : 0);
+  return Math.max(childYears, spouseDependent ? spouseYears : 0);
 };
 
 const computeDeath = (
@@ -742,14 +797,27 @@ const computeDeath = (
     (x) => x.monthlyIncome * shareOf(x.owner, key, icop) * (1 - income.tax.marginalRate),
   );
   const incomeToReplace = Math.max(0, income.afterTaxMonthly - continuingIncome);
-  const monthlyNeed = years > 0 ? incomeToReplace * a.deathIncomeReplacement + profile.additionalIncomeNeedMonthly : 0;
-  const incomeCapital = pvGrowingMonthlyIncome(monthlyNeed, years, a.riskCapitalReturn, a.cpi);
+  const replacementMonthly = years > 0 ? incomeToReplace * a.deathIncomeReplacement : 0;
+  const extraYears = years > 0 ? years : a.deathIncomeFixedYears;
+  const monthlyNeed = replacementMonthly + (profile.additionalIncomeNeedMonthly > 0 && extraYears > 0 ? profile.additionalIncomeNeedMonthly : 0);
+  const incomeCapital =
+    pvGrowingMonthlyIncome(replacementMonthly, years, a.riskCapitalReturn, a.cpi) +
+    pvGrowingMonthlyIncome(profile.additionalIncomeNeedMonthly, extraYears, a.riskCapitalReturn, a.cpi);
+
+  // Parents and other supported dependants: the actual support amount for the stated period.
+  const supported = doc.dependants.filter((d) => d.relationship !== 'child' && d.monthlySupport > 0 && d.supportYears > 0);
+  const supportCapital = sum(supported, (d) => pvGrowingMonthlyIncome(d.monthlySupport, d.supportYears, a.riskCapitalReturn, a.cpi));
 
   const educationCapital = Math.max(0, sum(education, (e) => e.tertiaryPV) - sum(doc.dependants, (d) => d.educationSavings));
-  const adjustmentFund = income.afterTaxMonthly * a.emergencyMonths;
+  const hasDependants =
+    hasSpouse ||
+    supported.length > 0 ||
+    doc.dependants.some((d) => d.relationship === 'child' && isChildDependent(d, ageOn(d.dateOfBirth, now) ?? 0));
+  const adjustmentFund = hasDependants ? income.afterTaxMonthly * a.emergencyMonths : 0;
 
   const policies = doc.policies.filter((p) => p.lifeAssured === key);
   const lifeCover = sum(policies.filter((p) => p.type === 'life' && p.beneficiary !== 'business'), (p) => p.cover);
+  const funeralCover = Math.min(estate.funeral, sum(policies.filter((p) => p.type === 'funeral'), (p) => p.cover));
   const familyIncome = sum(
     policies.filter((p) => p.type === 'family-income'),
     (p) => pvGrowingMonthlyIncome(p.monthlyBenefit, p.benefitTermYears || years, a.riskCapitalReturn, p.coverEscalation),
@@ -764,7 +832,10 @@ const computeDeath = (
   );
 
   if (years === 0 && income.afterTaxMonthly > 0) {
-    notes.push('No financial dependants were identified, so no income replacement capital is included.');
+    notes.push('No dependent children or non-earning spouse were identified, so no family income replacement is included.');
+  }
+  if (doc.dependants.some((d) => d.specialNeeds)) {
+    notes.push('A dependant has special needs and may require lifelong support — consider a special trust and extending the income term.');
   }
   notes.push(
     `Income capital: ${Math.round(a.deathIncomeReplacement * 100)}% of after-tax income for ${years} years, escalating at CPI and discounted at ${(a.riskCapitalReturn * 100).toFixed(1)}% p.a.`,
@@ -778,14 +849,16 @@ const computeDeath = (
       { label: 'Settle debts', amount: estate.liabilities },
       { label: 'Estate costs, CGT & estate duty', amount: estate.totalCosts - estate.funeral },
       { label: 'Funeral', amount: estate.funeral },
-      { label: 'Cash bequests & accrual claim', amount: profile.cashBequests + estate.accrualPayable },
+      { label: 'Cash bequests', amount: profile.cashBequests },
       { label: `Adjustment fund (${a.emergencyMonths} months' income)`, amount: adjustmentFund },
       { label: 'Tertiary education capital', amount: educationCapital },
       { label: `Income for dependants (${years} yrs)`, amount: incomeCapital, note: `${Math.round(monthlyNeed)} p.m. today` },
+      { label: 'Support for parents & other dependants', amount: supportCapital },
       { label: 'Other capital needs', amount: profile.additionalCapitalNeed },
     ],
     [
       { label: 'Existing life cover', amount: lifeCover },
+      { label: 'Funeral cover', amount: funeralCover },
       { label: 'Family income benefits (PV)', amount: familyIncome },
       { label: 'Retirement fund death benefits (net of tax)', amount: retirement },
       { label: 'Liquid assets & investments', amount: liquid },
@@ -812,11 +885,18 @@ const computeDisability = (doc: FnaDocument, key: PersonKey, income: PersonIncom
   const ipPolicies = policies.filter((p) => p.type === 'income-protection');
   const ipPermanent = sum(ipPolicies.filter((p) => permanentIp(p, retirementAge)), (p) => p.monthlyBenefit);
   const ipTemporary = sum(ipPolicies.filter((p) => !permanentIp(p, retirementAge)), (p) => p.monthlyBenefit);
-  const ipTarget = income.afterTaxMonthly * a.incomeProtectionTarget;
-  const ipNotes: string[] = [
-    `Target: ${Math.round(a.incomeProtectionTarget * 100)}% of after-tax income. Insurers generally limit total income protection to about 100% of after-tax income.`,
-  ];
-  if (ipPermanent + ipTemporary > income.afterTaxMonthly * 1.05 && income.afterTaxMonthly > 0) {
+  // Only earned income (salary / business income and bonus) is insurable; passive income continues on disability.
+  const earned = income.earnedAfterTaxMonthly;
+  const ipTarget = earned * a.incomeProtectionTarget;
+  const ipNotes: string[] = income.working
+    ? [
+        `Target: ${Math.round(a.incomeProtectionTarget * 100)}% of after-tax earned income. Insurers generally limit total income protection to about 100% of after-tax income.`,
+      ]
+    : ['Not economically active or past retirement age — income protection does not apply.'];
+  if (ipPolicies.some((p) => p.isGroup)) {
+    ipNotes.push('Group income protection may be taxable if the employer owns the policy — confirm the tax treatment with the scheme.');
+  }
+  if (ipPermanent + ipTemporary > earned * 1.05 && earned > 0) {
     ipNotes.push('Existing income protection exceeds after-tax income — benefits may be reduced at claim stage (over-insurance).');
   }
   if (ipTemporary > 0) ipNotes.push(`Temporary (short-term) benefits of ${Math.round(ipTemporary)} p.m. only pay for a limited period.`);
@@ -835,17 +915,19 @@ const computeDisability = (doc: FnaDocument, key: PersonKey, income: PersonIncom
     doc.liabilities.filter((l) => l.settleOnDisability && !l.creditLifeCover),
     (l) => l.balance * shareOf(l.owner, key, icop),
   );
-  const retirementContribs = income.retirementPayrollMonthly + income.retirementEmployerMonthly + income.retirementOwnMonthly;
-  const retirementCapital = a.disabilityIncludeRetirement
-    ? pvGrowingMonthlyIncome(retirementContribs, yearsToRetirement, a.preRetirementReturn, a.salaryEscalation)
-    : 0;
+  // The member's own contributions can continue from an income protection benefit (it replaces after-tax
+  // income before payroll deductions); the employer's contributions stop.
+  const retirementCapital =
+    a.disabilityIncludeRetirement && income.working
+      ? pvGrowingMonthlyIncome(income.retirementEmployerMonthly, yearsToRetirement, a.preRetirementReturn, a.salaryEscalation)
+      : 0;
   const incomeGap = Math.max(0, ipTarget - ipPermanent);
   const incomeGapCapital = pvGrowingMonthlyIncome(incomeGap, yearsToRetirement, a.riskCapitalReturn, a.cpi);
   const lumpCover = sum(policies.filter((p) => p.type === 'disability-lump'), (p) => p.cover);
 
-  const disNotes = [
-    'Income replacement is addressed through income protection; the lump sum covers debt, lifestyle adaptations and lost retirement funding.',
-  ];
+  const disNotes = income.working
+    ? ['Income replacement is addressed through income protection; the lump sum covers debt, lifestyle adaptations and lost employer retirement funding.']
+    : ['Not economically active — lump-sum disability cover is generally not available or needed.'];
   if (incomeGap > 0) {
     disNotes.push(
       `If income protection is not taken up, a further ${Math.round(incomeGapCapital).toLocaleString('en-ZA')} lump sum would be needed to replace the income gap to age ${retirementAge}.`,
@@ -857,11 +939,13 @@ const computeDisability = (doc: FnaDocument, key: PersonKey, income: PersonIncom
   const disability = makeNeed(
     'disability',
     'Disability — lump sum',
-    [
-      { label: 'Settle debts', amount: debts },
-      { label: 'Home, vehicle & medical adaptations', amount: a.disabilityAdjustments },
-      { label: `Lost retirement contributions (to ${retirementAge})`, amount: retirementCapital },
-    ],
+    income.working
+      ? [
+          { label: 'Settle debts', amount: debts },
+          { label: 'Home, vehicle & medical adaptations', amount: a.disabilityAdjustments },
+          { label: `Lost employer retirement contributions (to ${retirementAge})`, amount: retirementCapital },
+        ]
+      : [],
     [{ label: 'Existing lump-sum disability cover', amount: lumpCover }],
     disNotes,
     key,
@@ -872,7 +956,7 @@ const computeDisability = (doc: FnaDocument, key: PersonKey, income: PersonIncom
   const severeIllness = makeNeed(
     'severe-illness',
     'Severe illness',
-    [{ label: `${a.severeIllnessMonths} months of gross income`, amount: income.grossMonthlyEquivalent * a.severeIllnessMonths }],
+    income.working ? [{ label: `${a.severeIllnessMonths} months of gross income`, amount: income.earnedGrossMonthly * a.severeIllnessMonths }] : [],
     [{ label: 'Existing severe illness cover', amount: siCover }],
     accelerated ? ['Some severe illness cover is accelerated — a claim reduces the life cover by the same amount.'] : [],
     key,
@@ -905,16 +989,18 @@ const computeDisability = (doc: FnaDocument, key: PersonKey, income: PersonIncom
 /* Retirement                                                          */
 /* ------------------------------------------------------------------ */
 
-export const computeRetirement = (doc: FnaDocument, key: PersonKey, income: PersonIncome): RetirementResult => {
+export const computeRetirement = (doc: FnaDocument, key: PersonKey, income: PersonIncome, now: Date = new Date()): RetirementResult => {
   const a = doc.assumptions;
   const goal = doc.retirement[key];
   const notes: string[] = [];
   const currentAge = income.exactAge;
-  const retirementAge = goal.retirementAge;
-  const planningAge = Math.max(goal.planningAge, retirementAge + 1);
-  const retired = currentAge >= retirementAge || doc[key].employmentType === 'retired';
-  const yearsToRetirement = retired ? 0 : Math.max(0, retirementAge - currentAge);
-  const yearsInRetirement = Math.max(1, planningAge - Math.max(currentAge, retirementAge));
+  const retired = currentAge >= goal.retirementAge || doc[key].employmentType === 'retired';
+  // Someone already retired draws income from today, whatever retirement age was captured.
+  const retStartAge = retired ? currentAge : goal.retirementAge;
+  const retirementAge = retired ? Math.floor(currentAge) : goal.retirementAge;
+  const planningAge = Math.max(goal.planningAge, Math.ceil(retStartAge) + 1);
+  const yearsToRetirement = retired ? 0 : Math.max(0, goal.retirementAge - currentAge);
+  const yearsInRetirement = Math.max(1, planningAge - retStartAge);
 
   const preFunds = doc.retirementFunds.filter((f) => f.owner === key && PRE_RETIREMENT_FUNDS.includes(f.type));
   const postFunds = doc.retirementFunds.filter((f) => f.owner === key && f.type === 'living-annuity');
@@ -937,7 +1023,7 @@ export const computeRetirement = (doc: FnaDocument, key: PersonKey, income: Pers
   const timeline: RetirementYear[] = [];
   const rPre = monthlyRate(a.preRetirementReturn);
   const rPost = monthlyRate(a.postRetirementReturn);
-  const startYear = new Date().getFullYear();
+  const startYear = now.getFullYear();
   let capital = currentCapital;
   let contribution = monthlyContributions;
   const wholeYearsToRet = Math.ceil(yearsToRetirement);
@@ -977,7 +1063,7 @@ export const computeRetirement = (doc: FnaDocument, key: PersonKey, income: Pers
   const sustainableAtRet = annuityFactorAtRet > 0 ? projectedCapital / annuityFactorAtRet : 0;
   const sustainableMonthlyToday = sustainableAtRet / inflator + otherIncomeToday;
   const additionalMonthly =
-    shortfall > 0 && yearsToRetirement > 0
+    shortfall > 0 && yearsToRetirement >= 1 / 12
       ? requiredEscalatingSaving(shortfall, yearsToRetirement, a.preRetirementReturn, a.salaryEscalation)
       : 0;
 
@@ -985,7 +1071,6 @@ export const computeRetirement = (doc: FnaDocument, key: PersonKey, income: Pers
   let withdrawal = targetMonthlyAtRetirement;
   let depletionAge: number | null = null;
   const monthsInRet = Math.round(yearsInRetirement * 12);
-  const retStartAge = Math.max(currentAge, retirementAge);
   for (let m = 1; m <= monthsInRet; m++) {
     capital = (capital - withdrawal) * (1 + rPost);
     if (capital <= 0 && depletionAge === null) {
@@ -1059,10 +1144,17 @@ export const computeRetirement = (doc: FnaDocument, key: PersonKey, income: Pers
 
 const computeGoals = (doc: FnaDocument, now: Date): GoalResult[] => {
   const a = doc.assumptions;
+  const pool = doc.assets.filter((x) => x.earmark === 'goal');
+  const poolValue = sum(pool, (x) => x.value);
+  const poolMonthly = sum(pool, (x) => x.monthlyContribution);
+  const totalCost = sum(doc.goals, (g) => g.cost);
   return doc.goals.map((g) => {
     const years = Math.max(0, g.targetYear - now.getFullYear());
     const futureCost = g.cost * Math.pow(1 + a.cpi, years);
-    const projected = fv(g.existingSavings, a.riskCapitalReturn, years) + fvEscalatingContributions(g.monthlyContribution, years, a.riskCapitalReturn, 0);
+    const share = totalCost > 0 ? g.cost / totalCost : 0;
+    const projected =
+      fv(g.existingSavings + poolValue * share, a.riskCapitalReturn, years) +
+      fvEscalatingContributions(g.monthlyContribution + poolMonthly * share, years, a.riskCapitalReturn, 0);
     const shortfall = Math.max(0, futureCost - projected);
     const monthlyRequired = shortfall > 0 && years > 0 ? requiredEscalatingSaving(shortfall, years, a.riskCapitalReturn, 0) : 0;
     const funded = futureCost > 0 ? Math.min(1, projected / futureCost) : 1;
@@ -1105,9 +1197,9 @@ const computeEmergency = (doc: FnaDocument, cashflow: Cashflow): NeedResult => {
 
 const fmt = (n: number) => `R${Math.round(n).toLocaleString('en-ZA')}`;
 
-const buildFindings = (doc: FnaDocument, analysis: Omit<Analysis, 'findings' | 'completeness' | 'completenessScore'>): Finding[] => {
+const buildFindings = (doc: FnaDocument, analysis: Omit<Analysis, 'findings' | 'completeness' | 'completenessScore'>, now: Date): Finding[] => {
   const f: Finding[] = [];
-  const hasMinors = doc.dependants.some((d) => d.relationship === 'child' && (ageOn(d.dateOfBirth) ?? 0) < 18);
+  const hasMinors = doc.dependants.some((d) => d.relationship === 'child' && (ageOn(d.dateOfBirth, now) ?? 0) < 18);
 
   for (const key of analysis.people) {
     const p = analysis.persons[key];
@@ -1151,14 +1243,16 @@ const buildFindings = (doc: FnaDocument, analysis: Omit<Analysis, 'findings' | '
     if (will !== 'yes') {
       f.push({ severity: 'critical', area: 'estate', person: key, title: `${who} has no confirmed valid will`, detail: 'Without a will the estate devolves under the Intestate Succession Act, which may not reflect your wishes.' });
     } else if (doc.estate[key].willDate) {
-      const age = (Date.now() - new Date(doc.estate[key].willDate).getTime()) / (365.25 * 864e5);
+      const age = (now.getTime() - new Date(doc.estate[key].willDate).getTime()) / (365.25 * 864e5);
       if (age > 5) f.push({ severity: 'warning', area: 'estate', person: key, title: `${who}'s will is ${Math.floor(age)} years old`, detail: 'Wills should be reviewed every 3–5 years and after marriage, divorce or births.' });
     }
     if (hasMinors && doc.estate[key].guardianNominated !== 'yes') {
       f.push({ severity: 'warning', area: 'estate', person: key, title: `No guardian nominated by ${who} for minor children`, detail: 'Nominate a guardian in the will and consider a testamentary trust — minors cannot inherit directly (funds go to the Guardian’s Fund).' });
     }
     const r = p.retirement;
-    if (!r.retired && r.requiredCapital > 0) {
+    if (!r.retired && r.requiredCapital > 0 && r.yearsToRetirement < 1 / 12 && r.shortfall > 0) {
+      f.push({ severity: 'critical', area: 'retirement', person: key, title: `Retirement capital shortfall of ${fmt(r.shortfall)} for ${who}`, detail: 'Retirement is imminent — consider a later retirement date, a lower income or phased retirement.' });
+    } else if (!r.retired && r.requiredCapital > 0) {
       if (r.status === 'covered') {
         f.push({ severity: 'positive', area: 'retirement', person: key, title: `${who} is on track for retirement`, detail: `Projected capital funds about ${Math.round(r.replacementRatio * 100)}% of current income from age ${r.retirementAge}.` });
       } else {
@@ -1203,8 +1297,15 @@ const buildFindings = (doc: FnaDocument, analysis: Omit<Analysis, 'findings' | '
   }
   for (const e of analysis.education) {
     if (e.status !== 'covered' && e.status !== 'na') {
-      f.push({ severity: 'warning', area: 'education', title: `Education shortfall for ${e.name}: ${fmt(e.monthlyRequired)} p.m.`, detail: `Tertiary costs of about ${fmt(e.capitalAtStart)} are needed from ${new Date().getFullYear() + Math.round(e.yearsToTertiary)}.` });
+      f.push(
+        e.lumpSumRequired > 0
+          ? { severity: 'warning', area: 'education', title: `Education shortfall for ${e.name}: ${fmt(e.lumpSumRequired)} needed now`, detail: 'Study is already under way, so the remaining costs must be funded from capital.' }
+          : { severity: 'warning', area: 'education', title: `Education shortfall for ${e.name}: ${fmt(e.monthlyRequired)} p.m.`, detail: `Tertiary costs of about ${fmt(e.capitalAtStart)} are needed from ${now.getFullYear() + Math.round(e.yearsToTertiary)}.` },
+      );
     }
+  }
+  for (const d of doc.dependants.filter((x) => x.specialNeeds)) {
+    f.push({ severity: 'warning', area: 'estate', title: `${d.name || 'A dependant'} has special needs`, detail: 'Plan for lifelong support: a special trust (s6B) in the will, guardianship and capital beyond the normal dependency age.' });
   }
   if (doc.household.maritalStatus === 'married' && doc.household.maritalRegime === 'icop') {
     f.push({ severity: 'info', area: 'estate', title: 'Married in community of property', detail: 'Both spouses share one joint estate; business risk and debts affect both. Consider the implications with an attorney.' });
@@ -1271,7 +1372,11 @@ export const analyse = (doc: FnaDocument, now: Date = new Date()): Analysis => {
     unsecuredDebtToIncome:
       grossTotal > 0 ? sum(doc.liabilities.filter((l) => UNSECURED_DEBT.includes(l.type)), (l) => l.monthlyRepayment) / grossTotal : 0,
     housingToIncome: grossTotal > 0 ? housing / grossTotal : 0,
-    savingsRate: grossTotal > 0 ? (retirementSaving + sum(doc.assets, (a: Asset) => a.monthlyContribution)) / grossTotal : 0,
+    // Employer contributions are part of the cost-to-company package, so they count in the base too.
+    savingsRate:
+      grossTotal > 0
+        ? (retirementSaving + sum(doc.assets, (a: Asset) => a.monthlyContribution)) / (grossTotal + sum(incomes, (i) => i.retirementEmployerMonthly))
+        : 0,
     premiumsToIncome: grossTotal > 0 ? cashflow.riskPremiums / grossTotal : 0,
     emergencyMonths: essentialMonthly > 0 ? emergency.provision / essentialMonthly : 0,
   };
@@ -1295,7 +1400,7 @@ export const analyse = (doc: FnaDocument, now: Date = new Date()): Analysis => {
       severeIllness: dis.severeIllness,
       funeral: dis.funeral,
       estate,
-      retirement: computeRetirement(doc, k, income),
+      retirement: computeRetirement(doc, k, income, now),
     };
   }
 
@@ -1325,7 +1430,7 @@ export const analyse = (doc: FnaDocument, now: Date = new Date()): Analysis => {
   const completeness = buildCompleteness(doc, people);
   return {
     ...partial,
-    findings: buildFindings(doc, partial),
+    findings: buildFindings(doc, partial, now),
     completeness,
     completenessScore: completeness.filter((c) => c.complete).length / completeness.length,
   };

@@ -440,7 +440,7 @@ export default function Report({
                     x.name.split(' ')[0],
                     x.capitalAtStart > 0 ? new Date().getFullYear() + Math.round(x.yearsToTertiary) : '—',
                     money(x.capitalAtStart, { dash: true }),
-                    x.monthlyRequired > 0 ? money(x.monthlyRequired) : 'Funded',
+                    x.lumpSumRequired > 0 ? `${money(x.lumpSumRequired)} now` : x.monthlyRequired > 0 ? money(x.monthlyRequired) : 'Funded',
                   ])}
                 />
               </div>

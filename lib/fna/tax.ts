@@ -16,6 +16,8 @@ export interface Bracket {
 export interface TaxTable {
   label: string;
   period: string;
+  /** Last day of the year of assessment — age for rebates is measured on this date. */
+  endDate: string;
   status: 'confirmed' | 'provisional';
   brackets: Bracket[];
   rebates: { primary: number; secondary: number; tertiary: number };
@@ -58,6 +60,7 @@ export const TAX_TABLES: Record<string, TaxTable> = {
   '2026/27': {
     label: '2026/27',
     period: '1 March 2026 – 28 February 2027',
+    endDate: '2027-02-28',
     status: 'confirmed',
     brackets: [
       { from: 0, base: 0, rate: 0.18 },
@@ -86,6 +89,7 @@ export const TAX_TABLES: Record<string, TaxTable> = {
   '2025/26': {
     label: '2025/26',
     period: '1 March 2025 – 28 February 2026',
+    endDate: '2026-02-28',
     status: 'confirmed',
     brackets: [
       { from: 0, base: 0, rate: 0.18 },

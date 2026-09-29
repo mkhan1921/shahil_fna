@@ -133,6 +133,18 @@ export const draftRecommendations = (doc: FnaDocument, a: Analysis): Recommendat
   }
 
   for (const e of a.education) {
+    if (e.lumpSumRequired > 1_000) {
+      out.push(
+        newRecommendation({
+          area: 'education',
+          lifeAssured: 'client',
+          action: 'new',
+          productType: 'Education funding from capital',
+          amount: roundUp(e.lumpSumRequired, 5_000),
+          rationale: `${e.name} is already studying. About ${r(e.lumpSumRequired)} is needed to fund the remaining years of study and should be set aside in a low-risk, accessible investment.`,
+        }),
+      );
+    }
     if (e.monthlyRequired > 100) {
       out.push(
         newRecommendation({

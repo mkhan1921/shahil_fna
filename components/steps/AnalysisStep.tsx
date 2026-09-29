@@ -211,7 +211,7 @@ export default function AnalysisStep({ doc, analysis, go }: StepProps) {
                       <td className="px-5 py-2.5 text-right">{e.capitalAtStart > 0 ? `${Math.round(e.yearsToTertiary)} yrs` : '—'}</td>
                       <td className="px-5 py-2.5 text-right">{money(e.capitalAtStart, { dash: true })}</td>
                       <td className="px-5 py-2.5 text-right">{money(e.projectedSavings, { dash: true })}</td>
-                      <td className="px-5 py-2.5 text-right">{e.monthlyRequired > 0 ? money(e.monthlyRequired) : '—'}</td>
+                      <td className="px-5 py-2.5 text-right">{e.lumpSumRequired > 0 ? `${money(e.lumpSumRequired)} now` : e.monthlyRequired > 0 ? money(e.monthlyRequired) : '—'}</td>
                       <td className="px-5 py-2.5 text-right">
                         <StatusPill status={e.status} />
                       </td>

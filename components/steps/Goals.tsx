@@ -156,8 +156,8 @@ export default function Goals({ doc, update, analysis }: StepProps) {
                         <div className="font-semibold tabular">{money(e.shortfallToday)}</div>
                       </div>
                       <div>
-                        <div className="text-xs text-muted">Save monthly (escalating)</div>
-                        <div className="font-semibold tabular">{e.monthlyRequired > 0 ? money(e.monthlyRequired) : '—'}</div>
+                        <div className="text-xs text-muted">{e.lumpSumRequired > 0 ? 'Needed now' : 'Save monthly (escalating)'}</div>
+                        <div className="font-semibold tabular">{e.lumpSumRequired > 0 ? money(e.lumpSumRequired) : e.monthlyRequired > 0 ? money(e.monthlyRequired) : '—'}</div>
                       </div>
                     </div>
                   )}
