@@ -38,7 +38,7 @@ export default function AppShell({ children, wide = false, actions }: { children
   return (
     <div className="min-h-screen">
       <header className="no-print sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
-        <div className={cx('mx-auto flex h-14 items-center gap-4 px-4 sm:px-6', wide ? 'max-w-[1600px]' : 'max-w-7xl')}>
+        <div className={cx('mx-auto flex h-12 items-center gap-4 px-4 sm:px-6', wide ? 'max-w-[1600px]' : 'max-w-7xl')}>
           <Logo practiceName={practice?.practiceName} logo={practice?.logoDataUrl} />
           <nav className="ml-2 hidden items-center gap-1 md:flex" aria-label="Main">
             {NAV.map(({ href, label, icon: Icon }) => {

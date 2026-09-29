@@ -111,6 +111,25 @@ textarea.control {
 
 }
 
+/* Dense sheet grid: a cell's share of a 12-column row, growing to fill the row. */
+.sheet-cell {
+  flex: var(--g) 1 calc(var(--b) - 1px);
+}
+@media (max-width: 767px) {
+  .sheet-cell {
+    flex-basis: calc(50% - 1px);
+  }
+}
+@media (max-width: 420px) {
+  .sheet-cell {
+    flex-basis: 100%;
+  }
+}
+input[type='date']::-webkit-calendar-picker-indicator {
+  opacity: 0.35;
+  cursor: pointer;
+}
+
 /* Print: the report is designed for A4 */
 @page {
   size: A4;

@@ -4,7 +4,15 @@ A financial needs analysis (FNA) and record-of-advice tool for South African fin
 
 ## What it does
 
-- **Guided discovery in 14 steps.** Engagement and consent (FAIS, POPIA and FICA), client and family, income and tax, budget, assets and retirement funds, liabilities, existing cover, goals, estate, risk profile, assumptions, analysis, advice and report.
+- **One fast, dense data-entry sheet.** Every section is on a single scrolling page:
+  - engagement and consent (FAIS, POPIA and FICA)
+  - client and spouse side by side, and dependants with education plans
+  - income and tax, and budget
+  - assets and retirement funds, liabilities, and existing cover
+  - goals, estate, risk profile and assumptions
+  - the live needs analysis, advice and report
+
+  Tab or Enter moves to the next field and Shift goes back. Yes/No and lists are chosen by typing. Adding a row puts the cursor in it. A section nav tracks your position and completeness, and a live summary rail updates as you type.
 - **Needs analysis for one or two lives.**
   - Life cover (capital needs)
   - Income protection
