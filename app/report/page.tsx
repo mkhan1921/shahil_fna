@@ -8,6 +8,8 @@ import Report from '@/components/report/Report';
 import { Button } from '@/components/ui';
 import { analyse, personName } from '@/lib/fna/analysis';
 import { defaultPractice } from '@/lib/fna/defaults';
+import { draftRecommendations } from '@/lib/fna/recommend';
+import { sampleDocument } from '@/lib/fna/sample';
 import type { FnaDocument, PracticeProfile } from '@/lib/fna/types';
 import { getDocument, getPractice } from '@/lib/store/db';
 
@@ -17,11 +19,24 @@ function ReportView() {
   const params = useSearchParams();
   const id = params?.get('id') ?? null;
   const autoPrint = params?.get('print') === '1';
+  // ?sample (or ?sample=1) previews the built-in sample family without saving it to this device.
+  const sampleParam = params?.get('sample');
+  const sample = sampleParam !== null && sampleParam !== undefined && sampleParam !== '0';
   const [appendix, setAppendix] = useState(params?.get('appendix') === '1');
   const [doc, setDoc] = useState<FnaDocument | null | undefined>(undefined);
   const [practice, setPractice] = useState<PracticeProfile>(defaultPractice());
 
   useEffect(() => {
+    if (sample) {
+      getPractice().then((p) => {
+        const d = sampleDocument();
+        // Show a complete record of advice: the sample carries the drafted recommendations.
+        if (!d.advice.recommendations.length) d.advice.recommendations = draftRecommendations(d, analyse(d));
+        setDoc(d);
+        setPractice(p);
+      });
+      return;
+    }
     if (!id) {
       setDoc(null);
       return;
@@ -30,7 +45,7 @@ function ReportView() {
       setDoc(d);
       setPractice(p);
     });
-  }, [id]);
+  }, [id, sample]);
 
   const analysis = useMemo(() => (doc ? analyse(doc) : null), [doc]);
 
@@ -84,8 +99,8 @@ function ReportView() {
       `}</style>
       <div className="no-print sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4">
-          <Link href={`/client?id=${doc.id}&s=report`} className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-2 hover:text-ink">
-            <ArrowLeft size={15} /> Back to FNA
+          <Link href={sample ? '/' : `/client?id=${doc.id}&s=report`} className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-2 hover:text-ink">
+            <ArrowLeft size={15} /> {sample ? 'Back to clients' : 'Back to FNA'}
           </Link>
           <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-2">
             <input type="checkbox" checked={appendix} onChange={(e) => setAppendix(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand-2)]" />
