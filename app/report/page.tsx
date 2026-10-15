@@ -106,6 +106,9 @@ function ReportView() {
             <input type="checkbox" checked={appendix} onChange={(e) => setAppendix(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand-2)]" />
             Include detailed appendix
           </label>
+          <Link href={`/report/vintage?${sample ? 'sample=1' : `id=${doc.id}`}`} className="hidden text-sm font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline md:inline">
+            Vintage edition (experimental)
+          </Link>
           <div className="hidden text-sm text-muted lg:block">A4 · “Save as PDF” in the print dialog</div>
           <Button variant="primary" icon={<Printer size={15} />} onClick={() => window.print()}>
             Print / save PDF
