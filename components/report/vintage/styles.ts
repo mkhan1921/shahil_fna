@@ -82,6 +82,8 @@ export function vintageCss({ fontFamily, runningTitle }: { fontFamily: string; r
 .vr-title-page { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .vr-title-top { display: flex; justify-content: space-between; width: 100%; font-variant-caps: all-small-caps; letter-spacing: .14em; font-size: 9.5pt; color: var(--vr-ink-2); }
 .vr-title-block { margin-top: 30mm; display: flex; flex-direction: column; align-items: center; }
+/* The practice logo, toned to the page as if printed in the same ink. */
+.vr-logo { display: block; max-height: 16mm; max-width: 62mm; object-fit: contain; margin: 0 auto 12mm; filter: grayscale(1) sepia(0.55) contrast(1.05); mix-blend-mode: multiply; }
 .vr-title-kicker { font-variant-caps: small-caps; letter-spacing: .2em; font-size: 15pt; }
 .vr-title-of { font-style: italic; font-size: 13pt; margin: 2mm 0 1mm; }
 .vr-title-main { font-weight: 400; font-size: 31pt; line-height: 1.08; margin: 0 0 6mm; font-variant-caps: small-caps; letter-spacing: .05em; max-width: 160mm; }

@@ -11,6 +11,7 @@ import type {
   NeedArea,
   PolicyType,
   RecommendationAction,
+  ReportStyle,
   RetirementFundType,
   ScopeArea,
 } from './types';
@@ -260,6 +261,21 @@ export const ACTION: Record<RecommendationAction, string> = {
   restructure: 'Restructure',
   refer: 'Refer to specialist',
 };
+
+export const REPORT_STYLE: Record<ReportStyle, { label: string; description: string }> = {
+  standard: {
+    label: 'Standard',
+    description: 'Clean and modern, in your accent colour, with colour charts and icons. Compact in print.',
+  },
+  vintage: {
+    label: 'Vintage',
+    description: 'A period financial survey on cream paper: engraved plates, the verdict in plain words, and terms explained in the margin.',
+  },
+};
+
+/** A report style from untrusted input (a URL or stored settings), or the fallback. */
+export const asReportStyle = (value: unknown, fallback: ReportStyle = 'standard'): ReportStyle =>
+  (Object.keys(REPORT_STYLE) as string[]).includes(value as string) ? (value as ReportStyle) : fallback;
 
 export const SCOPE_AREA: Record<ScopeArea, string> = {
   risk: 'Risk protection (life, disability, illness)',

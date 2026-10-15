@@ -5,6 +5,7 @@
  * them. This keeps the app POPIA-friendly by design: no server stores special
  * personal information (health, ID numbers) on anyone's behalf.
  */
+import { asReportStyle } from '../fna/catalog';
 import { defaultPractice, normaliseDocument } from '../fna/defaults';
 import type { FnaDocument, PracticeProfile } from '../fna/types';
 
@@ -66,7 +67,9 @@ export const deleteDocument = async (id: string): Promise<void> => {
 export const getPractice = async (): Promise<PracticeProfile> => {
   const stored = await run<PracticeProfile | undefined>(SETTINGS, 'readonly', (s) => s.get('practice') as IDBRequest<PracticeProfile | undefined>);
   const base = defaultPractice();
-  return stored ? { ...base, ...stored, defaultAssumptions: { ...base.defaultAssumptions, ...stored.defaultAssumptions } } : base;
+  return stored
+    ? { ...base, ...stored, reportStyle: asReportStyle(stored.reportStyle), defaultAssumptions: { ...base.defaultAssumptions, ...stored.defaultAssumptions } }
+    : base;
 };
 
 export const savePractice = async (practice: PracticeProfile): Promise<void> => {

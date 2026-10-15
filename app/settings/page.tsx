@@ -1,12 +1,15 @@
 'use client';
 
-import { Building2, ImagePlus, Palette, RotateCcw, SlidersHorizontal, UserRound } from 'lucide-react';
+import { BookOpen, Building2, CheckCircle2, ExternalLink, ImagePlus, Palette, RotateCcw, SlidersHorizontal, UserRound } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
-import { Button, Callout, Card, CardBody, CardHeader, Grid, PercentField, SelectField, TextArea, TextField, Toggle } from '@/components/ui';
+import StylePreview from '@/components/report/StylePreview';
+import { Button, Callout, Card, CardBody, CardHeader, cx, Grid, PercentField, SelectField, TextArea, TextField, Toggle } from '@/components/ui';
+import { REPORT_STYLE } from '@/lib/fna/catalog';
 import { DEFAULT_ASSUMPTIONS } from '@/lib/fna/defaults';
 import { TAX_YEARS } from '@/lib/fna/tax';
-import type { PracticeProfile } from '@/lib/fna/types';
+import type { PracticeProfile, ReportStyle } from '@/lib/fna/types';
 import { usePractice } from '@/lib/store/hooks';
 
 export default function SettingsPage() {
@@ -135,9 +138,50 @@ export default function SettingsPage() {
                 <input type="color" value={draft.brandColor} onChange={(e) => set('brandColor', e.target.value)} className="h-9 w-12 cursor-pointer rounded border border-line-strong" />
                 <span>
                   <span className="block font-medium">Accent colour</span>
-                  <span className="text-xs text-muted">Used for headings in the report</span>
+                  <span className="text-xs text-muted">Used for headings in the Standard report</span>
                 </span>
               </label>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              icon={<BookOpen size={18} />}
+              title="Report style"
+              description="How client reports are set out. Any report can still be switched to the other style before you print it."
+            />
+            <CardBody>
+              <fieldset>
+                <legend className="sr-only">Report style</legend>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {(Object.keys(REPORT_STYLE) as ReportStyle[]).map((s) => {
+                    const on = draft.reportStyle === s;
+                    return (
+                      <label
+                        key={s}
+                        className={cx(
+                          'flex cursor-pointer gap-4 rounded-xl border p-3 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-2',
+                          on ? 'border-brand-2 bg-brand-soft/50 ring-1 ring-brand-2' : 'border-line-strong hover:bg-wash',
+                        )}
+                      >
+                        <input type="radio" name="report-style" value={s} checked={on} onChange={() => set('reportStyle', s)} className="sr-only" />
+                        <StylePreview style={s} accent={draft.brandColor} />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                            {REPORT_STYLE[s].label}
+                            {on && <CheckCircle2 size={15} className="text-brand-2" aria-label="selected" />}
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-muted">{REPORT_STYLE[s].description}</span>
+                          {s === 'vintage' && <span className="mt-1 block text-xs leading-5 text-muted">Prints in its own sepia and red inks, at about twice the length; your logo appears on its title page.</span>}
+                          <Link href={`/report?sample=1&style=${s}`} target="_blank" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-2 hover:underline">
+                            Preview with the sample family <ExternalLink size={12} />
+                          </Link>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
             </CardBody>
           </Card>
 

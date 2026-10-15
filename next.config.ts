@@ -28,6 +28,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
+  async redirects() {
+    // The vintage style was first previewed at its own address; it is now a style of /report.
+    return [{ source: '/report/vintage', destination: '/report?style=vintage', permanent: false }];
+  },
 };
 
 export default nextConfig;

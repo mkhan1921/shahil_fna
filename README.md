@@ -28,6 +28,9 @@ A financial needs analysis (FNA) and record-of-advice tool for South African fin
 - **Drafted recommendations** generated from the analysis, each with a rationale. It computes the after-tax cost of retirement annuity (RA) contributions using the s11F deduction headroom.
 - **Record of advice.** Captures replacement disclosures (GCC s8(1)(d), all nine factors), client decisions, and a 20-year premium pattern (GCC s7(1)(c)(xiv)). A departure-from-advice warning is added automatically.
 - **Client report.** A concise A4 report of about 8–10 pages: summary, situation, protection needs side by side, estate, retirement, record of advice, disclosures and signatures. An optional appendix adds line-by-line calculations. Save it as a PDF from the browser.
+  - Two styles, chosen in Settings and switchable on any report before printing:
+    - **Standard**: clean and modern, in the practice's accent colour.
+    - **Vintage**: set as a period financial survey on cream paper. It opens with the verdict in plain words, shows each need as an engraved-style plate with a note on how to read it, and explains terms in the margin. It runs to about twice the length of the Standard report.
 - **Privacy-first storage.**
   - Client files are stored only in the browser (IndexedDB), and nothing is sent to a server.
   - Exports can be encrypted with AES-256-GCM (password-derived key, PBKDF2-SHA256, 310k iterations). Use them for backups and FAIS/FICA five-year retention.

@@ -493,6 +493,8 @@ export interface FnaDocument {
   notes: string;
 }
 
+export type ReportStyle = 'standard' | 'vintage';
+
 export interface PracticeProfile {
   practiceName: string;
   fspName: string;
@@ -517,5 +519,7 @@ export interface PracticeProfile {
   supervisor: string;
   logoDataUrl: string;
   brandColor: string;
+  /** How client reports are set out; any report can still be switched before printing. */
+  reportStyle: ReportStyle;
   defaultAssumptions: Assumptions;
 }

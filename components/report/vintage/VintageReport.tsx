@@ -291,6 +291,10 @@ export default function VintageReport({ doc, analysis, practice, appendix = fals
           <span>Private &amp; Confidential</span>
         </div>
         <div className="vr-title-block">
+          {practice.logoDataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={practice.logoDataUrl} alt={firm || 'Practice logo'} className="vr-logo" />
+          )}
           <div className="vr-title-kicker">A Financial Survey</div>
           <div className="vr-title-of">of</div>
           <h1 className="vr-title-main">{cap(houseName.replace(/^the /, 'The '))}</h1>

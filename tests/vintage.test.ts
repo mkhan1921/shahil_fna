@@ -5,6 +5,7 @@ import { verdict } from '@/components/report/vintage/narrative';
 import { hundredths, spread, wrap } from '@/components/report/vintage/plates';
 import VintageReport from '@/components/report/vintage/VintageReport';
 import { analyse } from '@/lib/fna/analysis';
+import { asReportStyle } from '@/lib/fna/catalog';
 import { defaultPractice, newDocument } from '@/lib/fna/defaults';
 import { draftRecommendations } from '@/lib/fna/recommend';
 import { sampleDocument } from '@/lib/fna/sample';
@@ -105,5 +106,24 @@ describe('vintage helpers', () => {
   it('states the verdict in words', () => {
     expect(verdict(['covered', 'partial', 'shortfall', 'shortfall', 'na'])).toBe('Of the four needs we measured, one is fully provided for, one is partly provided for and two fall well short.');
     expect(verdict(['shortfall'])).toBe('Of the one need we measured, none is yet fully provided for and one falls well short.');
+  });
+});
+
+describe('report style setting', () => {
+  it('defaults to the standard style and accepts only known styles', () => {
+    expect(defaultPractice().reportStyle).toBe('standard');
+    expect(asReportStyle('vintage')).toBe('vintage');
+    expect(asReportStyle('standard', 'vintage')).toBe('standard');
+    expect(asReportStyle(null, 'vintage')).toBe('vintage');
+    expect(asReportStyle('toString')).toBe('standard');
+    expect(asReportStyle(undefined)).toBe('standard');
+  });
+
+  it('puts the practice logo on the vintage title page', () => {
+    const doc = sampleDocument();
+    const practice = { ...defaultPractice(), practiceName: 'Acacia Wealth', logoDataUrl: 'data:image/png;base64,iVBORw0KGgo=' };
+    const html = renderToStaticMarkup(createElement(VintageReport, { doc, analysis: analyse(doc), practice }));
+    expect(html).toContain('class="vr-logo"');
+    expect(html).toContain('alt="Acacia Wealth"');
   });
 });
