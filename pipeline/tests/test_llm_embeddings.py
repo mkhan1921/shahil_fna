@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from pydantic_ai.models.fallback import FallbackModel
-from pydantic_ai.models.test import TestModel
+from pydantic_ai.models.function import FunctionModel
 
 from advisor_intel import llm
 from advisor_intel.embeddings import HashedEmbedder, cosine, nearest
@@ -11,7 +11,7 @@ from advisor_intel.models.runs import VersionPins
 
 def test_test_pins_never_reach_a_provider():
     rm = llm.for_role("reasoning", VersionPins(), thinking=True)
-    assert isinstance(rm.model, TestModel)
+    assert isinstance(rm.model, FunctionModel)
 
 
 def test_anthropic_settings_use_adaptive_thinking_and_refusal_fallback():
