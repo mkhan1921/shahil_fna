@@ -15,7 +15,7 @@ import { dateLong } from '@/lib/format';
 import { apiReady, createReviewApi } from '@/lib/review/api';
 import { slotById } from '@/lib/review/catalog';
 import { reviewResultBlob, reviewResultName, reviewedFileName } from '@/lib/review/exchange';
-import { callDate, compareNeeds, movedNeeds } from '@/lib/review/impact';
+import { bundleDate, compareNeeds, movedNeeds } from '@/lib/review/impact';
 import { factTitle, householdName } from '@/lib/review/labels';
 import { badgeAt, buildQueue, entryFact, entryOf, nextEntry, nextUndecided, progress, queueKey, queueOrder, type QueueGroup } from '@/lib/review/queue';
 import { canSubmit, commitPending, factAt, isDecided, isReviewItem, openFlags, submit, toResult, unsentOps, type ReviewAction, type ReviewSession } from '@/lib/review/session';
@@ -96,7 +96,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
   const { dispatch: rawDispatch, editSheet, commit, error, clearError, saveState, api, sync, sendOps, replace, flush, get } = handle;
   const { practice } = usePractice();
   const audio = useCallAudio(session.bundle.audio_url);
-  const asAt = useMemo(() => callDate(session.bundle), [session.bundle]);
+  const asAt = useMemo(() => bundleDate(session.bundle), [session.bundle]);
   const analysis = useMemo(() => analyse(session.working, asAt), [session.working, asAt]);
   const queue = useMemo(() => buildQueue(session), [session]);
   const [showCollapsed, setShowCollapsed] = useState(false);

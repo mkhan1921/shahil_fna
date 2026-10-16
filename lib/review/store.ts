@@ -1,19 +1,14 @@
 /**
- * Reviews, gold annotations and the review API settings, kept on this device (IndexedDB) beside the
- * client files they belong to. Nothing here leaves the device unless the adviser exports a file or
- * turns on the review API.
+ * Reviews and gold annotations, kept on this device (IndexedDB) beside the client files they belong
+ * to. Nothing here leaves the device unless the adviser exports a file or turns on the review API.
+ * Listing and deleting live in listing.ts, which the client list loads without the slot catalog.
  */
-import { deleteSetting, getSetting, listSettings, putSetting } from '../store/db';
+import { getSetting, putSetting } from '../store/db';
 import type { AnnotationSession } from './annotate';
-import { DEFAULT_API_SETTINGS, type ReviewApiSettings } from './api';
 import { householdName } from './labels';
-import { SUMMARY_PREFIX, type SessionSummary } from './listing';
+import { REVIEW_PREFIX, SUMMARY_PREFIX, annotationKey, type SessionSummary } from './listing';
 import { buildQueue, progress } from './queue';
 import { openFlags, type ReviewSession } from './session';
-
-const REVIEW = 'review:';
-const ANNOTATION = 'annotation:';
-const API = 'review-api';
 
 export const summariseSession = (s: ReviewSession): SessionSummary => {
   const p = progress(s, buildQueue(s));
@@ -31,22 +26,11 @@ export const summariseSession = (s: ReviewSession): SessionSummary => {
 };
 
 export const saveSession = async (s: ReviewSession) => {
-  await putSetting(`${REVIEW}${s.callId}`, s);
+  await putSetting(`${REVIEW_PREFIX}${s.callId}`, s);
   await putSetting(`${SUMMARY_PREFIX}${s.callId}`, summariseSession(s));
 };
 
-export const loadSession = (callId: string) => getSetting<ReviewSession>(`${REVIEW}${callId}`);
+export const loadSession = (callId: string) => getSetting<ReviewSession>(`${REVIEW_PREFIX}${callId}`);
 
-export const deleteSession = async (callId: string) => {
-  await deleteSetting(`${REVIEW}${callId}`);
-  await deleteSetting(`${SUMMARY_PREFIX}${callId}`);
-};
-
-export const annotationKey = (callId: string, annotatorId: string) => `${ANNOTATION}${callId}:${annotatorId}`;
 export const saveAnnotation = (a: AnnotationSession) => putSetting(annotationKey(a.annotation.call_id, a.annotation.annotator_id), a);
 export const loadAnnotation = (key: string) => getSetting<AnnotationSession>(key);
-export const deleteAnnotation = (key: string) => deleteSetting(key);
-export const listAnnotations = async () => listSettings<AnnotationSession>(ANNOTATION);
-
-export const loadApiSettings = async (): Promise<ReviewApiSettings> => ({ ...DEFAULT_API_SETTINGS, ...(await getSetting<ReviewApiSettings>(API)) });
-export const saveApiSettings = (s: ReviewApiSettings) => putSetting(API, s);

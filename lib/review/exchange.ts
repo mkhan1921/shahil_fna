@@ -67,6 +67,14 @@ export const readReviewPackage = async (text: string): Promise<ReviewBundle> => 
   return (file.json as unknown as ReviewPackage).bundle;
 };
 
+/** A bundle from GET /calls/{id}/review, checked like a package before it is shown. */
+export const checkBundle = async (json: unknown): Promise<ReviewBundle> => {
+  const schemas = await loadSchemas();
+  const problems = checkPackage({ format: 'advisor-intel-review', version: 1, bundle: json }, schemas);
+  if (problems.length) throw new ImportError(`The review API sent a review that does not match the review contract: ${shorten(problems)}.`);
+  return json as ReviewBundle;
+};
+
 /** Read a provenance sidecar file (format "advisor-intel-sidecar"). */
 export const readSidecar = async (text: string): Promise<Sidecar> => {
   const file = readTransferFile(text);

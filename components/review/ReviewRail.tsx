@@ -15,7 +15,7 @@ import { useEffect, useState, type KeyboardEvent, type ReactNode, type Ref } fro
 import type { Analysis } from '@/lib/fna/analysis';
 import { money, moneyCompact, pct } from '@/lib/format';
 import { pyPercent } from '@/lib/review/dist';
-import { attributionSentence, forecastDeterministic, needBand, needLines, posText, retirementViews, type NeedDelta } from '@/lib/review/impact';
+import { attributionSentence, forecastDeterministic, needBand, needLines, retirementViews, type NeedDelta } from '@/lib/review/impact';
 import { factTitle } from '@/lib/review/labels';
 import { FLAG_LABEL, GROUP_LABEL, badgeOf, pBand, progress, type Queue, type QueueGroup } from '@/lib/review/queue';
 import { isDecided, type ReviewFact, type ReviewSession } from '@/lib/review/session';

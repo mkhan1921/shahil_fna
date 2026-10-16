@@ -15,9 +15,9 @@ import type { FnaDocument } from '../fna/types';
 import { factIdFor, pathFor, quantityUnit, rowIdFor, slotAtPath, slotById, toFnaValue, toQuantity, type SlotDef } from './catalog';
 import { pyRound } from './dist';
 import { IDENTITY_FIELD, defaultAt, diffDocuments, getPath, hasRow, isDocumentPath, isListContainer, parsePath, removeRow, setPath, type ListContainer } from './paths';
-import type { Attribution, Dist, Entity, EvidenceRole, FactStatus, Period, PointDist, ReviewBundle, Transcript, Unit } from './types';
+import type { Attribution, Dist, Entity, EvidenceRole, FactStatus, Period, PointDist, Quantity, ReviewBundle, Transcript, Unit } from './types';
 import { rowIdForNewEntity } from './uuid';
-import { fromInput, inputKind, toDist, type EditorValue, type Scalar } from './values';
+import { fromInput, inputKind, toDist, toEditor, toInput, type EditorValue, type Scalar } from './values';
 
 export const GOLD_FORMAT = 'advisor-intel-gold-annotation';
 
@@ -209,6 +209,21 @@ export const goldDist = (g: GoldQuantity): Dist => {
   return { kind: 'discrete', support: v.options.map((o) => Number(o.value)), weights: v.options.map((o) => o.weight) };
 };
 
+/** A gold value as a quantity, so it is phrased and drawn like the system's values. */
+export const goldQuantity = (g: GoldQuantity): Quantity => ({ dist: goldDist(g), unit: g.unit, period: g.period, basis: 'na', real_or_nominal: 'na' });
+
+/** Where the editor starts for a gold value: its mode, and for a range the bounds as said and the quantiles. */
+export const goldToEditor = (slot: SlotDef, g: GoldQuantity | null): { value: EditorValue; quantiles?: Quantiles } => {
+  if (!g) return { value: toEditor(slot, null) };
+  const v = g.value;
+  if (v.kind !== 'range') return { value: toEditor(slot, goldQuantity(g)) };
+  const said = (x: number | null) => (x === null ? '' : toInput(slot, x));
+  return {
+    value: { mode: 'range', low: said(v.low), likely: toInput(slot, v.p50), high: said(v.high) },
+    quantiles: { p10: toInput(slot, v.p10), p50: toInput(slot, v.p50), p90: toInput(slot, v.p90) },
+  };
+};
+
 /** The sheet's value for a gold value: the annotator's median (the p50 of a range). */
 const goldDocValue = (slot: SlotDef, g: GoldQuantity): unknown =>
   toFnaValue(slot, g.value.kind === 'range' ? { kind: 'point', value: g.value.p50 } : goldDist(g));
@@ -320,6 +335,21 @@ export const addAnnotatorRow = (a: AnnotationSession, container: ListContainer, 
     setPath(d.working as FnaDocument, identity, defaultAt(identity)); // creates the row with the FNA defaults
   });
   return [next, row];
+};
+
+/**
+ * The instance of a forecast-only object the annotator names (an event, an income change): the FNA
+ * has no row for it, so it is keyed by its name, "event.annotator_kagiso_studies_overseas".
+ */
+export const forecastInstance = (slot: SlotDef, label: string): string => {
+  const slug = label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+  if (!slug) throw new AnnotationError('Name what this is about.');
+  return `${slot.entity_type ?? 'event'}.annotator_${slug}`;
 };
 
 /**

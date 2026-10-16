@@ -6,7 +6,8 @@ import type { FnaDocument } from '@/lib/fna/types';
 import { apiReady, createReviewApi, type ReviewApiSettings } from '@/lib/review/api';
 import type { Stamp } from '@/lib/review/ops';
 import { addActiveTime, applyAction, commitPending, editDocument, markSent, unsentOps, type ReviewAction, type ReviewSession } from '@/lib/review/session';
-import { loadApiSettings, loadSession, saveSession } from '@/lib/review/store';
+import { loadApiSettings } from '@/lib/review/listing';
+import { loadSession, saveSession } from '@/lib/review/store';
 import type { SaveState } from '@/lib/store/hooks';
 
 /** Seconds of inactivity after which review time stops counting (§15.3 review-time metric). */

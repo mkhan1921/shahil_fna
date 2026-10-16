@@ -4,7 +4,7 @@ import { AudioLines, Download, FileText, Presentation } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { listReviewSummaries, type SessionSummary } from '@/lib/review/listing';
+import { listReviewSummaries, reviewHref, type SessionSummary } from '@/lib/review/listing';
 import { subscribe } from '@/lib/store/db';
 import { useDocument, usePractice } from '@/lib/store/hooks';
 import AppShell from '../AppShell';
@@ -86,7 +86,7 @@ export default function Sheet() {
             {reviews.map((r) => (
               <Link
                 key={r.callId}
-                href={`/review?call=${encodeURIComponent(r.callId)}`}
+                href={reviewHref(r.callId)}
                 onClick={() => void flush()}
                 tabIndex={-1}
                 title="A call review of this client is waiting: open it to check the proposed changes"
