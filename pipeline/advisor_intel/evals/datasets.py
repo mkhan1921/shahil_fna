@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
 
@@ -215,6 +215,17 @@ def sync_transcripts(transcripts: Iterable[Transcript], *, store: DatasetStore |
 def sync_synthetic(calls: Iterable[SyntheticCall], *, store: DatasetStore | None = None) -> list[str]:
     store = store or get_store()
     return store.insert(SYNTHETIC_DATASET, [synthetic_record(c) for c in calls])
+
+
+def heldout_call_ids(store: DatasetStore | None = None) -> set[str]:
+    """The call ids of the held-out gold calls (``split: heldout``, §15.6): what GEPA, the fine-tuning export and RL
+    must never see. Empty when the gold dataset is not reachable, so callers can still pass their own ids."""
+    try:
+        rows = (store or get_store()).fetch(GOLD_CALLS)
+    except Exception as e:  # noqa: BLE001 - a dataset that cannot be read is not a reason to fail an offline export
+        log.warning("could not read %s for the held-out call ids: %s: %s", GOLD_CALLS, type(e).__name__, e)
+        return set()
+    return {str((r.input or {}).get("call_id") or r.id.split(":")[0]) for r in rows if r.metadata.get("split") == "heldout"}
 
 
 def fetch_for_calibration(store: DatasetStore, dataset: str) -> list[DatasetRecord]:
@@ -653,6 +664,23 @@ def default_blob_store() -> BlobStore:
     return LocalBlobStore(data_dir() / "cache")
 
 
+EXPORT_DATASETS: tuple[str, ...] = (GOLD_CALLS, GOLD_TRANSCRIPTS)  # §15.1: the gold calls are exported nightly
+
+
+def export_dataset(dataset: str, *, store: DatasetStore | None = None, blobs: BlobStore | None = None, at: datetime | None = None) -> str:
+    """Snapshot a dataset to object storage as JSONL (§15.1: ``gold-calls`` is exported nightly), one row per line in
+    the dataset-record shape, under ``datasets/<dataset>/<UTC date>.jsonl`` and ``datasets/<dataset>/latest.jsonl``.
+    Returns the dated key."""
+    rows = (store or get_store()).fetch(dataset)
+    blobs = blobs or default_blob_store()
+    stamp = (at or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+    body = "".join(json.dumps(to_jsonable(r.model_dump(mode="json")), sort_keys=True) + "\n" for r in sorted(rows, key=lambda r: r.id))
+    key = f"datasets/{dataset}/{stamp}.jsonl"
+    blobs.write(key, body.encode())
+    blobs.write(f"datasets/{dataset}/latest.jsonl", body.encode())
+    return key
+
+
 class CachedCall(BaseModel):
     """What ``process_cached_call`` receives: one dataset call with its cached Stage 1–2 output."""
 
@@ -818,7 +846,13 @@ def main(argv: list[str] | None = None) -> int:
     tr = sub.add_parser("sync-transcripts", help="sync Transcript JSON files to gold-transcripts")
     tr.add_argument("files", nargs="+", type=Path)
     tr.add_argument("--kind", choices=["human", "asr"], default="human")
+    ex = sub.add_parser("export", help="snapshot datasets to object storage as JSONL (the nightly gold export, §15.1)")
+    ex.add_argument("--dataset", action="append", default=[], help=f"repeatable; default {', '.join(EXPORT_DATASETS)}")
     args = ap.parse_args(argv)
+    if args.cmd == "export":
+        for name in args.dataset or EXPORT_DATASETS:
+            print(f"{name} exported to {export_dataset(name)}")
+        return 0
     if args.cmd == "sync-synthetic":
         from .synthetic import generate_calls
 

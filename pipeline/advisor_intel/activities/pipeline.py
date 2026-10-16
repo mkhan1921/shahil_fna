@@ -20,12 +20,11 @@ import asyncio
 import contextlib
 import dataclasses
 import functools
-import hashlib
 import inspect
 import logging
 import tempfile
 from collections.abc import Callable, Iterator
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -35,15 +34,15 @@ from temporalio.exceptions import ApplicationError
 
 from .. import binding
 from ..config import Settings
+from ..discourse.run import with_rewrites
 from ..extract.reducer import apply_state_ops
 from ..models.crm import CrmRecord
-from ..discourse.run import with_rewrites
 from ..models.entities import DiscourseOutput
 from ..models.facts import Provenance
 from ..models.fna import FnaDocument
 from ..models.forecast import ForecastResult
 from ..models.profile import BlockingFlag, FollowUp, Profile, StateOp
-from ..models.runs import AgentOutcome, VersionPins
+from ..models.runs import AgentOutcome, VersionPins, forecast_seed
 from ..models.transcript import Transcript
 from ..note import MeetingNote, apply_note, generate_note, update_note
 from ..notify import Notifier, ReviewSummary, compose
@@ -112,13 +111,8 @@ def _execution() -> str:
 
 def call_date(call: CallRecord) -> date:
     """The call's date in South Africa, the anchor for relative time (§5.1): from its start, else its upload."""
-    t = call.started_at or call.created_at or datetime.now(timezone.utc)
+    t = call.started_at or call.created_at or datetime.now(UTC)
     return (t.astimezone(SAST) if t.tzinfo else t).date()
-
-
-def forecast_seed(run_id: str) -> int:
-    """A deterministic seed per run (§13.1: pure numpy, deterministic seed per run)."""
-    return int(hashlib.sha256(run_id.encode()).hexdigest()[:8], 16)
 
 
 class PipelineActivities:
@@ -264,7 +258,7 @@ class PipelineActivities:
         from ..pipeline import crm_names
 
         prior, crm = await self._prior(call)
-        started = call.started_at or call.created_at or datetime.now(timezone.utc)
+        started = call.started_at or call.created_at or datetime.now(UTC)
         meta = CallMeta(
             call_id=call.call_id,
             started_at=started,

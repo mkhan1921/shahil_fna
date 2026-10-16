@@ -36,6 +36,7 @@ env:
   BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }} # the Google provider reads GOOGLE_API_KEY, then the legacy GEMINI_API_KEY
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
   PYDANTIC_AI_NO_BANNER: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -69,6 +70,14 @@ jobs:
       - name: Sync the synthetic calls
         if: inputs.sync_synthetic
         run: python -m advisor_intel.evals.datasets sync-synthetic --n 300 --seed 0
+      - name: Export the gold calls and transcripts to object storage (spec §15.1)
+        if: github.event_name == 'schedule' && env.ADVISOR_INTEL_OBJECT_STORE_URI != ''
+        env:
+          ADVISOR_INTEL_OBJECT_STORE_URI: ${{ secrets.ADVISOR_INTEL_OBJECT_STORE_URI }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        run: python -m advisor_intel.evals.datasets export
       - name: Gold suite
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then name="gold-release-$GITHUB_REF_NAME"; else name="gold-nightly-$(date -u +%F)"; fi

@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 45
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -63,7 +63,7 @@ jobs:
       - name: Install the pipeline
         run: python -m pip install -e ".[dev]"
       - name: Lint the evaluation code
-        run: ruff check --select F,E advisor_intel/evals redteam tests/test_evals_*.py tests/test_redteam_scenarios.py
+        run: ruff check --select F,E advisor_intel/evals redteam tests/test_evals_*.py tests/evals_fakes.py tests/test_redteam_scenarios.py
       - name: The slot catalog matches the FNA app (spec §4)
         run: python -m advisor_intel.schema.generate --check
       - name: Every slot group compiles within the provider schema limits (spec §4.4)
@@ -89,7 +89,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_PASSWORD: postgres
         ports:

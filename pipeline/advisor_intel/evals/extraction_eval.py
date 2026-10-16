@@ -129,29 +129,38 @@ def latest_prompt_versions(root: Path | None = None) -> dict[str, str]:
     return out
 
 
-def _lexicon_version() -> str | None:
-    lex_dir = PIPELINE_DIR / "advisor_intel" / "lexicon"
-    files = sorted(lex_dir.glob("v*.yaml")) if lex_dir.exists() else []
+_LEXICON_FILE = re.compile(r"^v(\d+(?:\.\d+)*)\.yaml$")
+
+
+def _version_key(text: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in text.split("."))
+
+
+def _lexicon_version(lex_dir: Path | None = None) -> str | None:
+    """The newest lexicon file's version (``lexicon/v{major.minor}.yaml``, compared numerically: v1.10 > v1.3)."""
+    lex_dir = lex_dir or (PIPELINE_DIR / "advisor_intel" / "lexicon")
+    files = [p for p in lex_dir.glob("v*.yaml") if _LEXICON_FILE.match(p.name)] if lex_dir.exists() else []
     if not files:
         return None
+    newest = max(files, key=lambda p: _version_key(_LEXICON_FILE.match(p.name).group(1)))  # type: ignore[union-attr]
     try:
-        v = yaml.safe_load(files[-1].read_text()).get("version")
+        v = yaml.safe_load(newest.read_text()).get("version")
     except (OSError, AttributeError, yaml.YAMLError):
         return None
     return str(v) if v is not None else None
 
 
 def current_version_pins(*, prompts_root: Path | None = None) -> VersionPins:
-    """The pins this checkout would run with: model routing from settings, the newest prompt and lexicon versions,
-    and ``ADVISOR_INTEL_PIN_<FIELD>`` overrides (e.g. ``ADVISOR_INTEL_PIN_CALIBRATOR_VERSION``)."""
-    routing = get_settings().models
-    pins = VersionPins(
-        frontier_model=routing.frontier,
-        reasoning_model=routing.reasoning,
-        verifier_model=routing.verifier,
-        small_model=routing.small,
-        prompt_versions=latest_prompt_versions(prompts_root),
-    )
+    """The pins this checkout would run with: the deployment's model routing and ASR provider
+    (``advisor_intel.pipeline.deployment_pins``, the same pins a production call starts with), the newest prompt and
+    lexicon versions, and ``ADVISOR_INTEL_PIN_<FIELD>`` overrides (e.g. ``ADVISOR_INTEL_PIN_CALIBRATOR_VERSION``)."""
+    deployment = lazy_attr("advisor_intel.pipeline", "deployment_pins")
+    if deployment is not None:
+        pins = deployment(get_settings())
+    else:  # the evals without the pipeline installed: the model routing alone
+        m = get_settings().models
+        pins = VersionPins(frontier_model=m.frontier, reasoning_model=m.reasoning, verifier_model=m.verifier, small_model=m.small)
+    pins = pins.model_copy(update={"prompt_versions": latest_prompt_versions(prompts_root)})
     updates: dict[str, Any] = {}
     lex = _lexicon_version()
     if lex:

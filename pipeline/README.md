@@ -112,6 +112,45 @@ extractor), `_SMALL` and `_SECONDARY` (the fallback provider), with the provider
 | The investment team's CMA and return history | the forecast's market model (`forecast/cma/2026Q4.yaml` is a placeholder) |
 | GPUs or a Tinker-compatible API | the fine-tuning (M6) and RL (M7) tracks |
 
+## Evaluation, datasets and CI gates (spec §15–16)
+
+`advisor_intel/evals` holds the datasets, every §15.3 metric (`scorers.py`), the Braintrust experiment, the CI
+gate, GEPA, the red team and the fine-tuning and RL tracks. Everything runs offline on local JSONL datasets under
+`pipeline/.data` (gitignored); with `BRAINTRUST_API_KEY` the same code uses the Braintrust project
+`advisor-extraction` (`ADVISOR_INTEL_EVAL_PROJECT`) for datasets, experiments and baselines.
+
+```bash
+.venv/bin/python -m advisor_intel.evals.datasets sync-synthetic --n 300 --seed 0      # the 300 synthetic calls
+.venv/bin/python -m advisor_intel.evals.datasets sync-gold A.json,B.json[,ADJ.json]    # adjudicate annotators' files
+.venv/bin/python -m advisor_intel.evals.datasets sync-transcripts t.json --kind human  # the gold transcripts
+.venv/bin/python -m advisor_intel.evals.datasets export                                 # gold-calls to object storage
+.venv/bin/python -m advisor_intel.evals.extraction_eval --dataset synthetic-calls      # the experiment, locally
+.venv/bin/python -m advisor_intel.evals.gate check --current REPORT.json --baseline-ref main
+.venv/bin/python -m advisor_intel.evals.error_analysis weekly --days 7                 # §15.5
+braintrust eval advisor_intel/evals/eval_extraction.py                                 # what CI runs
+```
+
+A run writes `.data/evals/reports/advisor-extraction-<dataset>-latest.json` (per-item means, the summary scores:
+ECE pooled and per slot group, Brier against the cold-start baseline, PoS error, auto-accept rate, wrong-auto-accept
+share, critical-miss rate, flag recall, need agreement, note metrics) and the scored rows the error analysis reads.
+The gate fails when a tier A metric regresses by more than 2 points, ECE worsens by more than 0.01 (pooled, and per
+group with ≥ 30 labelled facts in both reports) or the task error rate rises by more than 5 points.
+
+| Gate (spec §15.4, §15.7, §16) | Workflow | When |
+| --- | --- | --- |
+| Synthetic suite against the default branch's baseline | `.github/workflows/eval-gate.yml` | pull requests touching prompts, schema, lexicon, extract, verify or harness; a push to the default branch publishes the new baseline |
+| Gold suite on human and ASR transcripts; weekly error analysis | `.github/workflows/nightly-gold.yml` | nightly, on release tags; Mondays for the analysis |
+| Red team: scenarios offline (oracle, compromised extractor), promptfoo on the deployment's models | `.github/workflows/redteam.yml` | release tags; pull requests touching the harness, extraction or prompts (promptfoo with the `redteam` label) |
+| FNA engine parity on 2,000 documents (§12.7) | `.github/workflows/fna-parity.yml` | changes to either engine or the tables |
+| Lint, slot catalog, schema limits, the test suite, Temporal replay and dev-server tests | `.github/workflows/pipeline.yml` | every change under `pipeline/` |
+
+GEPA (`evals/gepa_adapter.py`) optimises one slot group's instruction block at a time with 100–500 evaluations and
+never sees the held-out calls (`split: heldout`, else the 20 lowest call-id hashes); a winner is written as
+`v{n+1}.md` only after passing the gate on those calls. The fine-tuning export (`evals/finetune.py`) splits by
+client, weighs adjudicated gold calls 3× and refuses held-out calls; `rl_reward.py` is the §15.9 reward with the
+reward-hacking checks. Synthetic rows never reach the calibrator or the conformal threshold
+(`datasets.fetch_for_calibration`).
+
 ## The review overlay's contract (spec §11)
 
 The FNA app reviews a call against JSON Schemas exported from these models (`lib/review/schema/`):

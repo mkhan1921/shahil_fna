@@ -97,6 +97,17 @@ def test_current_version_pins_read_prompt_versions(tmp_path, monkeypatch):
     pins = E.current_version_pins(prompts_root=root)
     assert pins.prompt_versions == {"entailment": "v2", "extract_slot_group/income": "v3"}
     assert pins.calibrator_version == "cal-7"
+    # the same routing and ASR pins a production call starts with (advisor_intel.pipeline.deployment_pins)
+    runner = pytest.importorskip("advisor_intel.pipeline")
+    from advisor_intel.config import get_settings
+
+    deployed = runner.deployment_pins(get_settings())
+    assert (pins.asr_provider, pins.asr_model_version, pins.reasoning_model) == (
+        deployed.asr_provider,
+        deployed.asr_model_version,
+        deployed.reasoning_model,
+    )
+    assert pins.asr_provider == get_settings().asr_provider != "fake"
 
 
 def test_report_metric_lookup():
@@ -175,3 +186,25 @@ def test_cli_runs_the_local_dataset(world, monkeypatch):
     assert E.main(["--dataset", "synthetic-calls", "--limit", "2", "--out", str(out)]) == 0
     assert E.load_report(Path(out)).n_items == 2
     assert E.main(["--dataset", "gold-calls"]) == 2  # empty dataset
+
+
+def test_the_lexicon_version_pin_compares_versions_numerically(tmp_path):
+    lex = tmp_path / "lexicon"
+    lex.mkdir()
+    for name, version in (("v1.3.yaml", "1.3"), ("v1.10.yaml", "1.10"), ("catalogue_za_v1.yaml", "za-1")):
+        (lex / name).write_text(f"version: '{version}'\n")
+    assert E._lexicon_version(lex) == "1.10"  # noqa: SLF001 - lexicographic order would pick v1.3
+    assert E._lexicon_version(tmp_path / "missing") is None  # noqa: SLF001
+    assert E.current_version_pins().lexicon_version == E._lexicon_version()  # noqa: SLF001 - the checkout's newest lexicon
+
+
+def test_the_eval_reads_the_pipelines_own_forecast_seed():
+    """§15.3: the gold profile is forecast on the system run's seed, which is one function shared by the in-process
+    runner and the Temporal activities."""
+    from advisor_intel.models.runs import forecast_seed
+
+    assert forecast_seed("run-1") == forecast_seed("run-1") != forecast_seed("run-2")
+    runner = pytest.importorskip("advisor_intel.pipeline")
+    assert runner.forecast_seed is forecast_seed
+    activities = pytest.importorskip("advisor_intel.activities.pipeline")
+    assert activities.forecast_seed is forecast_seed

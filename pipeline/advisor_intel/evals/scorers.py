@@ -552,17 +552,24 @@ def numbers_in(text: str) -> list[list[float]]:
 
 
 def _anchors(f: SystemFact) -> list[float]:
+    """The numbers a fact supports in a note sentence: its quantiles or P(true), the calendar year of a date, a
+    categorical fact's label (as a number, or the numbers inside it: 'Less than 1 month') and its option
+    probabilities (the note's '(100%)' certainty), and P(false) for a boolean said the other way round."""
     v = f.value
     if v is None:
         return []
     xs = [x for x in (v.p10, v.p50, v.p90, v.p_true) if x is not None]
     if v.kind == "numeric" and v.p50 is not None and 1000 < v.p50 < 3000:
         xs.append(math.floor(v.p50))  # dates as decimal years: the calendar year
-    if v.kind == "categorical" and v.label:
-        try:
-            xs.append(float(v.label))
-        except ValueError:
-            pass
+    if v.kind in ("boolean", "probability") and v.p_true is not None:
+        xs.append(1.0 - v.p_true)
+    if v.kind == "categorical":
+        if v.label:
+            try:
+                xs.append(float(v.label))
+            except ValueError:
+                xs.extend(c for cands in numbers_in(v.label) for c in cands)
+        xs.extend(p for p in v.probs.values() if p is not None)
     return xs
 
 

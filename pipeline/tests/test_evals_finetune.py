@@ -114,6 +114,28 @@ def test_export_splits_by_client_and_excludes_heldout(reviewed_calls):
     assert {"objects", "statuses", "values"} >= {x.stage for x in ex}
 
 
+def test_the_gold_datasets_heldout_calls_are_excluded_by_default(reviewed_calls, tmp_path, monkeypatch):
+    """A reviewed call that is one of the held-out gold calls (§15.6) stays out of the export and of RL even when its
+    ``heldout`` flag was not set: the ids come from the gold dataset itself."""
+    from advisor_intel.evals.datasets import GOLD_CALLS, LocalStore, heldout_call_ids, sync_gold
+
+    monkeypatch.delenv("BRAINTRUST_API_KEY", raising=False)
+    monkeypatch.setenv("ADVISOR_INTEL_DATA_DIR", str(tmp_path))
+    assert heldout_call_ids() == set()  # no gold dataset yet
+    leaked = reviewed_calls[2]
+    assert not leaked.heldout
+    gold = generate_calls(1, seed=41)[0].gold.model_copy(update={"call_id": leaked.call_id, "source": "real", "split": "heldout"})
+    sync_gold([gold], store=LocalStore(tmp_path / "datasets"))
+    assert heldout_call_ids() == {leaked.call_id} and LocalStore().fetch(GOLD_CALLS)
+    ex, st = FT.export_training_data(reviewed_calls, render_prompt=render)
+    assert st.skipped_heldout_calls == 2 and leaked.call_id not in {e.call_id for e in ex}  # the flagged call and the dataset's
+    ex2, _ = FT.export_training_data(reviewed_calls, render_prompt=render, heldout_ids=())  # an explicit list overrides the lookup
+    assert leaked.call_id in {e.call_id for e in ex2}
+    prompt = FT.RLPrompt(prompt_id="p", call_id=leaked.call_id, group="retirement", messages=[], reviewed=[], segments={})
+    with pytest.raises(ValueError, match="held-out"):
+        FT.grpo_train([prompt], training_client=None, reference_client=None, postprocess=lambda t, p: [])
+
+
 def test_targets_teach_not_discussed_and_carry_edits(reviewed_calls):
     c = reviewed_calls[1]
     rejected = next(f for f in c.profile.facts.values() if f.review.status == "rejected")

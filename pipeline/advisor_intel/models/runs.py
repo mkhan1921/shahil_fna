@@ -65,6 +65,14 @@ class VersionPins(BaseModel):
         return hashlib.sha256(self.model_dump_json().encode()).hexdigest()[:16]
 
 
+def forecast_seed(run_id: str) -> int:
+    """The deterministic Monte Carlo seed of a run (§13.1): the same in and out of Temporal, so the eval's gold
+    profile can be forecast on the draws the system run used (§15.3)."""
+    import hashlib
+
+    return int(hashlib.sha256(run_id.encode()).hexdigest()[:8], 16)
+
+
 class CallArgs(BaseModel):
     call_id: str
     advisor_id: str = ""
@@ -75,10 +83,10 @@ class CallArgs(BaseModel):
     review_reminder_seconds: int = 3 * 24 * 3600
     budget_usd: float | None = None
 
-    def preview(self) -> "CallArgs":
+    def preview(self) -> CallArgs:
         return self.model_copy(update={"forecast_mode": "preview"})
 
-    def final(self) -> "CallArgs":
+    def final(self) -> CallArgs:
         return self.model_copy(update={"forecast_mode": "final"})
 
 
