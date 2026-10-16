@@ -17,6 +17,7 @@
 ``GET  /calls/{id}/review-package``      the review as a file (file exchange, §11.5)
 ``POST /calls/{id}/review-result``       the reviewed result as a file
 ``GET  /calls/{id}/audio``, ``/note``    the recording (local stores) and the meeting note
+``POST /calls/{id}/note``                bring the note up to date with edited facts (§11.6)
 =======================================  ==============================================================
 
 Every endpoint but ``/healthz`` needs ``Authorization: Bearer <Settings.api_token>``; without a token
@@ -54,7 +55,7 @@ from ..models.forecast import ForecastResult
 from ..models.profile import Profile, StateOp
 from ..models.review import ReviewPackage, ReviewResult
 from ..models.runs import CallArgs, FollowupAnswer, ReviewSubmission, RunState, Stage, VersionPins
-from ..note import MeetingNote, apply_note
+from ..note import MeetingNote, apply_note, generate_note, update_note
 from ..review_actions import apply_flag_clearances, apply_reviewer_ops, followup_edit_events, glossary_entry, term_confirmation_events
 from ..storage.glossary import PostgresGlossaryStore
 from ..storage.objects import LocalObjectStore, ObjectStore, open_object_store, safe_segment
@@ -619,6 +620,21 @@ async def get_note(call_id: str, d: ApiDeps = Depends(deps)) -> JSONResponse:
         raise HTTPException(404, "no meeting note yet")
     m = MeetingNote.model_validate(note[1])
     return JSONResponse({**m.model_dump(mode="json"), "text": m.text(), "narrative_fields": m.narrative_fields()})
+
+
+@router.post("/calls/{call_id}/note")
+async def regenerate_note(call_id: str, d: ApiDeps = Depends(deps)) -> JSONResponse:
+    """Bring the meeting note up to date (§11.6): only sentences citing a changed fact are rewritten; written fresh if none exists."""
+    run = await _run(d, await _call(d, call_id))
+    profile = await _profile(d, run)
+    prev = await d.store.latest_note(run.workflow_id)
+    with run_context(call_id=call_id, workflow_id=run.workflow_id, stage="note", pins=run.versions):
+        if prev is not None:
+            note = await update_note(MeetingNote.model_validate(prev[1]), profile, pins=run.versions)
+        else:
+            note = await generate_note(profile, pins=run.versions)
+    await d.store.save_note(run.workflow_id, profile.version, note.model_dump(mode="json"))
+    return JSONResponse({**note.model_dump(mode="json"), "text": note.text(), "narrative_fields": note.narrative_fields()})
 
 
 # --------------------------------------------------------------------------- app

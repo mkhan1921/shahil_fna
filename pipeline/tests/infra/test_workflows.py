@@ -155,6 +155,18 @@ async def test_manual_route_when_speakers_out_of_range(temporal_bin):
     assert mocks.names() == [C.INGEST_AUDIO, C.NOTIFY_ADVISOR] and mocks.inputs(C.NOTIFY_ADVISOR)[0].kind == "manual_review"
 
 
+async def test_a_stage_that_cannot_run_fails_the_run_and_the_state_says_so(temporal_bin):
+    mocks = MockActivities(fail_discourse=True)
+    async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
+        handle = await env.client.start_workflow(
+            CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
+        with pytest.raises(WorkflowFailureError):
+            await handle.result()
+        assert await handle.query(CallPipelineWorkflow.run_state) == RunState.FAILED
+    assert mocks.names() == [C.INGEST_AUDIO, C.RUN_DISCOURSE]  # non-retryable: one attempt
+
+
 async def test_large_review_submission_is_offloaded_to_object_storage(temporal_bin, objects):
     mocks = MockActivities()
     ops = [
@@ -195,7 +207,7 @@ async def test_followup_intake_workflow(temporal_bin):
             task_queue=tq,
             execution_timeout=EXEC_TIMEOUT,
         )
-    assert mocks.names() == [C.INTAKE_FOLLOWUP, C.RUN_FORECAST]
+    assert mocks.names() == [C.INTAKE_FOLLOWUP, C.RENDER_NOTE, C.RUN_FORECAST]
     assert mocks.inputs(C.RUN_FORECAST)[0].run_id == "call-1-run-a" and mocks.inputs(C.RUN_FORECAST)[0].args.forecast_mode == "final"
     assert out.intake.followup_id == "fu.retirement_age" and out.forecast.pos == 0.72
 

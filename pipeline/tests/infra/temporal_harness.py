@@ -33,6 +33,7 @@ class MockActivities:
     manual: bool = False
     failing_answers: tuple[str, ...] = ()
     failing_nightly: tuple[str, ...] = ()
+    fail_discourse: bool = False
     calls: list[tuple[str, Any]] = field(default_factory=list)
     profile_version: int = 3
 
@@ -53,6 +54,8 @@ class MockActivities:
         @activity.defn(name=C.RUN_DISCOURSE)
         async def run_discourse(inp: C.StageInput) -> C.StageOutcome:
             m.calls.append((C.RUN_DISCOURSE, inp))
+            if m.fail_discourse:
+                raise ApplicationError("discourse cannot run", type="StageUnavailable", non_retryable=True)
             return C.StageOutcome(stage="discourse", cache_key="disc-1")
 
         @activity.defn(name=C.RUN_AGENT)

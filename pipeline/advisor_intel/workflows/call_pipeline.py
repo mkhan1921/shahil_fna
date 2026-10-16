@@ -117,6 +117,13 @@ class CallPipelineWorkflow:
 
     @workflow.run
     async def run(self, args: CallArgs) -> CallResult:
+        try:
+            return await self._run(args)
+        except BaseException:
+            self.state = RunState.FAILED  # what run_state reports for a run that ended in an error
+            raise
+
+    async def _run(self, args: CallArgs) -> CallResult:
         run_id = workflow.info().workflow_id
         stage_in = StageInput(run_id=run_id, args=args)
 

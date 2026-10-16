@@ -377,6 +377,9 @@ async def test_fna_export_with_sidecar_and_note(api):
     part = await api.c.get("/calls/call-1/fna", params={"part": "fna"})
     assert part.headers["content-disposition"].startswith("attachment") and part.json()["format"] == "shahil-fna"
     assert (await api.c.get("/calls/call-1/note")).json()["narrative_fields"] == {"advice.summary": "Thabo plans to retire at 62."}
+    # Nothing it cites changed: regenerating keeps every sentence.
+    regen = await api.c.post("/calls/call-1/note")
+    assert regen.status_code == 200 and [s["text"] for s in regen.json()["sentences"]] == ["Thabo plans to retire at 62."]
 
 
 async def test_file_exchange_review_package_and_result(api):

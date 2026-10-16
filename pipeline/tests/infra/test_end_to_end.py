@@ -147,6 +147,8 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
                 assert late.json()["routed"] == "intake_workflow"
                 intake = await env.client.get_workflow_handle(late.json()["workflow_id"], result_type=FollowupIntakeResult).result()
                 assert intake.intake.applied == 1 and intake.forecast.mode == "final" and fakes.calls["forecast"] == 4
+                note_version, _ = await store.latest_note(run_id)
+                assert note_version == intake.intake.profile_version  # the note follows the changed fact
 
 
 async def test_rerun_by_reset_rewinds_to_the_stage_and_reuses_earlier_outputs(store, objects, temporal_bin):
