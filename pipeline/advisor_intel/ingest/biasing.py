@@ -25,15 +25,31 @@ BOOST = {"name": 2.0, "product": 2.0, "amount": 1.5, "age": 1.2, "vocab": 1.0, "
 FORMS_PER_AMOUNT = 5
 FORMS_PER_DISTRACTOR = 2
 MIN_AMOUNT = 100.0
-GENERIC_NAMES = frozenset({"bank", "fund", "provider", "platform", "lisp platform", "money market", "employer", "insurer", "other", "n/a", "na"})
+GENERIC_NAMES = frozenset(
+    {"bank", "fund", "provider", "platform", "lisp platform", "money market", "employer", "insurer", "other", "n/a", "na"}
+)
 _CATALOG_SURFACES = frozenset(s for p in PRODUCTS for s in p.surfaces)
 
 # FnaDocument money fields per list row / person, as (container, fields). Assumptions and the advice record are
 # set by the adviser in the app, not said on the call, so they are not boosted.
 _PERSON_MONEY = {
-    "income": ("grossMonthly", "annualBonus", "otherTaxableMonthly", "nonTaxableMonthly", "medicalAidPayrollMonthly", "otherPayrollDeductionsMonthly"),
+    "income": (
+        "grossMonthly",
+        "annualBonus",
+        "otherTaxableMonthly",
+        "nonTaxableMonthly",
+        "medicalAidPayrollMonthly",
+        "otherPayrollDeductionsMonthly",
+    ),
     "retirement": ("targetMonthly", "otherIncomeMonthly"),
-    "estate": ("additionalIncomeNeedMonthly", "additionalCapitalNeed", "portedAbatement", "cashBequests", "accrualCommencementValue", "funeralCost"),
+    "estate": (
+        "additionalIncomeNeedMonthly",
+        "additionalCapitalNeed",
+        "portedAbatement",
+        "cashBequests",
+        "accrualCommencementValue",
+        "funeralCost",
+    ),
 }
 _LIST_MONEY = {
     "dependants": ("monthlySupport", "schoolFeesAnnual", "tertiaryCostAnnual", "educationSavings", "educationSavingsMonthly"),
@@ -58,7 +74,9 @@ def load_vocab_file(path: Path = VOCAB_FILE) -> Vocabulary:
             section = line[1:-1].strip()
             continue
         term, *sounds = [p.strip() for p in line.split("|")]
-        phrases.append(BiasPhrase(text=term, kind="vocab", boost=BOOST["vocab"], sounds_like=[s for s in sounds if s], source=f"{path.name}:{section}"))
+        phrases.append(
+            BiasPhrase(text=term, kind="vocab", boost=BOOST["vocab"], sounds_like=[s for s in sounds if s], source=f"{path.name}:{section}")
+        )
     return Vocabulary(phrases=phrases)
 
 
@@ -145,7 +163,9 @@ def prior_names(doc: FnaDocument) -> list[tuple[str, str, PhraseKind]]:
 
 
 def amount_phrases(value: float, *, source: str = "", distractors: bool = True) -> list[BiasPhrase]:
-    phrases = [BiasPhrase(text=t, kind="amount", boost=BOOST["amount"], source=source) for t in amount_spoken_forms(value)[:FORMS_PER_AMOUNT]]
+    phrases = [
+        BiasPhrase(text=t, kind="amount", boost=BOOST["amount"], source=source) for t in amount_spoken_forms(value)[:FORMS_PER_AMOUNT]
+    ]
     if distractors and value >= MIN_AMOUNT:
         for factor in (10.0, 0.1):
             for t in amount_spoken_forms(round(value * factor, 2))[:FORMS_PER_DISTRACTOR]:
@@ -172,8 +192,14 @@ def call_phrases(prior_fna: FnaDocument | None, *, anchor: date, crm: CrmNames |
     return phrases
 
 
-def build_vocabulary(prior_fna: FnaDocument | None = None, *, anchor: date, crm: CrmNames | None = None, include_static: bool = True,
-                     distractors: bool = True) -> Vocabulary:
+def build_vocabulary(
+    prior_fna: FnaDocument | None = None,
+    *,
+    anchor: date,
+    crm: CrmNames | None = None,
+    include_static: bool = True,
+    distractors: bool = True,
+) -> Vocabulary:
     """Static vocabulary plus the per-call phrases, ready for an adapter."""
     vocab = Vocabulary(phrases=call_phrases(prior_fna, anchor=anchor, crm=crm, distractors=distractors))
     return vocab.merged(load_vocab_file()) if include_static else vocab

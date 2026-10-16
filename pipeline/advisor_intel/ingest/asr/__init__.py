@@ -8,7 +8,7 @@ from ...config import Settings, get_settings
 from ...models.runs import VersionPins
 from ..types import AsrError
 from .assemblyai import AssemblyAIASR
-from .base import ASRProvider, AsrAudio, HttpProvider, fold_nbest
+from .base import AsrAudio, ASRProvider, HttpProvider, fold_nbest
 from .deepgram import DeepgramASR
 from .fake import NoiseConfig, ScriptedASR, ScriptedCall, ScriptRender, ScriptTurn
 from .granite import GraniteSpeechASR

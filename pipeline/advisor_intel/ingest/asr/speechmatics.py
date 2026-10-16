@@ -48,8 +48,10 @@ class SpeechmaticsASR(HttpProvider):
     def config(self, audio: AsrAudio | None, vocab: Vocabulary | None) -> dict:
         tc: dict = {"language": self.language, "operating_point": self.operating_point, "enable_entities": self.entities}
         if vocab:
-            tc["additional_vocab"] = [{"content": p.text, "sounds_like": p.sounds_like} if p.sounds_like else {"content": p.text}
-                                      for p in vocab.select(self.vocab_limit)]
+            tc["additional_vocab"] = [
+                {"content": p.text, "sounds_like": p.sounds_like} if p.sounds_like else {"content": p.text}
+                for p in vocab.select(self.vocab_limit)
+            ]
         stereo = audio is not None and audio.layout == "stereo_split" and audio.n_channels > 1
         tc["diarization"] = "channel" if stereo else "none"
         if stereo:
@@ -61,8 +63,15 @@ class SpeechmaticsASR(HttpProvider):
             raise ValueError("Speechmatics needs audio")
         headers = {"Authorization": f"Bearer {require_key(self.api_key, 'Speechmatics')}"}
         http = self.http()
-        job = self.json_or_raise(await http.post(f"{self.base_url}/jobs/", headers=headers, files={"data_file": ("audio.wav", audio.wav(), "audio/wav")},
-                                         data={"config": json.dumps(self.config(audio, vocab))}), "Speechmatics")
+        job = self.json_or_raise(
+            await http.post(
+                f"{self.base_url}/jobs/",
+                headers=headers,
+                files={"data_file": ("audio.wav", audio.wav(), "audio/wav")},
+                data={"config": json.dumps(self.config(audio, vocab))},
+            ),
+            "Speechmatics",
+        )
         job_id = job["id"]
 
         async def fetch() -> dict:
@@ -73,7 +82,9 @@ class SpeechmaticsASR(HttpProvider):
             return f"{status}: {(b.get('job') or {}).get('errors')}" if status in ("rejected", "deleted", "expired") else None
 
         await self.poll(fetch, lambda b: (b.get("job") or {}).get("status") == "done", failed, "Speechmatics")
-        body = self.json_or_raise(await http.get(f"{self.base_url}/jobs/{job_id}/transcript", params={"format": "json-v2"}, headers=headers), "Speechmatics")
+        body = self.json_or_raise(
+            await http.get(f"{self.base_url}/jobs/{job_id}/transcript", params={"format": "json-v2"}, headers=headers), "Speechmatics"
+        )
         return parse_speechmatics(body, self.model_version)
 
 
@@ -89,9 +100,15 @@ def _channel(item: dict) -> int | None:
 def _word(item: dict) -> AsrWord:
     alts = item.get("alternatives") or [{}]
     best = alts[0]
-    return AsrWord(text=best.get("content", ""), t_start=float(item["start_time"]), t_end=float(item["end_time"]),
-                   conf=float(best.get("confidence") or 0.0), alts=[(a["content"], float(a.get("confidence") or 0.0)) for a in alts[1:] if a.get("content")],
-                   channel=_channel(item), speaker=best.get("speaker") if not str(best.get("speaker", "")).startswith("ch") else None)
+    return AsrWord(
+        text=best.get("content", ""),
+        t_start=float(item["start_time"]),
+        t_end=float(item["end_time"]),
+        conf=float(best.get("confidence") or 0.0),
+        alts=[(a["content"], float(a.get("confidence") or 0.0)) for a in alts[1:] if a.get("content")],
+        channel=_channel(item),
+        speaker=best.get("speaker") if not str(best.get("speaker", "")).startswith("ch") else None,
+    )
 
 
 def parse_speechmatics(body: dict, model_version: str) -> AsrResult:
@@ -104,8 +121,16 @@ def parse_speechmatics(body: dict, model_version: str) -> AsrResult:
         written = (e.get("alternatives") or [{}])[0].get("content") or " ".join(w.text for w in spoken)
         conf = sum(w.conf for w in spoken) / len(spoken) if spoken else float((e.get("alternatives") or [{}])[0].get("confidence") or 0.0)
         raw = " ".join(w.text for w in spoken) or None
-        words.append(AsrWord(text=written, t_start=float(e["start_time"]), t_end=float(e["end_time"]), conf=round(conf, 4),
-                             raw_spoken=raw if raw and raw != written else None, channel=_channel(e)))
+        words.append(
+            AsrWord(
+                text=written,
+                t_start=float(e["start_time"]),
+                t_end=float(e["end_time"]),
+                conf=round(conf, 4),
+                raw_spoken=raw if raw and raw != written else None,
+                channel=_channel(e),
+            )
+        )
     for r in results:
         kind = r.get("type")
         if kind == "word":

@@ -62,7 +62,7 @@ class PreparedAudio:
         a = max(0, int(round(t0 * self.sample_rate)))
         b = min(self.samples.shape[1], int(round(t1 * self.sample_rate)))
         src = self.mono() if channel is None or channel >= self.n_channels else self.samples[channel]
-        return src[a:max(a, b)].copy()
+        return src[a : max(a, b)].copy()
 
 
 def load_audio(audio: Path | str | list[Path] | list[str]) -> tuple[np.ndarray, int]:
@@ -161,8 +161,9 @@ def detect_layout(samples: np.ndarray, sr: int) -> tuple[Layout, float | None, n
     return "stereo_split", corr, samples, notes
 
 
-def preprocess(audio: Path | str | list[Path] | list[str] | np.ndarray, sample_rate: int | None = None, *,
-               target_lufs: float = TARGET_LUFS) -> PreparedAudio:
+def preprocess(
+    audio: Path | str | list[Path] | list[str] | np.ndarray, sample_rate: int | None = None, *, target_lufs: float = TARGET_LUFS
+) -> PreparedAudio:
     """Load (or take an array), resample to 16 kHz, detect the layout and loudness-normalise each kept channel."""
     if isinstance(audio, np.ndarray):
         if sample_rate is None:

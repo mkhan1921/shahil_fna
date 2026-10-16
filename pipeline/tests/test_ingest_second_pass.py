@@ -37,8 +37,14 @@ def seg(sid: str, speaker: str, start: float, items, step: float = 0.4) -> Segme
         text, conf = (it, 0.95) if isinstance(it, str) else it
         words.append(Word(text=text, t_start=round(t, 3), t_end=round(t + step - 0.05, 3), conf=conf))
         t += step
-    return Segment(segment_id=sid, speaker_label=speaker, t_start=words[0].t_start, t_end=words[-1].t_end, words=words,
-                   text=" ".join(w.text for w in words))
+    return Segment(
+        segment_id=sid,
+        speaker_label=speaker,
+        t_start=words[0].t_start,
+        t_end=words[-1].t_end,
+        words=words,
+        text=" ".join(w.text for w in words),
+    )
 
 
 def call() -> Transcript:
@@ -51,7 +57,9 @@ def call() -> Transcript:
         seg("s0006", "ch0", 18.0, ["the", "RA", "has", "three", "hundred", "thousand"]),
         seg("s0007", "ch1", 19.2, ["mm", "yes"]),  # overlaps the amount above
     ]
-    t = Transcript(call_id="c1", anchor_date=date(2026, 10, 16), segments=segs, asr_provider="t", asr_model_version="t", channel_layout="stereo_split")
+    t = Transcript(
+        call_id="c1", anchor_date=date(2026, 10, 16), segments=segs, asr_provider="t", asr_model_version="t", channel_layout="stereo_split"
+    )
     return annotate_transcript(t)
 
 
@@ -100,8 +108,17 @@ def test_clips_run_two_seconds_either_side_on_the_speakers_channel():
 def _request(surface_values=(250.0, 250_000.0, 2_500_000.0)) -> SecondPassRequest:
     res = parse("two fifty", "amount")
     span = call().numeric_spans[0]
-    return SecondPassRequest(span=span, kind="amount", candidates=res.readings, clip=tone(4.6, 200), sample_rate=16_000, clip_start=1.1,
-                             span_start=3.1, span_end=3.7, context="client: about [two fifty]")
+    return SecondPassRequest(
+        span=span,
+        kind="amount",
+        candidates=res.readings,
+        clip=tone(4.6, 200),
+        sample_rate=16_000,
+        clip_start=1.1,
+        span_start=3.1,
+        span_end=3.7,
+        context="client: about [two fifty]",
+    )
 
 
 async def test_audio_model_check_uses_guided_choice_over_the_candidates():
@@ -110,9 +127,21 @@ async def test_audio_model_check_uses_guided_choice_over_the_candidates():
     def handler(req: httpx.Request) -> httpx.Response:
         seen["body"] = json.loads(req.read())
         seen["auth"] = req.headers.get("authorization")
-        return httpx.Response(200, json={"id": "chatcmpl-1", "model": "Qwen/Qwen3-Omni-30B-A3B-Instruct", "choices": [{
-            "index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": "R250 000"},
-            "logprobs": {"content": [{"token": "R", "logprob": -0.05}, {"token": "250 000", "logprob": -0.1}]}}]})
+        return httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-1",
+                "model": "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {"role": "assistant", "content": "R250 000"},
+                        "logprobs": {"content": [{"token": "R", "logprob": -0.05}, {"token": "250 000", "logprob": -0.1}]},
+                    }
+                ],
+            },
+        )
 
     check = AudioModelCheck(base_url="http://vllm:8000", api_key="secret", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
     req = _request()
@@ -127,8 +156,13 @@ async def test_audio_model_check_uses_guided_choice_over_the_candidates():
     assert "[two fifty]" in content[1]["text"] and "between 2.0s and 2.6s" in content[1]["text"]
     assert res.reading.value == 250_000.0 and res.method == "audio_model" and res.confidence == pytest.approx(np.exp(-0.15), abs=1e-3)
 
-    old = AudioModelCheck(base_url="http://vllm:8000", choice_param="guided_choice", client=httpx.AsyncClient(transport=httpx.MockTransport(
-        lambda r: httpx.Response(200, json={"choices": [{"message": {"content": "something else"}}]}))))
+    old = AudioModelCheck(
+        base_url="http://vllm:8000",
+        choice_param="guided_choice",
+        client=httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": "something else"}}]}))
+        ),
+    )
     assert old.body(req, old.labels(req))["guided_choice"] == ["R250", "R250 000", "R2 500 000"]
     out = await old.check(req)
     assert out.reading is None and out.raw == "something else"
@@ -141,23 +175,43 @@ async def test_grammar_constrained_redecode_boosts_only_the_candidates():
 
     def handler(req: httpx.Request) -> httpx.Response:
         seen["body"] = json.loads(req.read())
-        return httpx.Response(200, json={"results": [{"channel_tag": 1, "alternatives": [
-            {"transcript": "about two hundred and fifty thousand so", "confidence": 0.8, "words": [
-                {"word": "about", "start_time": 1500, "end_time": 1900, "confidence": 0.9},
-                {"word": "two", "start_time": 2000, "end_time": 2150, "confidence": 0.9},
-                {"word": "hundred", "start_time": 2150, "end_time": 2350, "confidence": 0.85},
-                {"word": "and", "start_time": 2350, "end_time": 2400, "confidence": 0.8},
-                {"word": "fifty", "start_time": 2400, "end_time": 2500, "confidence": 0.7},
-                {"word": "thousand", "start_time": 2500, "end_time": 2600, "confidence": 0.9},
-                {"word": "so", "start_time": 4000, "end_time": 4200, "confidence": 0.9}]}]}]})
+        return httpx.Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "channel_tag": 1,
+                        "alternatives": [
+                            {
+                                "transcript": "about two hundred and fifty thousand so",
+                                "confidence": 0.8,
+                                "words": [
+                                    {"word": "about", "start_time": 1500, "end_time": 1900, "confidence": 0.9},
+                                    {"word": "two", "start_time": 2000, "end_time": 2150, "confidence": 0.9},
+                                    {"word": "hundred", "start_time": 2150, "end_time": 2350, "confidence": 0.85},
+                                    {"word": "and", "start_time": 2350, "end_time": 2400, "confidence": 0.8},
+                                    {"word": "fifty", "start_time": 2400, "end_time": 2500, "confidence": 0.7},
+                                    {"word": "thousand", "start_time": 2500, "end_time": 2600, "confidence": 0.9},
+                                    {"word": "so", "start_time": 4000, "end_time": 4200, "confidence": 0.9},
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
 
-    redecode = GrammarConstrainedRedecode(ParakeetASR(base_url="http://pk:9000", client=httpx.AsyncClient(transport=httpx.MockTransport(handler))))
+    redecode = GrammarConstrainedRedecode(
+        ParakeetASR(base_url="http://pk:9000", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    )
     req = _request()
     res = await redecode.check(req)
     phrases = [p["phrase"] for p in seen["body"]["config"]["turbobias"]["phrases"]]
     assert "two hundred and fifty thousand" in phrases and "two point five million" in phrases and "two hundred and fifty" in phrases
-    assert all(any(parse(p, "amount").readings[k].value == c.value for c in req.candidates for k in range(len(parse(p, "amount").readings)))
-               for p in phrases)
+    assert all(
+        any(parse(p, "amount").readings[k].value == c.value for c in req.candidates for k in range(len(parse(p, "amount").readings)))
+        for p in phrases
+    )
     assert all(p["boost"] == 4.0 for p in seen["body"]["config"]["turbobias"]["phrases"])
     assert res.reading.value == 250_000.0 and res.method == "parakeet_turbobias"
     assert res.raw == "two hundred and fifty thousand"  # words outside the span window ("about", "so") are ignored

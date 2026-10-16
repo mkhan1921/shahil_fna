@@ -47,7 +47,13 @@ def test_grammar_case(case: dict):
     top = res.readings[0]
     if "top" in case:
         assert _same(top.value, case["top"]), f"top {top.value!r} != {case['top']!r}; all {got}"
-    for attr, field in (("currency", "currency"), ("period", "period"), ("scale", "scale_source"), ("key", "lexicon_key"), ("provider", "provider")):
+    for attr, field in (
+        ("currency", "currency"),
+        ("period", "period"),
+        ("scale", "scale_source"),
+        ("key", "lexicon_key"),
+        ("provider", "provider"),
+    ):
         if attr in case:
             assert getattr(top, field) == case[attr], f"{field}: {getattr(top, field)!r} != {case[attr]!r}"
     if "rate" in case:
@@ -140,7 +146,10 @@ def test_merge_keeps_the_provider_itn_as_one_more_candidate():
 
 
 def test_client_specific_product_names_compile_per_call():
-    extra = (ProductName("Highveld Logistics Pension Fund", "pension", "Employer umbrella fund"), ProductName("Brightwater", None, "Brightwater"))
+    extra = (
+        ProductName("Highveld Logistics Pension Fund", "pension", "Employer umbrella fund"),
+        ProductName("Brightwater", None, "Brightwater"),
+    )
     res = grammars.parse("highveld logistics pension fund", "product", extra_products=extra)
     assert res.accepted
     assert res.readings[0].value == "pension" and res.readings[0].provider == "Employer umbrella fund"

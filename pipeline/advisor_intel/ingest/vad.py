@@ -52,6 +52,9 @@ class VadConfig:
     block_frames: int = 6000  # frames per STFT block, bounds memory on long calls
 
 
+DEFAULT_VAD = VadConfig()
+
+
 @dataclass
 class VadFrames:
     """Per-frame features, exposed for tests and tuning."""
@@ -79,7 +82,7 @@ def _moving_mean(v: np.ndarray, width: int) -> np.ndarray:
     return np.convolve(np.pad(v, (pad_l, pad_r), mode="edge"), kernel, mode="valid")
 
 
-def frame_features(x: np.ndarray, sr: int, cfg: VadConfig = VadConfig()) -> VadFrames:
+def frame_features(x: np.ndarray, sr: int, cfg: VadConfig = DEFAULT_VAD) -> VadFrames:
     frame, hop = int(cfg.frame_s * sr), int(cfg.hop_s * sr)
     frames_all = _frames(np.asarray(x, dtype=np.float32), frame, hop)
     n = frames_all.shape[0]
@@ -175,7 +178,7 @@ def tidy_regions(regions: list[Region], *, duration: float, merge_gap: float, mi
     return [(round(s, 3), round(e, 3)) for s, e in out]
 
 
-def detect_speech(x: np.ndarray, sr: int, cfg: VadConfig = VadConfig()) -> list[Region]:
+def detect_speech(x: np.ndarray, sr: int, cfg: VadConfig = DEFAULT_VAD) -> list[Region]:
     """Speech regions of one channel, in seconds from its start."""
     if x.size == 0:
         return []
@@ -195,7 +198,7 @@ def union_regions(lists: list[list[Region]], *, merge_gap: float = 0.0) -> list[
     return [(s, e) for s, e in out]
 
 
-def speech_regions(audio: PreparedAudio, cfg: VadConfig = VadConfig()) -> list[list[Region]]:
+def speech_regions(audio: PreparedAudio, cfg: VadConfig = DEFAULT_VAD) -> list[list[Region]]:
     """Speech regions per channel."""
     return [detect_speech(audio.channel(i), audio.sample_rate, cfg) for i in range(audio.n_channels)]
 
@@ -254,5 +257,5 @@ class SpeechMap:
         return out if samples.ndim == 2 else out[0]
 
     @classmethod
-    def identity(cls, duration: float) -> "SpeechMap":
+    def identity(cls, duration: float) -> SpeechMap:
         return cls(regions=((0.0, duration),))

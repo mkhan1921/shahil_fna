@@ -79,7 +79,9 @@ class ASRProvider(Protocol):
     async def transcribe(self, audio: AsrAudio | None, vocab: Vocabulary | None = None, want_alternatives: bool = True) -> AsrResult: ...
 
 
-def fold_nbest(best: list[AsrWord], others: list[tuple[list[AsrWord], float]], best_conf: float = 1.0, *, max_alts: int = 4) -> list[AsrWord]:
+def fold_nbest(
+    best: list[AsrWord], others: list[tuple[list[AsrWord], float]], best_conf: float = 1.0, *, max_alts: int = 4
+) -> list[AsrWord]:
     """Fold n-best transcripts into per-word alternatives.
 
     Each word of alternative k goes to the 1-best word it overlaps most in time; words of one alternative
@@ -155,8 +157,9 @@ class HttpProvider:
         except ValueError:
             return resp.text
 
-    async def poll(self, fetch: Callable[[], Awaitable[dict]], done: Callable[[dict], bool], failed: Callable[[dict], str | None],
-                   provider: str) -> dict:
+    async def poll(
+        self, fetch: Callable[[], Awaitable[dict]], done: Callable[[dict], bool], failed: Callable[[dict], str | None], provider: str
+    ) -> dict:
         """Call ``fetch`` until ``done``; raise on ``failed`` or after ``max_wait_s``."""
         deadline = time.monotonic() + self.max_wait_s
         while True:

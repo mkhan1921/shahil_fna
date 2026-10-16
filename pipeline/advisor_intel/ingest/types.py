@@ -80,7 +80,7 @@ class Vocabulary(BaseModel):
         """Phrase texts for a provider, capped in count and in words per phrase."""
         return [p.text for p in self.select(limit, max_words=max_words, kinds=kinds)]
 
-    def merged(self, other: "Vocabulary | None") -> "Vocabulary":
+    def merged(self, other: Vocabulary | None) -> Vocabulary:
         return Vocabulary(phrases=[*self.phrases, *(other.phrases if other else [])])
 
     def __len__(self) -> int:

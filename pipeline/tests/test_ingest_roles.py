@@ -74,15 +74,38 @@ async def test_agent_output_is_converted_and_reconciled():
     def model(messages, info: AgentInfo) -> ModelResponse:
         captured["prompt"] = "\n".join(str(p.content) for m in messages for p in m.parts if hasattr(p, "content"))
         assert info.model_request_parameters.output_mode == "native"
-        return ModelResponse(parts=[TextPart(json.dumps({
-            "speakers": [
-                {"speaker_label": "spk_0", "role": "advisor", "confidence": 0.98, "evidence": "s0001 greets, compliance statement"},
-                {"speaker_label": "spk_1", "role": "client_primary", "confidence": 0.95, "evidence": "addressed as Thabo in s0004"},
-                {"speaker_label": "spk_2", "role": "client_primary", "confidence": 0.7, "evidence": "speaks about her salary"},
-                {"speaker_label": "spk_9", "role": "other", "confidence": 0.9, "evidence": "not a label in this call"},
-            ],
-            "rationale": "The adviser greets and asks the profile questions; Thabo is the CRM primary client.",
-        }))])
+        return ModelResponse(
+            parts=[
+                TextPart(
+                    json.dumps(
+                        {
+                            "speakers": [
+                                {
+                                    "speaker_label": "spk_0",
+                                    "role": "advisor",
+                                    "confidence": 0.98,
+                                    "evidence": "s0001 greets, compliance statement",
+                                },
+                                {
+                                    "speaker_label": "spk_1",
+                                    "role": "client_primary",
+                                    "confidence": 0.95,
+                                    "evidence": "addressed as Thabo in s0004",
+                                },
+                                {
+                                    "speaker_label": "spk_2",
+                                    "role": "client_primary",
+                                    "confidence": 0.7,
+                                    "evidence": "speaks about her salary",
+                                },
+                                {"speaker_label": "spk_9", "role": "other", "confidence": 0.9, "evidence": "not a label in this call"},
+                            ],
+                            "rationale": "The adviser greets and asks the profile questions; Thabo is the CRM primary client.",
+                        }
+                    )
+                )
+            ]
+        )
 
     with R.role_agent.override(model=FunctionModel(model)):
         out = await R.assign_roles(segs, pins=VersionPins(), crm=CRM, use_agent=True)
@@ -95,9 +118,15 @@ async def test_agent_output_is_converted_and_reconciled():
 
 async def test_missing_labels_and_disagreement_with_a_confident_heuristic():
     segs = await segments(CRM)
-    tm = TestModel(profile=ModelProfile(supports_json_schema_output=True), custom_output_text=json.dumps({
-        "speakers": [{"speaker_label": "spk_0", "role": "client_primary", "confidence": 0.9, "evidence": "talks a lot"}],
-        "rationale": "only one speaker judged"}))
+    tm = TestModel(
+        profile=ModelProfile(supports_json_schema_output=True),
+        custom_output_text=json.dumps(
+            {
+                "speakers": [{"speaker_label": "spk_0", "role": "client_primary", "confidence": 0.9, "evidence": "talks a lot"}],
+                "rationale": "only one speaker judged",
+            }
+        ),
+    )
     with R.role_agent.override(model=tm):
         out = await R.assign_roles(segs, pins=VersionPins(), crm=CRM, use_agent=True)
     h = R.heuristic_roles(segs, CRM)
@@ -124,8 +153,9 @@ async def test_invalid_agent_output_falls_back_to_a_capped_heuristic():
 async def test_context_is_first_five_minutes_plus_a_sample_and_roles_apply():
     segs = await segments()
     shifted = [s.model_copy(update={"t_start": s.t_start + 290 * (i > 3), "t_end": s.t_end + 290 * (i > 3)}) for i, s in enumerate(segs)]
-    many = shifted + [shifted[-1].model_copy(update={"segment_id": f"s{100 + k}", "t_start": 600.0 + 10 * k, "t_end": 605.0 + 10 * k})
-                      for k in range(60)]
+    many = shifted + [
+        shifted[-1].model_copy(update={"segment_id": f"s{100 + k}", "t_start": 600.0 + 10 * k, "t_end": 605.0 + 10 * k}) for k in range(60)
+    ]
     ctx = R.select_context(many)
     assert len([s for s in ctx if s.t_start < R.FIRST_WINDOW_S]) == len([s for s in many if s.t_start < 300])
     assert len([s for s in ctx if s.t_start >= R.FIRST_WINDOW_S]) == R.LATER_SAMPLE

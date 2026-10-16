@@ -90,8 +90,11 @@ def test_low_confidence_numbers_and_speaker_shift():
 
 
 def test_itn_emulation_collapses_numbers_and_keeps_the_spoken_form():
-    r = ScriptedASR("client: We pay two hundred and fifty thousand rand a month and eleven and a half percent on the bond.", seed=5,
-                    noise=NoiseConfig(itn=True)).render()
+    r = ScriptedASR(
+        "client: We pay two hundred and fifty thousand rand a month and eleven and a half percent on the bond.",
+        seed=5,
+        noise=NoiseConfig(itn=True),
+    ).render()
     itn = [w for w in r.words if w.raw_spoken]
     assert [w.text for w in itn] == ["R250 000", "11.5%"]
     assert itn[0].raw_spoken == "two hundred and fifty thousand rand" and itn[0].alts == []
@@ -100,9 +103,13 @@ def test_itn_emulation_collapses_numbers_and_keeps_the_spoken_form():
 
 
 def test_stereo_channels_and_crosstalk_noise():
-    call = ScriptedCall(turns=[ScriptTurn(speaker="advisor", text="So how much do you put away each month for the kids?", channel=0),
-                               ScriptTurn(speaker="client", text="Mm-hm.", channel=1),
-                               ScriptTurn(speaker="client", text="About two thousand.", channel=1)])
+    call = ScriptedCall(
+        turns=[
+            ScriptTurn(speaker="advisor", text="So how much do you put away each month for the kids?", channel=0),
+            ScriptTurn(speaker="client", text="Mm-hm.", channel=1),
+            ScriptTurn(speaker="client", text="About two thousand.", channel=1),
+        ]
+    )
     r = ScriptedASR(call, seed=1, noise=NoiseConfig(crosstalk_rate=1.0)).render()
     assert {w.channel for w in r.words if w.speaker == "advisor"} == {0}
     assert {w.channel for w in r.words if w.speaker == "client"} == {1}

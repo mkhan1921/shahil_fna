@@ -71,6 +71,6 @@ def test_union_regions_across_channels():
 
 
 def test_config_is_tunable():
-    x, truth = timeline([("silence", 1), ("speech", 2), ("silence", 1)], seed=7)
+    x, _ = timeline([("silence", 1), ("speech", 2), ("silence", 1)], seed=7)
     strict = detect_speech(x, SR, VadConfig(energy_margin_db=60.0))
     assert strict == []

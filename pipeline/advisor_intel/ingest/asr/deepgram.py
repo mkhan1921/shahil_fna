@@ -48,14 +48,26 @@ class DeepgramASR(HttpProvider):
         if audio is None:
             raise ValueError("Deepgram needs audio")
         headers = {"Authorization": f"Token {require_key(self.api_key, 'Deepgram')}", "Content-Type": "audio/wav"}
-        resp = await self.http().post(f"{self.base_url}/v1/listen", params=self.params(audio, vocab, want_alternatives), content=audio.wav(),
-                                      headers=headers)
-        return parse_deepgram(self.json_or_raise(resp, "Deepgram"), self.model, multichannel=audio.layout == "stereo_split" and audio.n_channels > 1)
+        resp = await self.http().post(
+            f"{self.base_url}/v1/listen", params=self.params(audio, vocab, want_alternatives), content=audio.wav(), headers=headers
+        )
+        return parse_deepgram(
+            self.json_or_raise(resp, "Deepgram"), self.model, multichannel=audio.layout == "stereo_split" and audio.n_channels > 1
+        )
 
 
 def _words(alt: dict, channel: int | None) -> list[AsrWord]:
-    return [AsrWord(text=w.get("punctuated_word") or w["word"], t_start=float(w["start"]), t_end=float(w["end"]), conf=float(w.get("confidence") or 0.0),
-                    channel=channel, speaker=str(w["speaker"]) if w.get("speaker") is not None else None) for w in alt.get("words") or []]
+    return [
+        AsrWord(
+            text=w.get("punctuated_word") or w["word"],
+            t_start=float(w["start"]),
+            t_end=float(w["end"]),
+            conf=float(w.get("confidence") or 0.0),
+            channel=channel,
+            speaker=str(w["speaker"]) if w.get("speaker") is not None else None,
+        )
+        for w in alt.get("words") or []
+    ]
 
 
 def parse_deepgram(body: dict, requested_model: str, *, multichannel: bool) -> AsrResult:
@@ -74,5 +86,11 @@ def parse_deepgram(body: dict, requested_model: str, *, multichannel: bool) -> A
     info = next(iter((meta.get("model_info") or {}).values()), {})
     version = f"{info.get('name', requested_model)}:{info['version']}" if info.get("version") else requested_model
     words.sort(key=lambda w: (w.t_start, w.channel or 0))
-    return AsrResult(words=words, provider="deepgram", model_version=version, alternatives_available=has_alts, language=None,
-                     duration=meta.get("duration"))
+    return AsrResult(
+        words=words,
+        provider="deepgram",
+        model_version=version,
+        alternatives_available=has_alts,
+        language=None,
+        duration=meta.get("duration"),
+    )

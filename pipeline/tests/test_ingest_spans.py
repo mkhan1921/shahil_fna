@@ -20,8 +20,14 @@ def seg(sid: str, speaker: str, start: float, items, step: float = 0.35) -> Segm
         text, conf, alts, raw = (list(it) + [0.95, [], None][len(it) - 1 :])[:4]
         words.append(Word(text=text, t_start=round(t, 3), t_end=round(t + step - 0.05, 3), conf=conf, alts=alts, raw_spoken=raw))
         t += step
-    return Segment(segment_id=sid, speaker_label=speaker, t_start=words[0].t_start, t_end=words[-1].t_end, words=words,
-                   text=" ".join(w.text for w in words))
+    return Segment(
+        segment_id=sid,
+        speaker_label=speaker,
+        t_start=words[0].t_start,
+        t_end=words[-1].t_end,
+        words=words,
+        text=" ".join(w.text for w in words),
+    )
 
 
 def transcript(*segments: Segment) -> Transcript:
@@ -37,7 +43,11 @@ def test_amount_age_and_product_spans_with_readings_and_candidates():
     assert {r.value for r in amount.readings} == {250.0, 250_000.0, 2_500_000.0}
     assert "scale_ambiguous" in amount.flags and amount.accepted and amount.mean_conf == pytest.approx(0.95)
     words = t.segments[0].words
-    assert words[2].numeric_candidates == words[3].numeric_candidates and set(words[2].numeric_candidates) == {250.0, 250_000.0, 2_500_000.0}
+    assert words[2].numeric_candidates == words[3].numeric_candidates and set(words[2].numeric_candidates) == {
+        250.0,
+        250_000.0,
+        2_500_000.0,
+    }
     assert words[0].numeric_candidates == []
     assert t.numeric_spans[1].readings[0].provider == "Allan Gray"
     assert t.numeric_spans[2].readings[0].value == 52.0
@@ -83,9 +93,16 @@ def test_unaccepted_numeric_stretch_is_flagged():
 
 def test_a_run_of_two_amounts_is_cut_where_the_numbers_are_whole():
     # "a hundred thousand and fifty five thousand" with "fifty" heard as "fifteen": two amounts, not 100,055 and an orphan.
-    s = seg("s0001", "spk_1", 0.0, ["income", "of", "a", "hundred", "thousand", "and", ("fifteen", 0.5, [("fifty", 0.4)]), "five",
-                                    "thousand", "gross"])
-    assert [(n.surface, n.readings[0].value) for n in segment_spans(s)] == [("a hundred thousand", 100_000.0), ("fifteen five thousand", 55_000.0)]
+    s = seg(
+        "s0001",
+        "spk_1",
+        0.0,
+        ["income", "of", "a", "hundred", "thousand", "and", ("fifteen", 0.5, [("fifty", 0.4)]), "five", "thousand", "gross"],
+    )
+    assert [(n.surface, n.readings[0].value) for n in segment_spans(s)] == [
+        ("a hundred thousand", 100_000.0),
+        ("fifteen five thousand", 55_000.0),
+    ]
     # A weak homophone at the edge does not stretch a span: "for twenty five thousand" is 25,000, not 425,000.
     s2 = seg("s0002", "spk_1", 0.0, ["a", "funeral", "policy", ("for", 0.93, [("four", 0.05)]), "twenty", "five", "thousand"])
     assert [(n.surface, n.readings[0].value) for n in segment_spans(s2) if n.kind == "amount"] == [("twenty five thousand", 25_000.0)]
@@ -94,34 +111,40 @@ def test_a_run_of_two_amounts_is_cut_where_the_numbers_are_whole():
     assert {r.value for r in segment_spans(s3)[-1].readings} == {184.0, 184_000.0, 1_840_000.0}
 
 
-@pytest.mark.parametrize("text", [
-    "How old are the kids now?",
-    "Oh ja, that's right",
-    "it's investment grade paper",
-    "we bought it in twenty nineteen",
-    "back in 2019 we moved",
-    "we have two kids at school",
-    "there are eight years left on it",
-    "let's meet at two thirty on Friday",
-    "the call is at two pm",
-    "a bar of chocolate",
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "How old are the kids now?",
+        "Oh ja, that's right",
+        "it's investment grade paper",
+        "we bought it in twenty nineteen",
+        "back in 2019 we moved",
+        "we have two kids at school",
+        "there are eight years left on it",
+        "let's meet at two thirty on Friday",
+        "the call is at two pm",
+        "a bar of chocolate",
+    ],
+)
 def test_years_counts_durations_and_times_are_not_amounts(text: str):
     assert segment_spans(seg("s0001", "spk_0", 0.0, text.split())) == []
 
 
-@pytest.mark.parametrize("text,kind,value", [
-    ("the bond is sitting at two fifteen", "amount", 215.0),
-    ("I want to retire at sixty five", "age", 65.0),
-    ("she is turning sixty next year", "age", 60.0),
-    ("my son is fourteen", "age", 14.0),
-    ("and Kagiso is seven now", "age", 7.0),
-    ("I'm only thirty seven", "age", 37.0),
-    ("The RA is fifty", "amount", 50.0),
-    ("he is in grade nine now", "age", 15.0),
-    ("I earn about forty two", "amount", 42.0),
-    ("the rate is eleven and a half percent", "amount", 11.5),
-])
+@pytest.mark.parametrize(
+    "text,kind,value",
+    [
+        ("the bond is sitting at two fifteen", "amount", 215.0),
+        ("I want to retire at sixty five", "age", 65.0),
+        ("she is turning sixty next year", "age", 60.0),
+        ("my son is fourteen", "age", 14.0),
+        ("and Kagiso is seven now", "age", 7.0),
+        ("I'm only thirty seven", "age", 37.0),
+        ("The RA is fifty", "amount", 50.0),
+        ("he is in grade nine now", "age", 15.0),
+        ("I earn about forty two", "amount", 42.0),
+        ("the rate is eleven and a half percent", "amount", 11.5),
+    ],
+)
 def test_kind_follows_the_words_around_the_number(text: str, kind: str, value: float):
     spans = [s for s in segment_spans(seg("s0001", "spk_0", 0.0, text.split())) if s.kind != "product"]
     assert spans and spans[0].kind == kind and spans[0].readings[0].value == value
@@ -130,7 +153,9 @@ def test_kind_follows_the_words_around_the_number(text: str, kind: str, value: f
 def test_crosstalk_over_a_span_and_client_product_names():
     a = seg("s0001", "spk_0", 0.0, "and what is the Highveld Logistics Pension Fund worth".split())
     b = seg("s0002", "spk_1", 1.4, ["about", "one", "point", "three", "million"], step=0.3)
-    t = annotate_transcript(transcript(a, b), extra_products=[ProductName("Highveld Logistics Pension Fund", "pension", "Employer umbrella fund")])
+    t = annotate_transcript(
+        transcript(a, b), extra_products=[ProductName("Highveld Logistics Pension Fund", "pension", "Employer umbrella fund")]
+    )
     prod = next(n for n in t.numeric_spans if n.kind == "product")
     assert prod.surface == "Highveld Logistics Pension Fund" and prod.readings[0].lexicon_key == "client"
     amount = next(n for n in t.numeric_spans if n.kind == "amount")
@@ -138,6 +163,8 @@ def test_crosstalk_over_a_span_and_client_product_names():
 
 
 def test_canonical_text_for_alignment():
-    assert canonical_text("we put two hundred and fifty thousand in the Allan Gray RA") == "we put 250000 in the retirement-annuity@Allan Gray"
+    assert (
+        canonical_text("we put two hundred and fifty thousand in the Allan Gray RA") == "we put 250000 in the retirement-annuity@Allan Gray"
+    )
     assert canonical_text("R250 000 a month") == "250000"
     assert canonical_text("nothing numeric here") == "nothing numeric here"

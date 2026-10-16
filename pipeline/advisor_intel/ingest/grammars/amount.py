@@ -126,7 +126,9 @@ PERIOD_WORDS: dict[str, str] = {
     **{w: "once" for w in ("once off", "lump sum", "in one go")},
 }
 PERCENT_WORDS = (" percent", " per cent", "%", " %", " persent", " procent", " pc")
-GLUE_WORDS = frozenset({"and", "a", "an", "of", "point", "comma", "komma", "punt", "half", "quarter", "quarters", "three", "en", "'n", "n", "halwe", "kwart"})
+GLUE_WORDS = frozenset(
+    {"and", "a", "an", "of", "point", "comma", "komma", "punt", "half", "quarter", "quarters", "three", "en", "'n", "n", "halwe", "kwart"}
+)
 
 
 def _union(fsts) -> pynini.Fst:
@@ -182,7 +184,7 @@ def amount_grammar() -> pynini.Fst:
         arms = []
         for w, (mult, src) in words.items():
             out = f"*{mult};" + (f"s={src};" if first else "")
-            for j in ([" ", ""] if w in ("duisend", "miljoen", "miljard") else [" "]):
+            for j in [" ", ""] if w in ("duisend", "miljoen", "miljard") else [" "]:
                 arms.append(pynini.cross(f"{j}{w}", out))
         return insert("v=") + n.m999 + _union(arms)
 

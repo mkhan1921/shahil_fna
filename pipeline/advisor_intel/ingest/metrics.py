@@ -123,8 +123,15 @@ def numeric_wer(reference: str, hypothesis: str) -> WerResult:
             errors.append((op, "", hyp[j]))
     targets = sum(mask)
     overall = len(ops) / max(1, len(ref))
-    return WerResult(wer=(s + dl + ins) / targets if targets else 0.0, targets=targets, substitutions=s, deletions=dl, insertions=ins,
-                     overall_wer=overall, errors=errors)
+    return WerResult(
+        wer=(s + dl + ins) / targets if targets else 0.0,
+        targets=targets,
+        substitutions=s,
+        deletions=dl,
+        insertions=ins,
+        overall_wer=overall,
+        errors=errors,
+    )
 
 
 @dataclass
@@ -137,8 +144,14 @@ class DerResult:
     mapping: dict[str, str]  # reference speaker → hypothesis speaker
 
 
-def der(reference: Sequence[SpeakerTurn], hypothesis: Sequence[SpeakerTurn], *, collar: float = 0.25, frame: float = 0.01,
-        skip_overlap: bool = False) -> DerResult:
+def der(
+    reference: Sequence[SpeakerTurn],
+    hypothesis: Sequence[SpeakerTurn],
+    *,
+    collar: float = 0.25,
+    frame: float = 0.01,
+    skip_overlap: bool = False,
+) -> DerResult:
     end = max([t.end for t in [*reference, *hypothesis]], default=0.0)
     n = int(math.ceil(end / frame)) + 1
     ref_spk = sorted({t.speaker for t in reference})
@@ -171,8 +184,14 @@ def der(reference: Sequence[SpeakerTurn], hypothesis: Sequence[SpeakerTurn], *, 
     fa = np.maximum(0, n_hyp - n_ref).sum() * frame
     conf = (np.minimum(n_ref, n_hyp) - correct).sum() * frame
     total = n_ref.sum() * frame
-    return DerResult(der=(missed + fa + conf) / total if total else 0.0, missed=round(missed, 3), false_alarm=round(fa, 3), confusion=round(conf, 3),
-                     total=round(total, 3), mapping=mapping)
+    return DerResult(
+        der=(missed + fa + conf) / total if total else 0.0,
+        missed=round(missed, 3),
+        false_alarm=round(fa, 3),
+        confusion=round(conf, 3),
+        total=round(total, 3),
+        mapping=mapping,
+    )
 
 
 def speaker_role_accuracy(gold: Sequence[tuple[float, float, str]], transcript: Transcript) -> float:

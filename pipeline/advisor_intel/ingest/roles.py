@@ -41,7 +41,9 @@ UNIQUE_ROLES: tuple[SpeakerRole, ...] = ("advisor", "client_primary", "client_se
 class SpeakerRoleItem(BaseModel):
     speaker_label: str = Field(description="The diarization label exactly as given, e.g. 'spk_0' or 'ch1'.")
     role: SpeakerRole = Field(description="advisor, client_primary, client_secondary, other or unknown.")
-    confidence: float = Field(description="Probability 0..1 that the role is right. Above 0.95 only when a name or an explicit statement decides it.")
+    confidence: float = Field(
+        description="Probability 0..1 that the role is right. Above 0.95 only when a name or an explicit statement decides it."
+    )
     evidence: str = Field(description="One line: the segment ids, names or behaviour that decided it.")
 
 
@@ -118,9 +120,13 @@ class SpeakerFeatures:
         names = ", ".join(f"addressed as {k}×{v}" for k, v in self.addressed_as.items())
         intro = ", ".join(f"introduces self as {k}" for k in self.introduced_as)
         said = ", ".join(f"says {k}'s name ×{v}" for k, v in self.says_names.items())
-        bits = [f"{self.speech_s:.0f}s of speech in {self.n_segments} turns", f"first speaks at {self.first_t:.0f}s",
-                f"{self.questions} questions ({self.profile_questions} about the client's finances)", f"{self.greeting_agenda} greeting/agenda/compliance lines",
-                f"{self.first_person_money} first-person money statements"]
+        bits = [
+            f"{self.speech_s:.0f}s of speech in {self.n_segments} turns",
+            f"first speaks at {self.first_t:.0f}s",
+            f"{self.questions} questions ({self.profile_questions} about the client's finances)",
+            f"{self.greeting_agenda} greeting/agenda/compliance lines",
+            f"{self.first_person_money} first-person money statements",
+        ]
         return "; ".join(bits + [x for x in (names, intro, said) if x])
 
 
@@ -221,7 +227,9 @@ def _squash(margin: float, lo: float = 0.5, hi: float = 0.97, k: float = 1.2) ->
     return round(lo + (hi - lo) * (1 - math.exp(-k * max(0.0, margin))), 3)
 
 
-def heuristic_roles(segments: Sequence[Segment], crm: CrmNames | None = None, features: dict[str, SpeakerFeatures] | None = None) -> RoleAssignment:
+def heuristic_roles(
+    segments: Sequence[Segment], crm: CrmNames | None = None, features: dict[str, SpeakerFeatures] | None = None
+) -> RoleAssignment:
     """Deterministic roles from behaviour and names (feature and fallback)."""
     feats = features or speaker_features(segments, crm)
     if not feats:
@@ -243,6 +251,7 @@ def heuristic_roles(segments: Sequence[Segment], crm: CrmNames | None = None, fe
         roles[rest[0].label] = "client_primary"
         conf[rest[0].label] = conf[top.label]
     else:
+
         def primary_score(f: SpeakerFeatures) -> float:
             return _identity(f, "client_primary") - _identity(f, "client_secondary") + f.speech_s / max(1.0, sum(x.speech_s for x in rest))
 
@@ -269,7 +278,9 @@ def select_context(segments: Sequence[Segment], first_s: float = FIRST_WINDOW_S,
     later = [s for s in ordered if s.t_start >= first_s]
     if len(later) > sample:
         step = len(later) / sample
-        later = [max(later[int(i * step) : int((i + 1) * step)] or [later[int(i * step)]], key=lambda s: len(s.words)) for i in range(sample)]
+        later = [
+            max(later[int(i * step) : int((i + 1) * step)] or [later[int(i * step)]], key=lambda s: len(s.words)) for i in range(sample)
+        ]
     return head + later
 
 
@@ -281,11 +292,19 @@ def build_prompt(segments: Sequence[Segment], crm: CrmNames | None, features: di
     labels = sorted(features)
     lines = ["Speaker labels: " + ", ".join(labels), ""]
     if crm:
-        lines += ["CRM names:", f"- adviser: {', '.join(crm.advisor) or 'unknown'}", f"- primary client: {', '.join(crm.client_primary) or 'unknown'}",
-                  f"- second client: {', '.join(crm.client_secondary) or 'none on file'}", ""]
+        lines += [
+            "CRM names:",
+            f"- adviser: {', '.join(crm.advisor) or 'unknown'}",
+            f"- primary client: {', '.join(crm.client_primary) or 'unknown'}",
+            f"- second client: {', '.join(crm.client_secondary) or 'none on file'}",
+            "",
+        ]
     lines.append("Per-speaker features:")
     lines += [f"- {lab}: {features[lab].summary()}" for lab in labels]
-    lines.append("Heuristic guess: " + ", ".join(f"{lab}={heuristic.roles.get(lab, 'unknown')} ({heuristic.confidence.get(lab, 0):.2f})" for lab in labels))
+    lines.append(
+        "Heuristic guess: "
+        + ", ".join(f"{lab}={heuristic.roles.get(lab, 'unknown')} ({heuristic.confidence.get(lab, 0):.2f})" for lab in labels)
+    )
     lines += ["", "Transcript excerpt (first five minutes, then a sample of later turns):"]
     body, used = [], 0
     for s in select_context(segments):
@@ -320,11 +339,16 @@ def reconcile(output: RoleAssignmentOutput, labels: Sequence[str], heuristic: Ro
         if h_role and h_role != roles[lab] and h_conf >= MIN_ROLE_CONF:
             conf[lab] = min(conf[lab], round(MIN_ROLE_CONF - 0.01, 2))
     evidence = "; ".join(f"{lab}: {items[lab].evidence}" for lab in labels if lab in items)
-    return RoleAssignment(roles=roles, confidence={k: round(v, 3) for k, v in conf.items()}, rationale=(output.rationale + (f" [{evidence}]" if evidence else "")).strip())
+    return RoleAssignment(
+        roles=roles,
+        confidence={k: round(v, 3) for k, v in conf.items()},
+        rationale=(output.rationale + (f" [{evidence}]" if evidence else "")).strip(),
+    )
 
 
-async def assign_roles(segments: Sequence[Segment], *, pins: VersionPins | None = None, crm: CrmNames | None = None,
-                       use_agent: bool | None = None) -> RoleAssignment:
+async def assign_roles(
+    segments: Sequence[Segment], *, pins: VersionPins | None = None, crm: CrmNames | None = None, use_agent: bool | None = None
+) -> RoleAssignment:
     """Roles for every speaker label. ``use_agent=None`` runs the agent unless the frontier pin is a test model."""
     feats = speaker_features(segments, crm)
     labels = sorted(feats)
@@ -345,8 +369,15 @@ async def assign_roles(segments: Sequence[Segment], *, pins: VersionPins | None 
 
 
 def apply_roles(segments: Sequence[Segment], assignment: RoleAssignment) -> list[Segment]:
-    return [s.model_copy(update={"speaker_role": assignment.roles.get(s.speaker_label, "unknown"),
-                                 "role_conf": assignment.confidence.get(s.speaker_label, 0.0)}) for s in segments]
+    return [
+        s.model_copy(
+            update={
+                "speaker_role": assignment.roles.get(s.speaker_label, "unknown"),
+                "role_conf": assignment.confidence.get(s.speaker_label, 0.0),
+            }
+        )
+        for s in segments
+    ]
 
 
 def role_review_needed(assignment: RoleAssignment, labels: Sequence[str] | None = None) -> bool:

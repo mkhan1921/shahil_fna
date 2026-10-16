@@ -42,28 +42,200 @@ PERIOD_WORDS = period_vocabulary()
 AGE_WORDS = age_marker_vocabulary()
 STRONG_SCALES = frozenset({"thousand", "duisend", "million", "miljoen", "billion", "miljard", "mil", "mill", "grand", "bar", "bars"})
 
-NEVER_START = frozenset({"and", "of", "per", "en", "comma", "komma", "punt", "percent", "cent", "%", "persent", "procent", "pc", "month",
-                         "year", "annum", "mth", "yr", "maand", "jaar", "monthly", "yearly", "annually", "maandeliks", "jaarliks", "pm", "pa",
-                         "rand", "rands", "randte", "dollars", "dollar", "pounds", "pound", "sterling", "quid", "euros", "euro", "bucks", "pond",
-                         "old", "oud", "ish", "years", "yrs", "off", "sum", "go", "every", "each", "elke", "once", "lump", "one go", "k", "m"})
-NEVER_END = frozenset({"and", "of", "per", "en", "a", "an", "'n", "n", "point", "comma", "komma", "punt", "r", "$", "£", "€", "aged", "turning",
-                       "turns", "turned", "early", "mid", "middle", "late", "vroeë", "vroee", "middel", "laat", "grade", "graad", "standard",
-                       "standerd", "in", "every", "each", "elke", "us", "lump", "once"})
+NEVER_START = frozenset(
+    {
+        "and",
+        "of",
+        "per",
+        "en",
+        "comma",
+        "komma",
+        "punt",
+        "percent",
+        "cent",
+        "%",
+        "persent",
+        "procent",
+        "pc",
+        "month",
+        "year",
+        "annum",
+        "mth",
+        "yr",
+        "maand",
+        "jaar",
+        "monthly",
+        "yearly",
+        "annually",
+        "maandeliks",
+        "jaarliks",
+        "pm",
+        "pa",
+        "rand",
+        "rands",
+        "randte",
+        "dollars",
+        "dollar",
+        "pounds",
+        "pound",
+        "sterling",
+        "quid",
+        "euros",
+        "euro",
+        "bucks",
+        "pond",
+        "old",
+        "oud",
+        "ish",
+        "years",
+        "yrs",
+        "off",
+        "sum",
+        "go",
+        "every",
+        "each",
+        "elke",
+        "once",
+        "lump",
+        "one go",
+        "k",
+        "m",
+    }
+)
+NEVER_END = frozenset(
+    {
+        "and",
+        "of",
+        "per",
+        "en",
+        "a",
+        "an",
+        "'n",
+        "n",
+        "point",
+        "comma",
+        "komma",
+        "punt",
+        "r",
+        "$",
+        "£",
+        "€",
+        "aged",
+        "turning",
+        "turns",
+        "turned",
+        "early",
+        "mid",
+        "middle",
+        "late",
+        "vroeë",
+        "vroee",
+        "middel",
+        "laat",
+        "grade",
+        "graad",
+        "standard",
+        "standerd",
+        "in",
+        "every",
+        "each",
+        "elke",
+        "us",
+        "lump",
+        "once",
+    }
+)
 AGE_PREV_1 = frozenset({"aged", "age", "turning", "turns", "turned", "ouderdom"})
-AGE_PREV_2 = frozenset({("retire", "at"), ("retiring", "at"), ("retirement", "at"), ("at", "age"), ("age", "of"), ("till", "age"),
-                        ("until", "age"), ("to", "age"), ("retire", "by"), ("work", "until"), ("work", "till"), ("aftree", "op")})
+AGE_PREV_2 = frozenset(
+    {
+        ("retire", "at"),
+        ("retiring", "at"),
+        ("retirement", "at"),
+        ("at", "age"),
+        ("age", "of"),
+        ("till", "age"),
+        ("until", "age"),
+        ("to", "age"),
+        ("retire", "by"),
+        ("work", "until"),
+        ("work", "till"),
+        ("aftree", "op"),
+    }
+)
 AGE_PRONOUNS = frozenset({"i'm", "he's", "she's", "they're", "we're", "you're", "hy's", "sy's"})
-PERSON_WORDS = frozenset({"son", "daughter", "boy", "girl", "kid", "child", "wife", "husband", "mother", "mom", "mum", "dad", "father", "he",
-                          "she", "brother", "sister", "seun", "dogter", "hy", "sy"})
+PERSON_WORDS = frozenset(
+    {
+        "son",
+        "daughter",
+        "boy",
+        "girl",
+        "kid",
+        "child",
+        "wife",
+        "husband",
+        "mother",
+        "mom",
+        "mum",
+        "dad",
+        "father",
+        "he",
+        "she",
+        "brother",
+        "sister",
+        "seun",
+        "dogter",
+        "hy",
+        "sy",
+    }
+)
 YEAR_PREV = frozenset({"in", "by", "since", "from", "until", "till", "of", "before", "after", "around", "year", "jaar", "sedert"})
-COUNT_NOUNS = frozenset({"years", "year", "months", "weeks", "week", "days", "day", "kids", "children", "child", "sons", "daughters", "times",
-                         "people", "cars", "houses", "policies", "funds", "accounts", "grandchildren", "dependants", "dependents", "hours",
-                         "minutes", "jaar", "maande", "kinders", "keer", "percent", "%", "ago", "of", "things", "items", "members", "steps"})
+COUNT_NOUNS = frozenset(
+    {
+        "years",
+        "year",
+        "months",
+        "weeks",
+        "week",
+        "days",
+        "day",
+        "kids",
+        "children",
+        "child",
+        "sons",
+        "daughters",
+        "times",
+        "people",
+        "cars",
+        "houses",
+        "policies",
+        "funds",
+        "accounts",
+        "grandchildren",
+        "dependants",
+        "dependents",
+        "hours",
+        "minutes",
+        "jaar",
+        "maande",
+        "kinders",
+        "keer",
+        "percent",
+        "%",
+        "ago",
+        "of",
+        "things",
+        "items",
+        "members",
+        "steps",
+    }
+)
 TIME_PREV = frozenset({"at", "by", "till", "until", "from", "before", "after", "om"})
 TIME_NEXT = frozenset({"am", "pm", "o'clock", "oclock", "uur"})
 HOUR_WORDS = frozenset([*"one two three four five six seven eight nine ten eleven twelve".split(), *(str(h) for h in range(1, 13))])
-MINUTE_WORDS = frozenset("oh zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
-                         "eighteen nineteen twenty thirty forty fifty quarter half".split()) | {f"{m:02d}" for m in range(60)}
+MINUTE_WORDS = frozenset(
+    "oh zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
+    "eighteen nineteen twenty thirty forty fifty quarter half".split()
+) | {f"{m:02d}" for m in range(60)}
 
 
 @dataclass
@@ -125,7 +297,9 @@ def _strong(t: Tok) -> bool:
 
 
 def _member_token(v: str) -> bool:
-    return _numberish(v) or v in SCALE_WORDS or v in PERIOD_WORDS or v in GLUE_WORDS or v in AGE_WORDS or v in ("per", "of", "us", "'n", "n")
+    return (
+        _numberish(v) or v in SCALE_WORDS or v in PERIOD_WORDS or v in GLUE_WORDS or v in AGE_WORDS or v in ("per", "of", "us", "'n", "n")
+    )
 
 
 def _numeric_member(t: Tok) -> bool:
@@ -207,7 +381,9 @@ def _context(toks: Sequence[Tok], i: int, n: int) -> list[str]:
     return [t.norm for t in toks[max(0, i - n) : i] if not t.filler]
 
 
-AGE_ADVERBS = frozenset({"only", "just", "about", "almost", "nearly", "around", "roughly", "already", "now", "still", "barely", "net", "omtrent"})
+AGE_ADVERBS = frozenset(
+    {"only", "just", "about", "almost", "nearly", "around", "roughly", "already", "now", "still", "barely", "net", "omtrent"}
+)
 NOT_NAMES = frozenset({"that", "this", "there", "what", "which", "it", "the", "and", "so", "but", "then", "now", "here", "who"})
 
 
@@ -230,18 +406,51 @@ def _is_age_context(toks: Sequence[Tok], i: int, j: int) -> bool:
     if len(prev) >= 2 and prev[-1] in ("is", "turns", "was", "turned") and prev[-2] in PERSON_WORDS:
         return True
     before = [t for t in toks[max(0, i - 3) : i] if not t.filler]
-    if len(before) >= 2 and before[-1].norm in ("is", "turns", "was", "turned") and _is_name(before[-2]):
-        return True
-    return False
+    return len(before) >= 2 and before[-1].norm in ("is", "turns", "was", "turned") and _is_name(before[-2])
 
 
 def _bare(r: Reading) -> bool:
-    return r.currency is None and r.period == "none" and not r.is_rate and r.scale_source in ("literal", "digits", "implied_thousand", "implied_million")
+    return (
+        r.currency is None
+        and r.period == "none"
+        and not r.is_rate
+        and r.scale_source in ("literal", "digits", "implied_thousand", "implied_million")
+    )
 
 
-SCHEDULING_WORDS = frozenset({"meet", "meeting", "call", "see", "speak", "talk", "chat", "start", "starts", "finish", "appointment", "book",
-                               "booked", "back", "tomorrow", "today", "tonight", "morning", "afternoon", "monday", "tuesday", "wednesday",
-                               "thursday", "friday", "saturday", "sunday", "o'clock", "vergadering", "bel"})
+SCHEDULING_WORDS = frozenset(
+    {
+        "meet",
+        "meeting",
+        "call",
+        "see",
+        "speak",
+        "talk",
+        "chat",
+        "start",
+        "starts",
+        "finish",
+        "appointment",
+        "book",
+        "booked",
+        "back",
+        "tomorrow",
+        "today",
+        "tonight",
+        "morning",
+        "afternoon",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "o'clock",
+        "vergadering",
+        "bel",
+    }
+)
 
 
 def _is_clock_time(toks: Sequence[Tok], i: int, j: int) -> bool:
@@ -271,14 +480,12 @@ def _skip_amount(toks: Sequence[Tok], i: int, j: int, res: GrammarResult) -> boo
         return False
     literal = [r for r in res.readings if r.scale_source in ("literal", "digits")]
     prev = _context(toks, i, 1)
-    if literal and any(1900 <= float(r.value) <= 2100 and float(r.value).is_integer() for r in literal):
-        if (prev and prev[-1] in YEAR_PREV) or any(_DIGITS.match(v) and len(v) == 4 for v in toks[i].variants):
-            return True
+    year = literal and any(1900 <= float(r.value) <= 2100 and float(r.value).is_integer() for r in literal)
+    if year and ((prev and prev[-1] in YEAR_PREV) or any(_DIGITS.match(v) and len(v) == 4 for v in toks[i].variants)):
+        return True
     if nxt in COUNT_NOUNS or nxt.split(" ")[0] in COUNT_NOUNS:
         return True
-    if j - i == 1 and literal and float(literal[0].value) < 10:  # "one more thing", "two of them": counts and pronouns
-        return True
-    return False
+    return j - i == 1 and bool(literal) and float(literal[0].value) < 10  # "one more thing", "two of them": counts, pronouns
 
 
 _UNITS = frozenset("one two three four five six seven eight nine".split())
@@ -312,7 +519,9 @@ def spoken_year_positions(toks: Sequence[Tok]) -> set[int]:
     return out
 
 
-AGE_CHAIN = frozenset({"or", "maybe", "to", "and", "probably", "perhaps", "even", "say", "like", "-", "of", "nee", "dalk"})  # "of" is Afrikaans "or"
+AGE_CHAIN = frozenset(
+    {"or", "maybe", "to", "and", "probably", "perhaps", "even", "say", "like", "-", "of", "nee", "dalk"}
+)  # "of" is Afrikaans "or"
 
 
 def _chained_age(toks: Sequence[Tok], i: int, found: list[Found]) -> bool:
@@ -427,7 +636,11 @@ def finalize(found: Found, toks: Sequence[Tok], extra: tuple[ProductName, ...] =
 
 def scale_ambiguous(readings: Sequence[Reading]) -> bool:
     """Amount readings carrying real weight that differ in scale (≥ 5×)."""
-    vals = [float(r.value) for r in readings if isinstance(r.value, float) and not r.is_rate and r.weight >= MIN_AMBIGUOUS_WEIGHT and r.value > 0]
+    vals = [
+        float(r.value)
+        for r in readings
+        if isinstance(r.value, float) and not r.is_rate and r.weight >= MIN_AMBIGUOUS_WEIGHT and r.value > 0
+    ]
     return len(vals) >= 2 and max(vals) / min(vals) >= SCALE_AMBIGUITY_RATIO
 
 

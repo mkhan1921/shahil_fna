@@ -38,14 +38,38 @@ class ProductName:
 
 
 PRODUCTS: tuple[Product, ...] = (
-    Product("ra", "retirement-annuity", ("ra", "ras", "r a", "retirement annuity", "retirement annuities", "retirement annuity fund",
-                                          "uittree annuïteit", "uittreeannuïteit", "uittree annuiteit", "uittreeannuiteit")),
+    Product(
+        "ra",
+        "retirement-annuity",
+        (
+            "ra",
+            "ras",
+            "r a",
+            "retirement annuity",
+            "retirement annuities",
+            "retirement annuity fund",
+            "uittree annuïteit",
+            "uittreeannuïteit",
+            "uittree annuiteit",
+            "uittreeannuiteit",
+        ),
+    ),
     Product("pension_fund", "pension", ("pension fund", "pension", "pensioen", "pensioenfonds", "pensioen fonds")),
     Product("provident_fund", "provident", ("provident fund", "provident", "voorsorgfonds", "voorsorg fonds")),
-    Product("pension_preservation", "preservation-pension", ("pension preservation fund", "pension preservation", "preservation pension fund")),
-    Product("provident_preservation", "preservation-provident", ("provident preservation fund", "provident preservation", "preservation provident fund")),
-    Product("preservation_fund", "preservation-pension", ("preservation fund", "preservation", "preserver fund", "bewaringsfonds"), cost=0.69),
-    Product("preservation_fund", "preservation-provident", ("preservation fund", "preservation", "preserver fund", "bewaringsfonds"), cost=0.69),
+    Product(
+        "pension_preservation", "preservation-pension", ("pension preservation fund", "pension preservation", "preservation pension fund")
+    ),
+    Product(
+        "provident_preservation",
+        "preservation-provident",
+        ("provident preservation fund", "provident preservation", "preservation provident fund"),
+    ),
+    Product(
+        "preservation_fund", "preservation-pension", ("preservation fund", "preservation", "preserver fund", "bewaringsfonds"), cost=0.69
+    ),
+    Product(
+        "preservation_fund", "preservation-provident", ("preservation fund", "preservation", "preserver fund", "bewaringsfonds"), cost=0.69
+    ),
     Product("living_annuity", "living-annuity", ("living annuity", "living annuities", "lewende annuïteit", "lewende annuiteit")),
     Product("life_annuity", "life-annuity", ("life annuity", "guaranteed annuity", "guaranteed life annuity", "lewenslange annuïteit")),
     Product("annuity", "retirement-annuity", ("annuity", "annuïteit", "annuiteit"), cost=0.5),
@@ -55,29 +79,91 @@ PRODUCTS: tuple[Product, ...] = (
     Product("savings_pot", "savings-pot", ("savings pot", "savings component", "savings portion", "spaarpot", "spaar pot")),
     Product("retirement_pot", "retirement-pot", ("retirement pot", "retirement component", "uittree pot")),
     Product("vested_pot", "vested-pot", ("vested pot", "vested component", "vested portion")),
-    Product("tfsa", "tfsa", ("tfsa", "tfsas", "t f s a", "tax free savings", "tax free savings account", "tax free account", "tax free investment",
-                             "tax free", "belastingvrye spaarrekening", "belastingvrye belegging", "belastingvry")),
+    Product(
+        "tfsa",
+        "tfsa",
+        (
+            "tfsa",
+            "tfsas",
+            "t f s a",
+            "tax free savings",
+            "tax free savings account",
+            "tax free account",
+            "tax free investment",
+            "tax free",
+            "belastingvrye spaarrekening",
+            "belastingvrye belegging",
+            "belastingvry",
+        ),
+    ),
     Product("endowment", "endowment", ("endowment", "endowments", "endowment policy", "sinking fund", "uitkeerpolis")),
-    Product("unit_trust", "unit-trust", ("unit trust", "unit trusts", "unit trust fund", "collective investment", "collective investment scheme",
-                                         "eenheidstrust", "eenheidstrusts")),
-    Product("etf", "etf", ("etf", "etfs", "e t f", "exchange traded fund", "exchange traded funds", "index fund", "index tracker", "tracker fund")),
+    Product(
+        "unit_trust",
+        "unit-trust",
+        (
+            "unit trust",
+            "unit trusts",
+            "unit trust fund",
+            "collective investment",
+            "collective investment scheme",
+            "eenheidstrust",
+            "eenheidstrusts",
+        ),
+    ),
+    Product(
+        "etf",
+        "etf",
+        ("etf", "etfs", "e t f", "exchange traded fund", "exchange traded funds", "index fund", "index tracker", "tracker fund"),
+    ),
     Product("shares", "shares", ("shares", "share portfolio", "stocks", "equities", "aandele")),
     Product("money_market", "money-market", ("money market", "money market account", "money market fund", "geldmark", "geldmarkrekening")),
     Product("offshore", "offshore", ("offshore", "offshore investment", "offshore portfolio", "offshore account")),
-    Product("offshore_allowance", "offshore-allowance", ("offshore allowance", "foreign investment allowance", "discretionary allowance",
-                                                         "single discretionary allowance")),
+    Product(
+        "offshore_allowance",
+        "offshore-allowance",
+        ("offshore allowance", "foreign investment allowance", "discretionary allowance", "single discretionary allowance"),
+    ),
     Product("discretionary", "discretionary-investment", ("discretionary investment", "discretionary portfolio", "voluntary investment")),
     Product("regulation_28", "regulation-28", ("regulation 28", "regulation twenty eight", "reg 28", "reg twenty eight", "regulasie 28")),
     Product("cash", "cash", ("savings account", "fixed deposit", "notice deposit", "call account", "spaarrekening")),
     Product("crypto", "crypto", ("crypto", "bitcoin", "cryptocurrency", "crypto currency")),
-    Product("life_cover", "life", ("life cover", "life policy", "life insurance", "life assurance", "death cover", "lewensdekking", "lewenspolis",
-                                   "lewensversekering")),
-    Product("disability_cover", "disability-lump", ("disability cover", "disability benefit", "lump sum disability", "disability policy",
-                                                    "ongeskiktheidsdekking")),
-    Product("income_protection", "income-protection", ("income protection", "income protector", "income disability", "income protection benefit",
-                                                       "inkomstebeskerming")),
-    Product("severe_illness", "severe-illness", ("dread disease", "severe illness", "critical illness", "dread disease cover", "severe illness cover",
-                                                 "critical illness cover", "ernstige siekte")),
+    Product(
+        "life_cover",
+        "life",
+        (
+            "life cover",
+            "life policy",
+            "life insurance",
+            "life assurance",
+            "death cover",
+            "lewensdekking",
+            "lewenspolis",
+            "lewensversekering",
+        ),
+    ),
+    Product(
+        "disability_cover",
+        "disability-lump",
+        ("disability cover", "disability benefit", "lump sum disability", "disability policy", "ongeskiktheidsdekking"),
+    ),
+    Product(
+        "income_protection",
+        "income-protection",
+        ("income protection", "income protector", "income disability", "income protection benefit", "inkomstebeskerming"),
+    ),
+    Product(
+        "severe_illness",
+        "severe-illness",
+        (
+            "dread disease",
+            "severe illness",
+            "critical illness",
+            "dread disease cover",
+            "severe illness cover",
+            "critical illness cover",
+            "ernstige siekte",
+        ),
+    ),
     Product("funeral", "funeral", ("funeral cover", "funeral policy", "funeral plan", "begrafnispolis", "begrafnisdekking")),
     Product("family_income", "family-income", ("family income benefit", "family income")),
     Product("medical_aid", "medical-aid", ("medical aid", "medical scheme", "mediese fonds")),
@@ -138,12 +224,42 @@ PROVIDERS: tuple[Provider, ...] = (
 CONNECTORS = ("with", "at", "from", "through", "via", "by", "of", "van", "met", "by die", "with the", "at the")
 
 FNA_LIST: dict[str, str] = {
-    **{t: "retirementFunds" for t in ("pension", "provident", "retirement-annuity", "preservation-pension", "preservation-provident",
-                                      "living-annuity", "life-annuity", "savings-pot", "retirement-pot", "vested-pot", "two-pot")},
-    **{t: "assets" for t in ("tfsa", "endowment", "unit-trust", "shares", "money-market", "offshore", "cash", "crypto", "etf",
-                             "discretionary-investment")},
+    **{
+        t: "retirementFunds"
+        for t in (
+            "pension",
+            "provident",
+            "retirement-annuity",
+            "preservation-pension",
+            "preservation-provident",
+            "living-annuity",
+            "life-annuity",
+            "savings-pot",
+            "retirement-pot",
+            "vested-pot",
+            "two-pot",
+        )
+    },
+    **{
+        t: "assets"
+        for t in (
+            "tfsa",
+            "endowment",
+            "unit-trust",
+            "shares",
+            "money-market",
+            "offshore",
+            "cash",
+            "crypto",
+            "etf",
+            "discretionary-investment",
+        )
+    },
     **{t: "policies" for t in ("life", "disability-lump", "income-protection", "severe-illness", "funeral", "family-income")},
-    **{t: "liabilities" for t in ("home-loan", "vehicle-finance", "personal-loan", "credit-card", "store-card", "overdraft", "student-loan")},
+    **{
+        t: "liabilities"
+        for t in ("home-loan", "vehicle-finance", "personal-loan", "credit-card", "store-card", "overdraft", "student-loan")
+    },
 }
 
 

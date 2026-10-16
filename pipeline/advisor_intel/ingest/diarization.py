@@ -12,7 +12,7 @@ pyannoteAI request/response mapping (assumed from the public API docs; validate 
     PUT  <pre-signed URL>    body: 16 kHz PCM WAV
     POST {base}/diarize      {"url": "media://…", "model": "precision-3", "minSpeakers": 2, "maxSpeakers": 4,
                               "confidence": true, "turnLevelConfidence": true}     → {"jobId": "…", "status": "created"}
-    GET  {base}/jobs/{jobId}                                                      → {"status": "pending|created|running|succeeded|failed|canceled",
+    GET  {base}/jobs/{jobId}   → {"status": "pending|created|running|succeeded|failed|canceled",
          "output": {"diarization": [{"speaker": "SPEAKER_00", "start": 0.52, "end": 3.1, "confidence": 0.93?}, …],
                     "confidence": {"resolution": 0.02, "score": {"SPEAKER_00": [0.97, …], …}}?}}
 
@@ -45,7 +45,9 @@ class Diarizer(Protocol):
     name: str
     model_version: str
 
-    async def diarize(self, samples: np.ndarray, sample_rate: int, *, min_speakers: int, max_speakers: int, key: str = "") -> list[SpeakerTurn]:
+    async def diarize(
+        self, samples: np.ndarray, sample_rate: int, *, min_speakers: int, max_speakers: int, key: str = ""
+    ) -> list[SpeakerTurn]:
         """Speaker turns of one mono signal, in its own time base."""
         ...
 
@@ -72,10 +74,15 @@ class ChannelDiarizer:
         return f"ch{channel}"
 
     def turns(self, regions_per_channel: Sequence[Sequence[Region]]) -> list[SpeakerTurn]:
-        return [SpeakerTurn(speaker=self.label(c), start=s, end=e, confidence=1.0, channel=c)
-                for c, regions in enumerate(regions_per_channel) for s, e in regions]
+        return [
+            SpeakerTurn(speaker=self.label(c), start=s, end=e, confidence=1.0, channel=c)
+            for c, regions in enumerate(regions_per_channel)
+            for s, e in regions
+        ]
 
-    async def diarize(self, samples: np.ndarray, sample_rate: int, *, min_speakers: int = 1, max_speakers: int = 1, key: str = "") -> list[SpeakerTurn]:
+    async def diarize(
+        self, samples: np.ndarray, sample_rate: int, *, min_speakers: int = 1, max_speakers: int = 1, key: str = ""
+    ) -> list[SpeakerTurn]:
         dur = samples.shape[-1] / sample_rate
         return [SpeakerTurn(speaker=self.label(0), start=0.0, end=dur, confidence=1.0)]
 
@@ -95,14 +102,22 @@ class PyannoteAIDiarizer(HttpProvider):
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {require_key(self.api_key, 'pyannoteAI')}"}
 
-    async def diarize(self, samples: np.ndarray, sample_rate: int, *, min_speakers: int, max_speakers: int, key: str = "") -> list[SpeakerTurn]:
+    async def diarize(
+        self, samples: np.ndarray, sample_rate: int, *, min_speakers: int, max_speakers: int, key: str = ""
+    ) -> list[SpeakerTurn]:
         http = self.http()
         media = f"media://advisor-intel/{key or uuid.uuid4().hex}.wav"
         up = self.json_or_raise(await http.post(f"{self.base_url}/media/input", json={"url": media}, headers=self._headers()), "pyannoteAI")
         put = await http.put(up["url"], content=wav_bytes(samples, sample_rate), headers={"Content-Type": "audio/wav"})
         self.json_or_raise(put, "pyannoteAI upload")
-        body = {"url": media, "model": self.model, "minSpeakers": min_speakers, "maxSpeakers": max_speakers, "confidence": True,
-                "turnLevelConfidence": True}
+        body = {
+            "url": media,
+            "model": self.model,
+            "minSpeakers": min_speakers,
+            "maxSpeakers": max_speakers,
+            "confidence": True,
+            "turnLevelConfidence": True,
+        }
         job = self.json_or_raise(await http.post(f"{self.base_url}/diarize", json=body, headers=self._headers()), "pyannoteAI")
         job_id = job.get("jobId") or job.get("id")
         if not job_id:
@@ -111,8 +126,12 @@ class PyannoteAIDiarizer(HttpProvider):
         async def fetch() -> dict:
             return self.json_or_raise(await http.get(f"{self.base_url}/jobs/{job_id}", headers=self._headers()), "pyannoteAI")
 
-        done = await self.poll(fetch, lambda b: b.get("status") == "succeeded",
-                               lambda b: (b.get("error") or b.get("status")) if b.get("status") in ("failed", "canceled") else None, "pyannoteAI")
+        done = await self.poll(
+            fetch,
+            lambda b: b.get("status") == "succeeded",
+            lambda b: (b.get("error") or b.get("status")) if b.get("status") in ("failed", "canceled") else None,
+            "pyannoteAI",
+        )
         return relabel(parse_pyannote_output(done.get("output") or {}))
 
 
@@ -150,8 +169,14 @@ def parse_pyannote_output(output: dict) -> list[SpeakerTurn]:
         c = t.get("confidence")
         if c is None and frames:
             c = _posterior(frames, t["speaker"], float(t["start"]), float(t["end"]))
-        turns.append(SpeakerTurn(speaker=str(t["speaker"]), start=float(t["start"]), end=float(t["end"]),
-                                 confidence=round(min(1.0, max(0.0, _unit(float(c)))), 4) if c is not None else 1.0))
+        turns.append(
+            SpeakerTurn(
+                speaker=str(t["speaker"]),
+                start=float(t["start"]),
+                end=float(t["end"]),
+                confidence=round(min(1.0, max(0.0, _unit(float(c)))), 4) if c is not None else 1.0,
+            )
+        )
     return turns
 
 
@@ -165,15 +190,28 @@ class FakeDiarizer:
     name = "fake"
     model_version = "fake-1"
 
-    def __init__(self, turns: Sequence[SpeakerTurn] = (), *, jitter_s: float = 0.0, confidence: float = 0.95, conf_sd: float = 0.0,
-                 seed: int = 0, keep_labels: bool = False, time_base: str = "call"):
+    def __init__(
+        self,
+        turns: Sequence[SpeakerTurn] = (),
+        *,
+        jitter_s: float = 0.0,
+        confidence: float = 0.95,
+        conf_sd: float = 0.0,
+        seed: int = 0,
+        keep_labels: bool = False,
+        time_base: str = "call",
+    ):
         self.base = list(turns)
         self.jitter_s, self.confidence, self.conf_sd, self.seed, self.keep_labels = jitter_s, confidence, conf_sd, seed, keep_labels
         self.time_base = time_base
         self.calls: list[dict] = []
 
-    async def diarize(self, samples: np.ndarray, sample_rate: int, *, min_speakers: int, max_speakers: int, key: str = "") -> list[SpeakerTurn]:
-        self.calls.append({"min_speakers": min_speakers, "max_speakers": max_speakers, "key": key, "seconds": samples.shape[-1] / sample_rate})
+    async def diarize(
+        self, samples: np.ndarray, sample_rate: int, *, min_speakers: int, max_speakers: int, key: str = ""
+    ) -> list[SpeakerTurn]:
+        self.calls.append(
+            {"min_speakers": min_speakers, "max_speakers": max_speakers, "key": key, "seconds": samples.shape[-1] / sample_rate}
+        )
         return self.turns()
 
     def turns(self) -> list[SpeakerTurn]:
@@ -183,8 +221,15 @@ class FakeDiarizer:
             j0 = rng.uniform(-self.jitter_s, self.jitter_s) if self.jitter_s else 0.0
             j1 = rng.uniform(-self.jitter_s, self.jitter_s) if self.jitter_s else 0.0
             conf = self.confidence + (rng.gauss(0, self.conf_sd) if self.conf_sd else 0.0)
-            out.append(t.model_copy(update={"start": max(0.0, t.start + j0), "end": max(t.start + j0 + 0.05, t.end + j1),
-                                            "confidence": round(min(1.0, max(0.0, conf)), 4)}))
+            out.append(
+                t.model_copy(
+                    update={
+                        "start": max(0.0, t.start + j0),
+                        "end": max(t.start + j0 + 0.05, t.end + j1),
+                        "confidence": round(min(1.0, max(0.0, conf)), 4),
+                    }
+                )
+            )
         return out if self.keep_labels else relabel(out)
 
 

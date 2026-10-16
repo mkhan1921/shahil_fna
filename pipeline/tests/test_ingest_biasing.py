@@ -25,9 +25,32 @@ ANCHOR = date(2026, 10, 16)
 def test_static_vocabulary_file_seeds_section_5_4():
     v = load_vocab_file()
     terms = {p.text for p in v.phrases}
-    for t in ("retirement annuity", "RA", "preservation fund", "provident fund", "pension fund", "living annuity", "life annuity", "TFSA",
-              "tax-free savings", "two-pot", "savings pot", "retirement pot", "vested pot", "Regulation 28", "endowment", "unit trust", "ETF",
-              "offshore allowance", "discretionary investment", "SARS", "JSE", "Allan Gray", "Old Mutual", "Discovery"):
+    for t in (
+        "retirement annuity",
+        "RA",
+        "preservation fund",
+        "provident fund",
+        "pension fund",
+        "living annuity",
+        "life annuity",
+        "TFSA",
+        "tax-free savings",
+        "two-pot",
+        "savings pot",
+        "retirement pot",
+        "vested pot",
+        "Regulation 28",
+        "endowment",
+        "unit trust",
+        "ETF",
+        "offshore allowance",
+        "discretionary investment",
+        "SARS",
+        "JSE",
+        "Allan Gray",
+        "Old Mutual",
+        "Discovery",
+    ):
         assert t in terms, t
     tfsa = next(p for p in v.phrases if p.text == "TFSA")
     assert tfsa.sounds_like == ["tee eff ess ay"] and tfsa.kind == "vocab" and tfsa.source.endswith(":products")

@@ -77,7 +77,9 @@ def noise(duration: float, *, seed: int = 0, sr: int = SR, level_db: float = -60
     return (rng.normal(0, 1, int(duration * sr)) * 10 ** (level_db / 20)).astype(np.float32)
 
 
-def timeline(pieces: list[tuple[str, float]], *, seed: int = 0, sr: int = SR, floor_db: float = -60.0) -> tuple[np.ndarray, list[tuple[float, float]]]:
+def timeline(
+    pieces: list[tuple[str, float]], *, seed: int = 0, sr: int = SR, floor_db: float = -60.0
+) -> tuple[np.ndarray, list[tuple[float, float]]]:
     """Concatenate ('speech'|'music'|'silence'|'tone', seconds) pieces over a noise floor; returns audio and the speech intervals."""
     out, speech, t = [], [], 0.0
     for i, (kind, dur) in enumerate(pieces):

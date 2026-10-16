@@ -46,12 +46,21 @@ class GraniteSpeechASR(HttpProvider):
         return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
 
     async def _chunk(self, clip, sr: int, offset: float, channel: int | None, prompt: str) -> list[AsrWord]:
-        data = {"model": self.model, "language": self.language, "response_format": "verbose_json", "timestamp_granularities[]": "word",
-                "temperature": "0"}
+        data = {
+            "model": self.model,
+            "language": self.language,
+            "response_format": "verbose_json",
+            "timestamp_granularities[]": "word",
+            "temperature": "0",
+        }
         if prompt:
             data["prompt"] = prompt
-        resp = await self.http().post(f"{self.base_url.rstrip('/')}/v1/audio/transcriptions", data=data,
-                                      files={"file": ("chunk.wav", wav_bytes(clip, sr), "audio/wav")}, headers=self._headers())
+        resp = await self.http().post(
+            f"{self.base_url.rstrip('/')}/v1/audio/transcriptions",
+            data=data,
+            files={"file": ("chunk.wav", wav_bytes(clip, sr), "audio/wav")},
+            headers=self._headers(),
+        )
         return parse_granite(self.json_or_raise(resp, "Granite"), offset=offset, channel=channel)
 
     async def transcribe(self, audio: AsrAudio | None, vocab: Vocabulary | None = None, want_alternatives: bool = True) -> AsrResult:
@@ -65,13 +74,25 @@ class GraniteSpeechASR(HttpProvider):
 
         async def run(s: float, e: float, ch: int | None) -> list[AsrWord]:
             async with sem:
-                mono = audio.clip(s, e, ch) if ch is not None else audio.clip(s, e).mean(axis=0) if audio.samples.ndim == 2 else audio.clip(s, e)
+                mono = (
+                    audio.clip(s, e, ch)
+                    if ch is not None
+                    else audio.clip(s, e).mean(axis=0)
+                    if audio.samples.ndim == 2
+                    else audio.clip(s, e)
+                )
                 return await self._chunk(mono, audio.sample_rate, s, ch, prompt)
 
         chunks = await asyncio.gather(*(run(s, e, ch) for ch in channels for s, e in audio.chunks(self.chunk_s)))
         words = sorted((w for c in chunks for w in c), key=lambda w: (w.t_start, w.channel or 0))
-        return AsrResult(words=words, provider="granite", model_version=self.model, alternatives_available=False, language=self.language,
-                         duration=audio.duration)
+        return AsrResult(
+            words=words,
+            provider="granite",
+            model_version=self.model,
+            alternatives_available=False,
+            language=self.language,
+            duration=audio.duration,
+        )
 
 
 def _spread(text: str, start: float, end: float) -> list[tuple[str, float, float]]:
@@ -100,13 +121,24 @@ def parse_granite(body: dict, *, offset: float = 0.0, channel: int | None = None
             start, end = float(w["start"]), float(w["end"])
             p = w.get("probability")
             conf = float(p) if p is not None else seg_conf((start + end) / 2)
-            out.append(AsrWord(text=str(w["word"]).strip(), t_start=round(offset + start, 3), t_end=round(offset + end, 3),
-                               conf=round(min(1.0, max(0.0, conf if conf is not None else 0.0)), 4), channel=channel))
+            out.append(
+                AsrWord(
+                    text=str(w["word"]).strip(),
+                    t_start=round(offset + start, 3),
+                    t_end=round(offset + end, 3),
+                    conf=round(min(1.0, max(0.0, conf if conf is not None else 0.0)), 4),
+                    channel=channel,
+                )
+            )
     else:
         for s in segments:
             conf = math.exp(float(s["avg_logprob"])) if s.get("avg_logprob") is not None else 0.0
             for tok, a, b in _spread(str(s.get("text", "")), float(s["start"]), float(s["end"])):
-                out.append(AsrWord(text=tok, t_start=round(offset + a, 3), t_end=round(offset + b, 3), conf=round(min(1.0, conf), 4), channel=channel))
+                out.append(
+                    AsrWord(
+                        text=tok, t_start=round(offset + a, 3), t_end=round(offset + b, 3), conf=round(min(1.0, conf), 4), channel=channel
+                    )
+                )
         if not segments and body.get("text"):
             raise AsrError("Granite: response has no word or segment timestamps; use response_format=verbose_json")
     return [w for w in out if w.text]

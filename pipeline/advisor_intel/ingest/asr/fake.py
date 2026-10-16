@@ -39,17 +39,51 @@ SENTENCE_END = (".", "?", "!")
 VOWELS = re.compile(r"[aeiouyëéè]+")
 
 # Classic mishearings of number words (the "two fifty" ↔ "two fifteen" family), both ways.
-_PAIRS = [("fifty", "fifteen"), ("forty", "fourteen"), ("sixty", "sixteen"), ("seventy", "seventeen"), ("eighty", "eighteen"),
-          ("ninety", "nineteen"), ("thirty", "thirteen"), ("vyftig", "vyftien"), ("sestig", "sestien"), ("veertig", "veertien")]
+_PAIRS = [
+    ("fifty", "fifteen"),
+    ("forty", "fourteen"),
+    ("sixty", "sixteen"),
+    ("seventy", "seventeen"),
+    ("eighty", "eighteen"),
+    ("ninety", "nineteen"),
+    ("thirty", "thirteen"),
+    ("vyftig", "vyftien"),
+    ("sestig", "sestien"),
+    ("veertig", "veertien"),
+]
 CONFUSIONS: dict[str, list[str]] = {}
 for _a, _b in _PAIRS:
     CONFUSIONS.setdefault(_a, []).append(_b)
     CONFUSIONS.setdefault(_b, []).append(_a)
-CONFUSIONS.update({"thousand": ["thousands"], "million": ["billion"], "hundred": ["hundreds"], "two": ["to"], "four": ["for"], "eight": ["ate"]})
+CONFUSIONS.update(
+    {"thousand": ["thousands"], "million": ["billion"], "hundred": ["hundreds"], "two": ["to"], "four": ["for"], "eight": ["ate"]}
+)
 RARE_CONFUSIONS = {"million", "billion", "thousand", "hundred"}  # scale words: their confusions get small alternative scores
-HOMOPHONES = {"for": "four", "four": "for", "to": "two", "too": "two", "two": "to", "one": "won", "won": "one", "eight": "ate",
-              "ate": "eight", "their": "there", "there": "their", "by": "buy", "know": "no", "no": "know", "our": "hour", "hour": "our",
-              "some": "sum", "sum": "some", "right": "write", "new": "knew", "week": "weak", "rand": "ran", "bond": "bomb"}
+HOMOPHONES = {
+    "for": "four",
+    "four": "for",
+    "to": "two",
+    "too": "two",
+    "two": "to",
+    "one": "won",
+    "won": "one",
+    "eight": "ate",
+    "ate": "eight",
+    "their": "there",
+    "there": "their",
+    "by": "buy",
+    "know": "no",
+    "no": "know",
+    "our": "hour",
+    "hour": "our",
+    "some": "sum",
+    "sum": "some",
+    "right": "write",
+    "new": "knew",
+    "week": "weak",
+    "rand": "ran",
+    "bond": "bomb",
+}
 MISHEARABLE = {k for k, _ in _PAIRS} | {v for _, v in _PAIRS}
 
 
@@ -68,7 +102,7 @@ class ScriptedCall(BaseModel):
     lead_in: float = 0.6  # seconds before the first word
 
     @classmethod
-    def parse(cls, text: str, roles: dict[str, SpeakerRole] | None = None) -> "ScriptedCall":
+    def parse(cls, text: str, roles: dict[str, SpeakerRole] | None = None) -> ScriptedCall:
         """Parse ``speaker[@channel]: text`` lines, with ``[pause s]`` and ``[overlap s]`` directives."""
         turns: list[ScriptTurn] = []
         pending: dict = {}
@@ -236,8 +270,15 @@ class ScriptedASR:
 
     async def transcribe(self, audio: AsrAudio | None = None, vocab: Vocabulary | None = None, want_alternatives: bool = True) -> AsrResult:
         r = self.render(want_alternatives)
-        return AsrResult(words=r.words, provider=self.name, model_version=self.model_version, alternatives_available=want_alternatives,
-                         language="en-ZA", time_base="call", duration=r.duration)
+        return AsrResult(
+            words=r.words,
+            provider=self.name,
+            model_version=self.model_version,
+            alternatives_available=want_alternatives,
+            language="en-ZA",
+            time_base="call",
+            duration=r.duration,
+        )
 
     # ------------------------------------------------------------------ rendering
 
@@ -277,8 +318,16 @@ class ScriptedASR:
                     intended.append(Intended(t_start=round(t0, 3), t_end=round(t1, 3), said=said, value=opts["means"]))
                 for j, w in enumerate(said.split()):
                     share = dur / max(1, len(said.split()))
-                    reference.append(RefWord(text=w, t_start=round(t0 + j * share, 3), t_end=round(t0 + (j + 1) * share, 3),
-                                             speaker=turn.speaker, turn=ti, channel=turn.channel))
+                    reference.append(
+                        RefWord(
+                            text=w,
+                            t_start=round(t0 + j * share, 3),
+                            t_end=round(t0 + (j + 1) * share, 3),
+                            speaker=turn.speaker,
+                            turn=ti,
+                            channel=turn.channel,
+                        )
+                    )
                 heard, conf, alts = self._hear(rng, said, opts, turn.speaker, want_alts, misheard)
                 hw = heard.split()
                 sw = said.split()
@@ -290,8 +339,17 @@ class ScriptedASR:
                         word_alts = [(sw[j], s) for _, s in alts[:1]] if want_alts and normalize_token(sw[j]) != normalize_token(w) else []
                     else:
                         word_alts = []
-                    turn_words.append(AsrWord(text=w, t_start=round(t0 + j * share, 3), t_end=round(t0 + (j + 1) * share - 0.01, 3),
-                                              conf=conf, alts=word_alts, channel=turn.channel, speaker=turn.speaker))
+                    turn_words.append(
+                        AsrWord(
+                            text=w,
+                            t_start=round(t0 + j * share, 3),
+                            t_end=round(t0 + (j + 1) * share - 0.01, 3),
+                            conf=conf,
+                            alts=word_alts,
+                            channel=turn.channel,
+                            speaker=turn.speaker,
+                        )
+                    )
                 pause = rng.uniform(0.02, 0.08)
                 if said.endswith(","):
                     pause += rng.uniform(0.12, 0.25)
@@ -304,16 +362,33 @@ class ScriptedASR:
             if n.itn:
                 turn_words = self._itn(turn_words)
             words += turn_words
-            turns.append(RefTurn(speaker=turn.speaker, start=round(start, 3), end=end, text=re.sub(MARKUP, lambda m: m.group(1), turn.text),
-                                 turn=ti, channel=turn.channel))
+            turns.append(
+                RefTurn(
+                    speaker=turn.speaker,
+                    start=round(start, 3),
+                    end=end,
+                    text=re.sub(MARKUP, lambda m: m.group(1), turn.text),
+                    turn=ti,
+                    channel=turn.channel,
+                )
+            )
             prev_start, prev_end = start, end
             call_end = max(call_end, end)
         words.sort(key=lambda w: (w.t_start, w.channel or 0))
-        return ScriptRender(words=words, reference=reference, turns=turns, speakers=self.script.speakers(), duration=round(call_end + 0.5, 3),
-                            roles=dict(self.script.roles), misheard=misheard, intended=intended)
+        return ScriptRender(
+            words=words,
+            reference=reference,
+            turns=turns,
+            speakers=self.script.speakers(),
+            duration=round(call_end + 0.5, 3),
+            roles=dict(self.script.roles),
+            misheard=misheard,
+            intended=intended,
+        )
 
-    def _hear(self, rng: random.Random, said: str, opts: dict, speaker: str, want_alts: bool,
-              misheard: list[tuple[str, str]]) -> tuple[str, float, list[tuple[str, float]]]:
+    def _hear(
+        self, rng: random.Random, said: str, opts: dict, speaker: str, want_alts: bool, misheard: list[tuple[str, str]]
+    ) -> tuple[str, float, list[tuple[str, float]]]:
         n = self.noise
         norm = normalize_token(said)
         conf = self._conf(rng, speaker)
@@ -369,8 +444,18 @@ class ScriptedASR:
             text = f"{float(r.value):g}%" if r.is_rate else written_amount(float(r.value), r.currency)
             out += words[i : f.start]
             span = words[f.start : end]
-            out.append(AsrWord(text=text, t_start=span[0].t_start, t_end=span[-1].t_end, conf=round(sum(w.conf for w in span) / len(span), 3),
-                               alts=[], raw_spoken=spoken, channel=span[0].channel, speaker=span[0].speaker))
+            out.append(
+                AsrWord(
+                    text=text,
+                    t_start=span[0].t_start,
+                    t_end=span[-1].t_end,
+                    conf=round(sum(w.conf for w in span) / len(span), 3),
+                    alts=[],
+                    raw_spoken=spoken,
+                    channel=span[0].channel,
+                    speaker=span[0].speaker,
+                )
+            )
             i = end
         out += words[i:]
         return out

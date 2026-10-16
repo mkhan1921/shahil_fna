@@ -12,8 +12,17 @@ def seg(sid: str, speaker: str, start: float, end: float, conf: float = 0.95, fl
     n = max(1, int((end - start) / 0.4))
     step = (end - start) / n
     words = [Word(text="w", t_start=start + k * step, t_end=start + (k + 1) * step - 0.01, conf=conf) for k in range(n)]
-    return Segment(segment_id=sid, speaker_label=speaker, speaker_role="advisor", role_conf=role_conf, t_start=start, t_end=end, words=words,
-                   text=" ".join("w" for _ in words), flags=set(flags))
+    return Segment(
+        segment_id=sid,
+        speaker_label=speaker,
+        speaker_role="advisor",
+        role_conf=role_conf,
+        t_start=start,
+        t_end=end,
+        words=words,
+        text=" ".join("w" for _ in words),
+        flags=set(flags),
+    )
 
 
 def good_call() -> list[Segment]:
@@ -59,9 +68,26 @@ def test_a_stray_label_with_under_a_second_of_speech_is_not_a_speaker():
 
 def test_scale_ambiguous_count_unaccepted_spans_and_missing_alternatives():
     spans = [
-        NumericSpan(span_id="n0001", segment_id="s0002", kind="amount", word_start=0, word_end=2, surface="two fifty",
-                    readings=[Reading(value=250.0, weight=0.5), Reading(value=250000.0, weight=0.5)], flags={"scale_ambiguous"}),
-        NumericSpan(span_id="n0002", segment_id="s0002", kind="amount", word_start=3, word_end=4, surface="million", accepted=False, flags={"low_asr"}),
+        NumericSpan(
+            span_id="n0001",
+            segment_id="s0002",
+            kind="amount",
+            word_start=0,
+            word_end=2,
+            surface="two fifty",
+            readings=[Reading(value=250.0, weight=0.5), Reading(value=250000.0, weight=0.5)],
+            flags={"scale_ambiguous"},
+        ),
+        NumericSpan(
+            span_id="n0002",
+            segment_id="s0002",
+            kind="amount",
+            word_start=3,
+            word_end=4,
+            surface="million",
+            accepted=False,
+            flags={"low_asr"},
+        ),
     ]
     q = quality_report(good_call(), spans, asr_alternatives=False, role_conf={"spk_0": 0.9, "spk_1": 0.9})
     assert q.scale_ambiguous_spans == 1

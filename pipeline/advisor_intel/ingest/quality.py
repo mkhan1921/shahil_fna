@@ -36,8 +36,13 @@ def detected_speakers(segments: Sequence[Segment], min_speech_s: float = MIN_SPE
     return [spk for spk, t in totals.items() if t >= min_speech_s]
 
 
-def quality_report(segments: Sequence[Segment], numeric_spans: Sequence[NumericSpan] = (), *, asr_alternatives: bool = True,
-                   role_conf: dict[str, float] | None = None) -> QualityReport:
+def quality_report(
+    segments: Sequence[Segment],
+    numeric_spans: Sequence[NumericSpan] = (),
+    *,
+    asr_alternatives: bool = True,
+    role_conf: dict[str, float] | None = None,
+) -> QualityReport:
     words = [w for s in segments for w in s.words]
     mean_conf = sum(w.conf for w in words) / len(words) if words else 0.0
     speech = speech_seconds(segments)
@@ -56,16 +61,22 @@ def quality_report(segments: Sequence[Segment], numeric_spans: Sequence[NumericS
     cap = False
     if mean_conf < MIN_MEAN_CONF:
         cap = True
-        banners.append(f"Low ASR confidence: mean word confidence {mean_conf:.2f} (target ≥ {MIN_MEAN_CONF:.2f}). Extraction confidence is capped.")
+        banners.append(
+            f"Low ASR confidence: mean word confidence {mean_conf:.2f} (target ≥ {MIN_MEAN_CONF:.2f}). Extraction confidence is capped."
+        )
     if low_share > MAX_LOW_ASR_SHARE:
         cap = True
-        banners.append(f"Poor audio: {low_share:.0%} of speech is low-confidence (target ≤ {MAX_LOW_ASR_SHARE:.0%}). Extraction confidence is capped.")
+        banners.append(
+            f"Poor audio: {low_share:.0%} of speech is low-confidence (target ≤ {MAX_LOW_ASR_SHARE:.0%}). Extraction confidence is capped."
+        )
     role_review = role_min < MIN_ROLE_CONF
     if role_review:
         banners.append(f"Confirm speaker roles before review: lowest role confidence {role_min:.2f} (target ≥ {MIN_ROLE_CONF:.2f}).")
     failed = not (MIN_SPEAKERS <= len(speakers) <= MAX_SPEAKERS)
     if failed:
-        banners.append(f"{len(speakers)} speaker(s) detected (expected {MIN_SPEAKERS}–{MAX_SPEAKERS}): this call is routed to manual processing.")
+        banners.append(
+            f"{len(speakers)} speaker(s) detected (expected {MIN_SPEAKERS}–{MAX_SPEAKERS}): this call is routed to manual processing."
+        )
     if not asr_alternatives:
         banners.append("The ASR provider returned no word alternatives: amount readings rest on the 1-best transcript only.")
     unaccepted = sum(1 for n in numeric_spans if not n.accepted)

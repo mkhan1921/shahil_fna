@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from . import grammars, metrics
 from .asr import (
-    ASRProvider,
     AsrAudio,
+    ASRProvider,
     AssemblyAIASR,
     DeepgramASR,
     GraniteSpeechASR,
@@ -33,7 +33,15 @@ from .diarization import ChannelDiarizer, Diarizer, FakeDiarizer, PyannoteAIDiar
 from .quality import quality_report
 from .roles import assign_roles, heuristic_roles, role_agent
 from .run import assemble, ingest_call, meta_for, transcript_from_script, transcript_from_script_async
-from .second_pass import AudioModelCheck, FakeSecondPass, GrammarConstrainedRedecode, ScriptedSecondPass, SecondPassProvider, run_second_pass, select_risky
+from .second_pass import (
+    AudioModelCheck,
+    FakeSecondPass,
+    GrammarConstrainedRedecode,
+    ScriptedSecondPass,
+    SecondPassProvider,
+    run_second_pass,
+    select_risky,
+)
 from .segmentation import LabeledWord, segment_words
 from .spans import annotate_transcript, canonical_text
 from .types import AsrError, AsrResult, AsrWord, BiasPhrase, CallMeta, CrmNames, SpeakerTurn, Vocabulary
@@ -55,8 +63,8 @@ __all__ = [
     "Diarizer",
     "FakeDiarizer",
     "FakeSecondPass",
-    "GraniteSpeechASR",
     "GrammarConstrainedRedecode",
+    "GraniteSpeechASR",
     "LabeledWord",
     "NoiseConfig",
     "ParakeetASR",

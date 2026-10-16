@@ -49,12 +49,12 @@ def int_to_words(n: int, *, and_word: bool = True) -> str:
     return " ".join(parts)
 
 
-def number_to_words(x: float | int | Decimal, *, point: str = "point", and_word: bool = True) -> str:
+def number_to_words(x: float | Decimal, *, point: str = "point", and_word: bool = True) -> str:
     """2.5 → 'two point five'; 1.25 → 'one point two five'; 42 → 'forty two'."""
     d = Decimal(str(x)).normalize()
     if d == d.to_integral_value():
         return int_to_words(int(d), and_word=and_word)
-    sign, digits, exp = d.as_tuple()
+    sign = d.as_tuple().sign
     text = format(abs(d), "f")
     whole, _, frac = text.partition(".")
     words = int_to_words(int(whole), and_word=and_word) + f" {point} " + " ".join(ONES[int(c)] for c in frac)

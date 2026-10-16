@@ -15,7 +15,7 @@ import unicodedata
 FILLERS = frozenset({"uh", "um", "uhm", "umm", "er", "erm", "ah", "eh", "hmm", "mm", "mmm", "ehm"})
 
 _ABBREV = re.compile(r"^(?:[a-z]\.){1,5}[a-z]?\.?$")
-_EDGE = ".,;:!?\"“”()[]{}<>…*_|"
+_EDGE = '.,;:!?"“”()[]{}<>…*_|'
 _LETTER_HYPHEN = re.compile(r"(?<=[^\W\d_])[-‐‑–—](?=[^\W\d_'])")
 _DASHES = re.compile(r"[‐‑–—]+")
 _UNSAFE = re.compile(r"[\[\]\\]")  # special to pynini's string compiler

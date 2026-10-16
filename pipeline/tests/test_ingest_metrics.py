@@ -77,12 +77,25 @@ def test_der_collar_forgives_boundary_jitter_and_overlap_can_be_skipped():
 def _transcript() -> Transcript:
     def seg(sid, label, role, start, texts):
         words = [Word(text=t, t_start=start + 0.4 * k, t_end=start + 0.4 * k + 0.3, conf=0.95) for k, t in enumerate(texts)]
-        return Segment(segment_id=sid, speaker_label=label, speaker_role=role, role_conf=0.9, t_start=words[0].t_start, t_end=words[-1].t_end,
-                       words=words, text=" ".join(texts))
-    segs = [seg("s0001", "spk_0", "advisor", 0.0, ["what", "is", "it", "worth"]),
-            seg("s0002", "spk_1", "client_primary", 2.0, ["about", "two", "point", "five", "million"]),
-            seg("s0003", "spk_2", "client_primary", 5.0, ["no", "two", "fifty"])]
-    return annotate_transcript(Transcript(call_id="c", anchor_date=date(2026, 10, 16), segments=segs, asr_provider="t", asr_model_version="t"))
+        return Segment(
+            segment_id=sid,
+            speaker_label=label,
+            speaker_role=role,
+            role_conf=0.9,
+            t_start=words[0].t_start,
+            t_end=words[-1].t_end,
+            words=words,
+            text=" ".join(texts),
+        )
+
+    segs = [
+        seg("s0001", "spk_0", "advisor", 0.0, ["what", "is", "it", "worth"]),
+        seg("s0002", "spk_1", "client_primary", 2.0, ["about", "two", "point", "five", "million"]),
+        seg("s0003", "spk_2", "client_primary", 5.0, ["no", "two", "fifty"]),
+    ]
+    return annotate_transcript(
+        Transcript(call_id="c", anchor_date=date(2026, 10, 16), segments=segs, asr_provider="t", asr_model_version="t")
+    )
 
 
 def test_role_accuracy_by_time_and_by_label():
@@ -90,8 +103,10 @@ def test_role_accuracy_by_time_and_by_label():
     gold = [(0.0, 1.5, "advisor"), (2.0, 3.9, "client_primary"), (5.0, 6.1, "client_secondary")]
     acc = speaker_role_accuracy(gold, t)
     assert acc == pytest.approx((1.5 + 1.9) / (1.5 + 1.9 + 1.1), abs=0.02)
-    assert label_role_accuracy({"spk_0": "advisor", "spk_1": "client_primary", "spk_2": "client_secondary"},
-                               {"spk_0": "advisor", "spk_1": "client_primary", "spk_2": "client_primary"}) == pytest.approx(2 / 3)
+    assert label_role_accuracy(
+        {"spk_0": "advisor", "spk_1": "client_primary", "spk_2": "client_secondary"},
+        {"spk_0": "advisor", "spk_1": "client_primary", "spk_2": "client_primary"},
+    ) == pytest.approx(2 / 3)
 
 
 def test_numeric_span_accuracy():

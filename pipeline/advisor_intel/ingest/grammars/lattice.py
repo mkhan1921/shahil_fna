@@ -146,8 +146,9 @@ def reading_from_key(key: ReadingKey, weight: float) -> Reading:
     return Reading(value=ptype, provider=provider, lexicon_key=lex, weight=weight)
 
 
-def readings_for_lattice(lattice: pynini.Fst | None, kind: SpanKind, *, extra_products: tuple[ProductName, ...] = (),
-                         nshortest: int = N_SHORTEST) -> GrammarResult:
+def readings_for_lattice(
+    lattice: pynini.Fst | None, kind: SpanKind, *, extra_products: tuple[ProductName, ...] = (), nshortest: int = N_SHORTEST
+) -> GrammarResult:
     if lattice is None:
         return GrammarResult(kind=kind)
     composed = compose(lattice, grammar_for(kind, extra_products))
@@ -168,8 +169,9 @@ def readings_for_lattice(lattice: pynini.Fst | None, kind: SpanKind, *, extra_pr
     return GrammarResult(kind=kind, readings=readings, accepted=True, n_paths=len(paths), best_input=best_input)
 
 
-def lattice_readings(positions: Sequence[Sequence[Arc]], kind: SpanKind, *, extra_products: tuple[ProductName, ...] = (),
-                     nshortest: int = N_SHORTEST) -> GrammarResult:
+def lattice_readings(
+    positions: Sequence[Sequence[Arc]], kind: SpanKind, *, extra_products: tuple[ProductName, ...] = (), nshortest: int = N_SHORTEST
+) -> GrammarResult:
     """Every reading the grammar accepts over a word lattice, normalised (§5.3)."""
     return readings_for_lattice(build_lattice(positions), kind, extra_products=extra_products, nshortest=nshortest)
 
@@ -183,8 +185,13 @@ def parse(text: str, kind: SpanKind, *, extra_products: tuple[ProductName, ...] 
 def _same_reading(a: Reading, b: Reading) -> bool:
     """The same quantity, however its magnitude was spelled: equal value, period, rate flag, key and provider,
     and the same currency or none stated on one side."""
-    return (same_value(a, b) and a.period == b.period and a.lexicon_key == b.lexicon_key and a.provider == b.provider
-            and (a.currency == b.currency or a.currency is None or b.currency is None))
+    return (
+        same_value(a, b)
+        and a.period == b.period
+        and a.lexicon_key == b.lexicon_key
+        and a.provider == b.provider
+        and (a.currency == b.currency or a.currency is None or b.currency is None)
+    )
 
 
 def merge_readings(primary: list[Reading], secondary: list[Reading], secondary_share: float) -> list[Reading]:

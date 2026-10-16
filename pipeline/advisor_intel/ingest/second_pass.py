@@ -137,8 +137,14 @@ class GrammarConstrainedRedecode:
             for text in reading_spoken_forms(r, request.kind):
                 if text not in seen:
                     seen.add(text)
-                    phrases.append(BiasPhrase(text=text, kind="amount" if request.kind != "product" else "product", boost=self.boost,
-                                              source=request.span.span_id))
+                    phrases.append(
+                        BiasPhrase(
+                            text=text,
+                            kind="amount" if request.kind != "product" else "product",
+                            boost=self.boost,
+                            source=request.span.span_id,
+                        )
+                    )
         return Vocabulary(phrases=phrases)
 
     async def check(self, request: SecondPassRequest) -> SecondPassResult:
@@ -151,8 +157,12 @@ class GrammarConstrainedRedecode:
         words = [w for w in result.words if w.t_end > lo and w.t_start < hi]
         decoded, surface = readings_in([tok_from_word(w) for w in words], request.kind, request.extra_products)
         reading, mass = best_candidate(decoded, request.candidates)
-        return SecondPassResult(reading=reading, method=self.method, confidence=round(mass, 4) if reading else None,
-                                raw=surface or " ".join(w.text for w in words))
+        return SecondPassResult(
+            reading=reading,
+            method=self.method,
+            confidence=round(mass, 4) if reading else None,
+            raw=surface or " ".join(w.text for w in words),
+        )
 
 
 @dataclass
@@ -180,8 +190,9 @@ class AudioModelCheck(HttpProvider):
         text = (
             f"Transcript context (the uncertain words in [brackets]):\n{request.context}\n\n"
             f"In this clip, between {a:.1f}s and {b:.1f}s, the speaker states an {what}. The transcription heard "
-            f"\"{request.span.surface}\". Which of these did they mean?\n" + "\n".join(f"- {lab}" for lab in labels) +
-            "\nAnswer with one option, exactly as written."
+            f'"{request.span.surface}". Which of these did they mean?\n'
+            + "\n".join(f"- {lab}" for lab in labels)
+            + "\nAnswer with one option, exactly as written."
         )
         constraint = {"structured_outputs": {"choice": labels}} if self.choice_param == "structured_outputs" else {"guided_choice": labels}
         return {
@@ -190,8 +201,14 @@ class AudioModelCheck(HttpProvider):
             "max_tokens": 32,
             "logprobs": True,
             "messages": [
-                {"role": "system", "content": "You check numbers and product names in recordings of South African financial advice meetings."},
-                {"role": "user", "content": [{"type": "input_audio", "input_audio": {"data": audio, "format": "wav"}}, {"type": "text", "text": text}]},
+                {
+                    "role": "system",
+                    "content": "You check numbers and product names in recordings of South African financial advice meetings.",
+                },
+                {
+                    "role": "user",
+                    "content": [{"type": "input_audio", "input_audio": {"data": audio, "format": "wav"}}, {"type": "text", "text": text}],
+                },
             ],
             **constraint,
         }
@@ -219,8 +236,13 @@ class FakeSecondPass:
 
     method = "fake"
 
-    def __init__(self, choose: Callable[[SecondPassRequest], Reading | float | str | None] | None = None, *,
-                 answers: dict[str, float | str] | None = None, method: str = "fake"):
+    def __init__(
+        self,
+        choose: Callable[[SecondPassRequest], Reading | float | str | None] | None = None,
+        *,
+        answers: dict[str, float | str] | None = None,
+        method: str = "fake",
+    ):
         self.choose, self.answers, self.method = choose, answers or {}, method
         self.requests: list[SecondPassRequest] = []
 
@@ -230,8 +252,9 @@ class FakeSecondPass:
         if pick is None or isinstance(pick, Reading):
             return SecondPassResult(reading=pick, method=self.method)
         for c in request.candidates:
-            if (isinstance(pick, str) and c.value == pick) or (not isinstance(pick, str) and not isinstance(c.value, str)
-                                                                and math.isclose(float(c.value), float(pick), rel_tol=1e-9)):
+            if (isinstance(pick, str) and c.value == pick) or (
+                not isinstance(pick, str) and not isinstance(c.value, str) and math.isclose(float(c.value), float(pick), rel_tol=1e-9)
+            ):
                 return SecondPassResult(reading=c, method=self.method)
         return SecondPassResult(reading=None, method=self.method, raw=str(pick))
 
@@ -251,12 +274,15 @@ class ScriptedSecondPass:
             if it.t_end > a and it.t_start < b:
                 for c in request.candidates:
                     if (isinstance(it.value, str) and c.value == it.value) or (
-                            not isinstance(it.value, str) and not isinstance(c.value, str) and math.isclose(float(c.value), float(it.value))):
+                        not isinstance(it.value, str) and not isinstance(c.value, str) and math.isclose(float(c.value), float(it.value))
+                    ):
                         return SecondPassResult(reading=c, method=self.method, confidence=1.0, raw=it.said)
         said_words = [w.text for w in self.render.reference if w.t_end > a and w.t_start < b]
         decoded, _ = readings_in([tok_from_text(w) for w in said_words], request.kind, request.extra_products)
         reading, mass = best_candidate(decoded, request.candidates)
-        return SecondPassResult(reading=reading, method=self.method, confidence=round(mass, 4) if reading else None, raw=" ".join(said_words))
+        return SecondPassResult(
+            reading=reading, method=self.method, confidence=round(mass, 4) if reading else None, raw=" ".join(said_words)
+        )
 
 
 def channel_for_label(label: str) -> int | None:
@@ -280,8 +306,14 @@ def _context(transcript: Transcript, span: NumericSpan) -> str:
     return "\n".join(lines)
 
 
-def build_requests(transcript: Transcript, risky: Sequence[RiskySpan], *, audio: PreparedAudio | None,
-                   extra_products: Sequence[ProductName] = (), pad_s: float = CLIP_PAD_S) -> list[SecondPassRequest]:
+def build_requests(
+    transcript: Transcript,
+    risky: Sequence[RiskySpan],
+    *,
+    audio: PreparedAudio | None,
+    extra_products: Sequence[ProductName] = (),
+    pad_s: float = CLIP_PAD_S,
+) -> list[SecondPassRequest]:
     reqs = []
     for r in risky:
         clip_start = max(0.0, r.t_start - pad_s)
@@ -290,14 +322,32 @@ def build_requests(transcript: Transcript, risky: Sequence[RiskySpan], *, audio:
         if audio is not None:
             ch = channel_for_label(r.speaker_label) if audio.layout == "stereo_split" else None
             clip = audio.clip(clip_start, r.t_end + pad_s, ch)
-        reqs.append(SecondPassRequest(span=r.span, kind=r.span.kind, candidates=list(r.span.readings), clip=clip, sample_rate=sr,
-                                      clip_start=clip_start, span_start=r.t_start, span_end=r.t_end, context=_context(transcript, r.span),
-                                      reasons=r.reasons, extra_products=tuple(extra_products)))
+        reqs.append(
+            SecondPassRequest(
+                span=r.span,
+                kind=r.span.kind,
+                candidates=list(r.span.readings),
+                clip=clip,
+                sample_rate=sr,
+                clip_start=clip_start,
+                span_start=r.t_start,
+                span_end=r.t_end,
+                context=_context(transcript, r.span),
+                reasons=r.reasons,
+                extra_products=tuple(extra_products),
+            )
+        )
     return reqs
 
 
-async def run_second_pass(transcript: Transcript, provider: SecondPassProvider, *, audio: PreparedAudio | None = None,
-                          extra_products: Sequence[ProductName] = (), concurrency: int = CONCURRENCY) -> Transcript:
+async def run_second_pass(
+    transcript: Transcript,
+    provider: SecondPassProvider,
+    *,
+    audio: PreparedAudio | None = None,
+    extra_products: Sequence[ProductName] = (),
+    concurrency: int = CONCURRENCY,
+) -> Transcript:
     """Re-check every risky span and store the results beside the first pass (§5.6)."""
     risky = select_risky(transcript)
     if not risky:
@@ -319,5 +369,7 @@ async def run_second_pass(transcript: Transcript, provider: SecondPassProvider, 
             continue
         top = s.readings[0] if s.readings else None
         agreement = same_value(res.reading, top) if res.reading is not None and top is not None else None
-        spans.append(s.model_copy(update={"second_pass_reading": res.reading, "second_pass_agreement": agreement, "second_pass_method": res.method}))
+        spans.append(
+            s.model_copy(update={"second_pass_reading": res.reading, "second_pass_agreement": agreement, "second_pass_method": res.method})
+        )
     return transcript.model_copy(update={"numeric_spans": spans})

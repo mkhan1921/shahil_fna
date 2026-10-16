@@ -13,8 +13,8 @@ import soundfile as sf
 
 from advisor_intel.config import Settings
 from advisor_intel.ingest.asr import (
-    ASRProvider,
     AsrAudio,
+    ASRProvider,
     AssemblyAIASR,
     DeepgramASR,
     GraniteSpeechASR,
@@ -28,13 +28,15 @@ from advisor_intel.models.runs import VersionPins
 
 from .audio_synth import speech_like
 
-VOCAB = Vocabulary(phrases=[
-    BiasPhrase(text="Thabo Mokoena", kind="name", boost=2.0),
-    BiasPhrase(text="Allan Gray", kind="product", boost=2.0),
-    BiasPhrase(text="one point two million", kind="amount", boost=1.5),
-    BiasPhrase(text="TFSA", kind="vocab", sounds_like=["tee eff ess ay"]),
-    BiasPhrase(text="twelve million", kind="distractor", boost=0.6),
-])
+VOCAB = Vocabulary(
+    phrases=[
+        BiasPhrase(text="Thabo Mokoena", kind="name", boost=2.0),
+        BiasPhrase(text="Allan Gray", kind="product", boost=2.0),
+        BiasPhrase(text="one point two million", kind="amount", boost=1.5),
+        BiasPhrase(text="TFSA", kind="vocab", sounds_like=["tee eff ess ay"]),
+        BiasPhrase(text="twelve million", kind="distractor", boost=0.6),
+    ]
+)
 
 
 def mono_audio(seconds: float = 2.0) -> AsrAudio:
@@ -42,7 +44,9 @@ def mono_audio(seconds: float = 2.0) -> AsrAudio:
 
 
 def stereo_audio(seconds: float = 2.0) -> AsrAudio:
-    return AsrAudio(samples=np.stack([speech_like(seconds, seed=1), speech_like(seconds, seed=2)]), sample_rate=16_000, layout="stereo_split")
+    return AsrAudio(
+        samples=np.stack([speech_like(seconds, seed=1), speech_like(seconds, seed=2)]), sample_rate=16_000, layout="stereo_split"
+    )
 
 
 def client_for(handler) -> httpx.AsyncClient:
@@ -136,27 +140,72 @@ def _dg_words(spec):
 
 DG_RESPONSE = {
     "metadata": {
-        "request_id": "a1b2c3", "duration": 4.0, "channels": 2,
+        "request_id": "a1b2c3",
+        "duration": 4.0,
+        "channels": 2,
         "model_info": {"30089e05-99d1-4376-b32e-c263170674af": {"name": "general-nova-3", "version": "2025-04-17.21547", "arch": "nova-3"}},
     },
-    "results": {"channels": [
-        {"alternatives": [
-            {"transcript": "and what is the bond", "confidence": 0.99,
-             "words": _dg_words([("and", 0.1, 0.3, 0.99, "And"), ("what", 0.3, 0.5, 0.99, "what"), ("is", 0.5, 0.6, 0.99, "is"),
-                                 ("the", 0.6, 0.7, 0.99, "the"), ("bond", 0.7, 1.0, 0.98, "bond?")])},
-        ]},
-        {"alternatives": [
-            {"transcript": "it's about two fifty", "confidence": 0.86,
-             "words": _dg_words([("it's", 1.4, 1.6, 0.97, "It's"), ("about", 1.6, 1.9, 0.95, "about"), ("two", 1.9, 2.2, 0.9, "two"),
-                                 ("fifty", 2.2, 2.6, 0.62, "fifty.")])},
-            {"transcript": "it's about two fifteen", "confidence": 0.74,
-             "words": _dg_words([("it's", 1.4, 1.6, 0.97, "It's"), ("about", 1.6, 1.9, 0.95, "about"), ("two", 1.9, 2.2, 0.9, "two"),
-                                 ("fifteen", 2.2, 2.6, 0.55, "fifteen.")])},
-            {"transcript": "it's about to fifty", "confidence": 0.61,
-             "words": _dg_words([("it's", 1.4, 1.6, 0.97, "It's"), ("about", 1.6, 1.9, 0.95, "about"), ("to", 1.9, 2.2, 0.5, "to"),
-                                 ("fifty", 2.2, 2.6, 0.62, "fifty.")])},
-        ]},
-    ]},
+    "results": {
+        "channels": [
+            {
+                "alternatives": [
+                    {
+                        "transcript": "and what is the bond",
+                        "confidence": 0.99,
+                        "words": _dg_words(
+                            [
+                                ("and", 0.1, 0.3, 0.99, "And"),
+                                ("what", 0.3, 0.5, 0.99, "what"),
+                                ("is", 0.5, 0.6, 0.99, "is"),
+                                ("the", 0.6, 0.7, 0.99, "the"),
+                                ("bond", 0.7, 1.0, 0.98, "bond?"),
+                            ]
+                        ),
+                    },
+                ]
+            },
+            {
+                "alternatives": [
+                    {
+                        "transcript": "it's about two fifty",
+                        "confidence": 0.86,
+                        "words": _dg_words(
+                            [
+                                ("it's", 1.4, 1.6, 0.97, "It's"),
+                                ("about", 1.6, 1.9, 0.95, "about"),
+                                ("two", 1.9, 2.2, 0.9, "two"),
+                                ("fifty", 2.2, 2.6, 0.62, "fifty."),
+                            ]
+                        ),
+                    },
+                    {
+                        "transcript": "it's about two fifteen",
+                        "confidence": 0.74,
+                        "words": _dg_words(
+                            [
+                                ("it's", 1.4, 1.6, 0.97, "It's"),
+                                ("about", 1.6, 1.9, 0.95, "about"),
+                                ("two", 1.9, 2.2, 0.9, "two"),
+                                ("fifteen", 2.2, 2.6, 0.55, "fifteen."),
+                            ]
+                        ),
+                    },
+                    {
+                        "transcript": "it's about to fifty",
+                        "confidence": 0.61,
+                        "words": _dg_words(
+                            [
+                                ("it's", 1.4, 1.6, 0.97, "It's"),
+                                ("about", 1.6, 1.9, 0.95, "about"),
+                                ("to", 1.9, 2.2, 0.5, "to"),
+                                ("fifty", 2.2, 2.6, 0.62, "fifty."),
+                            ]
+                        ),
+                    },
+                ]
+            },
+        ]
+    },
 }
 
 
@@ -187,7 +236,9 @@ async def test_deepgram_without_alternatives():
     single = json.loads(json.dumps(DG_RESPONSE))
     for ch in single["results"]["channels"]:
         ch["alternatives"] = ch["alternatives"][:1]
-    res = await DeepgramASR(api_key="k", client=client_for(lambda r: httpx.Response(200, json=single))).transcribe(mono_audio(), None, False)
+    res = await DeepgramASR(api_key="k", client=client_for(lambda r: httpx.Response(200, json=single))).transcribe(
+        mono_audio(), None, False
+    )
     assert res.alternatives_available is False and all(w.alts == [] for w in res.words) and all(w.channel is None for w in res.words)
 
 
@@ -195,25 +246,40 @@ async def test_deepgram_without_alternatives():
 
 SM_TRANSCRIPT = {
     "format": "2.9",
-    "metadata": {"created_at": "2026-10-16T09:12:00.000Z", "type": "transcription",
-                 "transcription_config": {"language": "en", "operating_point": "enhanced", "diarization": "none", "enable_entities": True}},
+    "metadata": {
+        "created_at": "2026-10-16T09:12:00.000Z",
+        "type": "transcription",
+        "transcription_config": {"language": "en", "operating_point": "enhanced", "diarization": "none", "enable_entities": True},
+    },
     "results": [
         {"type": "word", "start_time": 0.42, "end_time": 0.66, "alternatives": [{"content": "We", "confidence": 1.0, "language": "en"}]},
         {"type": "word", "start_time": 0.66, "end_time": 0.84, "alternatives": [{"content": "put", "confidence": 0.99, "language": "en"}]},
-        {"type": "entity", "entity_class": "money", "start_time": 0.84, "end_time": 2.4,
-         "alternatives": [{"content": "R250,000", "confidence": 0.82}],
-         "spoken_form": [
-             {"type": "word", "start_time": 0.84, "end_time": 1.02, "alternatives": [{"content": "two", "confidence": 0.93}]},
-             {"type": "word", "start_time": 1.02, "end_time": 1.38, "alternatives": [{"content": "hundred", "confidence": 0.9}]},
-             {"type": "word", "start_time": 1.38, "end_time": 1.5, "alternatives": [{"content": "and", "confidence": 0.85}]},
-             {"type": "word", "start_time": 1.5, "end_time": 1.8, "alternatives": [{"content": "fifty", "confidence": 0.71}]},
-             {"type": "word", "start_time": 1.8, "end_time": 2.1, "alternatives": [{"content": "thousand", "confidence": 0.95}]},
-             {"type": "word", "start_time": 2.1, "end_time": 2.4, "alternatives": [{"content": "rand", "confidence": 0.9}]},
-         ],
-         "written_form": [{"type": "word", "start_time": 0.84, "end_time": 2.4, "alternatives": [{"content": "R250,000", "confidence": 0.82}]}]},
+        {
+            "type": "entity",
+            "entity_class": "money",
+            "start_time": 0.84,
+            "end_time": 2.4,
+            "alternatives": [{"content": "R250,000", "confidence": 0.82}],
+            "spoken_form": [
+                {"type": "word", "start_time": 0.84, "end_time": 1.02, "alternatives": [{"content": "two", "confidence": 0.93}]},
+                {"type": "word", "start_time": 1.02, "end_time": 1.38, "alternatives": [{"content": "hundred", "confidence": 0.9}]},
+                {"type": "word", "start_time": 1.38, "end_time": 1.5, "alternatives": [{"content": "and", "confidence": 0.85}]},
+                {"type": "word", "start_time": 1.5, "end_time": 1.8, "alternatives": [{"content": "fifty", "confidence": 0.71}]},
+                {"type": "word", "start_time": 1.8, "end_time": 2.1, "alternatives": [{"content": "thousand", "confidence": 0.95}]},
+                {"type": "word", "start_time": 2.1, "end_time": 2.4, "alternatives": [{"content": "rand", "confidence": 0.9}]},
+            ],
+            "written_form": [
+                {"type": "word", "start_time": 0.84, "end_time": 2.4, "alternatives": [{"content": "R250,000", "confidence": 0.82}]}
+            ],
+        },
         {"type": "word", "start_time": 0.84, "end_time": 2.4, "alternatives": [{"content": "R250,000", "confidence": 0.82}]},
         {"type": "word", "start_time": 2.5, "end_time": 2.8, "alternatives": [{"content": "into", "confidence": 0.97}]},
-        {"type": "word", "start_time": 2.8, "end_time": 3.4, "alternatives": [{"content": "TFSA", "confidence": 0.64}, {"content": "TSA", "confidence": 0.2}]},
+        {
+            "type": "word",
+            "start_time": 2.8,
+            "end_time": 3.4,
+            "alternatives": [{"content": "TFSA", "confidence": 0.64}, {"content": "TSA", "confidence": 0.2}],
+        },
         {"type": "punctuation", "start_time": 3.4, "end_time": 3.4, "is_eos": True, "alternatives": [{"content": ".", "confidence": 1.0}]},
     ],
 }
@@ -278,14 +344,28 @@ async def test_granite_chunks_offsets_and_confidence_fallbacks():
         seconds = sf.info(io.BytesIO(wav)).duration
         assert seconds <= 30.01
         if len(calls) == 1:
-            return httpx.Response(200, json={"text": "we save five bar a month", "words": [
-                {"word": "we", "start": 0.2, "end": 0.4, "probability": 0.97}, {"word": "save", "start": 0.4, "end": 0.7, "probability": 0.95},
-                {"word": "five", "start": 0.7, "end": 1.0, "probability": 0.8}, {"word": "bar", "start": 1.0, "end": 1.3},
-                {"word": "a", "start": 1.3, "end": 1.4}, {"word": "month", "start": 1.4, "end": 1.8}],
-                "segments": [{"start": 0.0, "end": 2.0, "text": "we save five bar a month", "avg_logprob": -0.2}]})
-        return httpx.Response(200, json={"text": "thank you", "segments": [{"start": 1.0, "end": 2.0, "text": "thank you", "avg_logprob": -0.1}]})
+            return httpx.Response(
+                200,
+                json={
+                    "text": "we save five bar a month",
+                    "words": [
+                        {"word": "we", "start": 0.2, "end": 0.4, "probability": 0.97},
+                        {"word": "save", "start": 0.4, "end": 0.7, "probability": 0.95},
+                        {"word": "five", "start": 0.7, "end": 1.0, "probability": 0.8},
+                        {"word": "bar", "start": 1.0, "end": 1.3},
+                        {"word": "a", "start": 1.3, "end": 1.4},
+                        {"word": "month", "start": 1.4, "end": 1.8},
+                    ],
+                    "segments": [{"start": 0.0, "end": 2.0, "text": "we save five bar a month", "avg_logprob": -0.2}],
+                },
+            )
+        return httpx.Response(
+            200, json={"text": "thank you", "segments": [{"start": 1.0, "end": 2.0, "text": "thank you", "avg_logprob": -0.1}]}
+        )
 
-    audio = AsrAudio(samples=speech_like(50, seed=3)[None, :], sample_rate=16_000, layout="mono", speech_regions=((0.0, 20.0), (25.0, 50.0)))
+    audio = AsrAudio(
+        samples=speech_like(50, seed=3)[None, :], sample_rate=16_000, layout="mono", speech_regions=((0.0, 20.0), (25.0, 50.0))
+    )
     asr = GraniteSpeechASR(base_url="http://vllm:8000", client=client_for(handler), concurrency=1)
     res = await asr.transcribe(audio, VOCAB)
     assert len(calls) == len(audio.chunks(30.0)) == 2
@@ -306,21 +386,52 @@ async def test_parakeet_turbobias_phrases_and_riva_results():
 
     def handler(req: httpx.Request) -> httpx.Response:
         seen["body"] = json.loads(req.read())
-        return httpx.Response(200, json={"model_version": "parakeet-tdt-0.6b-v3+turbobias-2.0", "results": [
-            {"channel_tag": 1, "is_final": True, "audio_processed": 3.1, "alternatives": [
-                {"transcript": "about forty two thousand", "confidence": 0.9, "words": [
-                    {"word": "about", "start_time": 200, "end_time": 480, "confidence": 0.97},
-                    {"word": "forty", "start_time": 480, "end_time": 820, "confidence": 0.66},
-                    {"word": "two", "start_time": 820, "end_time": 1000, "confidence": 0.9},
-                    {"word": "thousand", "start_time": 1000, "end_time": 1500, "confidence": 0.95}]},
-                {"transcript": "about fourteen two thousand", "confidence": 0.7, "words": [
-                    {"word": "about", "start_time": 200, "end_time": 480, "confidence": 0.97},
-                    {"word": "fourteen", "start_time": 480, "end_time": 820, "confidence": 0.5},
-                    {"word": "two", "start_time": 820, "end_time": 1000, "confidence": 0.9},
-                    {"word": "thousand", "start_time": 1000, "end_time": 1500, "confidence": 0.95}]}]},
-            {"channel_tag": 2, "is_final": True, "alternatives": [
-                {"transcript": "okay", "confidence": 0.99, "words": [{"word": "okay", "start_time": 1700, "end_time": 2000, "confidence": 0.99}]}]},
-        ]})
+        return httpx.Response(
+            200,
+            json={
+                "model_version": "parakeet-tdt-0.6b-v3+turbobias-2.0",
+                "results": [
+                    {
+                        "channel_tag": 1,
+                        "is_final": True,
+                        "audio_processed": 3.1,
+                        "alternatives": [
+                            {
+                                "transcript": "about forty two thousand",
+                                "confidence": 0.9,
+                                "words": [
+                                    {"word": "about", "start_time": 200, "end_time": 480, "confidence": 0.97},
+                                    {"word": "forty", "start_time": 480, "end_time": 820, "confidence": 0.66},
+                                    {"word": "two", "start_time": 820, "end_time": 1000, "confidence": 0.9},
+                                    {"word": "thousand", "start_time": 1000, "end_time": 1500, "confidence": 0.95},
+                                ],
+                            },
+                            {
+                                "transcript": "about fourteen two thousand",
+                                "confidence": 0.7,
+                                "words": [
+                                    {"word": "about", "start_time": 200, "end_time": 480, "confidence": 0.97},
+                                    {"word": "fourteen", "start_time": 480, "end_time": 820, "confidence": 0.5},
+                                    {"word": "two", "start_time": 820, "end_time": 1000, "confidence": 0.9},
+                                    {"word": "thousand", "start_time": 1000, "end_time": 1500, "confidence": 0.95},
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        "channel_tag": 2,
+                        "is_final": True,
+                        "alternatives": [
+                            {
+                                "transcript": "okay",
+                                "confidence": 0.99,
+                                "words": [{"word": "okay", "start_time": 1700, "end_time": 2000, "confidence": 0.99}],
+                            }
+                        ],
+                    },
+                ],
+            },
+        )
 
     res = await ParakeetASR(base_url="http://parakeet:9000/", client=client_for(handler)).transcribe(stereo_audio(), VOCAB)
     cfg = seen["body"]["config"]
@@ -339,7 +450,9 @@ async def test_parakeet_turbobias_phrases_and_riva_results():
 
 
 def test_asr_from_pins_builds_the_pinned_adapter():
-    s = Settings(assemblyai_api_key="a", deepgram_api_key="d", speechmatics_api_key="s", vllm_base_url="http://vllm", parakeet_base_url="http://pk")
+    s = Settings(
+        assemblyai_api_key="a", deepgram_api_key="d", speechmatics_api_key="s", vllm_base_url="http://vllm", parakeet_base_url="http://pk"
+    )
     assert isinstance(asr_from_pins(VersionPins(asr_provider="assemblyai", asr_model_version="universal-3"), s), AssemblyAIASR)
     dg = asr_from_pins(VersionPins(asr_provider="deepgram", asr_model_version="nova-3"), s)
     assert isinstance(dg, DeepgramASR) and dg.api_key == "d" and dg.model == "nova-3"

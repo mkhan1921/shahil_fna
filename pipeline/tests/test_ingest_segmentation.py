@@ -31,7 +31,11 @@ def test_another_speakers_turn_in_a_short_gap_splits_the_run():
     lw = words("spk_0", 0.0, ["what", "is", "it", "worth"]) + words("spk_1", 1.7, ["two", "point", "five"], step=0.25, dur=0.2)
     lw += words("spk_0", 2.5, ["okay", "thanks"])
     segs = segment_words(lw)
-    assert [(s.speaker_label, s.text) for s in segs] == [("spk_0", "what is it worth"), ("spk_1", "two point five"), ("spk_0", "okay thanks")]
+    assert [(s.speaker_label, s.text) for s in segs] == [
+        ("spk_0", "what is it worth"),
+        ("spk_1", "two point five"),
+        ("spk_0", "okay thanks"),
+    ]
 
 
 def test_long_runs_split_before_30_seconds_at_a_sentence_end_not_inside_a_number():

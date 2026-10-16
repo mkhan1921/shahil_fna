@@ -100,7 +100,9 @@ def _split_long(run: list[LabeledWord], max_s: float) -> list[list[LabeledWord]]
     return out
 
 
-def _runs_for_speaker(words: list[LabeledWord], others_starts: list[float], others: list[LabeledWord], pause_s: float) -> list[list[LabeledWord]]:
+def _runs_for_speaker(
+    words: list[LabeledWord], others_starts: list[float], others: list[LabeledWord], pause_s: float
+) -> list[list[LabeledWord]]:
     runs: list[list[LabeledWord]] = []
     for lw in words:
         if runs:
@@ -122,8 +124,15 @@ def _runs_for_speaker(words: list[LabeledWord], others_starts: list[float], othe
     return runs
 
 
-def segment_words(words: Sequence[LabeledWord], *, turns: Sequence[SpeakerTurn] = (), pause_s: float = PAUSE_SPLIT_S,
-                  max_s: float = MAX_SEGMENT_S, crosstalk_s: float = CROSSTALK_MIN_S, low_asr_conf: float = LOW_ASR_CONF) -> list[Segment]:
+def segment_words(
+    words: Sequence[LabeledWord],
+    *,
+    turns: Sequence[SpeakerTurn] = (),
+    pause_s: float = PAUSE_SPLIT_S,
+    max_s: float = MAX_SEGMENT_S,
+    crosstalk_s: float = CROSSTALK_MIN_S,
+    low_asr_conf: float = LOW_ASR_CONF,
+) -> list[Segment]:
     """Speaker-labelled words → segments with ids s0001…, diarization confidence and quality flags."""
     ordered = sorted(words, key=lambda lw: (lw.word.t_start, lw.word.t_end))
     by_speaker: dict[str, list[LabeledWord]] = {}

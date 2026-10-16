@@ -63,16 +63,26 @@ class AssemblyAIASR(HttpProvider):
             raise ValueError("AssemblyAI needs audio")
         headers = {"authorization": require_key(self.api_key, "AssemblyAI")}
         http = self.http()
-        up = self.json_or_raise(await http.post(f"{self.base_url}/v2/upload", content=audio.wav(),
-                                        headers={**headers, "content-type": "application/octet-stream"}), "AssemblyAI")
-        job = self.json_or_raise(await http.post(f"{self.base_url}/v2/transcript", json=self.request_body(up["upload_url"], audio, vocab),
-                                         headers=headers), "AssemblyAI")
+        up = self.json_or_raise(
+            await http.post(
+                f"{self.base_url}/v2/upload", content=audio.wav(), headers={**headers, "content-type": "application/octet-stream"}
+            ),
+            "AssemblyAI",
+        )
+        job = self.json_or_raise(
+            await http.post(f"{self.base_url}/v2/transcript", json=self.request_body(up["upload_url"], audio, vocab), headers=headers),
+            "AssemblyAI",
+        )
 
         async def fetch() -> dict:
             return self.json_or_raise(await http.get(f"{self.base_url}/v2/transcript/{job['id']}", headers=headers), "AssemblyAI")
 
-        done = await self.poll(fetch, lambda b: b.get("status") == "completed",
-                               lambda b: b.get("error") or "error" if b.get("status") == "error" else None, "AssemblyAI")
+        done = await self.poll(
+            fetch,
+            lambda b: b.get("status") == "completed",
+            lambda b: b.get("error") or "error" if b.get("status") == "error" else None,
+            "AssemblyAI",
+        )
         return parse_assemblyai(done, self.model)
 
 
@@ -80,8 +90,22 @@ def parse_assemblyai(body: dict, requested_model: str) -> AsrResult:
     words = []
     for w in body.get("words") or []:
         ch = w.get("channel")
-        words.append(AsrWord(text=w["text"], t_start=w["start"] / 1000.0, t_end=w["end"] / 1000.0, conf=float(w.get("confidence") or 0.0),
-                             channel=int(ch) - 1 if ch not in (None, "") else None, speaker=w.get("speaker")))
+        words.append(
+            AsrWord(
+                text=w["text"],
+                t_start=w["start"] / 1000.0,
+                t_end=w["end"] / 1000.0,
+                conf=float(w.get("confidence") or 0.0),
+                channel=int(ch) - 1 if ch not in (None, "") else None,
+                speaker=w.get("speaker"),
+            )
+        )
     model = body.get("speech_model") or requested_model
-    return AsrResult(words=words, provider="assemblyai", model_version=str(model), alternatives_available=False,
-                     language=body.get("language_code"), duration=body.get("audio_duration"))
+    return AsrResult(
+        words=words,
+        provider="assemblyai",
+        model_version=str(model),
+        alternatives_available=False,
+        language=body.get("language_code"),
+        duration=body.get("audio_duration"),
+    )

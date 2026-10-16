@@ -33,7 +33,16 @@ EN_DECADE_PLURALS = {
     "nineties": 90,
 }
 AF_DECADE_PLURALS = {f"{w}s": v for w, v in AF_DECADES.items()}  # "vyftigs"
-BAND_WORDS = {"early": "early", "mid": "mid", "middle": "mid", "late": "late", "vroeë": "early", "vroee": "early", "middel": "mid", "laat": "late"}
+BAND_WORDS = {
+    "early": "early",
+    "mid": "mid",
+    "middle": "mid",
+    "late": "late",
+    "vroeë": "early",
+    "vroee": "early",
+    "middel": "mid",
+    "laat": "late",
+}
 BAND_OFFSETS = {"early": 1.5, "mid": 5.0, "late": 8.5, "": 4.5}
 TEEN_BANDS = {"early teens": 14.0, "mid teens": 15.5, "late teens": 18.0, "teens": 16.0}
 AGE_PREFIXES = {"aged": "", "age": "", "turning": "turning", "turns": "turning", "turned": "turned", "ouderdom": ""}
