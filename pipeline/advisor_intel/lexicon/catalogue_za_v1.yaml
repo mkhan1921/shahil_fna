@@ -31,7 +31,7 @@ products:
   - {name: crypto, aliases: [bitcoin, cryptocurrency, crypto currency, ethereum, crypto assets], kind: asset, fna_type: crypto, rule: "Volatile and liquid; capital gains tax on disposal."}
   - {name: stokvel, aliases: [stokvel savings, savings club, rotating savings club], kind: asset, fna_type: cash, rule: "Informal rotating savings club: treat the balance due as cash savings."}
   - {name: Krugerrand, aliases: [kruger rand, krugerrands, gold coins, gold coin], kind: asset, fna_type: other, rule: "Bullion coins: record as an other asset at market value."}
-  - {name: primary residence, aliases: [our house, the house, family home, my house], kind: asset, fna_type: primary-residence, rule: "Not liquid; the R2m primary-residence CGT exclusion applies."}
+  - {name: primary residence, aliases: [our house, the house, family home, my house], kind: asset, fna_type: primary-residence, rule: "Not liquid; the primary-residence capital gains exclusion applies."}
   - {name: rental property, aliases: [investment property, rental flat, buy to let, holiday home], kind: asset, fna_type: residential-property, rule: "Not liquid; rental income goes to monthlyIncome."}
   - {name: business interest, aliases: [my business, shares in the business, member's interest, close corporation, CC], kind: asset, fna_type: business-interest, rule: "Not liquid; a buy-and-sell policy may fund it on death."}
   - {name: loan account, aliases: [shareholder loan, loan to the company, director's loan], kind: asset, fna_type: loan-account, rule: "Money owed to the client by a company or trust."}

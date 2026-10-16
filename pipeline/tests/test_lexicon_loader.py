@@ -275,8 +275,11 @@ def test_with_embedder_shares_data_and_log():
     assert bound.data is base.data and bound.miss_log is base.miss_log
     bound.age_band("zzz")
     assert len(base.miss_log) == 1
-    via_load = load_lexicon(embedder=FakeEmbedder({}))
-    assert via_load.data is load_lexicon().data and via_load.embedder.name == "fake-test"
+    emb = FakeEmbedder({})
+    via_load = load_lexicon(embedder=emb)
+    assert via_load.data is load_lexicon().data and via_load.embedder is emb
+    assert load_lexicon(embedder=emb) is via_load  # one binding per (version, embedder): keys are embedded once
+    assert load_lexicon(embedder=FakeEmbedder({})) is not via_load
 
 
 def test_lexicon_cannot_be_mutated(lex):

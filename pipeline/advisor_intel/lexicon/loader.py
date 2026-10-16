@@ -1008,11 +1008,26 @@ def _load(version: str) -> Lexicon:
     return lex
 
 
+_BOUND: dict[tuple[str, int], tuple[Embedder, Lexicon]] = {}
+_BOUND_LOCK = threading.Lock()
+
+
 def load_lexicon(version: str = CURRENT_VERSION, *, embedder: Embedder | None = None) -> Lexicon:
     """The lexicon for a pinned version, loaded once per version (§8.2). Pass the run's pinned embedder
-    (``get_embedder(pins.embedding_model)``) for near-miss lookups; the default is the hashed embedder."""
+    (``get_embedder(pins.embedding_model)``) for near-miss lookups; the default is the hashed embedder.
+    The same (version, embedder) pair always returns the same instance, so lexicon keys are embedded once."""
     lex = _load(str(version))
-    return lex.with_embedder(embedder) if embedder is not None else lex
+    if embedder is None:
+        return lex
+    k = (str(version), id(embedder))
+    with _BOUND_LOCK:
+        hit = _BOUND.get(k)
+        if hit is None or hit[0] is not embedder:
+            if len(_BOUND) >= 16:
+                _BOUND.pop(next(iter(_BOUND)))
+            hit = (embedder, lex.with_embedder(embedder))
+            _BOUND[k] = hit
+        return hit[1]
 
 
 def available_versions() -> list[str]:
