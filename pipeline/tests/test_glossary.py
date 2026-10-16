@@ -52,12 +52,27 @@ def test_seed_catalogue_maps_to_fna_types():
     cat = load_catalogue()
     by_name = {e.name: e for e in cat.entries()}
     assert (by_name["retirement annuity"].kind, by_name["retirement annuity"].fna_type, by_name["retirement annuity"].fna_list) == (
-        "fund", "retirement-annuity", "retirementFunds")  # fmt: skip
+        "fund",
+        "retirement-annuity",
+        "retirementFunds",
+    )
     assert by_name["tax-free savings account"].fna_type == "tfsa" and by_name["tax-free savings account"].fna_list == "assets"
     assert by_name["living annuity"].fna_type == "living-annuity" and by_name["two-pot savings component"].fna_type == "savingsPot"
     assert by_name["income protection"].fna_list == "policies" and by_name["home loan"].fna_list == "liabilities"
     assert by_name["group life cover"].is_group
-    for name in ("Discovery", "Old Mutual", "Sanlam", "Liberty", "Momentum", "Allan Gray", "Coronation", "Ninety One", "Sygnia", "Satrix", "10X"):
+    for name in (
+        "Discovery",
+        "Old Mutual",
+        "Sanlam",
+        "Liberty",
+        "Momentum",
+        "Allan Gray",
+        "Coronation",
+        "Ninety One",
+        "Sygnia",
+        "Satrix",
+        "10X",
+    ):
         assert by_name[name].kind == "provider" and by_name[name].domain
     lines = cat.context_lines(practice_providers=["Acme Wealth"])
     assert any(line.startswith("retirement annuity (RA") for line in lines) and "Acme Wealth" in lines[-2]
@@ -124,8 +139,20 @@ def test_practice_lists_are_searched_with_the_catalogue():
 
 
 def test_glossary_is_searched_first():
-    g = InMemoryGlossary([GlossaryEntry(term="the green policy", aliases=["green one"], canonical_name="Discovery Life Plan", product_type="life",
-                                        provider="Discovery", kind="policy", confirmed_by="adviser-7", confirmed_at=AT)])  # fmt: skip
+    g = InMemoryGlossary(
+        [
+            GlossaryEntry(
+                term="the green policy",
+                aliases=["green one"],
+                canonical_name="Discovery Life Plan",
+                product_type="life",
+                provider="Discovery",
+                kind="policy",
+                confirmed_by="adviser-7",
+                confirmed_at=AT,
+            )
+        ]
+    )
     web = FakeSearch([])
     r = lookup("the green policy", glossary=g, web_search=web)
     assert r.resolved and r.source == "glossary" and r.searched == ["glossary"] and r.product_type == "life"
@@ -134,10 +161,16 @@ def test_glossary_is_searched_first():
 
 
 def test_web_search_is_the_last_resort_and_allow_listed():
-    web = FakeSearch([
-        WebResult(url="https://www.example.com/zorblax", title="Zorblax Wealth Booster", snippet="A life cover policy"),
-        {"url": "https://www.sanlam.co.za/zorblax", "title": "Zorblax Wealth Booster - Sanlam", "snippet": "An endowment policy for five years"},
-    ])  # fmt: skip
+    web = FakeSearch(
+        [
+            WebResult(url="https://www.example.com/zorblax", title="Zorblax Wealth Booster", snippet="A life cover policy"),
+            {
+                "url": "https://www.sanlam.co.za/zorblax",
+                "title": "Zorblax Wealth Booster - Sanlam",
+                "snippet": "An endowment policy for five years",
+            },
+        ]
+    )
     r = lookup("Zorblax Wealth Booster", web_search=web)
     assert r.resolved and r.source == "web" and r.searched == ["glossary", "catalogue", "web"]
     assert r.candidate.source_url == "https://www.sanlam.co.za/zorblax" and r.candidate.provider == "Sanlam"
@@ -177,7 +210,12 @@ def test_confirmed_answers_are_remembered():
     first = lookup("Zorblax Wealth Booster", glossary=g, web_search=web)
     assert first.source == "web" and g.entries() == []  # web answers enter the glossary only once confirmed
     entry = confirm_lookup(g, first, confirmed_by="adviser-7", at=AT)
-    assert (entry.source, entry.confirmed_by, entry.confirmed_at, entry.source_url) == ("web", "adviser-7", AT, "https://www.sanlam.co.za/z")
+    assert (entry.source, entry.confirmed_by, entry.confirmed_at, entry.source_url) == (
+        "web",
+        "adviser-7",
+        AT,
+        "https://www.sanlam.co.za/z",
+    )
     again = lookup("Zorblax Wealth Booster", glossary=g, web_search=web)
     assert again.source == "glossary" and len(web.calls) == 1
 
@@ -187,8 +225,14 @@ def test_reviewer_corrections_and_required_confirmer():
     r = lookup("preservation fund", TermContext(text="a preservation fund"), glossary=g)
     with pytest.raises(ValueError):
         confirm_lookup(g, r, confirmed_by="adviser-7")
-    fix = TermCandidate(canonical_name="Old Mutual provident preservation fund", product_type="preservation-provident", provider="Old Mutual",
-                        kind="fund", source="reviewer", score=1.0)  # fmt: skip
+    fix = TermCandidate(
+        canonical_name="Old Mutual provident preservation fund",
+        product_type="preservation-provident",
+        provider="Old Mutual",
+        kind="fund",
+        source="reviewer",
+        score=1.0,
+    )
     entry = confirm_lookup(g, r, confirmed_by="adviser-7", correction=fix)
     assert entry.source == "reviewer" and g.get("Preservation Fund") == entry
     with pytest.raises(ValueError):
@@ -198,8 +242,16 @@ def test_reviewer_corrections_and_required_confirmer():
 def test_json_glossary_persists(tmp_path):
     path = tmp_path / "glossary" / "practice.json"
     g = JsonGlossary(path)
-    confirm_term(g, "the green policy", canonical_name="Discovery Life Plan", product_type="life", provider="Discovery", confirmed_by="a-1",
-                 aliases=["green one"], at=AT)  # fmt: skip
+    confirm_term(
+        g,
+        "the green policy",
+        canonical_name="Discovery Life Plan",
+        product_type="life",
+        provider="Discovery",
+        confirmed_by="a-1",
+        aliases=["green one"],
+        at=AT,
+    )
     reloaded = JsonGlossary(path)
     assert reloaded.get("green one").canonical_name == "Discovery Life Plan" and reloaded.entries()[0].confirmed_at == AT
     confirm_term(reloaded, "the green policy", canonical_name="Discovery Life Plan", confirmed_by="a-2", aliases=["the green one"], at=AT)

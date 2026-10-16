@@ -52,7 +52,9 @@ def make_slot(slot_id: str, fna_unit: str, **kw: Any) -> SlotDef:
     )
 
 
-def fact(fact_id: str, value: Quantity | None, *, slot_id: str | None = None, prior: Quantity | None = None, status: str = "stated") -> Fact:
+def fact(
+    fact_id: str, value: Quantity | None, *, slot_id: str | None = None, prior: Quantity | None = None, status: str = "stated"
+) -> Fact:
     instance = fact_id.split("#", 1)[1] if "#" in fact_id else None
     return Fact(
         fact_id=fact_id,
@@ -67,7 +69,9 @@ def fact(fact_id: str, value: Quantity | None, *, slot_id: str | None = None, pr
 
 
 def profile(*facts: Fact, anchor: date = ANCHOR) -> Profile:
-    return Profile(call_id="call-test", run_id="run-test", schema_version="profile_v1", anchor_date=anchor, facts={f.fact_id: f for f in facts})
+    return Profile(
+        call_id="call-test", run_id="run-test", schema_version="profile_v1", anchor_date=anchor, facts={f.fact_id: f for f in facts}
+    )
 
 
 class FakeEmbedder:

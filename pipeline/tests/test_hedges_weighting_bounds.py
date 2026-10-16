@@ -80,7 +80,9 @@ def test_values_inside_the_bounds_are_kept():
 def test_values_outside_the_bounds_are_dropped_and_logged(caplog):
     chk = check_bounds(q(Point(value=95)), RET_AGE)
     assert chk.action == "dropped" and not chk.keep and chk.p_outside == 1.0
-    n = normalize_value({"type": "AGE", "form": "value", "value": 95, "low": 0, "high": 0, "vague_word": ""}, RET_AGE, None, LEX, anchor_date=ANCHOR)
+    n = normalize_value(
+        {"type": "AGE", "form": "value", "value": 95, "low": 0, "high": 0, "vague_word": ""}, RET_AGE, None, LEX, anchor_date=ANCHOR
+    )
     with caplog.at_level(logging.WARNING, logger="advisor_intel.lexicon.bounds"):
         assert apply_bounds(n, RET_AGE, fact_id="retirement.client.retirementAge") is None
     assert "retirement.client.retirementAge" in caplog.text and "outside [40, 80]" in caplog.text

@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Literal, Mapping
 
+import numpy as np
 from pydantic import BaseModel, TypeAdapter
 from rapidfuzz import fuzz, process
 
@@ -40,7 +41,6 @@ from ..models.extraction import (
     AmountExact,
     AmountRange,
     AmountRelative,
-    AmountVague,
     BooleanForm,
     CategoryForm,
     DateAbs,
@@ -99,9 +99,28 @@ _TODAYS_MONEY: dict[tuple[str, str], Literal["cpi", "educationInflation"]] = {
     ("dependants", "tertiaryCostAnnual"): "educationInflation",
     ("dependants", "schoolFeesAnnual"): "educationInflation",
 }
-_DURATION_NOISE = {"in", "from", "now", "time", "s", "years", "year", "months", "month", "jaar", "maande", "maand", "oor", "the", "next", "ago", "gelede"}
+_DURATION_NOISE = {
+    "in",
+    "from",
+    "now",
+    "time",
+    "s",
+    "years",
+    "year",
+    "months",
+    "month",
+    "jaar",
+    "maande",
+    "maand",
+    "oor",
+    "the",
+    "next",
+    "ago",
+    "gelede",
+}
 _YES = ("yes", "true", "y", "ja")
 _NO = ("no", "false", "n", "nee")
+_NEGATION = {"not", "no", "never", "nie", "dont", "isnt", "arent"}
 _FORM = TypeAdapter(IntermediateForm)
 
 
@@ -368,8 +387,15 @@ def _deflation(ctx: _Ctx, currency: str) -> float:
     f = (1.0 + rate) ** -years
     ctx.flag("deflated")
     ctx.real_or_nominal = "real"
-    ctx.notes["deflation"] = {"applied": True, "priced_year": py, "anchor_year": anchor.year, "years": years, "rate_name": rate_name, "rate": rate,
-                              "factor": f}  # fmt: skip
+    ctx.notes["deflation"] = {
+        "applied": True,
+        "priced_year": py,
+        "anchor_year": anchor.year,
+        "years": years,
+        "rate_name": rate_name,
+        "rate": rate,
+        "factor": f,
+    }
     ctx.conversions.append(f"deflated to today's money: ÷(1 + {rate_name} {rate:g})^{years:g}")
     return f
 
@@ -383,7 +409,9 @@ def _bound(ctx: _Ctx, bound: float, direction: str, prior: Dist | None) -> Dist:
     """§8.3 AMOUNT_BOUND: the population prior truncated at the bound; a plain spread beyond it without a prior."""
     if prior is not None and not stats.is_categorical(prior) and not stats.is_boolean(prior):
         ctx.conversions.append(f"population prior truncated {'below' if direction == 'at_least' else 'above'} {bound:g}")
-        return stats.truncate(prior, low=bound, seed=ctx.seed) if direction == "at_least" else stats.truncate(prior, high=bound, seed=ctx.seed)
+        return (
+            stats.truncate(prior, low=bound, seed=ctx.seed) if direction == "at_least" else stats.truncate(prior, high=bound, seed=ctx.seed)
+        )
     ctx.flag("no_prior")
     ctx.conversions.append("no population prior: a spread beyond the bound")
     b = abs(bound)
@@ -605,7 +633,7 @@ def _age(ctx: _Ctx) -> Quantity | None:
             return _fallback(ctx, f"an age for a {unit} field needs the date of birth", "reference_missing")
         if unit == "year":
             exact = _exact_date(dob)
-            born = Point(value=float(exact.year)) if exact else dob
+            born = Point(value=float(exact.year)) if exact else stats.composite(np.floor, dob, seed=ctx.seed)
             ctx.conversions.append("age → calendar year: birth year + age")
             return ctx.quantity(_plus(born, age, ctx.seed))
         now = _age_on(dob, ctx.need_anchor())
@@ -724,6 +752,8 @@ def match_category(label: str, categories: list[str], lex: Lexicon) -> tuple[str
         best = process.extractOne(c, list(by), scorer=fuzz.ratio)
         if best and best[1] >= 90:
             return by[best[0]], "fuzzy"
+        if set(c.split()) & _NEGATION:  # 'not conservative at all' never matches 'conservative'
+            return None
         inside = [k for k in by if k and f" {k} " in f" {c} " and k not in ("other",)]
         if inside:
             longest = max(inside, key=len)
@@ -770,7 +800,9 @@ def _category_probs(ctx: _Ctx, label: str, word: str, *, kind: Literal["category
         if sum(pp.get(x, 0.0) for x in others) > 0:
             w = {x: pp.get(x, 0.0) for x in others}
     total = sum(w.values())
-    ctx.conversions.append("certainty remainder spread over the other categories" + (" by the population prior" if w != {x: 1.0 for x in others} else ""))
+    ctx.conversions.append(
+        "certainty remainder spread over the other categories" + (" by the population prior" if w != {x: 1.0 for x in others} else "")
+    )
     out = {named: p, **{x: (1.0 - p) * v / total for x, v in w.items() if v > 0}}
     return out
 

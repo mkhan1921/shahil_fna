@@ -12,17 +12,70 @@ import re
 import unicodedata
 
 UNITS_EN: dict[str, int] = {
-    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
-    "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
-    "seventeen": 17, "eighteen": 18, "nineteen": 19,
-}  # fmt: skip
-TENS_EN: dict[str, int] = {"twenty": 20, "thirty": 30, "forty": 40, "fourty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+}
+TENS_EN: dict[str, int] = {
+    "twenty": 20,
+    "thirty": 30,
+    "forty": 40,
+    "fourty": 40,
+    "fifty": 50,
+    "sixty": 60,
+    "seventy": 70,
+    "eighty": 80,
+    "ninety": 90,
+}
 UNITS_AF: dict[str, int] = {
-    "nul": 0, "een": 1, "twee": 2, "drie": 3, "vier": 4, "vyf": 5, "ses": 6, "sewe": 7, "agt": 8, "nege": 9, "tien": 10,
-    "elf": 11, "twaalf": 12, "dertien": 13, "veertien": 14, "vyftien": 15, "sestien": 16, "sewentien": 17, "agtien": 18,
+    "nul": 0,
+    "een": 1,
+    "twee": 2,
+    "drie": 3,
+    "vier": 4,
+    "vyf": 5,
+    "ses": 6,
+    "sewe": 7,
+    "agt": 8,
+    "nege": 9,
+    "tien": 10,
+    "elf": 11,
+    "twaalf": 12,
+    "dertien": 13,
+    "veertien": 14,
+    "vyftien": 15,
+    "sestien": 16,
+    "sewentien": 17,
+    "agtien": 18,
     "negentien": 19,
-}  # fmt: skip
-TENS_AF: dict[str, int] = {"twintig": 20, "dertig": 30, "veertig": 40, "vyftig": 50, "sestig": 60, "sewentig": 70, "tagtig": 80, "negentig": 90}
+}
+TENS_AF: dict[str, int] = {
+    "twintig": 20,
+    "dertig": 30,
+    "veertig": 40,
+    "vyftig": 50,
+    "sestig": 60,
+    "sewentig": 70,
+    "tagtig": 80,
+    "negentig": 90,
+}
 UNITS = {**UNITS_EN, **UNITS_AF}
 TENS = {**TENS_EN, **TENS_AF}
 HUNDRED = {"hundred", "honderd"}
@@ -31,14 +84,28 @@ NUMBER_WORDS = set(UNITS) | set(TENS) | HUNDRED | THOUSAND
 
 # Decades as spoken, keyed by their first year. Afrikaans plurals are folded into English keys.
 DECADES: dict[str, int] = {
-    "teens": 10, "twenties": 20, "thirties": 30, "forties": 40, "fifties": 50, "sixties": 60, "seventies": 70,
-    "eighties": 80, "nineties": 90,
-}  # fmt: skip
+    "teens": 10,
+    "twenties": 20,
+    "thirties": 30,
+    "forties": 40,
+    "fifties": 50,
+    "sixties": 60,
+    "seventies": 70,
+    "eighties": 80,
+    "nineties": 90,
+}
 _DECADE_BY_DIGIT = {str(v // 10): k for k, v in DECADES.items() if v >= 20}
 _DECADE_AF = {
-    "twintigs": "twenties", "dertigs": "thirties", "veertigs": "forties", "vyftigs": "fifties", "sestigs": "sixties",
-    "sewentigs": "seventies", "tagtigs": "eighties", "negentigs": "nineties", "tieners": "teens",
-}  # fmt: skip
+    "twintigs": "twenties",
+    "dertigs": "thirties",
+    "veertigs": "forties",
+    "vyftigs": "fifties",
+    "sestigs": "sixties",
+    "sewentigs": "seventies",
+    "tagtigs": "eighties",
+    "negentigs": "nineties",
+    "tieners": "teens",
+}
 _TENS_WORD_RE = "|".join(sorted(TENS_EN, key=len, reverse=True))
 _ISH_RE = re.compile(r"\b(" + "|".join(sorted(set(UNITS_EN) | set(TENS_EN), key=len, reverse=True)) + r")ish\b")
 _AF_JOINED = re.compile(r"^(een|twee|drie|vier|vyf|ses|sewe|agt|nege)en(twintig|dertig|veertig|vyftig|sestig|sewentig|tagtig|negentig)$")

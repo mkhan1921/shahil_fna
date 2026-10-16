@@ -54,14 +54,66 @@ CONTEXT_PENALTY = 0.1  # a catalogue entry with context words, none of which app
 # Words too common to identify a product: alone they match only exactly, never as part of a longer name,
 # and when two names share them only the remaining, distinctive words are compared.
 _GENERIC = {
-    "plus", "max", "balanced", "growth", "income", "life", "fund", "funds", "plan", "cover", "policy", "investment", "investments", "savings",
-    "account", "bank", "group", "equity", "money", "market", "flexible", "core", "classic", "essential", "opportunity", "protector", "provider",
-    "wealth", "retirement", "pension", "annuity", "premium", "benefit", "select", "smart", "global", "local", "top", "insurance", "assurance",
-    "asset", "assets", "management", "managers", "holdings", "capital", "partners", "financial", "services", "platform",
-}  # fmt: skip
+    "plus",
+    "max",
+    "balanced",
+    "growth",
+    "income",
+    "life",
+    "fund",
+    "funds",
+    "plan",
+    "cover",
+    "policy",
+    "investment",
+    "investments",
+    "savings",
+    "account",
+    "bank",
+    "group",
+    "equity",
+    "money",
+    "market",
+    "flexible",
+    "core",
+    "classic",
+    "essential",
+    "opportunity",
+    "protector",
+    "provider",
+    "wealth",
+    "retirement",
+    "pension",
+    "annuity",
+    "premium",
+    "benefit",
+    "select",
+    "smart",
+    "global",
+    "local",
+    "top",
+    "insurance",
+    "assurance",
+    "asset",
+    "assets",
+    "management",
+    "managers",
+    "holdings",
+    "capital",
+    "partners",
+    "financial",
+    "services",
+    "platform",
+}
 CatalogueKind = Literal["fund", "fund_component", "asset", "policy", "liability", "expense", "provider", "other"]
 Source = Literal["glossary", "catalogue", "practice", "web", "reviewer"]
-_FNA_LIST = {"fund": "retirementFunds", "fund_component": "retirementFunds", "asset": "assets", "policy": "policies", "liability": "liabilities"}
+_FNA_LIST = {
+    "fund": "retirementFunds",
+    "fund_component": "retirementFunds",
+    "asset": "assets",
+    "policy": "policies",
+    "liability": "liabilities",
+}
 _FILLER = {"my", "the", "our", "his", "her", "their", "with", "from", "at", "by", "through", "via", "n", "a", "an", "one", "that", "this"}
 
 
@@ -91,7 +143,9 @@ class CatalogueEntry(BaseModel):
 class ProductCatalogue:
     """FNA product types, the major SA providers and well-known branded products (§7.2, §8.5)."""
 
-    def __init__(self, version: str, products: Sequence[CatalogueEntry], providers: Sequence[CatalogueEntry], named: Sequence[CatalogueEntry]) -> None:
+    def __init__(
+        self, version: str, products: Sequence[CatalogueEntry], providers: Sequence[CatalogueEntry], named: Sequence[CatalogueEntry]
+    ) -> None:
         self.version = version
         self.products = list(products)
         self.providers = list(providers)
@@ -117,7 +171,9 @@ class ProductCatalogue:
 
     def context_lines(self, practice_providers: Iterable[str] = (), practice_products: Iterable[str] = ()) -> list[str]:
         """The catalogue part of the extraction context pack (§7.2): types with their rules, then provider names."""
-        lines = [f"{p.name} ({', '.join(p.aliases[:3])}): {p.kind} → {p.fna_type or 'no FNA type'}. {p.rule}".strip() for p in self.products]
+        lines = [
+            f"{p.name} ({', '.join(p.aliases[:3])}): {p.kind} → {p.fna_type or 'no FNA type'}. {p.rule}".strip() for p in self.products
+        ]
         names = sorted({p.name for p in self.providers} | set(practice_providers))
         lines.append("Providers: " + ", ".join(names))
         products = sorted({p.name for p in self.named_products} | set(practice_products))
@@ -263,7 +319,9 @@ class TermContext:
         return out
 
 
-def is_unknown(term: str, context: TermContext, *, glossary: GlossaryStore | None = None, catalogue: ProductCatalogue | None = None) -> bool:
+def is_unknown(
+    term: str, context: TermContext, *, glossary: GlossaryStore | None = None, catalogue: ProductCatalogue | None = None
+) -> bool:
     """True when the term matches nothing the pipeline already knows (§8.5 detection)."""
     if not canon(term):
         return False
@@ -306,15 +364,24 @@ class TermLookup(BaseModel):
         """The ``Fact.term_resolution`` record: {term, candidate, source}, or the unresolved candidates."""
         if self.resolved and self.candidate is not None:
             return {"term": self.term, "candidate": self.candidate.model_dump(mode="json"), "source": self.source}
-        return {"term": self.term, "status": "unresolved", "product_type": "other", "candidates": [c.model_dump(mode="json") for c in self.candidates],
-                "reason": self.reason}  # fmt: skip
+        return {
+            "term": self.term,
+            "status": "unresolved",
+            "product_type": "other",
+            "candidates": [c.model_dump(mode="json") for c in self.candidates],
+            "reason": self.reason,
+        }
 
     def blocking_flag(self, fact_id: str, tier: str) -> BlockingFlag | None:
         """§10.3: a tier A fact that depends on an unresolved term blocks review submission."""
         if self.resolved or tier != "A":
             return None
-        return BlockingFlag(flag_id=f"unresolved_term:{fact_id}:{canon(self.term)}", kind="unresolved_term", fact_id=fact_id,
-                            message=f"'{self.term}' could not be resolved to a product or provider; confirm it or pick the product type")  # fmt: skip
+        return BlockingFlag(
+            flag_id=f"unresolved_term:{fact_id}:{canon(self.term)}",
+            kind="unresolved_term",
+            fact_id=fact_id,
+            message=f"'{self.term}' could not be resolved to a product or provider; confirm it or pick the product type",
+        )
 
 
 class WebResult(BaseModel):
@@ -327,8 +394,14 @@ WebSearch = Callable[[str, Sequence[str]], Sequence[WebResult | Mapping[str, Any
 
 
 def _candidate(e: CatalogueEntry, score: float, source: Source, provider: str | None = None, name: str | None = None) -> TermCandidate:
-    return TermCandidate(canonical_name=name or e.name, product_type=e.fna_type, provider=provider or e.provider or (e.name if e.kind == "provider" else None),
-                         kind=e.kind, source=source, score=round(min(1.0, score), 4))  # fmt: skip
+    return TermCandidate(
+        canonical_name=name or e.name,
+        product_type=e.fna_type,
+        provider=provider or e.provider or (e.name if e.kind == "provider" else None),
+        kind=e.kind,
+        source=source,
+        score=round(min(1.0, score), 4),
+    )
 
 
 def _strip_filler(c: str) -> str:
@@ -339,7 +412,10 @@ def _catalogue_candidates(term: str, catalogue: ProductCatalogue, context: TermC
     c = _strip_filler(canon(term))
     out: list[TermCandidate] = []
     ctx_words = set(canon(context.text).split())
-    for source, entries in (("catalogue", [*catalogue.products, *catalogue.named_products, *catalogue.providers]), ("practice", context.practice_entries())):
+    for source, entries in (
+        ("catalogue", [*catalogue.products, *catalogue.named_products, *catalogue.providers]),
+        ("practice", context.practice_entries()),
+    ):
         for e in entries:
             s = _best(c, e.names())
             if e.context_words and not ctx_words & {canon(w) for w in e.context_words}:
@@ -368,7 +444,7 @@ def _catalogue_candidates(term: str, catalogue: ProductCatalogue, context: TermC
 def _web_candidates(term: str, web_search: WebSearch, allowlist: Sequence[str], catalogue: ProductCatalogue) -> list[TermCandidate]:
     try:
         results = web_search(term, list(allowlist))
-    except Exception as e:  # a failing search leaves the term unresolved, never breaks extraction
+    except Exception as e:  # noqa: BLE001 - an injected search may fail any way; the term stays unresolved, extraction goes on
         log.warning("web search for %r failed: %s", term, e)
         return []
     out: list[TermCandidate] = []
@@ -387,8 +463,17 @@ def _web_candidates(term: str, web_search: WebSearch, allowlist: Sequence[str], 
         prod = max(typed, key=lambda t: t[0])[1] if typed else None
         prov = catalogue.provider_for_domain(host)
         if score * WEB_TRUST >= CANDIDATE_FLOOR:
-            out.append(TermCandidate(canonical_name=name, product_type=prod.fna_type if prod else None, provider=prov.name if prov else None,
-                                     kind=prod.kind if prod else None, source="web", source_url=r.url, score=round(score * WEB_TRUST, 4)))  # fmt: skip
+            out.append(
+                TermCandidate(
+                    canonical_name=name,
+                    product_type=prod.fna_type if prod else None,
+                    provider=prov.name if prov else None,
+                    kind=prod.kind if prod else None,
+                    source="web",
+                    source_url=r.url,
+                    score=round(score * WEB_TRUST, 4),
+                )
+            )
     return out
 
 
@@ -423,7 +508,10 @@ def lookup_term(
     web_search: WebSearch | None = None,
     allowlist: Sequence[str] | None = None,
 ) -> TermLookup:
-    """Resolve an unknown product, provider or scheme name (§8.5): glossary, then catalogue and practice lists, then allow-listed web search."""
+    """Resolve an unknown product, provider or scheme name (§8.5).
+
+    Searches the glossary, then the catalogue and the practice's lists, then the allow-listed web search.
+    """
     catalogue = catalogue or load_catalogue()
     allowlist = list(allowlist) if allowlist is not None else list(get_settings().web_search_allowlist)
     searched: list[str] = []
@@ -433,11 +521,24 @@ def lookup_term(
         seen.extend(cands)
         chosen, ambiguous = _decide(cands)
         if chosen is not None:
-            return TermLookup(term=term, status="resolved", candidate=chosen, candidates=_dedupe(seen)[:5], source=chosen.source,
-                              product_type=chosen.product_type, searched=list(searched))  # fmt: skip
+            return TermLookup(
+                term=term,
+                status="resolved",
+                candidate=chosen,
+                candidates=_dedupe(seen)[:5],
+                source=chosen.source,
+                product_type=chosen.product_type,
+                searched=list(searched),
+            )
         if ambiguous:
-            return TermLookup(term=term, status="unresolved", candidates=_dedupe(seen)[:5], product_type="other", searched=list(searched),
-                              reason=f"several {source} candidates score >= {RESOLVE_AT} without a clear winner")  # fmt: skip
+            return TermLookup(
+                term=term,
+                status="unresolved",
+                candidates=_dedupe(seen)[:5],
+                product_type="other",
+                searched=list(searched),
+                reason=f"several {source} candidates score >= {RESOLVE_AT} without a clear winner",
+            )
         return None
 
     searched.append("glossary")
@@ -445,8 +546,17 @@ def lookup_term(
     for e in glossary.entries():
         s = _best(_strip_filler(canon(term)) or term, [e.term, e.canonical_name, *e.aliases])
         if s >= CANDIDATE_FLOOR:
-            g.append(TermCandidate(canonical_name=e.canonical_name, product_type=e.product_type, provider=e.provider, kind=e.kind, source="glossary",
-                                   source_url=e.source_url, score=round(s, 4)))  # fmt: skip
+            g.append(
+                TermCandidate(
+                    canonical_name=e.canonical_name,
+                    product_type=e.product_type,
+                    provider=e.provider,
+                    kind=e.kind,
+                    source="glossary",
+                    source_url=e.source_url,
+                    score=round(s, 4),
+                )
+            )
     if (res := done(_dedupe(g), "glossary")) is not None:
         return res
     searched.append("catalogue")
@@ -456,8 +566,14 @@ def lookup_term(
         searched.append("web")
         if (res := done(_dedupe(_web_candidates(term, web_search, allowlist, catalogue)), "web")) is not None:
             return res
-    return TermLookup(term=term, status="unresolved", candidates=_dedupe(seen)[:5], product_type="other", searched=searched,
-                      reason=f"no candidate scores >= {RESOLVE_AT}")  # fmt: skip
+    return TermLookup(
+        term=term,
+        status="unresolved",
+        candidates=_dedupe(seen)[:5],
+        product_type="other",
+        searched=searched,
+        reason=f"no candidate scores >= {RESOLVE_AT}",
+    )
 
 
 def confirm_term(
@@ -494,15 +610,25 @@ def confirm_term(
     return entry
 
 
-def confirm_lookup(store: GlossaryStore, lookup: TermLookup, *, confirmed_by: str, correction: TermCandidate | None = None,
-                   at: datetime | None = None) -> GlossaryEntry:  # fmt: skip
+def confirm_lookup(
+    store: GlossaryStore, lookup: TermLookup, *, confirmed_by: str, correction: TermCandidate | None = None, at: datetime | None = None
+) -> GlossaryEntry:
     """One-click confirmation of a lookup's resolution, or of the reviewer's correction."""
     chosen = correction or lookup.candidate
     if chosen is None:
         raise ValueError(f"{lookup.term!r} is unresolved: pass the reviewer's correction")
-    return confirm_term(store, lookup.term, canonical_name=chosen.canonical_name, confirmed_by=confirmed_by, product_type=chosen.product_type,
-                        provider=chosen.provider, kind=chosen.kind, source="reviewer" if correction else chosen.source,
-                        source_url=chosen.source_url, at=at)  # fmt: skip
+    return confirm_term(
+        store,
+        lookup.term,
+        canonical_name=chosen.canonical_name,
+        confirmed_by=confirmed_by,
+        product_type=chosen.product_type,
+        provider=chosen.provider,
+        kind=chosen.kind,
+        source="reviewer" if correction else chosen.source,
+        source_url=chosen.source_url,
+        at=at,
+    )
 
 
 __all__ = [

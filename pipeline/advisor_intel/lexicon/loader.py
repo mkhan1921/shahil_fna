@@ -33,7 +33,7 @@ from typing import Any, Iterable, Literal, Mapping, Sequence
 
 import numpy as np
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from .. import stats
 from ..embeddings import Embedder, cosine, get_embedder
@@ -64,10 +64,43 @@ SECTIONS = (
 _ARTICLES = ("a ", "an ", "the ", "n ")
 _FILLERS = {"so", "like", "um", "uh", "er", "erm", "well", "ja", "nee", "basically", "you know"}
 _AGE_LEAD = {
-    "in", "my", "his", "her", "their", "our", "your", "the", "at", "age", "aged", "of", "when", "i", "im", "hes", "shes",
-    "he", "she", "is", "am", "was", "will", "be", "ill", "retire", "retiring", "stop", "working", "sy", "haar", "ons", "op",
-    "ouderdom", "wanneer", "ek",
-}  # fmt: skip
+    "in",
+    "my",
+    "his",
+    "her",
+    "their",
+    "our",
+    "your",
+    "the",
+    "at",
+    "age",
+    "aged",
+    "of",
+    "when",
+    "i",
+    "im",
+    "hes",
+    "shes",
+    "he",
+    "she",
+    "is",
+    "am",
+    "was",
+    "will",
+    "be",
+    "ill",
+    "retire",
+    "retiring",
+    "stop",
+    "working",
+    "sy",
+    "haar",
+    "ons",
+    "op",
+    "ouderdom",
+    "wanneer",
+    "ek",
+}
 _AGE_TRAIL = {"years", "year", "old", "yrs", "jaar", "oud"}
 _AGE_AF = {"vroee": "early", "vroeer": "early", "middel": "mid", "laat": "late", "middle": "mid"}
 _CURRENCY_WORDS = {"rand", "randte", "r", "zar", "bucks", "dollars", "dollar", "usd", "pounds", "pound", "gbp", "euros", "euro", "eur"}
@@ -410,8 +443,15 @@ class _Near:
 class Lexicon:
     """An immutable, versioned lexicon. Build it with ``load_lexicon`` (or ``Lexicon.from_text``)."""
 
-    def __init__(self, data: LexiconFile, *, source_text: str, path: Path | None = None, embedder: Embedder | None = None,
-                 miss_log: MissLog | None = None) -> None:  # fmt: skip
+    def __init__(
+        self,
+        data: LexiconFile,
+        *,
+        source_text: str,
+        path: Path | None = None,
+        embedder: Embedder | None = None,
+        miss_log: MissLog | None = None,
+    ) -> None:
         self.data = data
         self.version = data.version
         self.params = data.params
@@ -431,7 +471,9 @@ class Lexicon:
         about_age = data.age_offsets.get("about {n}")
         # Years of age per unit of relative half-width, so "ballpark sixty" is as wide in years as
         # "ballpark" is relative to "about" (± 2 years for "about sixty").
-        self._age_years_per_rel = (about_age.high / about.rel_halfwidth) if about and about.rel_halfwidth and about_age and about_age.high else 20.0
+        self._age_years_per_rel = (
+            (about_age.high / about.rel_halfwidth) if about and about.rel_halfwidth and about_age and about_age.high else 20.0
+        )
 
     # ------------------------------------------------------------------ construction
 
@@ -510,7 +552,9 @@ class Lexicon:
         near = self._near(section, c)
         if near.key is not None and near.similarity >= self.params.near_miss_threshold:
             fields = make(near.key)
-            return self._finish(Lookup(section=section, phrase=phrase, key=near.key, match="near_miss", similarity=near.similarity, **fields), c, near.key)
+            return self._finish(
+                Lookup(section=section, phrase=phrase, key=near.key, match="near_miss", similarity=near.similarity, **fields), c, near.key
+            )
         lk = Lookup(section=section, phrase=phrase, key=None, match="miss", similarity=near.similarity, **(miss_value or {}))
         return self._finish(lk, c, near.key)
 
@@ -529,17 +573,36 @@ class Lexicon:
         if key is None:  # the model may have quoted the number with the word: 'about 2.5 million'
             c = strip_numbers(c, extra=self._scale_tokens())
             if not c:
-                return Lookup(section="approx_words", phrase=word, match="default", dist=self.params.approx_default.around(value), base_value=value,
-                              detail="no approx word: params.approx_default")  # fmt: skip
+                return Lookup(
+                    section="approx_words",
+                    phrase=word,
+                    match="default",
+                    dist=self.params.approx_default.around(value),
+                    base_value=value,
+                    detail="no approx word: params.approx_default",
+                )
             key = self._approx_entry(c)
         if key:
-            return Lookup(section="approx_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.approx_words[key].around(value),
-                          base_value=value)  # fmt: skip
+            return Lookup(
+                section="approx_words",
+                phrase=word,
+                key=key,
+                match="exact",
+                similarity=1.0,
+                dist=self.data.approx_words[key].around(value),
+                base_value=value,
+            )
         return self._near_or_miss(
-            "approx_words", word, c,
+            "approx_words",
+            word,
+            c,
             lambda k: {"dist": self.data.approx_words[k].around(value), "base_value": value},
-            miss_value={"dist": self.params.approx_default.around(value), "base_value": value, "detail": "approx word not in the lexicon: params.approx_default"},
-        )  # fmt: skip
+            miss_value={
+                "dist": self.params.approx_default.around(value),
+                "base_value": value,
+                "detail": "approx word not in the lexicon: params.approx_default",
+            },
+        )
 
     def _approx_number(self, c: str) -> tuple[str, float, Dist] | None:
         """'about five', 'five or so', 'sixty ish' → (approx key, number, spread)."""
@@ -612,8 +675,17 @@ class Lexicon:
             if section == "scale_words" and used:
                 key = used[-1]
             desc = " × ".join([" ".join(head_toks) or "one", *used]) if used else " ".join(head_toks)
-            return Lookup(section=section, phrase=phrase, key=key, match="exact", similarity=1.0, dist=stats.scaled(dist, mult) if mult != 1 else dist,
-                          multiplier=mult, base_value=base, detail=desc + (f" ({detail})" if detail else ""))  # fmt: skip
+            return Lookup(
+                section=section,
+                phrase=phrase,
+                key=key,
+                match="exact",
+                similarity=1.0,
+                dist=stats.scaled(dist, mult) if mult != 1 else dist,
+                multiplier=mult,
+                base_value=base,
+                detail=desc + (f" ({detail})" if detail else ""),
+            )
         return None
 
     def vague_count(self, word: str) -> Lookup:
@@ -621,10 +693,14 @@ class Lexicon:
         c = canon(word)
         key = self._exact("vague_counts", c)
         if key:
-            return Lookup(section="vague_counts", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.vague_counts[key].to_dist())
+            return Lookup(
+                section="vague_counts", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.vague_counts[key].to_dist()
+            )
         n = parse_number(c)
         if n is not None:
-            return Lookup(section="vague_counts", phrase=word, match="exact", similarity=1.0, dist=Point(value=n), base_value=n, detail="number")
+            return Lookup(
+                section="vague_counts", phrase=word, match="exact", similarity=1.0, dist=Point(value=n), base_value=n, detail="number"
+            )
         ap = self._approx_number(c)
         if ap:
             return Lookup(section="approx_words", phrase=word, key=ap[0], match="exact", similarity=1.0, dist=ap[2], base_value=ap[1])
@@ -638,7 +714,9 @@ class Lexicon:
         c = canon(word)
         key = self._exact("vague_amounts", c)
         if key:
-            return Lookup(section="vague_amounts", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.vague_amounts[key].to_dist())
+            return Lookup(
+                section="vague_amounts", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.vague_amounts[key].to_dist()
+            )
         comp = self._compose(word, c, need_scale=False)
         if comp:
             return comp
@@ -654,7 +732,9 @@ class Lexicon:
         if key:
             v = self.data.scale_words[key]
             return Lookup(section="scale_words", phrase=word, key=key, match="exact", similarity=1.0, value=v, dist=Point(value=v))
-        return self._near_or_miss("scale_words", word, c, lambda k: {"value": self.data.scale_words[k], "dist": Point(value=self.data.scale_words[k])})
+        return self._near_or_miss(
+            "scale_words", word, c, lambda k: {"value": self.data.scale_words[k], "dist": Point(value=self.data.scale_words[k])}
+        )
 
     # ------------------------------------------------------------------ ages
 
@@ -678,23 +758,42 @@ class Lexicon:
         for v in self._age_candidates(c):
             key = self._exact("age_bands", v)
             if key:
-                return Lookup(section="age_bands", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.age_bands[key].to_dist())
+                return Lookup(
+                    section="age_bands", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.age_bands[key].to_dist()
+                )
             n = parse_number(v)
             if n is not None:
-                return Lookup(section="age_bands", phrase=word, match="exact", similarity=1.0, dist=Point(value=n), base_value=n, detail="number")
+                return Lookup(
+                    section="age_bands", phrase=word, match="exact", similarity=1.0, dist=Point(value=n), base_value=n, detail="number"
+                )
             t = sec.template(v)
             if t:
                 key, n = t
-                return Lookup(section="age_offsets", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.age_offsets[key].to_dist(offset=n),
-                              base_value=n)  # fmt: skip
+                return Lookup(
+                    section="age_offsets",
+                    phrase=word,
+                    key=key,
+                    match="exact",
+                    similarity=1.0,
+                    dist=self.data.age_offsets[key].to_dist(offset=n),
+                    base_value=n,
+                )
             ap = self._approx_number(v)
             if ap:
                 key, n, _ = ap
                 lo, mo, hi = self.data.approx_words[key].offsets()
                 f = self._age_years_per_rel
                 dist: Dist = Point(value=n) if (lo, hi) == (0, 0) else Triangular(low=n + lo * f, mode=n + mo * f, high=n + hi * f)
-                return Lookup(section="approx_words", phrase=word, key=key, match="exact", similarity=1.0, dist=dist, base_value=n,
-                              detail=f"age spread: {f:g} years per unit of relative half-width")  # fmt: skip
+                return Lookup(
+                    section="approx_words",
+                    phrase=word,
+                    key=key,
+                    match="exact",
+                    similarity=1.0,
+                    dist=dist,
+                    base_value=n,
+                    detail=f"age spread: {f:g} years per unit of relative half-width",
+                )
         cands = self._age_candidates(c)
         target = cands[-1] if cands else c
         return self._near_or_miss("age_bands", word, target, lambda k: {"dist": self.data.age_bands[k].to_dist()})
@@ -713,12 +812,21 @@ class Lexicon:
         for v in cands:
             key = self._exact("relative_words", v)
             if key:
-                return Lookup(section="relative_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.relative_words[key].to_dist())
+                return Lookup(
+                    section="relative_words",
+                    phrase=word,
+                    key=key,
+                    match="exact",
+                    similarity=1.0,
+                    dist=self.data.relative_words[key].to_dist(),
+                )
             parts = split_number(v)
             if parts and parts[2] == "percent" and parts[0] in ("", "about", "around", "roughly"):
                 n = parts[1] / 100.0
                 dist = self.approx(parts[0], n).dist if parts[0] else Point(value=n)
-                return Lookup(section="relative_words", phrase=word, match="exact", similarity=1.0, dist=dist, base_value=n, detail="percentage")
+                return Lookup(
+                    section="relative_words", phrase=word, match="exact", similarity=1.0, dist=dist, base_value=n, detail="percentage"
+                )
         return self._near_or_miss("relative_words", word, cands[-1], lambda k: {"dist": self.data.relative_words[k].to_dist()})
 
     def rate(self, word: str) -> Lookup:
@@ -726,17 +834,28 @@ class Lexicon:
         c = canon(word)
         key = self._exact("rate_words", c)
         if key:
-            return Lookup(section="rate_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.rate_words[key].to_dist())
+            return Lookup(
+                section="rate_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.rate_words[key].to_dist()
+            )
         t = self.sections["rate_templates"].template(c)
         if t:
             key, n = t
-            return Lookup(section="rate_templates", phrase=word, key=key, match="exact", similarity=1.0,
-                          dist=Normal(mean=n / 100.0, sd=self.data.rate_templates[key].sd), base_value=n)  # fmt: skip
+            return Lookup(
+                section="rate_templates",
+                phrase=word,
+                key=key,
+                match="exact",
+                similarity=1.0,
+                dist=Normal(mean=n / 100.0, sd=self.data.rate_templates[key].sd),
+                base_value=n,
+            )
         parts = split_number(c)
         if parts and parts[2] in ("percent", "percent a year", "percent per year", "percent per annum"):
             n = parts[1] / 100.0
             if not parts[0]:
-                return Lookup(section="rate_words", phrase=word, match="exact", similarity=1.0, dist=Point(value=n), base_value=n, detail="percentage")
+                return Lookup(
+                    section="rate_words", phrase=word, match="exact", similarity=1.0, dist=Point(value=n), base_value=n, detail="percentage"
+                )
             ap = self.approx(parts[0], n)
             if ap.match == "exact":
                 return Lookup(section="approx_words", phrase=word, key=ap.key, match="exact", similarity=1.0, dist=ap.dist, base_value=n)
@@ -748,12 +867,27 @@ class Lexicon:
         key = self._exact("likelihood_words", c)
         if key:
             e = self.data.likelihood_words[key]
-            return Lookup(section="likelihood_words", phrase=word, key=key, match="exact", similarity=1.0, likelihood=Likelihood(**e.model_dump()),
-                          dist=Bernoulli(p=e.mean))  # fmt: skip
+            return Lookup(
+                section="likelihood_words",
+                phrase=word,
+                key=key,
+                match="exact",
+                similarity=1.0,
+                likelihood=Likelihood(**e.model_dump()),
+                dist=Bernoulli(p=e.mean),
+            )
         p = _percent(c)
         if p is not None:
             lk = Likelihood(mean=p, low=max(0.0, p - 0.05), high=min(1.0, p + 0.05))
-            return Lookup(section="likelihood_words", phrase=word, match="exact", similarity=1.0, likelihood=lk, dist=Bernoulli(p=p), detail="percentage")
+            return Lookup(
+                section="likelihood_words",
+                phrase=word,
+                match="exact",
+                similarity=1.0,
+                likelihood=lk,
+                dist=Bernoulli(p=p),
+                detail="percentage",
+            )
 
         def make(k: str) -> dict[str, Any]:
             e = self.data.likelihood_words[k]
@@ -770,9 +904,16 @@ class Lexicon:
             return Lookup(section="hedge_strength", phrase=term, match="default", value=0.0, detail="no hedge")
         key = self._exact("hedge_strength", c)
         if key:
-            return Lookup(section="hedge_strength", phrase=term, key=key, match="exact", similarity=1.0, value=self.data.hedge_strength[key])
-        return self._near_or_miss("hedge_strength", term, c, lambda k: {"value": self.data.hedge_strength[k]},
-                                  miss_value={"value": self.params.hedge_default_strength, "detail": "params.hedge_default_strength"})  # fmt: skip
+            return Lookup(
+                section="hedge_strength", phrase=term, key=key, match="exact", similarity=1.0, value=self.data.hedge_strength[key]
+            )
+        return self._near_or_miss(
+            "hedge_strength",
+            term,
+            c,
+            lambda k: {"value": self.data.hedge_strength[k]},
+            miss_value={"value": self.params.hedge_default_strength, "detail": "params.hedge_default_strength"},
+        )
 
     def hedge(self, term: str) -> Hedge:
         lk = self.hedge_lookup(term)
@@ -783,19 +924,35 @@ class Lexicon:
         c = canon(word)
         d = self.params.certainty_default
         if not c:
-            return Lookup(section="certainty_words", phrase=word, match="default", value=getattr(d, kind), detail=f"no certainty word: {kind} default")
+            return Lookup(
+                section="certainty_words", phrase=word, match="default", value=getattr(d, kind), detail=f"no certainty word: {kind} default"
+            )
         key = self._exact("certainty_words", c)
         if key:
-            return Lookup(section="certainty_words", phrase=word, key=key, match="exact", similarity=1.0, value=self.data.certainty_words[key])
+            return Lookup(
+                section="certainty_words", phrase=word, key=key, match="exact", similarity=1.0, value=self.data.certainty_words[key]
+            )
         p = _percent(c)
         if p is not None:
             return Lookup(section="certainty_words", phrase=word, match="exact", similarity=1.0, value=p, detail="percentage")
         if kind == "boolean":  # §8.3: BOOLEAN with a certainty word uses the likelihood table
             key = self._exact("likelihood_words", c)
             if key:
-                return Lookup(section="likelihood_words", phrase=word, key=key, match="exact", similarity=1.0, value=self.data.likelihood_words[key].mean)
-        return self._near_or_miss("certainty_words", word, c, lambda k: {"value": self.data.certainty_words[k]},
-                                  miss_value={"value": d.unknown_word, "detail": "params.certainty_default.unknown_word"})  # fmt: skip
+                return Lookup(
+                    section="likelihood_words",
+                    phrase=word,
+                    key=key,
+                    match="exact",
+                    similarity=1.0,
+                    value=self.data.likelihood_words[key].mean,
+                )
+        return self._near_or_miss(
+            "certainty_words",
+            word,
+            c,
+            lambda k: {"value": self.data.certainty_words[k]},
+            miss_value={"value": d.unknown_word, "detail": "params.certainty_default.unknown_word"},
+        )
 
     def recency_weights(self) -> RecencyWeights:
         """Revising vs revised hypothesis weights (§7.3 step 7)."""

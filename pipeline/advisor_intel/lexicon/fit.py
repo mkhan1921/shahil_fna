@@ -53,7 +53,25 @@ FITTED_SECTIONS = (
 _FORM = TypeAdapter(IntermediateForm)
 _Z90 = 1.2815515655446004
 _FLOOR = {"approx_words": 0.005, "relative_words": 0.01, "age_bands": 0.25, "age_offsets": 0.25, "vague_counts": 0.05, "vague_amounts": 1.0}
-_DURATION_NOISE = {"in", "from", "now", "time", "s", "years", "year", "months", "month", "jaar", "maande", "maand", "oor", "the", "next", "ago", "gelede"}
+_DURATION_NOISE = {
+    "in",
+    "from",
+    "now",
+    "time",
+    "s",
+    "years",
+    "year",
+    "months",
+    "month",
+    "jaar",
+    "maande",
+    "maand",
+    "oor",
+    "the",
+    "next",
+    "ago",
+    "gelede",
+}
 
 
 class EditPair(BaseModel):
@@ -208,12 +226,24 @@ def fit_triangular(xs: Sequence[float], floor: float = 0.0) -> tuple[float, floa
         w = max(floor, 1e-9)
         return c - w, c, c + w
 
-    def ends(c: float) -> tuple[float, float, float]:
-        def nll(p: np.ndarray) -> float:
-            v = -float(np.sum(_tri_logpdf(x, lo - spread * math.exp(p[0]), c, hi + spread * math.exp(p[1]))))
-            return v if math.isfinite(v) else 1e300
+    n = len(x)
 
-        res = optimize.minimize(nll, x0=np.array([-2.0, -2.0]), method="L-BFGS-B", bounds=[(-14.0, 3.0), (-14.0, 3.0)])
+    def ends(c: float) -> tuple[float, float, float]:
+        xl, xr = x[x <= c], x[x > c]
+        nl, nr = len(xl), len(xr)
+
+        def nll(p: np.ndarray) -> tuple[float, np.ndarray]:
+            # a = lo − spread·e^p0 < every x, b = hi + spread·e^p1 > every x; the triangular log-likelihood
+            # Σ log(2(x−a)/((b−a)(c−a))) on the left of the mode and Σ log(2(b−x)/((b−a)(b−c))) on the right.
+            da, db = spread * math.exp(p[0]), spread * math.exp(p[1])
+            a, b = lo - da, hi + db
+            ll = n * math.log(2) - n * math.log(b - a) + np.log(xl - a).sum() - nl * math.log(c - a) + np.log(b - xr).sum()
+            ll -= nr * math.log(b - c) if nr else 0.0
+            d_a = -np.sum(1.0 / (xl - a)) + nl / (c - a) + n / (b - a)
+            d_b = np.sum(1.0 / (b - xr)) - (nr / (b - c) if nr else 0.0) - n / (b - a)
+            return -float(ll), -np.array([d_a * -da, d_b * db])
+
+        res = optimize.minimize(nll, x0=np.array([-2.0, -2.0]), jac=True, method="L-BFGS-B", bounds=[(-14.0, 3.0), (-14.0, 3.0)])
         return float(res.fun), lo - spread * math.exp(res.x[0]), hi + spread * math.exp(res.x[1])
 
     uniq = np.unique(x)
@@ -255,7 +285,7 @@ def fit_beta(ps: Sequence[float]) -> tuple[float, float, float]:
         return m, max(0.0, m - 0.05), min(1.0, m + 0.05)
     try:
         a, b, _, _ = sps.beta.fit(p, floc=0, fscale=1)
-    except Exception:  # pragma: no cover - scipy failure falls back to moments
+    except Exception:  # noqa: BLE001  # pragma: no cover - any scipy fit failure falls back to moments
         v = float(p.var())
         k = m * (1 - m) / v - 1
         a, b = m * k, (1 - m) * k
@@ -418,7 +448,7 @@ def _num(x: float) -> str:
     """4 significant digits, never in exponent form (PyYAML reads '1e+06' as a string)."""
     if x == 0 or not math.isfinite(x):
         return "0"
-    digits = 3 - int(math.floor(math.log10(abs(x))))
+    digits = 3 - math.floor(math.log10(abs(x)))
     return np.format_float_positional(round(x, digits), trim="-")
 
 
@@ -497,8 +527,11 @@ def propose_lexicon_fit(
     for p in pairs:
         if not isinstance(p, EditPair):
             phrase, form, edited = p
-            p = EditPair(phrase=phrase, form=_FORM.validate_python(form) if isinstance(form, dict) else form,
-                         edited=edited.dist if isinstance(edited, Quantity) else edited)  # fmt: skip
+            p = EditPair(
+                phrase=phrase,
+                form=_FORM.validate_python(form) if isinstance(form, dict) else form,
+                edited=edited.dist if isinstance(edited, Quantity) else edited,
+            )
         obs = observation(p, work)
         if obs is None or not math.isfinite(obs[2]):
             unmatched[canon(p.phrase)] += 1
@@ -535,12 +568,18 @@ def propose_lexicon_fit(
             )
         )
     if changes:
-        text = re.sub(r'^version:\s*.*$', f'version: "{new_version}"', text, count=1, flags=re.M)
+        text = re.sub(r"^version:\s*.*$", f'version: "{new_version}"', text, count=1, flags=re.M)
         proposed = Lexicon.from_text(text)  # the proposal must load and validate
     else:
         new_version, proposed = lex.version, work
-    diff = "".join(difflib.unified_diff(lex.source_text.splitlines(keepends=True), text.splitlines(keepends=True),
-                                        fromfile=f"lexicon/v{lex.version}.yaml", tofile=f"lexicon/v{new_version}.yaml"))  # fmt: skip
+    diff = "".join(
+        difflib.unified_diff(
+            lex.source_text.splitlines(keepends=True),
+            text.splitlines(keepends=True),
+            fromfile=f"lexicon/v{lex.version}.yaml",
+            tofile=f"lexicon/v{new_version}.yaml",
+        )
+    )
     moved = check_cases(proposed, golden_cases) if golden_cases and changes else []
     return LexiconDiff(
         base_version=lex.version,

@@ -327,8 +327,18 @@ def test_phrases_canonicalise_and_parse_numbers():
     assert canon("Plus-minus R5 000") == "plus minus 5000"
     assert canon("Early 60's") == canon("early sixties") == "early sixties"
     assert canon("R50k") == "50 k" and canon("sixtyish") == "sixty ish" and canon("Clientèle") == "clientele"
-    for text, n in [("sixty-five", 65), ("vyf-en-sestig", 65), ("vyfensestig", 65), ("a hundred and twenty", 120), ("two thousand five hundred", 2500),
-                    ("two point five", 2.5), ("two and a half", 2.5), ("two fifty", 250), ("nineteen eighty five", 1985), ("twenty twenty", 2020),
-                    ("twee honderd", 200)]:  # fmt: skip
+    for text, n in [
+        ("sixty-five", 65),
+        ("vyf-en-sestig", 65),
+        ("vyfensestig", 65),
+        ("a hundred and twenty", 120),
+        ("two thousand five hundred", 2500),
+        ("two point five", 2.5),
+        ("two and a half", 2.5),
+        ("two fifty", 250),
+        ("nineteen eighty five", 1985),
+        ("twenty twenty", 2020),
+        ("twee honderd", 200),
+    ]:
         assert parse_number(text) == n, text
     assert parse_number("about") is None and parse_number("sixty about") is None and parse_number("five sixty five sixty") is None

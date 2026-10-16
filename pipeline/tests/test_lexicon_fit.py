@@ -22,7 +22,16 @@ from advisor_intel.lexicon.fit import (
 )
 from advisor_intel.lexicon.golden import load_cases
 from advisor_intel.models.dists import Bernoulli, Categorical, Point, Quantity
-from advisor_intel.models.extraction import AgeForm, AmountApprox, AmountRelative, AmountVague, BooleanForm, CategoryForm, ProbabilityEvent, RateForm
+from advisor_intel.models.extraction import (
+    AgeForm,
+    AmountApprox,
+    AmountRelative,
+    AmountVague,
+    BooleanForm,
+    CategoryForm,
+    ProbabilityEvent,
+    RateForm,
+)
 from advisor_intel.models.facts import Fact, Provenance
 
 from .lexicon_support import make_slot
@@ -72,10 +81,18 @@ def test_refit_recovers_synthetic_truth_for_every_family():
     pairs = approx_pairs("about", 0.2, 300)
     pairs += relative_pairs("a bit less", (0.6, 0.75, 0.9), 300)
     pairs += age_pairs("early sixties", (59, 61, 64), 300)
-    pairs += [EditPair(phrase="growing a bit", form=RateForm(form="vague", value=0, vague_word="growing a bit", real_or_nominal="real"),
-                       edited=Point(value=r)) for r in RNG.normal(0.05, 0.02, 200)]  # fmt: skip
-    pairs += [EditPair(phrase="might", form=ProbabilityEvent(event="study offshore", likelihood_word="might"), edited=Bernoulli(p=float(p)))
-              for p in RNG.beta(6, 6, 200)]  # fmt: skip
+    pairs += [
+        EditPair(
+            phrase="growing a bit",
+            form=RateForm(form="vague", value=0, vague_word="growing a bit", real_or_nominal="real"),
+            edited=Point(value=r),
+        )
+        for r in RNG.normal(0.05, 0.02, 200)
+    ]
+    pairs += [
+        EditPair(phrase="might", form=ProbabilityEvent(event="study offshore", likelihood_word="might"), edited=Bernoulli(p=float(p)))
+        for p in RNG.beta(6, 6, 200)
+    ]
     d = propose_lexicon_fit(pairs, LEX)
     new = {(c.section, c.key): c.new for c in d.changes}
     assert new[("approx_words", "about")]["rel_halfwidth"] == pytest.approx(0.2, abs=0.02)
@@ -100,8 +117,10 @@ def test_proposed_yaml_is_a_minimal_valid_diff_and_the_lexicon_is_untouched():
     old_lines, new_lines = LEX.source_text.splitlines(), d.yaml_text.splitlines()
     changed = [(a, b) for a, b in zip(old_lines, new_lines) if a != b]
     assert len(old_lines) == len(new_lines) and len(changed) == 3  # version + two entries; comments and order kept
-    assert any(b.startswith('  "about": {dist: triangular, rel_halfwidth: ') and "re-fit in v1.4 from 60 advisor edits" in b for _, b in changed)
-    assert "-version: \"1.3\"" in d.diff_text and "+version: \"1.4\"" in d.diff_text
+    assert any(
+        b.startswith('  "about": {dist: triangular, rel_halfwidth: ') and "re-fit in v1.4 from 60 advisor edits" in b for _, b in changed
+    )
+    assert '-version: "1.3"' in d.diff_text and '+version: "1.4"' in d.diff_text
     assert "a bit less" in d.summary() and "v1.3 → v1.4" in d.summary()
     assert LEX.source_text == before_text and LEX.entry("approx_words", "about") == before_about
     assert load_lexicon().entry("approx_words", "about").rel_halfwidth == 0.10
@@ -135,11 +154,24 @@ def test_composite_vague_amounts_fit_the_count_key():
 
 
 def test_certainty_and_discrete_entries_refit():
-    cat = [EditPair(phrase="fairly", form=CategoryForm(label="conservative", certainty_word="fairly"), category="conservative",
-                    edited=Categorical(probs={"conservative": p, "moderately-conservative": 1 - p})) for p in RNG.uniform(0.7, 0.9, 25)]  # fmt: skip
-    boolean = [EditPair(phrase="I think", form=BooleanForm(value=False, certainty_word="I think"), edited=Bernoulli(p=0.1)) for _ in range(25)]
-    couple = [EditPair(phrase="a couple", form=AmountVague(vague_word="a couple", currency="ZAR", period="none", basis="na"), edited=Point(value=v))
-              for v in [2.0] * 10 + [3.0] * 10]  # fmt: skip
+    cat = [
+        EditPair(
+            phrase="fairly",
+            form=CategoryForm(label="conservative", certainty_word="fairly"),
+            category="conservative",
+            edited=Categorical(probs={"conservative": p, "moderately-conservative": 1 - p}),
+        )
+        for p in RNG.uniform(0.7, 0.9, 25)
+    ]
+    boolean = [
+        EditPair(phrase="I think", form=BooleanForm(value=False, certainty_word="I think"), edited=Bernoulli(p=0.1)) for _ in range(25)
+    ]
+    couple = [
+        EditPair(
+            phrase="a couple", form=AmountVague(vague_word="a couple", currency="ZAR", period="none", basis="na"), edited=Point(value=v)
+        )
+        for v in [2.0] * 10 + [3.0] * 10
+    ]
     d = propose_lexicon_fit(cat + boolean + couple, LEX)
     new = {(c.section, c.key): c.new for c in d.changes}
     assert new[("certainty_words", "fairly")]["value"] == pytest.approx(0.8, abs=0.03)
@@ -152,8 +184,15 @@ def test_pairs_from_reviewed_facts_undo_the_unit_conversion():
     slot = make_slot("income.{p}.grossMonthly", "rand_monthly")
     form = {"type": "AMOUNT_APPROX", "value": 600_000, "approx_word": "about", "currency": "ZAR", "period": "annual", "basis": "gross"}
     n = normalize_value(form, slot, None, LEX)
-    f = Fact(fact_id="income.client.grossMonthly", slot_id=slot.slot_id, fna_path="income.client.grossMonthly", status="stated", value=n.quantity,
-             normalization=n.normalization, provenance=Provenance(run_id="r"))  # fmt: skip
+    f = Fact(
+        fact_id="income.client.grossMonthly",
+        slot_id=slot.slot_id,
+        fna_path="income.client.grossMonthly",
+        status="stated",
+        value=n.quantity,
+        normalization=n.normalization,
+        provenance=Provenance(run_id="r"),
+    )
     pairs = EditPair.from_fact(f, Quantity(dist=Point(value=55_000), unit="ZAR", period="monthly"))
     assert len(pairs) == 1 and (pairs[0].section, pairs[0].key) == ("approx_words", "about")
     assert observation(pairs[0], LEX)[2] == pytest.approx(0.10)  # R55,000 a month is 10% above 'about R600,000 a year'
@@ -165,8 +204,15 @@ def test_pairs_from_facts_for_relative_and_duration_forms():
     from datetime import date
 
     n = normalize_value(form, slot, None, LEX, anchor_date=date(2026, 10, 16))
-    f = Fact(fact_id="goals[].targetYear#goal.car", slot_id=slot.slot_id, fna_path="goals[x].targetYear", status="stated", value=n.quantity,
-             normalization=n.normalization, provenance=Provenance(run_id="r"))  # fmt: skip
+    f = Fact(
+        fact_id="goals[].targetYear#goal.car",
+        slot_id=slot.slot_id,
+        fna_path="goals[x].targetYear",
+        status="stated",
+        value=n.quantity,
+        normalization=n.normalization,
+        provenance=Provenance(run_id="r"),
+    )
     (pair,) = EditPair.from_fact(f, Point(value=2030))
     assert observation(pair, LEX) == ("vague_counts", "a few", 4.0)
 

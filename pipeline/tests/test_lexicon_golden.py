@@ -34,12 +34,16 @@ def test_golden_case_median_holds(case: GoldenCase):
 
 def test_gate_fails_when_a_median_moves_more_than_ten_percent():
     text = load_lexicon().source_text
-    moved = Lexicon.from_text(text.replace('"a few": {dist: triangular, low: 2, mode: 3, high: 5}', '"a few": {dist: triangular, low: 3, mode: 4, high: 6}'))
+    moved = Lexicon.from_text(
+        text.replace('"a few": {dist: triangular, low: 2, mode: 3, high: 5}', '"a few": {dist: triangular, low: 3, mode: 4, high: 6}')
+    )
     failures = check_cases(moved, CASES)
     assert any("'a few'" in f for f in failures)
     assert any("'a few mil'" in f for f in failures)  # composites built on 'a few' move with it …
     assert not any("'a few hundred K'" in f for f in failures)  # … but 'a few hundred K' uses its own seed key
-    nudged = Lexicon.from_text(text.replace('"a few": {dist: triangular, low: 2, mode: 3, high: 5}', '"a few": {dist: triangular, low: 2, mode: 3.1, high: 5}'))
+    nudged = Lexicon.from_text(
+        text.replace('"a few": {dist: triangular, low: 2, mode: 3, high: 5}', '"a few": {dist: triangular, low: 2, mode: 3.1, high: 5}')
+    )
     assert not check_cases(nudged, CASES)  # a change inside the 10% band passes
 
 

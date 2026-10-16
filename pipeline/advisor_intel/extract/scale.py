@@ -168,7 +168,9 @@ def resolve_scale(span: NumericSpan, slot: SlotDef, *, context: ScaleContext | N
     readings = _merge(span.readings)
     sp = ctx.second_pass or span.second_pass_reading
     if not readings:
-        return ScaleResolution(span_id=span.span_id, readings=[], chosen=[], scale_ambiguous=False, features=_span_features(0, None, False, sp, None))
+        return ScaleResolution(
+            span_id=span.span_id, readings=[], chosen=[], scale_ambiguous=False, features=_span_features(0, None, False, sp, None)
+        )
     total_w = sum(max(0.0, r.weight) for r in readings)
     grammar = [max(0.0, r.weight) / total_w if total_w > 0 else 1.0 / len(readings) for r in readings]
     ws = sorted(grammar, reverse=True)
@@ -177,7 +179,11 @@ def resolve_scale(span: NumericSpan, slot: SlotDef, *, context: ScaleContext | N
     scored: list[tuple[Reading, float, float, dict[str, float]]] = []
     for r, g in zip(readings, grammar):
         x = float(r.value)
-        sx = x * period_factor(r.period if r.period != "none" else (ctx.period or "none"), slot.fna_unit) if slot.fna_unit in MONEY_PERIOD else x
+        sx = (
+            x * period_factor(r.period if r.period != "none" else (ctx.period or "none"), slot.fna_unit)
+            if slot.fna_unit in MONEY_PERIOD
+            else x
+        )
         sig = {"grammar": g, "second_pass": 1.0, "range": _range_likelihood(sx, rng, slot, ctx), "consistency": 1.0, "prior": 1.0}
         if sp is not None and _numeric(sp):
             sig["second_pass"] = ctx.second_pass_factor if _same(float(sp.value), x) else 1.0 / ctx.second_pass_factor
@@ -189,7 +195,10 @@ def resolve_scale(span: NumericSpan, slot: SlotDef, *, context: ScaleContext | N
     z = sum(s for _, _, s, _ in scored)
     post = [s / z for _, _, s, _ in scored] if z > 0 else grammar
     all_r = sorted(
-        (ResolvedReading(value=float(r.value), slot_value=sx, weight=p, signals=sig, reading=r) for (r, sx, _, sig), p in zip(scored, post)),
+        (
+            ResolvedReading(value=float(r.value), slot_value=sx, weight=p, signals=sig, reading=r)
+            for (r, sx, _, sig), p in zip(scored, post)
+        ),
         key=lambda rr: -rr.weight,
     )
     if all_r[0].weight >= SINGLE:
@@ -207,7 +216,13 @@ def resolve_scale(span: NumericSpan, slot: SlotDef, *, context: ScaleContext | N
 def scale_features(resolutions: Sequence[ScaleResolution]) -> dict[str, float | None]:
     """The §9.2 scale features for a fact: the riskiest value over its spans (a range has two)."""
     if not resolutions:
-        return {"grammar_readings": 0.0, "grammar_top_margin": None, "scale_ambiguous": 0.0, "second_pass_run": 0.0, "second_pass_agreement": None}
+        return {
+            "grammar_readings": 0.0,
+            "grammar_top_margin": None,
+            "scale_ambiguous": 0.0,
+            "second_pass_run": 0.0,
+            "second_pass_agreement": None,
+        }
     fs = [r.features for r in resolutions]
     margins = [f["grammar_top_margin"] for f in fs if f["grammar_top_margin"] is not None]
     agree = [f["second_pass_agreement"] for f in fs if f["second_pass_agreement"] is not None]
@@ -268,7 +283,9 @@ def match_span(value: float, spans: Sequence[NumericSpan], used: set[str] | None
     return best if best_score >= 2 else None
 
 
-def resolve_amount(form: IntermediateForm, spans: Sequence[NumericSpan], slot: SlotDef, *, context: ScaleContext | None = None) -> AmountResolution:
+def resolve_amount(
+    form: IntermediateForm, spans: Sequence[NumericSpan], slot: SlotDef, *, context: ScaleContext | None = None
+) -> AmountResolution:
     """Resolve the scale of every number the LLM quoted in an AMOUNT_* form from the spans overlapping its evidence.
 
     The LLM's own magnitude is ignored: each number is matched to its grammar span (same digits,
@@ -366,7 +383,9 @@ def resolve_hypotheses(
         ambiguous = ambiguous or len(res.hypotheses) > 1
         flags.extend(f for f in res.flags if f not in flags)
         for rf in res.hypotheses:
-            items.append(ScaledHypothesis(raw=h.model_copy(update={"intermediate": rf.form}), parent=i, scale_weight=rf.weight, span_ids=rf.span_ids))
+            items.append(
+                ScaledHypothesis(raw=h.model_copy(update={"intermediate": rf.form}), parent=i, scale_weight=rf.weight, span_ids=rf.span_ids)
+            )
     feats = scale_features(resolutions)
     if ambiguous:
         feats["scale_ambiguous"] = 1.0

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from advisor_intel import stats
@@ -22,7 +23,9 @@ GOAL_COST = make_slot("goals[].cost", "rand", cardinality="list", entity_type="g
 TERTIARY_COST = make_slot("dependants[].tertiaryCostAnnual", "rand_annual", entity_type="dependant")
 SCHOOL_FEES = make_slot("dependants[].schoolFeesAnnual", "rand_annual", entity_type="dependant")
 TARGET = make_slot("retirement.{p}.targetMonthly", "rand_monthly")
-RET_AGE = make_slot("retirement.{p}.retirementAge", "age", bounds=(40, 80), population_prior=Triangular(low=60, mode=65, high=70), fna_default=65)
+RET_AGE = make_slot(
+    "retirement.{p}.retirementAge", "age", bounds=(40, 80), population_prior=Triangular(low=60, mode=65, high=70), fna_default=65
+)
 TERT_START = make_slot("dependants[].tertiaryStartAge", "age", entity_type="dependant")
 TERT_YEARS = make_slot("dependants[].tertiaryYears", "years", entity_type="dependant")
 SUPPORT_YEARS = make_slot("dependants[].supportYears", "years", entity_type="dependant")
@@ -35,16 +38,30 @@ RATE = make_slot("liabilities[].interestRate", "decimal", entity_type="liability
 GROWTH = make_slot("event[].businessGrowth", "decimal", entity_type="event")
 TARGET_PCT = make_slot("retirement.{p}.targetPercent", "decimal")
 MEMBERS = make_slot("income.{p}.medicalSchemeMembers", "count")
+EMPLOYMENT_PRIOR = {
+    "salaried": 0.7,
+    "self-employed": 0.15,
+    "commission": 0.05,
+    "contract": 0.05,
+    "retired": 0.03,
+    "unemployed": 0.01,
+    "student": 0.01,
+}
 EMPLOYMENT = make_slot(
     "{p}.employmentType",
     "category",
     categories=["salaried", "self-employed", "commission", "contract", "retired", "unemployed", "student"],
-    population_prior=Categorical(probs={"salaried": 0.7, "self-employed": 0.15, "commission": 0.05, "contract": 0.05, "retired": 0.03, "unemployed": 0.01,
-                                        "student": 0.01}),  # fmt: skip
+    population_prior=Categorical(probs=EMPLOYMENT_PRIOR),
 )
 RISK = make_slot("riskProfile.answers.objective", "category", categories=["1", "2", "3", "4", "5"])
-RISK_CATEGORY = make_slot("riskProfile.category", "category", categories=["conservative", "moderately-conservative", "moderate", "moderately-aggressive", "aggressive"])
-ASSET_TYPE = make_slot("assets[].type", "category", entity_type="asset", categories=["primary-residence", "vehicle", "cash", "unit-trust", "crypto", "other"])
+RISK_CATEGORY = make_slot(
+    "riskProfile.category",
+    "category",
+    categories=["conservative", "moderately-conservative", "moderate", "moderately-aggressive", "aggressive"],
+)
+ASSET_TYPE = make_slot(
+    "assets[].type", "category", entity_type="asset", categories=["primary-residence", "vehicle", "cash", "unit-trust", "crypto", "other"]
+)
 MARITAL = make_slot("household.maritalStatus", "category", categories=["single", "married", "life-partner", "divorced", "widowed"])
 HAS_WILL = make_slot("estate.{p}.hasWill", "category", categories=["yes", "no", "unsure"])
 TERTIARY = make_slot("dependants[].tertiary", "boolean", entity_type="dependant", population_prior=Bernoulli(p=0.6))
@@ -55,13 +72,24 @@ OCCUPATION = make_slot("{p}.occupation", "text")
 PROFILE = profile(
     fact("client.dateOfBirth", Quantity(dist=Point(value="1974-05-12"), unit="date")),
     fact("spouse.dateOfBirth", Quantity(dist=stats.uniform_discrete(1976.0, 1977.0), unit="date")),
-    fact("dependants[].dateOfBirth#person.daughter_1", Quantity(dist=Point(value="2012-03-01"), unit="date"), slot_id="dependants[].dateOfBirth"),
+    fact(
+        "dependants[].dateOfBirth#person.daughter_1",
+        Quantity(dist=Point(value="2012-03-01"), unit="date"),
+        slot_id="dependants[].dateOfBirth",
+    ),
     fact("expenses.total", Quantity(dist=Point(value=30_000), unit="ZAR", period="monthly")),
     fact("expenses.annualTotal", Quantity(dist=Point(value=360_000), unit="ZAR", period="annual")),
-    fact("income.client.grossMonthly", Quantity(dist=Triangular(low=40_000, mode=45_000, high=50_000), unit="ZAR", period="monthly", basis="gross")),
+    fact(
+        "income.client.grossMonthly",
+        Quantity(dist=Triangular(low=40_000, mode=45_000, high=50_000), unit="ZAR", period="monthly", basis="gross"),
+    ),
     fact("income.spouse.grossMonthly", None, prior=Quantity(dist=Point(value=20_000), unit="ZAR", period="monthly", basis="gross")),
     fact("retirement.client.retirementAge", Quantity(dist=Point(value=60), unit="age")),
-    fact("policies[].lifeAssured#policy.disc_1", Quantity(dist=Categorical(probs={"spouse": 1.0}), unit="none"), slot_id="policies[].lifeAssured"),
+    fact(
+        "policies[].lifeAssured#policy.disc_1",
+        Quantity(dist=Categorical(probs={"spouse": 1.0}), unit="none"),
+        slot_id="policies[].lifeAssured",
+    ),
 )
 
 
@@ -134,7 +162,9 @@ def test_amount_exact_converts_period_to_the_field(slot, period, value, expected
 def test_amount_approx_uses_the_lexicon_then_converts():
     n = norm(amount("AMOUNT_APPROX", value=600_000, approx_word="about", period="annual"), GROSS)
     assert n.quantity.dist == Triangular(low=45_000, mode=50_000, high=55_000)
-    assert n.normalization["lexicon"] == [{"section": "approx_words", "phrase": "about", "key": "about", "match": "exact", "base_value": 600_000.0}]
+    assert n.normalization["lexicon"] == [
+        {"section": "approx_words", "phrase": "about", "key": "about", "match": "exact", "base_value": 600_000.0}
+    ]
     assert "annual → monthly: ÷12" in n.normalization["conversions"]
     assert n.normalization["value_factor"] == pytest.approx(1 / 12)
 
@@ -198,15 +228,21 @@ def test_amount_relative_converts_the_reference_period():
 
 
 def test_amount_relative_samples_a_product_for_distributions():
-    n = norm({"type": "AMOUNT_RELATIVE", "reference_slot": "income.{p}.grossMonthly", "relation_word": "a bit less"}, TARGET,
-             fact_id="retirement.client.targetMonthly")  # fmt: skip
+    n = norm(
+        {"type": "AMOUNT_RELATIVE", "reference_slot": "income.{p}.grossMonthly", "relation_word": "a bit less"},
+        TARGET,
+        fact_id="retirement.client.targetMonthly",
+    )
     assert isinstance(n.quantity.dist, Mixture) and len(n.quantity.dist.components) == stats.N_QUANTILE_POINTS
     assert stats.median(n.quantity.dist) == pytest.approx(45_000 * stats.median(LEX.relative("a bit less").dist), rel=0.03)
 
 
 def test_amount_relative_uses_the_prior_fna_value_and_falls_back_when_missing():
-    spouse = norm({"type": "AMOUNT_RELATIVE", "reference_slot": "income.{p}.grossMonthly", "relation_word": "about the same"}, TARGET,
-                  fact_id="retirement.spouse.targetMonthly")  # fmt: skip
+    spouse = norm(
+        {"type": "AMOUNT_RELATIVE", "reference_slot": "income.{p}.grossMonthly", "relation_word": "about the same"},
+        TARGET,
+        fact_id="retirement.spouse.targetMonthly",
+    )
     assert spouse.normalization["reference"]["source"] == "prior_value"
     assert stats.median(spouse.quantity.dist) == pytest.approx(20_000)
     missing = norm({"type": "AMOUNT_RELATIVE", "reference_slot": "expense.household_core", "relation_word": "a bit less"}, GROSS)
@@ -242,8 +278,12 @@ def test_education_costs_deflate_with_education_inflation():
     n = norm(amount("AMOUNT_EXACT", value=7_000, basis="na"), TERTIARY_COST, priced_year=2031)
     assert n.quantity.dist.value == pytest.approx(84_000 / 1.065**5)
     assert n.normalization["deflation"]["rate_name"] == "educationInflation"
-    custom = norm(amount("AMOUNT_EXACT", value=100_000, period="annual", basis="na"), SCHOOL_FEES, priced_year=2028,
-                  assumptions=Assumptions(educationInflation=0.08))  # fmt: skip
+    custom = norm(
+        amount("AMOUNT_EXACT", value=100_000, period="annual", basis="na"),
+        SCHOOL_FEES,
+        priced_year=2028,
+        assumptions=Assumptions(educationInflation=0.08),
+    )
     assert custom.quantity.dist.value == pytest.approx(100_000 / 1.08**2)
     assert todays_money_rate(TARGET) == "cpi" and todays_money_rate(GROSS) is None
 
@@ -307,7 +347,14 @@ def test_date_to_age_and_years():
 
 
 def duration(value=0.0, vague="", unit="years", anchor="call"):
-    return {"type": "DURATION_FROM_ANCHOR", "form": "vague" if vague else "value", "value": value, "vague_word": vague, "unit": unit, "anchor": anchor}
+    return {
+        "type": "DURATION_FROM_ANCHOR",
+        "form": "vague" if vague else "value",
+        "value": value,
+        "vague_word": vague,
+        "unit": unit,
+        "anchor": anchor,
+    }
 
 
 def test_duration_to_years_months_and_calendar_year():
@@ -375,6 +422,9 @@ def test_age_to_date_of_birth_follows_the_derivation_rule():
 def test_age_to_year_and_to_years_from_now():
     year = norm(age(60), TARGET_YEAR, fact_id="retirement.client.x")  # the client turns 60 in 2034
     assert year.quantity.dist == Point(value=2034)
+    spouse_year = norm(age(60), TARGET_YEAR, fact_id="retirement.spouse.x")  # born 1976.0–1977.0: whole calendar years
+    draws = stats.sample(spouse_year.quantity.dist, np.random.default_rng(0), 500)
+    assert set(draws) <= {2036.0, 2037.0} and stats.median(spouse_year.quantity.dist) == 2036
     support = norm(age(23), SUPPORT_YEARS, fact_id="dependants[].supportYears#person.daughter_1")
     assert support.quantity.dist == Point(value=9)  # she is 14 on the call date
     term = norm(age(65), make_slot("policies[].benefitTermMonths", "months", entity_type="policy"), fact_id="policies[].x#policy.disc_1")
@@ -464,6 +514,14 @@ def test_labels_match_by_synonym_and_typo():
     assert norm(category("primary residance"), ASSET_TYPE).quantity.dist == Categorical(probs={"primary-residence": 1.0})
 
 
+def test_negated_labels_are_not_matched_by_containment():
+    n = norm(category("not conservative at all"), RISK_CATEGORY)
+    assert "label_unmatched" in n.flags and n.normalization["spoken_label"] == "not conservative at all"
+    assert norm(category("a moderately aggressive investor"), RISK_CATEGORY).quantity.dist == Categorical(
+        probs={"moderately-aggressive": 1.0}
+    )
+
+
 def test_labels_outside_the_union_become_other_with_the_label_kept():
     n = norm(category("Kruger rands"), ASSET_TYPE)
     assert n.quantity.dist == Categorical(probs={"other": 1.0})
@@ -486,7 +544,9 @@ def test_boolean_for_a_yes_no_unsure_field():
     # §8.1 example: 'we do have wills, I think' → hasWill (yes / no / unsure).
     n = norm({"type": "BOOLEAN", "value": True, "certainty_word": "I think"}, HAS_WILL)
     assert n.quantity.dist == Categorical(probs={"yes": 0.75, "unsure": 0.25})
-    assert norm({"type": "BOOLEAN", "value": False, "certainty_word": ""}, HAS_WILL).quantity.dist.probs == pytest.approx({"no": 0.97, "unsure": 0.03})
+    assert norm({"type": "BOOLEAN", "value": False, "certainty_word": ""}, HAS_WILL).quantity.dist.probs == pytest.approx(
+        {"no": 0.97, "unsure": 0.03}
+    )
 
 
 def test_category_and_text_cross_over():
@@ -500,7 +560,12 @@ def test_category_and_text_cross_over():
 
 
 def test_form_not_allowed_and_mismatches_are_flagged():
-    strict = make_slot("retirement.{p}.retirementAge", "age", allowed_forms=["AGE", "DURATION_FROM_ANCHOR"], population_prior=Triangular(low=60, mode=65, high=70))
+    strict = make_slot(
+        "retirement.{p}.retirementAge",
+        "age",
+        allowed_forms=["AGE", "DURATION_FROM_ANCHOR"],
+        population_prior=Triangular(low=60, mode=65, high=70),
+    )
     n = norm(amount("AMOUNT_EXACT", value=62), strict)
     assert {"form_not_allowed", "form_slot_mismatch"} <= set(n.flags)
     text_on_money = norm({"type": "TEXT", "text": "lots"}, GROSS)
@@ -508,7 +573,11 @@ def test_form_not_allowed_and_mismatches_are_flagged():
 
 
 def test_fna_default_then_nothing_when_no_prior():
-    n = norm(amount("AMOUNT_VAGUE", vague_word="zzz"), make_slot("retirement.{p}.planningAge", "age", fna_default=92), lex=Lexicon.from_text(LEX.source_text))
+    n = norm(
+        amount("AMOUNT_VAGUE", vague_word="zzz"),
+        make_slot("retirement.{p}.planningAge", "age", fna_default=92),
+        lex=Lexicon.from_text(LEX.source_text),
+    )
     assert n.quantity.dist == Point(value=92) and "fna_default" in n.flags
     none = norm(amount("AMOUNT_VAGUE", vague_word="zzz"), BONUS, lex=Lexicon.from_text(LEX.source_text))
     assert none.quantity is None and not none.ok and "no_prior" in none.flags
