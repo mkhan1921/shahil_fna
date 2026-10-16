@@ -67,3 +67,6 @@ class DiscourseOutput(BaseModel):
     topic_scores: dict[str, dict[str, float]] = {}  # segment id → {slot group: relevance}
     possible_duplicates: list[tuple[str, str]] = []
     embedding_model: str | None = None
+    segment_vectors: dict[str, list[float]] = {}  # reused by search_transcript in semantic mode (§13.3)
+    rewrite_rejections: dict[str, str] = {}  # segment id → the check a rewrite failed (§6.3)
+    usage: dict[str, int] = {}  # model requests and tokens spent in this stage

@@ -1,7 +1,8 @@
 """Models per role (spec §13.8), built in one place so every agent gets the same provider settings.
 
 A role resolves to a Pydantic AI model name, pinned per run in ``VersionPins``. The name ``"test"``
-gives a ``TestModel``, so offline runs and unit tests never reach a provider. Anthropic models get
+gives a schema-driven fake model and ``"local:<name>"`` a registered in-process model, so offline
+runs and unit tests never reach a provider. Anthropic models get
 adaptive thinking with an explicit effort level when the role thinks (extraction, §7.2), and the
 server-side refusal fallback, so a declined request is re-run on Anthropic's recommended model
 instead of failing the stage. A refusal that survives the fallback still arrives as a
@@ -15,7 +16,6 @@ from typing import Any, Literal
 
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
-from pydantic_ai.models.test import TestModel
 from pydantic_ai.settings import ModelSettings
 
 from .config import ModelRouting, get_settings
@@ -38,7 +38,27 @@ PRICES_PER_MTOK: dict[str, tuple[float, float, float]] = {
 _DEFAULT_PRICE = (5.0, 25.0, 0.5)  # deliberately pessimistic for unknown models
 
 
+# Named in-process models (FunctionModel scripts, oracles) that pins can refer to as "local:<name>".
+# Used by tests, offline runs and the red-team harness; never by production pins.
+_LOCAL_MODELS: dict[str, Model] = {}
+
+
+def register_local_model(name: str, model: Model) -> str:
+    """Register a model under ``local:<name>`` and return that pin."""
+    _LOCAL_MODELS[name] = model
+    return f"local:{name}"
+
+
+def unregister_local_model(name: str) -> None:
+    _LOCAL_MODELS.pop(name, None)
+
+
 def is_test(name: str) -> bool:
+    return name in ("", "test") or name.startswith("test:") or name.startswith("local:")
+
+
+def is_stub(name: str) -> bool:
+    """A fake that returns schema-valid filler: stages skip LLM passes whose output would only be noise."""
     return name in ("", "test") or name.startswith("test:")
 
 
@@ -69,8 +89,15 @@ def role_model_name(role: Role, pins: VersionPins | None = None, routing: ModelR
 
 def build_model(name: str, *, secondary: str | None = None) -> Model | str:
     """A Pydantic AI model for ``name``; wrapped in a ``FallbackModel`` when a secondary provider is set (§13.7)."""
+    if name.startswith("local:"):
+        key = name.split(":", 1)[1]
+        if key not in _LOCAL_MODELS:
+            raise KeyError(f"no local model registered as {key!r}")
+        return _LOCAL_MODELS[key]
     if is_test(name):
-        return TestModel()
+        from .testing.fakes import schema_fake_model  # TestModel cannot produce native structured output
+
+        return schema_fake_model()
     if secondary and not is_test(secondary) and provider_of(secondary) != provider_of(name):
         return FallbackModel(name, secondary)
     return name

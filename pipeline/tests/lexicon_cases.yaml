@@ -1,0 +1,461 @@
+# Golden lexicon cases (spec §8.4): phrase → expected distribution summary (median, p10, p90).
+#
+# tests/test_lexicon_golden.py fails when a lexicon change moves any case's median by more than 10%
+# (or loses the key that resolved it). A deliberate change updates the case in the same pull request:
+# advisor_intel.lexicon.golden.make_case(lex, id, kind, phrase, value) prints the new summary.
+# For likelihood words median/p10/p90 are the entry's mean/low/high; certainty, hedge and scale
+# cases are scalars (median = p10 = p90).
+lexicon_version: "1.3"
+cases:
+  - {id: "approx-001", kind: "approx", phrase: "exactly", value: 100000.0, match: "exact", median: 100000.0, p10: 100000.0, p90: 100000.0}
+  - {id: "approx-002", kind: "approx", phrase: "about", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-003", kind: "approx", phrase: "roughly", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-004", kind: "approx", phrase: "ballpark", value: 100000.0, match: "exact", median: 100000.0, p10: 86180.3, p90: 113820.0}
+  - {id: "approx-005", kind: "approx", phrase: "give or take", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-006", kind: "approx", phrase: "precisely", value: 100000.0, match: "exact", median: 100000.0, p10: 100000.0, p90: 100000.0}
+  - {id: "approx-007", kind: "approx", phrase: "on the dot", value: 100000.0, match: "exact", median: 100000.0, p10: 100000.0, p90: 100000.0}
+  - {id: "approx-008", kind: "approx", phrase: "around", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-009", kind: "approx", phrase: "approximately", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-010", kind: "approx", phrase: "approx", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-011", kind: "approx", phrase: "more or less", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-012", kind: "approx", phrase: "round about", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-013", kind: "approx", phrase: "roundabout", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-014", kind: "approx", phrase: "in the region of", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-015", kind: "approx", phrase: "in the ballpark of", value: 100000.0, match: "exact", median: 100000.0, p10: 86180.3, p90: 113820.0}
+  - {id: "approx-016", kind: "approx", phrase: "somewhere around", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-017", kind: "approx", phrase: "something like", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-018", kind: "approx", phrase: "or so", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-019", kind: "approx", phrase: "or thereabouts", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-020", kind: "approx", phrase: "ish", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-021", kind: "approx", phrase: "plus minus", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-022", kind: "approx", phrase: "plus or minus", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-023", kind: "approx", phrase: "say", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-024", kind: "approx", phrase: "lets say", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-025", kind: "approx", phrase: "call it", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-026", kind: "approx", phrase: "at a guess", value: 100000.0, match: "exact", median: 100000.0, p10: 88944.3, p90: 111056.0}
+  - {id: "approx-027", kind: "approx", phrase: "if i had to guess", value: 100000.0, match: "exact", median: 100000.0, p10: 86180.3, p90: 113820.0}
+  - {id: "approx-028", kind: "approx", phrase: "maybe", value: 100000.0, match: "exact", median: 100000.0, p10: 88944.3, p90: 111056.0}
+  - {id: "approx-029", kind: "approx", phrase: "probably", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-030", kind: "approx", phrase: "i think", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-031", kind: "approx", phrase: "about that", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-032", kind: "approx", phrase: "just under", value: 100000.0, match: "exact", median: 96472.1, p10: 94000.0, p90: 98450.8}
+  - {id: "approx-033", kind: "approx", phrase: "just below", value: 100000.0, match: "exact", median: 96472.1, p10: 94000.0, p90: 98450.8}
+  - {id: "approx-034", kind: "approx", phrase: "just over", value: 100000.0, match: "exact", median: 103528.0, p10: 101549.0, p90: 106000.0}
+  - {id: "approx-035", kind: "approx", phrase: "just above", value: 100000.0, match: "exact", median: 103528.0, p10: 101549.0, p90: 106000.0}
+  - {id: "approx-036", kind: "approx", phrase: "a bit over", value: 100000.0, match: "exact", median: 106340.0, p10: 102739.0, p90: 111127.0}
+  - {id: "approx-037", kind: "approx", phrase: "a little over", value: 100000.0, match: "exact", median: 106340.0, p10: 102739.0, p90: 111127.0}
+  - {id: "approx-038", kind: "approx", phrase: "a bit under", value: 100000.0, match: "exact", median: 93660.3, p10: 88873.0, p90: 97261.4}
+  - {id: "approx-039", kind: "approx", phrase: "a little under", value: 100000.0, match: "exact", median: 93660.3, p10: 88873.0, p90: 97261.4}
+  - {id: "approx-040", kind: "approx", phrase: "well over", value: 100000.0, match: "exact", median: 119083.0, p10: 110916.0, p90: 130646.0}
+  - {id: "approx-041", kind: "approx", phrase: "well under", value: 100000.0, match: "exact", median: 80916.5, p10: 69354.1, p90: 89083.9}
+  - {id: "approx-042", kind: "approx", phrase: "close to", value: 100000.0, match: "exact", median: 96480.7, p10: 92898.3, p90: 99550.5}
+  - {id: "approx-043", kind: "approx", phrase: "nearly", value: 100000.0, match: "exact", median: 95916.1, p10: 92645.8, p90: 98267.9}
+  - {id: "approx-044", kind: "approx", phrase: "almost", value: 100000.0, match: "exact", median: 95916.1, p10: 92645.8, p90: 98267.9}
+  - {id: "approx-045", kind: "approx", phrase: "getting on for", value: 100000.0, match: "exact", median: 94480.7, p10: 90898.3, p90: 97550.5}
+  - {id: "approx-046", kind: "approx", phrase: "not quite", value: 100000.0, match: "exact", median: 95477.2, p10: 92449.5, p90: 98000.0}
+  - {id: "approx-047", kind: "approx", phrase: "upwards of", value: 100000.0, match: "exact", median: 115505.0, p10: 106325.0, p90: 129046.0}
+  - {id: "approx-048", kind: "approx", phrase: "north of", value: 100000.0, match: "exact", median: 111834.0, p10: 104899.0, p90: 121876.0}
+  - {id: "approx-049", kind: "approx", phrase: "south of", value: 100000.0, match: "exact", median: 88165.9, p10: 78124.0, p90: 95101.0}
+  - {id: "approx-050", kind: "approx", phrase: "odd", value: 100000.0, match: "exact", median: 107183.0, p10: 103000.0, p90: 113163.0}
+  - {id: "approx-051", kind: "approx", phrase: "plus", value: 100000.0, match: "exact", median: 110635.0, p10: 103873.0, p90: 121340.0}
+  - {id: "approx-052", kind: "approx", phrase: "and change", value: 100000.0, match: "exact", median: 103101.0, p10: 101265.0, p90: 105809.0}
+  - {id: "approx-053", kind: "approx", phrase: "omtrent", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-054", kind: "approx", phrase: "ongeveer", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-055", kind: "approx", phrase: "sowat", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-056", kind: "approx", phrase: "rondom", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-057", kind: "approx", phrase: "naastenby", value: 100000.0, match: "exact", median: 100000.0, p10: 91708.2, p90: 108292.0}
+  - {id: "approx-058", kind: "approx", phrase: "amper", value: 100000.0, match: "exact", median: 95916.1, p10: 92645.8, p90: 98267.9}
+  - {id: "approx-059", kind: "approx", phrase: "byna", value: 100000.0, match: "exact", median: 95916.1, p10: 92645.8, p90: 98267.9}
+  - {id: "approx-060", kind: "approx", phrase: "net onder", value: 100000.0, match: "exact", median: 96472.1, p10: 94000.0, p90: 98450.8}
+  - {id: "approx-061", kind: "approx", phrase: "net oor", value: 100000.0, match: "exact", median: 103528.0, p10: 101549.0, p90: 106000.0}
+  - {id: "approx-062", kind: "approx", phrase: "net bo", value: 100000.0, match: "exact", median: 103528.0, p10: 101549.0, p90: 106000.0}
+  - {id: "approx-063", kind: "approx", phrase: "presies", value: 100000.0, match: "exact", median: 100000.0, p10: 100000.0, p90: 100000.0}
+  - {id: "approx-064", kind: "approx", phrase: "About", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-065", kind: "approx", phrase: "give-or-take", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-066", kind: "approx", phrase: "plus-minus", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "approx-067", kind: "approx", phrase: "about R2.5 million", value: 2500000.0, match: "exact", median: 2500000.0, p10: 2361800.0, p90: 2638200.0}
+  - {id: "approx-068", kind: "approx", phrase: "roughly", value: 60.0, match: "exact", median: 60.0, p10: 55.0249, p90: 64.9751}
+  - {id: "approx-069", kind: "approx", phrase: "just under", value: 50000.0, match: "exact", median: 48236.1, p10: 47000.0, p90: 49225.4}
+  - {id: "approx-070", kind: "approx", phrase: "ballpark", value: 1200.0, match: "exact", median: 1200.0, p10: 1034.16, p90: 1365.84}
+  - {id: "approx-071", kind: "approx", phrase: "100k-ish", value: 100000.0, match: "exact", median: 100000.0, p10: 94472.1, p90: 105528.0}
+  - {id: "vague_count-001", kind: "vague_count", phrase: "a couple", match: "exact", median: 2.0, p10: 2.0, p90: 3.0}
+  - {id: "vague_count-002", kind: "vague_count", phrase: "a few", match: "exact", median: 3.26795, p10: 2.54772, p90: 4.2254}
+  - {id: "vague_count-003", kind: "vague_count", phrase: "several", match: "exact", median: 5.26139, p10: 4.0, p90: 6.77526}
+  - {id: "vague_count-004", kind: "vague_count", phrase: "a few hundred", match: "exact", median: 326.795, p10: 254.772, p90: 422.54}
+  - {id: "vague_count-005", kind: "vague_count", phrase: "one or two", match: "exact", median: 1.0, p10: 1.0, p90: 2.0}
+  - {id: "vague_count-006", kind: "vague_count", phrase: "two or three", match: "exact", median: 2.0, p10: 2.0, p90: 3.0}
+  - {id: "vague_count-007", kind: "vague_count", phrase: "three or four", match: "exact", median: 3.0, p10: 3.0, p90: 4.0}
+  - {id: "vague_count-008", kind: "vague_count", phrase: "four or five", match: "exact", median: 4.0, p10: 4.0, p90: 5.0}
+  - {id: "vague_count-009", kind: "vague_count", phrase: "five or six", match: "exact", median: 5.0, p10: 5.0, p90: 6.0}
+  - {id: "vague_count-010", kind: "vague_count", phrase: "a handful", match: "exact", median: 4.26795, p10: 3.54772, p90: 5.2254}
+  - {id: "vague_count-011", kind: "vague_count", phrase: "a dozen", match: "exact", median: 12.0, p10: 10.8944, p90: 13.1056}
+  - {id: "vague_count-012", kind: "vague_count", phrase: "a dozen or so", match: "exact", median: 12.5359, p10: 11.0954, p90: 14.4508}
+  - {id: "vague_count-013", kind: "vague_count", phrase: "a number of", match: "exact", median: 4.5359, p10: 3.09545, p90: 6.45081}
+  - {id: "vague_count-014", kind: "vague_count", phrase: "quite a few", match: "exact", median: 6.5359, p10: 5.09545, p90: 8.45081}
+  - {id: "vague_count-015", kind: "vague_count", phrase: "a good few", match: "exact", median: 6.5359, p10: 5.09545, p90: 8.45081}
+  - {id: "vague_count-016", kind: "vague_count", phrase: "some", match: "exact", median: 3.55051, p10: 2.63246, p90: 4.90455}
+  - {id: "vague_count-017", kind: "vague_count", phrase: "many", match: "exact", median: 11.3397, p10: 7.73861, p90: 16.127}
+  - {id: "vague_count-018", kind: "vague_count", phrase: "lots", match: "exact", median: 11.3397, p10: 7.73861, p90: 16.127}
+  - {id: "vague_count-019", kind: "vague_count", phrase: "a year or two", match: "exact", median: 1.0, p10: 1.0, p90: 2.0}
+  - {id: "vague_count-020", kind: "vague_count", phrase: "a year or so", match: "exact", median: 1.06699, p10: 0.886931, p90: 1.30635}
+  - {id: "vague_count-021", kind: "vague_count", phrase: "a decade", match: "exact", median: 10.0, p10: 9.44721, p90: 10.5528}
+  - {id: "vague_count-022", kind: "vague_count", phrase: "a decade or so", match: "exact", median: 10.2614, p10: 9.0, p90: 11.7753}
+  - {id: "vague_count-023", kind: "vague_count", phrase: "a while", match: "exact", median: 3.26139, p10: 2.0, p90: 4.77526}
+  - {id: "vague_count-024", kind: "vague_count", phrase: "soon", match: "exact", median: 1.06459, p10: 0.612284, p90: 1.58167}
+  - {id: "vague_count-025", kind: "vague_count", phrase: "n paar", match: "exact", median: 3.26795, p10: 2.54772, p90: 4.2254}
+  - {id: "vague_count-026", kind: "vague_count", phrase: "n hele paar", match: "exact", median: 6.5359, p10: 5.09545, p90: 8.45081}
+  - {id: "vague_count-027", kind: "vague_count", phrase: "n klompie", match: "exact", median: 4.26795, p10: 3.54772, p90: 5.2254}
+  - {id: "vague_count-028", kind: "vague_count", phrase: "baie", match: "exact", median: 11.3397, p10: 7.73861, p90: 16.127}
+  - {id: "vague_count-029", kind: "vague_count", phrase: "n jaar of twee", match: "exact", median: 1.0, p10: 1.0, p90: 2.0}
+  - {id: "vague_count-030", kind: "vague_count", phrase: "couple of", match: "exact", median: 2.0, p10: 2.0, p90: 3.0}
+  - {id: "vague_count-031", kind: "vague_count", phrase: "a couple of hundred", match: "exact", median: 200.0, p10: 200.0, p90: 300.0}
+  - {id: "vague_count-032", kind: "vague_count", phrase: "about five", match: "exact", median: 5.0, p10: 4.72361, p90: 5.27639}
+  - {id: "vague_count-033", kind: "vague_count", phrase: "five or so", match: "exact", median: 5.0, p10: 4.58541, p90: 5.41459}
+  - {id: "vague_count-034", kind: "vague_count", phrase: "'n paar", match: "exact", median: 3.26795, p10: 2.54772, p90: 4.2254}
+  - {id: "vague_count-035", kind: "vague_count", phrase: "a handful of", match: "exact", median: 4.26795, p10: 3.54772, p90: 5.2254}
+  - {id: "vague_count-036", kind: "vague_count", phrase: "ten-ish", match: "exact", median: 10.0, p10: 9.44721, p90: 10.5528}
+  - {id: "vague_count-037", kind: "vague_count", phrase: "a few thousand", match: "exact", median: 3267.95, p10: 2547.72, p90: 4225.4}
+  - {id: "vague_count-038", kind: "vague_count", phrase: "Several", match: "exact", median: 5.26139, p10: 4.0, p90: 6.77526}
+  - {id: "vague_amount-001", kind: "vague_amount", phrase: "six figures", match: "exact", median: 250000.0, p10: 104167.0, p90: 600000.0}
+  - {id: "vague_amount-002", kind: "vague_amount", phrase: "low six figures", match: "exact", median: 177526.0, p10: 131623.0, p90: 245228.0}
+  - {id: "vague_amount-003", kind: "vague_amount", phrase: "high six figures", match: "exact", median: 800000.0, p10: 689443.0, p90: 910557.0}
+  - {id: "vague_amount-004", kind: "vague_amount", phrase: "seven figures", match: "exact", median: 2500000.0, p10: 1041670.0, p90: 6000000.0}
+  - {id: "vague_amount-005", kind: "vague_amount", phrase: "tens of thousands", match: "exact", median: 48167.0, p10: 31832.2, p90: 71291.7}
+  - {id: "vague_amount-006", kind: "vague_amount", phrase: "hundreds of thousands", match: "exact", median: 481670.0, p10: 318322.0, p90: 712917.0}
+  - {id: "vague_amount-007", kind: "vague_amount", phrase: "millions", match: "exact", median: 4417420.0, p10: 2836660.0, p90: 6950610.0}
+  - {id: "vague_amount-008", kind: "vague_amount", phrase: "a few bob", match: "exact", median: 3835.59, p10: 1693.73, p90: 7243.19}
+  - {id: "vague_amount-009", kind: "vague_amount", phrase: "a few rand", match: "exact", median: 423.372, p10: 204.11, p90: 742.124}
+  - {id: "vague_amount-010", kind: "vague_amount", phrase: "duisende", match: "exact", median: 8381.05, p10: 4323.79, p90: 14803.8}
+  - {id: "vague_amount-011", kind: "vague_amount", phrase: "a few hundred K", match: "exact", median: 326795.0, p10: 254772.0, p90: 422540.0}
+  - {id: "vague_amount-012", kind: "vague_amount", phrase: "a couple of bar", match: "exact", median: 2000.0, p10: 2000.0, p90: 3000.0}
+  - {id: "vague_amount-013", kind: "vague_amount", phrase: "a few mil", match: "exact", median: 3267950.0, p10: 2547720.0, p90: 4225400.0}
+  - {id: "vague_amount-014", kind: "vague_amount", phrase: "half a bar", match: "exact", median: 500.0, p10: 500.0, p90: 500.0}
+  - {id: "vague_amount-015", kind: "vague_amount", phrase: "a bar and a half", match: "exact", median: 1500.0, p10: 1500.0, p90: 1500.0}
+  - {id: "vague_amount-016", kind: "vague_amount", phrase: "two and a half mil", match: "exact", median: 2500000.0, p10: 2500000.0, p90: 2500000.0}
+  - {id: "vague_amount-017", kind: "vague_amount", phrase: "about two hundred grand", match: "exact", median: 200000.0, p10: 188944.0, p90: 211056.0}
+  - {id: "vague_amount-018", kind: "vague_amount", phrase: "a few hundred thousand rand", match: "exact", median: 326795.0, p10: 254772.0, p90: 422540.0}
+  - {id: "vague_amount-019", kind: "vague_amount", phrase: "a couple of million", match: "exact", median: 2000000.0, p10: 2000000.0, p90: 3000000.0}
+  - {id: "vague_amount-020", kind: "vague_amount", phrase: "a few grand", match: "exact", median: 3267.95, p10: 2547.72, p90: 4225.4}
+  - {id: "vague_amount-021", kind: "vague_amount", phrase: "several hundred K", match: "exact", median: 526139.0, p10: 400000.0, p90: 677526.0}
+  - {id: "vague_amount-022", kind: "vague_amount", phrase: "a couple hundred thousand", match: "exact", median: 200000.0, p10: 200000.0, p90: 300000.0}
+  - {id: "vague_amount-023", kind: "vague_amount", phrase: "a few thousand", match: "exact", median: 3267.95, p10: 2547.72, p90: 4225.4}
+  - {id: "vague_amount-024", kind: "vague_amount", phrase: "twee honderd duisend", match: "exact", median: 200000.0, p10: 200000.0, p90: 200000.0}
+  - {id: "vague_amount-025", kind: "vague_amount", phrase: "R50k", match: "exact", median: 50000.0, p10: 50000.0, p90: 50000.0}
+  - {id: "vague_amount-026", kind: "vague_amount", phrase: "two fifty k", match: "exact", median: 250000.0, p10: 250000.0, p90: 250000.0}
+  - {id: "vague_amount-027", kind: "vague_amount", phrase: "one point two mil", match: "exact", median: 1200000.0, p10: 1200000.0, p90: 1200000.0}
+  - {id: "vague_amount-028", kind: "vague_amount", phrase: "half a million", match: "exact", median: 500000.0, p10: 500000.0, p90: 500000.0}
+  - {id: "vague_amount-029", kind: "vague_amount", phrase: "a couple of hundred rand", match: "exact", median: 200.0, p10: 200.0, p90: 300.0}
+  - {id: "vague_amount-030", kind: "vague_amount", phrase: "a few bar", match: "exact", median: 3267.95, p10: 2547.72, p90: 4225.4}
+  - {id: "scale-001", kind: "scale", phrase: "bar", match: "exact", median: 1000.0, p10: 1000.0, p90: 1000.0}
+  - {id: "scale-002", kind: "scale", phrase: "k", match: "exact", median: 1000.0, p10: 1000.0, p90: 1000.0}
+  - {id: "scale-003", kind: "scale", phrase: "mil", match: "exact", median: 1000000.0, p10: 1000000.0, p90: 1000000.0}
+  - {id: "scale-004", kind: "scale", phrase: "million", match: "exact", median: 1000000.0, p10: 1000000.0, p90: 1000000.0}
+  - {id: "scale-005", kind: "scale", phrase: "thousand", match: "exact", median: 1000.0, p10: 1000.0, p90: 1000.0}
+  - {id: "scale-006", kind: "scale", phrase: "grand", match: "exact", median: 1000.0, p10: 1000.0, p90: 1000.0}
+  - {id: "scale-007", kind: "scale", phrase: "hundred", match: "exact", median: 100.0, p10: 100.0, p90: 100.0}
+  - {id: "scale-008", kind: "scale", phrase: "hundred thousand", match: "exact", median: 100000.0, p10: 100000.0, p90: 100000.0}
+  - {id: "scale-009", kind: "scale", phrase: "hundred k", match: "exact", median: 100000.0, p10: 100000.0, p90: 100000.0}
+  - {id: "scale-010", kind: "scale", phrase: "m", match: "exact", median: 1000000.0, p10: 1000000.0, p90: 1000000.0}
+  - {id: "scale-011", kind: "scale", phrase: "mill", match: "exact", median: 1000000.0, p10: 1000000.0, p90: 1000000.0}
+  - {id: "scale-012", kind: "scale", phrase: "billion", match: "exact", median: 1000000000.0, p10: 1000000000.0, p90: 1000000000.0}
+  - {id: "scale-013", kind: "scale", phrase: "bn", match: "exact", median: 1000000000.0, p10: 1000000000.0, p90: 1000000000.0}
+  - {id: "scale-014", kind: "scale", phrase: "half a bar", match: "exact", median: 500.0, p10: 500.0, p90: 500.0}
+  - {id: "scale-015", kind: "scale", phrase: "a bar and a half", match: "exact", median: 1500.0, p10: 1500.0, p90: 1500.0}
+  - {id: "scale-016", kind: "scale", phrase: "half a mil", match: "exact", median: 500000.0, p10: 500000.0, p90: 500000.0}
+  - {id: "scale-017", kind: "scale", phrase: "half a million", match: "exact", median: 500000.0, p10: 500000.0, p90: 500000.0}
+  - {id: "scale-018", kind: "scale", phrase: "a million and a half", match: "exact", median: 1500000.0, p10: 1500000.0, p90: 1500000.0}
+  - {id: "scale-019", kind: "scale", phrase: "a mil and a half", match: "exact", median: 1500000.0, p10: 1500000.0, p90: 1500000.0}
+  - {id: "scale-020", kind: "scale", phrase: "quarter of a million", match: "exact", median: 250000.0, p10: 250000.0, p90: 250000.0}
+  - {id: "scale-021", kind: "scale", phrase: "quarter mil", match: "exact", median: 250000.0, p10: 250000.0, p90: 250000.0}
+  - {id: "scale-022", kind: "scale", phrase: "honderd", match: "exact", median: 100.0, p10: 100.0, p90: 100.0}
+  - {id: "scale-023", kind: "scale", phrase: "duisend", match: "exact", median: 1000.0, p10: 1000.0, p90: 1000.0}
+  - {id: "scale-024", kind: "scale", phrase: "miljoen", match: "exact", median: 1000000.0, p10: 1000000.0, p90: 1000000.0}
+  - {id: "scale-025", kind: "scale", phrase: "Bar", match: "exact", median: 1000.0, p10: 1000.0, p90: 1000.0}
+  - {id: "scale-026", kind: "scale", phrase: "half-a-bar", match: "exact", median: 500.0, p10: 500.0, p90: 500.0}
+  - {id: "scale-027", kind: "scale", phrase: "K", match: "exact", median: 1000.0, p10: 1000.0, p90: 1000.0}
+  - {id: "age_band-001", kind: "age_band", phrase: "early sixties", match: "exact", median: 61.6292, p10: 60.7246, p90: 62.6633}
+  - {id: "age_band-002", kind: "age_band", phrase: "mid sixties", match: "exact", median: 65.0, p10: 63.8944, p90: 66.1056}
+  - {id: "age_band-003", kind: "age_band", phrase: "late fifties", match: "exact", median: 58.4748, p10: 57.6595, p90: 59.2628}
+  - {id: "age_band-004", kind: "age_band", phrase: "early teens", match: "exact", median: 13.7467, p10: 13.3082, p90: 14.3842}
+  - {id: "age_band-005", kind: "age_band", phrase: "mid teens", match: "exact", median: 15.1307, p10: 14.5, p90: 15.8876}
+  - {id: "age_band-006", kind: "age_band", phrase: "late teens", match: "exact", median: 18.2402, p10: 17.5385, p90: 19.1577}
+  - {id: "age_band-007", kind: "age_band", phrase: "teens", match: "exact", median: 16.2319, p10: 14.4387, p90: 18.2596}
+  - {id: "age_band-008", kind: "age_band", phrase: "early twenties", match: "exact", median: 21.6292, p10: 20.7246, p90: 22.6633}
+  - {id: "age_band-009", kind: "age_band", phrase: "mid twenties", match: "exact", median: 25.0, p10: 23.8944, p90: 26.1056}
+  - {id: "age_band-010", kind: "age_band", phrase: "late twenties", match: "exact", median: 28.4748, p10: 27.6595, p90: 29.2628}
+  - {id: "age_band-011", kind: "age_band", phrase: "twenties", match: "exact", median: 24.9749, p10: 22.2249, p90: 27.6975}
+  - {id: "age_band-012", kind: "age_band", phrase: "early thirties", match: "exact", median: 31.6292, p10: 30.7246, p90: 32.6633}
+  - {id: "age_band-013", kind: "age_band", phrase: "mid thirties", match: "exact", median: 35.0, p10: 33.8944, p90: 36.1056}
+  - {id: "age_band-014", kind: "age_band", phrase: "late thirties", match: "exact", median: 38.4748, p10: 37.6595, p90: 39.2628}
+  - {id: "age_band-015", kind: "age_band", phrase: "thirties", match: "exact", median: 34.9749, p10: 32.2249, p90: 37.6975}
+  - {id: "age_band-016", kind: "age_band", phrase: "early forties", match: "exact", median: 41.6292, p10: 40.7246, p90: 42.6633}
+  - {id: "age_band-017", kind: "age_band", phrase: "mid forties", match: "exact", median: 45.0, p10: 43.8944, p90: 46.1056}
+  - {id: "age_band-018", kind: "age_band", phrase: "late forties", match: "exact", median: 48.4748, p10: 47.6595, p90: 49.2628}
+  - {id: "age_band-019", kind: "age_band", phrase: "forties", match: "exact", median: 44.9749, p10: 42.2249, p90: 47.6975}
+  - {id: "age_band-020", kind: "age_band", phrase: "early fifties", match: "exact", median: 51.6292, p10: 50.7246, p90: 52.6633}
+  - {id: "age_band-021", kind: "age_band", phrase: "mid fifties", match: "exact", median: 55.0, p10: 53.8944, p90: 56.1056}
+  - {id: "age_band-022", kind: "age_band", phrase: "fifties", match: "exact", median: 54.9749, p10: 52.2249, p90: 57.6975}
+  - {id: "age_band-023", kind: "age_band", phrase: "late sixties", match: "exact", median: 68.4748, p10: 67.6595, p90: 69.2628}
+  - {id: "age_band-024", kind: "age_band", phrase: "sixties", match: "exact", median: 64.9749, p10: 62.2249, p90: 67.6975}
+  - {id: "age_band-025", kind: "age_band", phrase: "early seventies", match: "exact", median: 71.6292, p10: 70.7246, p90: 72.6633}
+  - {id: "age_band-026", kind: "age_band", phrase: "mid seventies", match: "exact", median: 75.0, p10: 73.8944, p90: 76.1056}
+  - {id: "age_band-027", kind: "age_band", phrase: "late seventies", match: "exact", median: 78.4748, p10: 77.6595, p90: 79.2628}
+  - {id: "age_band-028", kind: "age_band", phrase: "seventies", match: "exact", median: 74.9749, p10: 72.2249, p90: 77.6975}
+  - {id: "age_band-029", kind: "age_band", phrase: "early eighties", match: "exact", median: 81.6292, p10: 80.7246, p90: 82.6633}
+  - {id: "age_band-030", kind: "age_band", phrase: "mid eighties", match: "exact", median: 85.0, p10: 83.8944, p90: 86.1056}
+  - {id: "age_band-031", kind: "age_band", phrase: "late eighties", match: "exact", median: 88.4748, p10: 87.6595, p90: 89.2628}
+  - {id: "age_band-032", kind: "age_band", phrase: "eighties", match: "exact", median: 84.9749, p10: 82.2249, p90: 87.6975}
+  - {id: "age_band-033", kind: "age_band", phrase: "early nineties", match: "exact", median: 91.6292, p10: 90.7246, p90: 92.6633}
+  - {id: "age_band-034", kind: "age_band", phrase: "nineties", match: "exact", median: 94.4958, p10: 91.99, p90: 97.4832}
+  - {id: "age_band-035", kind: "age_band", phrase: "after matric", match: "exact", median: 18.0, p10: 17.4472, p90: 18.5528}
+  - {id: "age_band-036", kind: "age_band", phrase: "after school", match: "exact", median: 18.0, p10: 17.4472, p90: 18.5528}
+  - {id: "age_band-037", kind: "age_band", phrase: "straight after school", match: "exact", median: 18.0, p10: 17.7236, p90: 18.2764}
+  - {id: "age_band-038", kind: "age_band", phrase: "after a gap year", match: "exact", median: 19.0, p10: 18.4472, p90: 19.5528}
+  - {id: "age_band-039", kind: "age_band", phrase: "matric", match: "exact", median: 18.0, p10: 17.7236, p90: 18.2764}
+  - {id: "age_band-040", kind: "age_band", phrase: "grade r", match: "exact", median: 6.0, p10: 5.72361, p90: 6.27639}
+  - {id: "age_band-041", kind: "age_band", phrase: "pension age", match: "exact", median: 63.5355, p10: 61.5811, p90: 64.7434}
+  - {id: "age_band-042", kind: "age_band", phrase: "normal retirement age", match: "exact", median: 63.5355, p10: 61.5811, p90: 64.7434}
+  - {id: "age_band-043", kind: "age_band", phrase: "turning sixty", match: "exact", median: 60.0, p10: 60.0, p90: 60.0}
+  - {id: "age_band-044", kind: "age_band", phrase: "turn 65", match: "exact", median: 65.0, p10: 65.0, p90: 65.0}
+  - {id: "age_band-045", kind: "age_band", phrase: "when I turn sixty", match: "exact", median: 60.0, p10: 60.0, p90: 60.0}
+  - {id: "age_band-046", kind: "age_band", phrase: "about sixty", match: "exact", median: 60.0, p10: 58.8944, p90: 61.1056}
+  - {id: "age_band-047", kind: "age_band", phrase: "around 62", match: "exact", median: 62.0, p10: 60.8944, p90: 63.1056}
+  - {id: "age_band-048", kind: "age_band", phrase: "roughly sixty", match: "exact", median: 60.0, p10: 58.3416, p90: 61.6584}
+  - {id: "age_band-049", kind: "age_band", phrase: "more or less sixty", match: "exact", median: 60.0, p10: 58.8944, p90: 61.1056}
+  - {id: "age_band-050", kind: "age_band", phrase: "sixty-ish", match: "exact", median: 60.0, p10: 58.8944, p90: 61.1056}
+  - {id: "age_band-051", kind: "age_band", phrase: "sixty or so", match: "exact", median: 60.2614, p10: 59.0, p90: 61.7753}
+  - {id: "age_band-052", kind: "age_band", phrase: "forty odd", match: "exact", median: 42.5359, p10: 41.0954, p90: 44.4508}
+  - {id: "age_band-053", kind: "age_band", phrase: "plus-minus sixty", match: "exact", median: 60.0, p10: 58.8944, p90: 61.1056}
+  - {id: "age_band-054", kind: "age_band", phrase: "before fifty-five", match: "exact", median: 52.958, p10: 51.3229, p90: 54.134}
+  - {id: "age_band-055", kind: "age_band", phrase: "by sixty", match: "exact", median: 58.9365, p10: 57.866, p90: 59.6127}
+  - {id: "age_band-056", kind: "age_band", phrase: "no later than sixty-five", match: "exact", median: 63.9365, p10: 62.866, p90: 64.6127}
+  - {id: "age_band-057", kind: "age_band", phrase: "under thirty", match: "exact", median: 27.958, p10: 26.3229, p90: 29.134}
+  - {id: "age_band-058", kind: "age_band", phrase: "just under sixty", match: "exact", median: 59.366, p10: 58.8873, p90: 59.7261}
+  - {id: "age_band-059", kind: "age_band", phrase: "almost sixty", match: "exact", median: 59.5, p10: 59.2236, p90: 59.7764}
+  - {id: "age_band-060", kind: "age_band", phrase: "nearly sixty", match: "exact", median: 59.5, p10: 59.2236, p90: 59.7764}
+  - {id: "age_band-061", kind: "age_band", phrase: "after sixty", match: "exact", median: 62.042, p10: 60.866, p90: 63.6771}
+  - {id: "age_band-062", kind: "age_band", phrase: "over sixty", match: "exact", median: 62.042, p10: 60.866, p90: 63.6771}
+  - {id: "age_band-063", kind: "age_band", phrase: "just over sixty", match: "exact", median: 60.634, p10: 60.2739, p90: 61.1127}
+  - {id: "age_band-064", kind: "age_band", phrase: "at least sixty", match: "exact", median: 61.8377, p10: 60.7071, p90: 63.5858}
+  - {id: "age_band-065", kind: "age_band", phrase: "sixty at the latest", match: "exact", median: 58.9365, p10: 57.866, p90: 59.6127}
+  - {id: "age_band-066", kind: "age_band", phrase: "sixty at the earliest", match: "exact", median: 61.0635, p10: 60.3873, p90: 62.134}
+  - {id: "age_band-067", kind: "age_band", phrase: "grade nine", match: "exact", median: 15.0, p10: 14.7236, p90: 15.2764}
+  - {id: "age_band-068", kind: "age_band", phrase: "omtrent sestig", match: "exact", median: 60.0, p10: 58.8944, p90: 61.1056}
+  - {id: "age_band-069", kind: "age_band", phrase: "sowat sestig", match: "exact", median: 60.0, p10: 58.8944, p90: 61.1056}
+  - {id: "age_band-070", kind: "age_band", phrase: "amper sestig", match: "exact", median: 59.5, p10: 59.2236, p90: 59.7764}
+  - {id: "age_band-071", kind: "age_band", phrase: "voor vyf-en-vyftig", match: "exact", median: 52.958, p10: 51.3229, p90: 54.134}
+  - {id: "age_band-072", kind: "age_band", phrase: "na sestig", match: "exact", median: 62.042, p10: 60.866, p90: 63.6771}
+  - {id: "age_band-073", kind: "age_band", phrase: "Early 60's", match: "exact", median: 61.6292, p10: 60.7246, p90: 62.6633}
+  - {id: "age_band-074", kind: "age_band", phrase: "in his late fifties", match: "exact", median: 58.4748, p10: 57.6595, p90: 59.2628}
+  - {id: "age_band-075", kind: "age_band", phrase: "laat vyftigs", match: "exact", median: 58.4748, p10: 57.6595, p90: 59.2628}
+  - {id: "age_band-076", kind: "age_band", phrase: "vroeë sestigs", match: "exact", median: 61.6292, p10: 60.7246, p90: 62.6633}
+  - {id: "age_band-077", kind: "age_band", phrase: "middel veertigs", match: "exact", median: 45.0, p10: 43.8944, p90: 46.1056}
+  - {id: "age_band-078", kind: "age_band", phrase: "op sestig", match: "exact", median: 60.0, p10: 60.0, p90: 60.0}
+  - {id: "age_band-079", kind: "age_band", phrase: "62 years old", match: "exact", median: 62.0, p10: 62.0, p90: 62.0}
+  - {id: "age_band-080", kind: "age_band", phrase: "ballpark sixty", match: "exact", median: 60.0, p10: 57.2361, p90: 62.7639}
+  - {id: "age_band-081", kind: "age_band", phrase: "Grade R", match: "exact", median: 6.0, p10: 5.72361, p90: 6.27639}
+  - {id: "age_band-082", kind: "age_band", phrase: "in her mid-30s", match: "exact", median: 35.0, p10: 33.8944, p90: 36.1056}
+  - {id: "age_band-083", kind: "age_band", phrase: "sixty five", match: "exact", median: 65.0, p10: 65.0, p90: 65.0}
+  - {id: "relative-001", kind: "relative", phrase: "about the same", match: "exact", median: 1.0, p10: 0.944721, p90: 1.05528}
+  - {id: "relative-002", kind: "relative", phrase: "a bit less", match: "exact", median: 0.869583, p10: 0.803479, p90: 0.925503}
+  - {id: "relative-003", kind: "relative", phrase: "a lot less", match: "exact", median: 0.6, p10: 0.489443, p90: 0.710557}
+  - {id: "relative-004", kind: "relative", phrase: "a bit more", match: "exact", median: 1.13042, p10: 1.0745, p90: 1.19652}
+  - {id: "relative-005", kind: "relative", phrase: "exactly the same", match: "exact", median: 1.0, p10: 1.0, p90: 1.0}
+  - {id: "relative-006", kind: "relative", phrase: "the same", match: "exact", median: 1.0, p10: 0.972361, p90: 1.02764}
+  - {id: "relative-007", kind: "relative", phrase: "the same as now", match: "exact", median: 1.0, p10: 0.972361, p90: 1.02764}
+  - {id: "relative-008", kind: "relative", phrase: "similar", match: "exact", median: 1.0, p10: 0.944721, p90: 1.05528}
+  - {id: "relative-009", kind: "relative", phrase: "roughly the same", match: "exact", median: 1.0, p10: 0.933666, p90: 1.06633}
+  - {id: "relative-010", kind: "relative", phrase: "more or less the same", match: "exact", median: 1.0, p10: 0.944721, p90: 1.05528}
+  - {id: "relative-011", kind: "relative", phrase: "a little less", match: "exact", median: 0.894868, p10: 0.842426, p90: 0.942053}
+  - {id: "relative-012", kind: "relative", phrase: "slightly less", match: "exact", median: 0.924833, p10: 0.883466, p90: 0.961017}
+  - {id: "relative-013", kind: "relative", phrase: "somewhat less", match: "exact", median: 0.85, p10: 0.794721, p90: 0.905279}
+  - {id: "relative-014", kind: "relative", phrase: "less", match: "exact", median: 0.787083, p10: 0.683666, p90: 0.877543}
+  - {id: "relative-015", kind: "relative", phrase: "much less", match: "exact", median: 0.6, p10: 0.489443, p90: 0.710557}
+  - {id: "relative-016", kind: "relative", phrase: "a little more", match: "exact", median: 1.10513, p10: 1.05795, p90: 1.15757}
+  - {id: "relative-017", kind: "relative", phrase: "slightly more", match: "exact", median: 1.07517, p10: 1.03898, p90: 1.11653}
+  - {id: "relative-018", kind: "relative", phrase: "somewhat more", match: "exact", median: 1.15, p10: 1.09472, p90: 1.20528}
+  - {id: "relative-019", kind: "relative", phrase: "more", match: "exact", median: 1.24019, p10: 1.13216, p90: 1.38381}
+  - {id: "relative-020", kind: "relative", phrase: "a lot more", match: "exact", median: 1.56699, p10: 1.38693, p90: 1.80635}
+  - {id: "relative-021", kind: "relative", phrase: "much more", match: "exact", median: 1.56699, p10: 1.38693, p90: 1.80635}
+  - {id: "relative-022", kind: "relative", phrase: "half", match: "exact", median: 0.5, p10: 0.472361, p90: 0.527639}
+  - {id: "relative-023", kind: "relative", phrase: "about half", match: "exact", median: 0.5, p10: 0.444721, p90: 0.555279}
+  - {id: "relative-024", kind: "relative", phrase: "a third", match: "exact", median: 0.332583, p10: 0.314491, p90: 0.353267}
+  - {id: "relative-025", kind: "relative", phrase: "two thirds", match: "exact", median: 0.664807, p10: 0.628983, p90: 0.695505}
+  - {id: "relative-026", kind: "relative", phrase: "three quarters", match: "exact", median: 0.75, p10: 0.722361, p90: 0.777639}
+  - {id: "relative-027", kind: "relative", phrase: "double", match: "exact", median: 2.0, p10: 1.94472, p90: 2.05528}
+  - {id: "relative-028", kind: "relative", phrase: "twice as much", match: "exact", median: 2.0, p10: 1.94472, p90: 2.05528}
+  - {id: "relative-029", kind: "relative", phrase: "dieselfde", match: "exact", median: 1.0, p10: 0.972361, p90: 1.02764}
+  - {id: "relative-030", kind: "relative", phrase: "omtrent dieselfde", match: "exact", median: 1.0, p10: 0.944721, p90: 1.05528}
+  - {id: "relative-031", kind: "relative", phrase: "n bietjie minder", match: "exact", median: 0.869583, p10: 0.803479, p90: 0.925503}
+  - {id: "relative-032", kind: "relative", phrase: "n bietjie meer", match: "exact", median: 1.13042, p10: 1.0745, p90: 1.19652}
+  - {id: "relative-033", kind: "relative", phrase: "baie minder", match: "exact", median: 0.6, p10: 0.489443, p90: 0.710557}
+  - {id: "relative-034", kind: "relative", phrase: "baie meer", match: "exact", median: 1.56699, p10: 1.38693, p90: 1.80635}
+  - {id: "relative-035", kind: "relative", phrase: "minder", match: "exact", median: 0.787083, p10: 0.683666, p90: 0.877543}
+  - {id: "relative-036", kind: "relative", phrase: "a bit less than now", match: "exact", median: 0.869583, p10: 0.803479, p90: 0.925503}
+  - {id: "relative-037", kind: "relative", phrase: "about the same as now", match: "exact", median: 1.0, p10: 0.944721, p90: 1.05528}
+  - {id: "relative-038", kind: "relative", phrase: "eighty percent of now", match: "exact", median: 0.8, p10: 0.8, p90: 0.8}
+  - {id: "relative-039", kind: "relative", phrase: "A Bit More", match: "exact", median: 1.13042, p10: 1.0745, p90: 1.19652}
+  - {id: "relative-040", kind: "relative", phrase: "a lot less than what we spend", match: "exact", median: 0.6, p10: 0.489443, p90: 0.710557}
+  - {id: "rate-001", kind: "rate", phrase: "flat", match: "exact", median: 0.0, p10: -0.025631, p90: 0.025631}
+  - {id: "rate-002", kind: "rate", phrase: "growing a bit", match: "exact", median: 0.03, p10: -0.00844655, p90: 0.0684465}
+  - {id: "rate-003", kind: "rate", phrase: "growing well", match: "exact", median: 0.08, p10: 0.0159224, p90: 0.144078}
+  - {id: "rate-004", kind: "rate", phrase: "struggling", match: "exact", median: -0.05, p10: -0.114078, p90: 0.0140776}
+  - {id: "rate-005", kind: "rate", phrase: "stable", match: "exact", median: 0.0, p10: -0.025631, p90: 0.025631}
+  - {id: "rate-006", kind: "rate", phrase: "steady", match: "exact", median: 0.01, p10: -0.015631, p90: 0.035631}
+  - {id: "rate-007", kind: "rate", phrase: "keeping up with inflation", match: "exact", median: 0.0, p10: -0.0192233, p90: 0.0192233}
+  - {id: "rate-008", kind: "rate", phrase: "in line with inflation", match: "exact", median: 0.0, p10: -0.0192233, p90: 0.0192233}
+  - {id: "rate-009", kind: "rate", phrase: "with inflation", match: "exact", median: 0.0, p10: -0.0192233, p90: 0.0192233}
+  - {id: "rate-010", kind: "rate", phrase: "above inflation", match: "exact", median: 0.02, p10: -0.00563103, p90: 0.045631}
+  - {id: "rate-011", kind: "rate", phrase: "below inflation", match: "exact", median: -0.02, p10: -0.045631, p90: 0.00563103}
+  - {id: "rate-012", kind: "rate", phrase: "growing slowly", match: "exact", median: 0.02, p10: -0.00563103, p90: 0.045631}
+  - {id: "rate-013", kind: "rate", phrase: "growing", match: "exact", median: 0.04, p10: -0.0112621, p90: 0.0912621}
+  - {id: "rate-014", kind: "rate", phrase: "growing fast", match: "exact", median: 0.12, p10: 0.0302914, p90: 0.209709}
+  - {id: "rate-015", kind: "rate", phrase: "booming", match: "exact", median: 0.15, p10: 0.0474759, p90: 0.252524}
+  - {id: "rate-016", kind: "rate", phrase: "doing well", match: "exact", median: 0.06, p10: -0.00407758, p90: 0.124078}
+  - {id: "rate-017", kind: "rate", phrase: "doing ok", match: "exact", median: 0.02, p10: -0.0184465, p90: 0.0584465}
+  - {id: "rate-018", kind: "rate", phrase: "tough", match: "exact", median: -0.03, p10: -0.0940776, p90: 0.0340776}
+  - {id: "rate-019", kind: "rate", phrase: "battling", match: "exact", median: -0.04, p10: -0.104078, p90: 0.0240776}
+  - {id: "rate-020", kind: "rate", phrase: "declining", match: "exact", median: -0.04, p10: -0.0912621, p90: 0.0112621}
+  - {id: "rate-021", kind: "rate", phrase: "shrinking", match: "exact", median: -0.05, p10: -0.114078, p90: 0.0140776}
+  - {id: "rate-022", kind: "rate", phrase: "going down", match: "exact", median: -0.04, p10: -0.0912621, p90: 0.0112621}
+  - {id: "rate-023", kind: "rate", phrase: "sukkel", match: "exact", median: -0.05, p10: -0.114078, p90: 0.0140776}
+  - {id: "rate-024", kind: "rate", phrase: "groei", match: "exact", median: 0.04, p10: -0.0112621, p90: 0.0912621}
+  - {id: "rate-025", kind: "rate", phrase: "inflation plus two", match: "exact", median: 0.02, p10: 0.00718448, p90: 0.0328155}
+  - {id: "rate-026", kind: "rate", phrase: "CPI plus 3", match: "exact", median: 0.03, p10: 0.0171845, p90: 0.0428155}
+  - {id: "rate-027", kind: "rate", phrase: "inflation plus 2 percent", match: "exact", median: 0.02, p10: 0.00718448, p90: 0.0328155}
+  - {id: "rate-028", kind: "rate", phrase: "cpi plus three percent", match: "exact", median: 0.03, p10: 0.0171845, p90: 0.0428155}
+  - {id: "rate-029", kind: "rate", phrase: "about 5 percent", match: "exact", median: 0.05, p10: 0.0472361, p90: 0.0527639}
+  - {id: "rate-030", kind: "rate", phrase: "5%", match: "exact", median: 0.05, p10: 0.05, p90: 0.05}
+  - {id: "rate-031", kind: "rate", phrase: "Growing a bit.", match: "exact", median: 0.03, p10: -0.00844655, p90: 0.0684465}
+  - {id: "likelihood-001", kind: "likelihood", phrase: "definitely", match: "exact", median: 0.95, p10: 0.9, p90: 0.99}
+  - {id: "likelihood-002", kind: "likelihood", phrase: "probably", match: "exact", median: 0.7, p10: 0.6, p90: 0.8}
+  - {id: "likelihood-003", kind: "likelihood", phrase: "might", match: "exact", median: 0.4, p10: 0.25, p90: 0.55}
+  - {id: "likelihood-004", kind: "likelihood", phrase: "maybe", match: "exact", median: 0.35, p10: 0.2, p90: 0.5}
+  - {id: "likelihood-005", kind: "likelihood", phrase: "unlikely", match: "exact", median: 0.15, p10: 0.05, p90: 0.25}
+  - {id: "likelihood-006", kind: "likelihood", phrase: "thinking of", match: "exact", median: 0.55, p10: 0.4, p90: 0.7}
+  - {id: "likelihood-007", kind: "likelihood", phrase: "certainly", match: "exact", median: 0.95, p10: 0.9, p90: 0.99}
+  - {id: "likelihood-008", kind: "likelihood", phrase: "for sure", match: "exact", median: 0.95, p10: 0.9, p90: 0.99}
+  - {id: "likelihood-009", kind: "likelihood", phrase: "almost certainly", match: "exact", median: 0.92, p10: 0.85, p90: 0.97}
+  - {id: "likelihood-010", kind: "likelihood", phrase: "will", match: "exact", median: 0.85, p10: 0.75, p90: 0.93}
+  - {id: "likelihood-011", kind: "likelihood", phrase: "going to", match: "exact", median: 0.8, p10: 0.7, p90: 0.9}
+  - {id: "likelihood-012", kind: "likelihood", phrase: "most likely", match: "exact", median: 0.8, p10: 0.7, p90: 0.9}
+  - {id: "likelihood-013", kind: "likelihood", phrase: "very likely", match: "exact", median: 0.85, p10: 0.75, p90: 0.93}
+  - {id: "likelihood-014", kind: "likelihood", phrase: "likely", match: "exact", median: 0.7, p10: 0.6, p90: 0.8}
+  - {id: "likelihood-015", kind: "likelihood", phrase: "planning to", match: "exact", median: 0.75, p10: 0.6, p90: 0.88}
+  - {id: "likelihood-016", kind: "likelihood", phrase: "intend to", match: "exact", median: 0.75, p10: 0.6, p90: 0.88}
+  - {id: "likelihood-017", kind: "likelihood", phrase: "want to", match: "exact", median: 0.6, p10: 0.45, p90: 0.75}
+  - {id: "likelihood-018", kind: "likelihood", phrase: "would like to", match: "exact", median: 0.5, p10: 0.35, p90: 0.65}
+  - {id: "likelihood-019", kind: "likelihood", phrase: "hoping to", match: "exact", median: 0.5, p10: 0.35, p90: 0.65}
+  - {id: "likelihood-020", kind: "likelihood", phrase: "thinking about", match: "exact", median: 0.5, p10: 0.35, p90: 0.65}
+  - {id: "likelihood-021", kind: "likelihood", phrase: "considering", match: "exact", median: 0.45, p10: 0.3, p90: 0.6}
+  - {id: "likelihood-022", kind: "likelihood", phrase: "fifty fifty", match: "exact", median: 0.5, p10: 0.4, p90: 0.6}
+  - {id: "likelihood-023", kind: "likelihood", phrase: "50 50", match: "exact", median: 0.5, p10: 0.4, p90: 0.6}
+  - {id: "likelihood-024", kind: "likelihood", phrase: "not sure", match: "exact", median: 0.45, p10: 0.3, p90: 0.6}
+  - {id: "likelihood-025", kind: "likelihood", phrase: "may", match: "exact", median: 0.4, p10: 0.25, p90: 0.55}
+  - {id: "likelihood-026", kind: "likelihood", phrase: "could", match: "exact", median: 0.35, p10: 0.2, p90: 0.5}
+  - {id: "likelihood-027", kind: "likelihood", phrase: "possibly", match: "exact", median: 0.35, p10: 0.2, p90: 0.5}
+  - {id: "likelihood-028", kind: "likelihood", phrase: "perhaps", match: "exact", median: 0.35, p10: 0.2, p90: 0.5}
+  - {id: "likelihood-029", kind: "likelihood", phrase: "toying with", match: "exact", median: 0.3, p10: 0.15, p90: 0.45}
+  - {id: "likelihood-030", kind: "likelihood", phrase: "probably not", match: "exact", median: 0.25, p10: 0.15, p90: 0.35}
+  - {id: "likelihood-031", kind: "likelihood", phrase: "doubt it", match: "exact", median: 0.15, p10: 0.05, p90: 0.25}
+  - {id: "likelihood-032", kind: "likelihood", phrase: "very unlikely", match: "exact", median: 0.07, p10: 0.02, p90: 0.15}
+  - {id: "likelihood-033", kind: "likelihood", phrase: "highly unlikely", match: "exact", median: 0.07, p10: 0.02, p90: 0.15}
+  - {id: "likelihood-034", kind: "likelihood", phrase: "no chance", match: "exact", median: 0.03, p10: 0.01, p90: 0.08}
+  - {id: "likelihood-035", kind: "likelihood", phrase: "never", match: "exact", median: 0.03, p10: 0.01, p90: 0.08}
+  - {id: "likelihood-036", kind: "likelihood", phrase: "beslis", match: "exact", median: 0.95, p10: 0.9, p90: 0.99}
+  - {id: "likelihood-037", kind: "likelihood", phrase: "waarskynlik", match: "exact", median: 0.7, p10: 0.6, p90: 0.8}
+  - {id: "likelihood-038", kind: "likelihood", phrase: "dalk", match: "exact", median: 0.35, p10: 0.2, p90: 0.5}
+  - {id: "likelihood-039", kind: "likelihood", phrase: "miskien", match: "exact", median: 0.35, p10: 0.2, p90: 0.5}
+  - {id: "likelihood-040", kind: "likelihood", phrase: "onwaarskynlik", match: "exact", median: 0.15, p10: 0.05, p90: 0.25}
+  - {id: "likelihood-041", kind: "likelihood", phrase: "80% chance", match: "exact", median: 0.8, p10: 0.75, p90: 0.85}
+  - {id: "likelihood-042", kind: "likelihood", phrase: "nine out of ten", match: "exact", median: 0.9, p10: 0.85, p90: 0.95}
+  - {id: "likelihood-043", kind: "likelihood", phrase: "seventy percent", match: "exact", median: 0.7, p10: 0.65, p90: 0.75}
+  - {id: "likelihood-044", kind: "likelihood", phrase: "50/50", match: "exact", median: 0.5, p10: 0.4, p90: 0.6}
+  - {id: "likelihood-045", kind: "likelihood", phrase: "Definitely!", match: "exact", median: 0.95, p10: 0.9, p90: 0.99}
+  - {id: "likelihood-046", kind: "likelihood", phrase: "fifty-fifty", match: "exact", median: 0.5, p10: 0.4, p90: 0.6}
+  - {id: "certainty-001", kind: "certainty", phrase: "fairly", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-002", kind: "certainty", phrase: "probably", match: "exact", median: 0.7, p10: 0.7, p90: 0.7}
+  - {id: "certainty-003", kind: "certainty", phrase: "definitely", match: "exact", median: 0.99, p10: 0.99, p90: 0.99}
+  - {id: "certainty-004", kind: "certainty", phrase: "certainly", match: "exact", median: 0.99, p10: 0.99, p90: 0.99}
+  - {id: "certainty-005", kind: "certainty", phrase: "absolutely", match: "exact", median: 0.99, p10: 0.99, p90: 0.99}
+  - {id: "certainty-006", kind: "certainty", phrase: "for sure", match: "exact", median: 0.98, p10: 0.98, p90: 0.98}
+  - {id: "certainty-007", kind: "certainty", phrase: "of course", match: "exact", median: 0.98, p10: 0.98, p90: 0.98}
+  - {id: "certainty-008", kind: "certainty", phrase: "im sure", match: "exact", median: 0.95, p10: 0.95, p90: 0.95}
+  - {id: "certainty-009", kind: "certainty", phrase: "pretty sure", match: "exact", median: 0.85, p10: 0.85, p90: 0.85}
+  - {id: "certainty-010", kind: "certainty", phrase: "fairly sure", match: "exact", median: 0.85, p10: 0.85, p90: 0.85}
+  - {id: "certainty-011", kind: "certainty", phrase: "i believe", match: "exact", median: 0.85, p10: 0.85, p90: 0.85}
+  - {id: "certainty-012", kind: "certainty", phrase: "very", match: "exact", median: 0.9, p10: 0.9, p90: 0.9}
+  - {id: "certainty-013", kind: "certainty", phrase: "i think", match: "exact", median: 0.75, p10: 0.75, p90: 0.75}
+  - {id: "certainty-014", kind: "certainty", phrase: "i dont think", match: "exact", median: 0.75, p10: 0.75, p90: 0.75}
+  - {id: "certainty-015", kind: "certainty", phrase: "if i remember correctly", match: "exact", median: 0.7, p10: 0.7, p90: 0.7}
+  - {id: "certainty-016", kind: "certainty", phrase: "i reckon", match: "exact", median: 0.7, p10: 0.7, p90: 0.7}
+  - {id: "certainty-017", kind: "certainty", phrase: "more or less", match: "exact", median: 0.65, p10: 0.65, p90: 0.65}
+  - {id: "certainty-018", kind: "certainty", phrase: "quite", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-019", kind: "certainty", phrase: "somewhat", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-020", kind: "certainty", phrase: "kind of", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-021", kind: "certainty", phrase: "sort of", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-022", kind: "certainty", phrase: "i guess", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-023", kind: "certainty", phrase: "i suppose", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-024", kind: "certainty", phrase: "a bit", match: "exact", median: 0.55, p10: 0.55, p90: 0.55}
+  - {id: "certainty-025", kind: "certainty", phrase: "maybe", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "certainty-026", kind: "certainty", phrase: "not sure", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "certainty-027", kind: "certainty", phrase: "ek dink", match: "exact", median: 0.75, p10: 0.75, p90: 0.75}
+  - {id: "certainty-028", kind: "certainty", phrase: "beslis", match: "exact", median: 0.99, p10: 0.99, p90: 0.99}
+  - {id: "certainty-029", kind: "certainty", phrase: "seker", match: "exact", median: 0.85, p10: 0.85, p90: 0.85}
+  - {id: "certainty-030", kind: "certainty", phrase: "dalk", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "certainty-031", kind: "certainty", phrase: "I'm sure", match: "exact", median: 0.95, p10: 0.95, p90: 0.95}
+  - {id: "certainty-032", kind: "certainty", phrase: "Fairly", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "certainty-033", kind: "certainty", phrase: "90 percent sure", match: "exact", median: 0.9, p10: 0.9, p90: 0.9}
+  - {id: "hedge-001", kind: "hedge", phrase: "definitely", match: "exact", median: 0.0, p10: 0.0, p90: 0.0}
+  - {id: "hedge-002", kind: "hedge", phrase: "i think", match: "exact", median: 0.3, p10: 0.3, p90: 0.3}
+  - {id: "hedge-003", kind: "hedge", phrase: "probably", match: "exact", median: 0.3, p10: 0.3, p90: 0.3}
+  - {id: "hedge-004", kind: "hedge", phrase: "thinking of", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-005", kind: "hedge", phrase: "maybe", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "hedge-006", kind: "hedge", phrase: "might", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "hedge-007", kind: "hedge", phrase: "no idea", match: "exact", median: 1.0, p10: 1.0, p90: 1.0}
+  - {id: "hedge-008", kind: "hedge", phrase: "certainly", match: "exact", median: 0.0, p10: 0.0, p90: 0.0}
+  - {id: "hedge-009", kind: "hedge", phrase: "for sure", match: "exact", median: 0.0, p10: 0.0, p90: 0.0}
+  - {id: "hedge-010", kind: "hedge", phrase: "exactly", match: "exact", median: 0.0, p10: 0.0, p90: 0.0}
+  - {id: "hedge-011", kind: "hedge", phrase: "absolutely", match: "exact", median: 0.0, p10: 0.0, p90: 0.0}
+  - {id: "hedge-012", kind: "hedge", phrase: "im sure", match: "exact", median: 0.1, p10: 0.1, p90: 0.1}
+  - {id: "hedge-013", kind: "hedge", phrase: "im pretty sure", match: "exact", median: 0.2, p10: 0.2, p90: 0.2}
+  - {id: "hedge-014", kind: "hedge", phrase: "im fairly sure", match: "exact", median: 0.2, p10: 0.2, p90: 0.2}
+  - {id: "hedge-015", kind: "hedge", phrase: "i believe", match: "exact", median: 0.25, p10: 0.25, p90: 0.25}
+  - {id: "hedge-016", kind: "hedge", phrase: "about", match: "exact", median: 0.2, p10: 0.2, p90: 0.2}
+  - {id: "hedge-017", kind: "hedge", phrase: "around", match: "exact", median: 0.2, p10: 0.2, p90: 0.2}
+  - {id: "hedge-018", kind: "hedge", phrase: "roughly", match: "exact", median: 0.25, p10: 0.25, p90: 0.25}
+  - {id: "hedge-019", kind: "hedge", phrase: "more or less", match: "exact", median: 0.25, p10: 0.25, p90: 0.25}
+  - {id: "hedge-020", kind: "hedge", phrase: "give or take", match: "exact", median: 0.25, p10: 0.25, p90: 0.25}
+  - {id: "hedge-021", kind: "hedge", phrase: "something like", match: "exact", median: 0.35, p10: 0.35, p90: 0.35}
+  - {id: "hedge-022", kind: "hedge", phrase: "ballpark", match: "exact", median: 0.4, p10: 0.4, p90: 0.4}
+  - {id: "hedge-023", kind: "hedge", phrase: "ish", match: "exact", median: 0.3, p10: 0.3, p90: 0.3}
+  - {id: "hedge-024", kind: "hedge", phrase: "i reckon", match: "exact", median: 0.35, p10: 0.35, p90: 0.35}
+  - {id: "hedge-025", kind: "hedge", phrase: "if i remember correctly", match: "exact", median: 0.35, p10: 0.35, p90: 0.35}
+  - {id: "hedge-026", kind: "hedge", phrase: "off the top of my head", match: "exact", median: 0.4, p10: 0.4, p90: 0.4}
+  - {id: "hedge-027", kind: "hedge", phrase: "i guess", match: "exact", median: 0.45, p10: 0.45, p90: 0.45}
+  - {id: "hedge-028", kind: "hedge", phrase: "i suppose", match: "exact", median: 0.45, p10: 0.45, p90: 0.45}
+  - {id: "hedge-029", kind: "hedge", phrase: "kind of", match: "exact", median: 0.4, p10: 0.4, p90: 0.4}
+  - {id: "hedge-030", kind: "hedge", phrase: "sort of", match: "exact", median: 0.4, p10: 0.4, p90: 0.4}
+  - {id: "hedge-031", kind: "hedge", phrase: "hopefully", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-032", kind: "hedge", phrase: "hoping", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-033", kind: "hedge", phrase: "thinking about", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-034", kind: "hedge", phrase: "dont quote me", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-035", kind: "hedge", phrase: "id have to check", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-036", kind: "hedge", phrase: "possibly", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "hedge-037", kind: "hedge", phrase: "perhaps", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "hedge-038", kind: "hedge", phrase: "could be", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "hedge-039", kind: "hedge", phrase: "not sure", match: "exact", median: 0.7, p10: 0.7, p90: 0.7}
+  - {id: "hedge-040", kind: "hedge", phrase: "im not sure", match: "exact", median: 0.7, p10: 0.7, p90: 0.7}
+  - {id: "hedge-041", kind: "hedge", phrase: "unlikely", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-042", kind: "hedge", phrase: "havent decided", match: "exact", median: 0.8, p10: 0.8, p90: 0.8}
+  - {id: "hedge-043", kind: "hedge", phrase: "no clue", match: "exact", median: 1.0, p10: 1.0, p90: 1.0}
+  - {id: "hedge-044", kind: "hedge", phrase: "dont know", match: "exact", median: 1.0, p10: 1.0, p90: 1.0}
+  - {id: "hedge-045", kind: "hedge", phrase: "ek dink", match: "exact", median: 0.3, p10: 0.3, p90: 0.3}
+  - {id: "hedge-046", kind: "hedge", phrase: "seker", match: "exact", median: 0.3, p10: 0.3, p90: 0.3}
+  - {id: "hedge-047", kind: "hedge", phrase: "dalk", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "hedge-048", kind: "hedge", phrase: "miskien", match: "exact", median: 0.6, p10: 0.6, p90: 0.6}
+  - {id: "hedge-049", kind: "hedge", phrase: "omtrent", match: "exact", median: 0.2, p10: 0.2, p90: 0.2}
+  - {id: "hedge-050", kind: "hedge", phrase: "weet nie", match: "exact", median: 1.0, p10: 1.0, p90: 1.0}
+  - {id: "hedge-051", kind: "hedge", phrase: "I'm not sure", match: "exact", median: 0.7, p10: 0.7, p90: 0.7}
+  - {id: "hedge-052", kind: "hedge", phrase: "Don't quote me", match: "exact", median: 0.5, p10: 0.5, p90: 0.5}
+  - {id: "hedge-053", kind: "hedge", phrase: "I THINK", match: "exact", median: 0.3, p10: 0.3, p90: 0.3}

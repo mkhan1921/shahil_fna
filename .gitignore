@@ -40,6 +40,7 @@ next-env.d.ts
 /pipeline/.venv
 /pipeline/.tools
 /pipeline/.data
+/fna_parity_out/
 __pycache__/
 *.py[cod]
 .pytest_cache/
