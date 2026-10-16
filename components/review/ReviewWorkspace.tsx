@@ -17,7 +17,7 @@ import { slotById } from '@/lib/review/catalog';
 import { reviewResultBlob, reviewResultName, reviewedFileName } from '@/lib/review/exchange';
 import { bundleDate, compareNeeds, movedNeeds } from '@/lib/review/impact';
 import { factTitle, householdName } from '@/lib/review/labels';
-import { badgeAt, buildQueue, entryFact, entryOf, nextEntry, nextUndecided, progress, queueKey, queueOrder, type QueueGroup } from '@/lib/review/queue';
+import { badgeAt, buildQueue, entryFact, entryOf, flowStep, nextUndecided, progress, queueKey, queueOrder, type QueueGroup } from '@/lib/review/queue';
 import { canSubmit, commitPending, factAt, isDecided, isReviewItem, openFlags, submit, toResult, unsentOps, type ReviewAction, type ReviewSession } from '@/lib/review/session';
 import { getDocument, saveDocument } from '@/lib/store/db';
 import { usePractice } from '@/lib/store/hooks';
@@ -264,57 +264,34 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
     const target = e.target as HTMLElement;
     if (target !== e.currentTarget && target.closest('input, textarea, select, button, a, [contenteditable="true"]')) return;
     const k = queueKey(e);
-    if (!k) return;
-    const entry = current;
-    const f = entry ? entryFact(session, entry) : undefined;
-    switch (k) {
-      case 'next':
-      case 'prev': {
-        const n = nextEntry(session, order, entry, { back: k === 'prev' });
-        if (n === null) return; // Tab leaves the queue at its ends
-        e.preventDefault();
-        select(n);
+    const step = k ? flowStep(session, order, current, k, !!popover) : null;
+    if (!step) return; // Tab leaves the queue at its ends
+    e.preventDefault();
+    switch (step.do) {
+      case 'select':
+        select(step.entry);
         return;
-      }
-      case 'accept': {
-        e.preventDefault();
-        if (done) return;
-        if (!entry) {
-          select(nextEntry(session, order, null, { undecided: true }));
-          return;
-        }
-        if (entry.startsWith('flag:') && !f) {
-          clearFlag(entry.slice(5), 'accepted');
-          return;
-        }
-        if (!f) return;
-        const flag = session.flags.find((x) => `flag:${x.flag_id}` === entry);
-        if (flag?.kind === 'unresolved_term' && f.termResolution && f.termResolution.status !== 'confirmed' && f.termResolution.status !== 'corrected') {
-          setTermFact(f.factId);
-          return;
-        }
-        if (dispatch({ type: 'accept', factId: f.factId })) afterDecision(f.factId);
+      case 'accept':
+        if (dispatch({ type: 'accept', factId: step.factId })) afterDecision(step.factId);
         return;
-      }
-      case 'edit':
-      case 'reject':
-        if (!f || done) return;
-        e.preventDefault();
-        setPopover({ factId: f.factId, panel: k, from: popover?.from ?? 'queue' });
+      case 'clearFlag':
+        clearFlag(step.flagId, 'accepted');
+        return;
+      case 'confirmTerm':
+        setTermFact(step.factId);
+        return;
+      case 'panel':
+        setPopover({ factId: step.factId, panel: step.panel, from: popover?.from ?? 'queue' });
         return;
       case 'unknown':
-        if (!f || done) return;
-        e.preventDefault();
-        if (dispatch({ type: 'setStatus', factId: f.factId, status: 'explicitly_unknown' })) afterDecision(f.factId);
+        if (dispatch({ type: 'setStatus', factId: step.factId, status: 'explicitly_unknown' })) afterDecision(step.factId);
         return;
-      case 'play':
-        if (!f?.evidence.length) return;
-        e.preventDefault();
+      case 'play': {
+        const f = session.facts[step.factId];
         audio.play([...f.evidence].sort((a, b) => a.t_start - b.t_start)[0]);
         return;
+      }
       case 'close':
-        if (!popover) return;
-        e.preventDefault();
         setPopover(null);
         focusFlow();
         return;

@@ -15,7 +15,7 @@ import { useEffect, useState, type KeyboardEvent, type ReactNode, type Ref } fro
 import type { Analysis } from '@/lib/fna/analysis';
 import { money, moneyCompact, pct } from '@/lib/format';
 import { pyPercent } from '@/lib/review/dist';
-import { attributionSentence, forecastDeterministic, needBand, needLines, retirementViews, type NeedDelta } from '@/lib/review/impact';
+import { attributionSentence, ciText, forecastDeterministic, needBand, needLines, retirementViews, type NeedDelta } from '@/lib/review/impact';
 import { factTitle } from '@/lib/review/labels';
 import { FLAG_LABEL, GROUP_LABEL, badgeOf, pBand, progress, type Queue, type QueueGroup } from '@/lib/review/queue';
 import { isDecided, type ReviewFact, type ReviewSession } from '@/lib/review/session';
@@ -90,7 +90,7 @@ export function ImpactStrip({
               <>
                 <div className="text-[19px] font-semibold leading-6 tracking-tight text-ink tabular">{pyPercent(f.pos)}</div>
                 <div className="text-[10.5px] leading-[14px] text-muted">
-                  chance essential spending is met{planningAge ? ` to age ${planningAge}` : ''} ({pyPercent(f.pos_ci[0])}–{pyPercent(f.pos_ci[1])})
+                  chance essential spending is met{planningAge ? ` to age ${planningAge}` : ''} ({ciText(f)})
                 </div>
                 <div className="mt-0.5 text-[10px] leading-[13px] text-faint">Pipeline forecast of the call as heard, before your edits</div>
               </>

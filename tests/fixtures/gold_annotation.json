@@ -1,0 +1,214 @@
+{
+ "format": "advisor-intel-gold-annotation",
+ "version": 1,
+ "call_id": "call-2026-10-15-mokoena",
+ "annotator_id": "annotator-07",
+ "role": "annotator",
+ "schema_version": "profile_v1",
+ "anchor_date": "2026-10-15",
+ "transcript": {
+  "source": "asr",
+  "asr_provider": "deepgram",
+  "asr_model_version": "nova-3-2026-08"
+ },
+ "prior_document_id": "35d88bbf-19af-4af3-9f07-12fca071b638",
+ "started_at": "2026-10-17T08:00:00Z",
+ "completed_at": "2026-10-17T09:15:00Z",
+ "facts": [
+  {
+   "fact_id": "dependants[].tertiaryCostAnnual#person.kagiso_mokoena_2",
+   "slot_id": "dependants[].tertiaryCostAnnual",
+   "instance_key": "person.kagiso_mokoena_2",
+   "fna_path": "dependants[b4db1d21-aadf-4118-8b47-437035cf7952].tertiaryCostAnnual",
+   "entity_label": "",
+   "status": "stated",
+   "value": {
+    "value": {
+     "kind": "options",
+     "options": [
+      {
+       "value": 150000,
+       "weight": 0.6
+      },
+      {
+       "value": 450000,
+       "weight": 0.4
+      }
+     ]
+    },
+    "unit": "ZAR",
+    "period": "annual"
+   },
+   "speaker_attribution": "client",
+   "spans": [
+    {
+     "segment_id": "s0017",
+     "char_start": 25,
+     "char_end": 58,
+     "quote": "about a hundred and fifty a year,",
+     "speaker_role": "client_primary",
+     "t_start": 96.86,
+     "t_end": 99.41,
+     "role": "supports"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "fact_id": "event[].occurs#event.annotator_kagiso_studies_overseas",
+   "slot_id": "event[].occurs",
+   "instance_key": "event.annotator_kagiso_studies_overseas",
+   "fna_path": "event[event.annotator_kagiso_studies_overseas].occurs",
+   "entity_label": "Kagiso studies overseas",
+   "status": "stated",
+   "value": {
+    "value": {
+     "kind": "options",
+     "options": [
+      {
+       "value": true,
+       "weight": 0.4
+      },
+      {
+       "value": false,
+       "weight": 0.6
+      }
+     ]
+    },
+    "unit": "none",
+    "period": "none"
+   },
+   "speaker_attribution": "client",
+   "spans": [
+    {
+     "segment_id": "s0016",
+     "char_start": 0,
+     "char_end": 33,
+     "quote": "She might study overseas one day.",
+     "speaker_role": "client_secondary",
+     "t_start": 89.03,
+     "t_end": 91.21,
+     "role": "supports"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "fact_id": "income.{p}.grossMonthly#client",
+   "slot_id": "income.{p}.grossMonthly",
+   "instance_key": "client",
+   "fna_path": "income.client.grossMonthly",
+   "entity_label": "",
+   "status": "stated",
+   "value": {
+    "value": {
+     "kind": "point",
+     "value": 118000
+    },
+    "unit": "ZAR",
+    "period": "monthly"
+   },
+   "speaker_attribution": "client",
+   "spans": [
+    {
+     "segment_id": "s0004",
+     "char_start": 54,
+     "char_end": 102,
+     "quote": "one hundred and eighteen thousand gross a month,",
+     "speaker_role": "client_primary",
+     "t_start": 22.49,
+     "t_end": 25.41,
+     "role": "supports"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "fact_id": "policies[].cover#policy.annotator_policies_1",
+   "slot_id": "policies[].cover",
+   "instance_key": "policy.annotator_policies_1",
+   "fna_path": "policies[18b65e30-91e7-51f6-865a-fa91b6cea0a3].cover",
+   "entity_label": "Group disability through work",
+   "status": "explicitly_unknown",
+   "value": null,
+   "speaker_attribution": "client",
+   "spans": [
+    {
+     "segment_id": "s0023",
+     "char_start": 60,
+     "char_end": 88,
+     "quote": "I don't know the amount yet.",
+     "speaker_role": "client_primary",
+     "t_start": 132.54,
+     "t_end": 134.72,
+     "role": "supports"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "fact_id": "retirement.{p}.retirementAge#client",
+   "slot_id": "retirement.{p}.retirementAge",
+   "instance_key": "client",
+   "fna_path": "retirement.client.retirementAge",
+   "entity_label": "",
+   "status": "stated",
+   "value": {
+    "value": {
+     "kind": "range",
+     "low": 60,
+     "high": 65,
+     "p10": 60,
+     "p50": 62,
+     "p90": 65
+    },
+    "unit": "age",
+    "period": "none"
+   },
+   "speaker_attribution": "client",
+   "spans": [
+    {
+     "segment_id": "s0010",
+     "char_start": 10,
+     "char_end": 49,
+     "quote": "somewhere between sixty and sixty-five.",
+     "speaker_role": "client_primary",
+     "t_start": 53.61,
+     "t_end": 55.71,
+     "role": "supports"
+    }
+   ],
+   "note": ""
+  },
+  {
+   "fact_id": "retirement.{p}.targetPercent#client",
+   "slot_id": "retirement.{p}.targetPercent",
+   "instance_key": "client",
+   "fna_path": "retirement.client.targetPercent",
+   "entity_label": "",
+   "status": "stated",
+   "value": {
+    "value": {
+     "kind": "point",
+     "value": 0.7
+    },
+    "unit": "pct",
+    "period": "none"
+   },
+   "speaker_attribution": "advisor_suggested",
+   "spans": [
+    {
+     "segment_id": "s0011",
+     "char_start": 37,
+     "char_end": 68,
+     "quote": "about seventy percent of salary",
+     "speaker_role": "advisor",
+     "t_start": 61.78,
+     "t_end": 63.59,
+     "role": "supports"
+    }
+   ],
+   "note": ""
+  }
+ ]
+}

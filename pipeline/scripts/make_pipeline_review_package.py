@@ -78,7 +78,12 @@ async def build() -> ReviewPackage:
 
 
 def render(pkg: ReviewPackage) -> str:
-    return json.dumps(pkg.model_dump(mode="json"), indent=1, ensure_ascii=False) + "\n"
+    data = pkg.model_dump(mode="json")
+    # Segment and span flags are sets, dumped in hash order (which changes from run to run): sort them.
+    transcript = data["bundle"]["transcript"]
+    for item in [*transcript["segments"], *transcript["numeric_spans"]]:
+        item["flags"] = sorted(item.get("flags", []))
+    return json.dumps(data, indent=1, ensure_ascii=False) + "\n"
 
 
 def main(argv: list[str]) -> int:

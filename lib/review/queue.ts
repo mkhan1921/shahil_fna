@@ -160,6 +160,59 @@ export const queueKey = (e: { key: string; shiftKey?: boolean; altKey?: boolean;
   }
 };
 
+/** What a queue key does in a review, as the workspace carries it out. */
+export type FlowStep =
+  | { do: 'select'; entry: string }
+  | { do: 'accept'; factId: string; next: string | null }
+  | { do: 'clearFlag'; flagId: string; next: string | null }
+  | { do: 'confirmTerm'; factId: string }
+  | { do: 'panel'; panel: 'edit' | 'reject'; factId: string }
+  | { do: 'unknown'; factId: string; next: string | null }
+  | { do: 'play'; factId: string }
+  | { do: 'close' };
+
+const termOpen = (f: ReviewFact) => !!f.termResolution && f.termResolution.status !== 'confirmed' && f.termResolution.status !== 'corrected';
+
+/**
+ * The keyboard flow of §11.1 on the queue entry `current`: Enter accepts and moves to the next
+ * undecided entry (an unknown term opens its confirmation instead; a flag on the whole call is
+ * marked checked); Tab and the arrows move without deciding; E and R open the editor or the reject
+ * reasons; U marks the fact unknown; P plays its first quote; Escape closes the popover. Null when
+ * the key should keep its usual meaning — Tab past either end leaves the queue.
+ */
+export const flowStep = (s: ReviewSession, order: string[], current: string | null, key: QueueKey, popoverOpen = false): FlowStep | null => {
+  const f = current ? entryFact(s, current) : undefined;
+  const open = !s.submittedAt;
+  switch (key) {
+    case 'next':
+    case 'prev': {
+      const n = nextEntry(s, order, current, { back: key === 'prev' });
+      return n === null ? null : { do: 'select', entry: n };
+    }
+    case 'accept': {
+      if (!open) return null;
+      if (current === null) {
+        const first = nextEntry(s, order, null, { undecided: true });
+        return first ? { do: 'select', entry: first } : null;
+      }
+      const flag = current.startsWith('flag:') ? s.flags.find((x) => `flag:${x.flag_id}` === current) : undefined;
+      if (flag && !f) return { do: 'clearFlag', flagId: flag.flag_id, next: nextUndecided(s, order, current, null) };
+      if (!f) return null;
+      if (flag?.kind === 'unresolved_term' && termOpen(f)) return { do: 'confirmTerm', factId: f.factId };
+      return { do: 'accept', factId: f.factId, next: nextUndecided(s, order, current, f.factId) };
+    }
+    case 'edit':
+    case 'reject':
+      return f && open ? { do: 'panel', panel: key, factId: f.factId } : null;
+    case 'unknown':
+      return f && open ? { do: 'unknown', factId: f.factId, next: nextUndecided(s, order, current, f.factId) } : null;
+    case 'play':
+      return f?.evidence.length ? { do: 'play', factId: f.factId } : null;
+    case 'close':
+      return popoverOpen ? { do: 'close' } : null;
+  }
+};
+
 export interface Progress {
   total: number;
   decided: number;

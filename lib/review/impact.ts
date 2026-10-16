@@ -133,7 +133,10 @@ export const attributionSentence = (f: ForecastResult | null, given?: string | n
 };
 
 /** "71% (70–72%)": the probability of success with its Monte Carlo interval. */
-export const posText = (f: ForecastResult): string => `${pyPercent(f.pos)} (${pyPercent(f.pos_ci[0])}–${pyPercent(f.pos_ci[1])})`;
+export const posText = (f: ForecastResult): string => `${pyPercent(f.pos)} (${ciText(f)})`;
+
+/** "70–72%": the Monte Carlo interval of the success probability. */
+export const ciText = (f: ForecastResult): string => `${pyPercent(f.pos_ci[0]).replace('%', '')}–${pyPercent(f.pos_ci[1])}`;
 
 /** The forecast's shortfall band for a need, when the pipeline ran the draws (§12.7 use 2). */
 export const needBand = (f: ForecastResult | null, key: string): { p10: number; p50: number; p90: number } | null => {

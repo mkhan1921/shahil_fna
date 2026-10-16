@@ -871,7 +871,15 @@ def build_package() -> dict[str, Any]:
         versions=VERSIONS,
         attribution_text=attribution_text(forecast),
     )
-    return ReviewPackage(bundle=bundle).model_dump(mode="json")
+    return sort_sets(ReviewPackage(bundle=bundle).model_dump(mode="json"))
+
+
+def sort_sets(pkg: dict[str, Any]) -> dict[str, Any]:
+    """Segment and span flags are sets: dumped in hash order, which changes from run to run. Sort them."""
+    transcript = pkg["bundle"]["transcript"]
+    for item in [*transcript["segments"], *transcript["numeric_spans"]]:
+        item["flags"] = sorted(item.get("flags", []))
+    return pkg
 
 
 def render(pkg: dict[str, Any], compact: bool = False) -> str:

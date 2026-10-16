@@ -39417,8 +39417,8 @@
      "text": "No, it's more like two-eighty. I saw the statement last month.",
      "rewritten_text": null,
      "flags": [
-      "self_correction",
-      "crosstalk"
+      "crosstalk",
+      "self_correction"
      ]
     },
     {
