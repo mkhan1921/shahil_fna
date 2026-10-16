@@ -25,11 +25,17 @@ from advisor_intel.evals.online import TraceSpan
 from advisor_intel.evals.records import SystemCallOutput, SystemEntity, SystemFact, ValueSummary
 from advisor_intel.models.transcript import Segment, Transcript, Word
 from advisor_intel.schema.slots import load_catalog
+from tests.evals_fakes import small_forecast
 
 REDTEAM_DIR = Path(__file__).resolve().parents[1] / "redteam"
 HAVE_PIPELINE = importlib.util.find_spec("advisor_intel.pipeline") is not None
 needs_pipeline = pytest.mark.skipif(not HAVE_PIPELINE, reason="advisor_intel.pipeline is not installed")
 CAT = load_catalog()
+
+
+@pytest.fixture(autouse=True)
+def _small_monte_carlo(monkeypatch):
+    small_forecast(monkeypatch)  # VOI's sensitivity runs use the forecast engine
 
 
 # --------------------------------------------------------------------------- the scenarios

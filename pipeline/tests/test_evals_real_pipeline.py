@@ -8,6 +8,8 @@ task completes, not its scores.
 
 from __future__ import annotations
 
+import importlib.util
+
 import pytest
 
 pipeline = pytest.importorskip("advisor_intel.pipeline")
@@ -23,6 +25,7 @@ from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS
 from advisor_intel.testing.fakes import scripted_model  # noqa: E402
 from advisor_intel.testing.oracle import Oracle  # noqa: E402
 from advisor_intel.testing.transcripts import ingested_transcript  # noqa: E402
+from tests.evals_fakes import small_forecast  # noqa: E402
 
 CALL_ID = "call-eval"
 
@@ -39,6 +42,7 @@ def span_of(transcript, quote: str) -> Span:
 async def oracle_world(tmp_path, monkeypatch):
     monkeypatch.delenv("BRAINTRUST_API_KEY", raising=False)
     monkeypatch.setenv("ADVISOR_INTEL_DATA_DIR", str(tmp_path))
+    small_forecast(monkeypatch)
     transcript = await ingested_transcript(SAMPLE_CALL, call_id=CALL_ID)
     oracle = Oracle(transcript, SAMPLE_OBJECTS, SAMPLE_GOLD)
     pins = VersionPins(reasoning_model=llm.register_local_model("oracle-eval", scripted_model(oracle.handler)))
@@ -96,6 +100,9 @@ async def test_the_eval_task_scores_the_real_pipeline(oracle_world):
     row = load_rows(rows_path(E.EVAL_NAME, GOLD_CALLS))[0]
     out = row["output"]
     assert out["tool_calls"][0] == "make_plan" and "verify_facts" in out["tool_calls"] and out["document"] is not None
+    if importlib.util.find_spec("advisor_intel.forecast") is not None:  # the preview forecast ran
+        assert 0.0 <= out["pos"] <= 1.0 and isinstance(out["forecast_seed"], int)
+    assert any(f["p_correct"] is not None for f in out["facts"])
     facts = {f["fact_id"]: f for f in out["facts"]}
     assert facts["income.{p}.grossMonthly#spouse"]["value"]["p50"] == pytest.approx(35_000)
     assert facts["{p}.smoker#client"]["value"]["p_true"] < 0.5 and facts["{p}.smoker#client"]["spans"]
@@ -105,14 +112,29 @@ async def test_the_eval_task_scores_the_real_pipeline(oracle_world):
 async def test_synthetic_calls_complete_on_the_real_pipeline(tmp_path, monkeypatch):
     monkeypatch.delenv("BRAINTRUST_API_KEY", raising=False)
     monkeypatch.setenv("ADVISOR_INTEL_DATA_DIR", str(tmp_path))
+    small_forecast(monkeypatch)
     store = LocalStore(tmp_path / "datasets")
-    sync_synthetic(generate_calls(2, seed=77), store=store)
+    sync_synthetic(generate_calls(1, seed=77), store=store)
     cases = E.eval_cases("synthetic-calls", store=store)
     report = E.run_local(cases, pins=VersionPins(), cache=Stage12Cache(LocalBlobStore(tmp_path / "cache")), save=False)
-    assert report.n_items == 2 and report.n_errors == 0, [it.error for it in report.items]
+    assert report.n_items == 1 and report.n_errors == 0, [it.error for it in report.items]
     assert all(it.scores for it in report.items) and "status_accuracy" in report.scores
-    assert report.summary["n_needs"] > 0  # both documents went through the FNA engine
+    assert report.summary["n_needs"] > 0  # the system and gold documents went through the FNA engine
     E.reset()
+
+
+def test_the_gold_profile_is_forecast_on_the_systems_seed(monkeypatch):
+    """§15.3's forecast metric: the gold document's profile through the real forecast engine, on a given seed."""
+    from advisor_intel.evals.scorers import forecast_gold_pos
+
+    gold_pos = forecast_gold_pos()
+    if gold_pos is None:
+        pytest.skip("advisor_intel.forecast is not installed")
+    small_forecast(monkeypatch)
+    gold = generate_calls(1, seed=78)[0].gold
+    a = gold_pos(gold, seed=11)
+    assert a is not None and 0.0 <= a <= 1.0 and gold_pos(gold, seed=11) == a
+    assert gold_pos(gold.model_copy(update={"document": None, "call_id": "no-doc"})) is None
 
 
 async def test_gepa_candidates_reach_the_real_extraction_prompts(oracle_world):

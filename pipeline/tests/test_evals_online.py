@@ -319,7 +319,7 @@ def test_spot_checks_and_the_auto_accept_monitor(tmp_path):
     assert O.wrong_auto_accept_score(sc) == 1.0 and O.wrong_auto_accept_score(O.SpotCheck(call_id="x")) == 0.0
 
 
-async def test_the_reference_run_of_the_real_harness_passes(tmp_path):
+async def test_the_reference_run_of_the_real_harness_passes(tmp_path, monkeypatch):
     """The harness's deterministic policy (stub pins) is the reference trace: its OpenTelemetry spans pass every rule."""
     pipeline = pytest.importorskip("advisor_intel.pipeline")
     from advisor_intel.evals.datasets import DatasetRecord, LocalBlobStore, Stage12Cache
@@ -327,6 +327,9 @@ async def test_the_reference_run_of_the_real_harness_passes(tmp_path):
     from advisor_intel.testing.calls import SAMPLE_CALL
     from advisor_intel.testing.transcripts import ingested_transcript
 
+    from tests.evals_fakes import small_forecast
+
+    small_forecast(monkeypatch)
     t = await ingested_transcript(SAMPLE_CALL, call_id="call-online")
     rec = DatasetRecord(
         id="call-online", input={"call_id": "call-online", "transcript": t.model_dump(mode="json")}, metadata={"dataset": "gold-calls"}

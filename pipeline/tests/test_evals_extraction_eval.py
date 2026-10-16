@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from advisor_intel.evals import extraction_eval as E
-from advisor_intel.evals.datasets import LocalBlobStore, LocalStore, Stage12Cache, sync_synthetic
+from advisor_intel.evals.datasets import LocalBlobStore, LocalStore, Stage12Cache, stage12_builder, sync_synthetic
 from advisor_intel.evals.synthetic import generate_calls
 from advisor_intel.models.runs import VersionPins
 from tests.evals_fakes import FakePipeline
@@ -141,7 +141,7 @@ def test_braintrust_eval_runs_offline_and_the_reporter_gates(world, monkeypatch,
 
 def test_cli_runs_the_local_dataset(world, monkeypatch):
     monkeypatch.setattr(E, "default_runner", lambda: FakePipeline(world["golds"].__getitem__))
-    E.configure(pins=VersionPins(), cache=world["cache"])
+    E.configure(pins=VersionPins(), cache=world["cache"], build=stage12_builder(discourse=False), gold_pos=lambda gold: None)
     monkeypatch.setattr(E, "get_store", lambda: world["store"])
     out = world["tmp"] / "cli.json"
     assert E.main(["--dataset", "synthetic-calls", "--limit", "2", "--out", str(out)]) == 0

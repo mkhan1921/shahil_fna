@@ -818,17 +818,57 @@ def auto_accept_rate(records: Sequence[EvalRecord]) -> MetricResult:
 # --------------------------------------------------------------------------- forecast and FNA outputs
 
 
-def pos_error(records: Sequence[EvalRecord], *, gold_pos: Callable[[GoldCall], float | None] | None = None) -> dict[str, float | None]:
-    """|PoS(system profile) − PoS(gold profile)| in PoS points: median and p90 over calls (§15.3)."""
+def _takes_seed(fn: Callable[..., Any]) -> bool:
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return "seed" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def pos_error(records: Sequence[EvalRecord], *, gold_pos: Callable[..., float | None] | None = None) -> dict[str, float | None]:
+    """|PoS(system profile) − PoS(gold profile)| in PoS points: median and p90 over calls (§15.3). The gold PoS is the
+    gold call's own, else ``gold_pos(gold)`` — given the system run's forecast seed when it takes ``seed``, so both
+    forecasts use the same market draws and the difference is the extraction's."""
     errs = []
+    with_seed = gold_pos is not None and _takes_seed(gold_pos)
     for r in records:
-        g = r.gold.pos if r.gold.pos is not None else (gold_pos(r.gold) if gold_pos else None)
-        if g is None or r.system.pos is None:
+        if r.system.pos is None:
+            continue
+        g = r.gold.pos
+        if g is None and gold_pos is not None:
+            g = gold_pos(r.gold, seed=r.system.forecast_seed) if with_seed else gold_pos(r.gold)
+        if g is None:
             continue
         errs.append(abs(r.system.pos - g) * 100.0)
     if not errs:
         return {"pos_error_median": None, "pos_error_p90": None, "pos_error_n": 0}
     return {"pos_error_median": float(np.median(errs)), "pos_error_p90": float(np.quantile(errs, 0.9)), "pos_error_n": float(len(errs))}
+
+
+def forecast_gold_pos(*, mode: str = "preview") -> Callable[..., float | None] | None:
+    """The PoS of a gold call's profile through the installed forecast engine (§15.3's forecast metric): the gold
+    FnaDocument seeded as a profile (``binding.load_prior``) and forecast like the system's preview run, on the
+    system run's seed when given. None when the forecast is not installed."""
+    run = lazy_attr("advisor_intel.forecast.run", "run_forecast")
+    if run is None:
+        return None
+    cache: dict[tuple[str, int | None], float | None] = {}
+
+    def gold_pos(gold: GoldCall, seed: int | None = None) -> float | None:
+        if gold.document is None:
+            return None
+        key = (gold.call_id, seed)
+        if key not in cache:
+            from ..binding import load_prior
+            from ._runtime import run_sync
+
+            profile = load_prior(gold.document, None, call_id=gold.call_id, run_id=f"gold-{gold.call_id}", anchor_date=gold.anchor_date)
+            p = get(run_sync(run(profile, base_document=gold.document, mode=mode, seed=seed)), "pos")
+            cache[key] = float(p) if isinstance(p, (int, float)) else None
+        return cache[key]
+
+    return gold_pos
 
 
 _PERSON_NEEDS = (

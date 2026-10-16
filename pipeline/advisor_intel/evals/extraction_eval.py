@@ -538,7 +538,12 @@ def main(argv: list[str] | None = None) -> int:
     if not cases:
         print(f"no cases in {args.dataset}", file=sys.stderr)
         return 2
-    report = run_local(cases, dataset=args.dataset, experiment=args.experiment, save=args.out or True)
+    from .datasets import stage12_builder
+    from .scorers import forecast_gold_pos
+
+    build = _CONTEXT.build or stage12_builder()  # Stage 1–2 on a cache miss
+    gold_pos = _CONTEXT.gold_pos or forecast_gold_pos()  # the gold profile's PoS through the forecast engine
+    report = run_local(cases, dataset=args.dataset, experiment=args.experiment, save=args.out or True, build=build, gold_pos=gold_pos)
     print(f"{report.n_items} items, {report.n_errors} errors")
     for k, v in sorted(report.scores.items()):
         print(f"  {k}: {'-' if v is None else f'{v:.3f}'}")

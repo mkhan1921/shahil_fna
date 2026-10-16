@@ -6,7 +6,8 @@ run it:
 ``Eval("advisor-extraction", data=init_dataset("advisor-extraction", <dataset>), task=run_stages_3_to_6_from_cache,
 scores=[the per-item §15.3 scorers], metadata=current_version_pins())``; the reporter adds the summary scores and
 writes the JSON report the gate step reads. Stage 1–2 outputs come from the cache, built on a miss (synthetic
-scripts through stage 1's back half, gold calls from ``gold-transcripts``, then stage 2).
+scripts through stage 1's back half, gold calls from ``gold-transcripts``, then stage 2). The gold profile's PoS for
+the forecast metric comes from the forecast engine on the same seed as the system's preview run.
 
 Environment: ``ADVISOR_INTEL_EVAL_DATASET`` (``synthetic-calls``, the default, or ``gold-calls``),
 ``ADVISOR_INTEL_EVAL_EXPERIMENT`` (an experiment name), ``ADVISOR_INTEL_EVAL_GATE=1`` to gate inside the reporter,
@@ -20,8 +21,14 @@ import os
 
 from advisor_intel.evals.datasets import stage12_builder
 from advisor_intel.evals.extraction_eval import braintrust_eval
+from advisor_intel.evals.scorers import forecast_gold_pos
 from advisor_intel.evals.synthetic import SYNTHETIC_DATASET
 
 DATASET = os.environ.get("ADVISOR_INTEL_EVAL_DATASET") or SYNTHETIC_DATASET
 
-braintrust_eval(dataset=DATASET, experiment_name=os.environ.get("ADVISOR_INTEL_EVAL_EXPERIMENT") or None, build=stage12_builder())
+braintrust_eval(
+    dataset=DATASET,
+    experiment_name=os.environ.get("ADVISOR_INTEL_EVAL_EXPERIMENT") or None,
+    build=stage12_builder(),
+    gold_pos=forecast_gold_pos(),
+)

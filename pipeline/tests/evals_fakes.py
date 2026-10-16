@@ -20,6 +20,39 @@ from advisor_intel.schema.slots import SlotDef, load_catalog
 CATALOG = load_catalog()
 
 
+def small_forecast(monkeypatch: Any, n_paths: int = 400) -> None:
+    """Run the real forecast and the VOI sensitivity runs on a few hundred paths in tests that exercise the in-process
+    pipeline: the same code paths with a smaller Monte Carlo. Does nothing when the forecast is not installed."""
+    import importlib
+
+    try:
+        config = importlib.import_module("advisor_intel.forecast.config")
+    except ImportError:
+        return
+    full = config.load_config
+
+    def load_config(version: str = config.CURRENT_CONFIG) -> Any:
+        cfg = full(version)
+        light = {
+            "n_paths": n_paths,
+            "attribution_n": 100,
+            "shapley_paths": 50,
+            "shapley_contexts": 5,
+            "shapley_permutations": 10,
+            "need_bands_k": 20,
+        }
+        modes = {k: m.model_copy(update=light) for k, m in cfg.modes.items()}
+        return cfg.model_copy(
+            update={"n_paths": n_paths, "n_paths_sensitivity": max(50, n_paths // 4), "n_paths_max": n_paths, "modes": modes}
+        )
+
+    for mod in ("advisor_intel.forecast.run", "advisor_intel.forecast.sensitivity"):
+        try:
+            monkeypatch.setattr(importlib.import_module(mod), "load_config", load_config)
+        except (ImportError, AttributeError):
+            continue
+
+
 def quantity_from_gold(slot: SlotDef, gv: Any, *, shift: float = 1.0, contradicted: bool = False) -> Quantity:
     """A Quantity for a gold value: a triangular over p10–p90 (a point when they coincide; two equally weighted
     points for a contradiction, as the reducer's mixture of both statements), labels as points."""

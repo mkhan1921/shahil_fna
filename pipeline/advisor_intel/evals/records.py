@@ -118,6 +118,7 @@ class SystemCallOutput(BaseModel):
     note: list[NoteLine] = []
     followups: list[str] = []
     pos: float | None = None
+    forecast_seed: int | None = None  # the preview forecast's seed: the gold profile is forecast on the same draws
     document: dict[str, Any] | None = None  # the median-materialised FnaDocument (§3.6)
     mentions: list[GoldMention] = []
     topic_index: dict[str, list[str]] = {}  # slot group → segment ids (§6.5)
@@ -281,6 +282,10 @@ def _usage(result: Any) -> dict[str, float]:
     return out
 
 
+def _int_or_none(x: Any) -> int | None:
+    return int(x) if isinstance(x, (int, float)) and not isinstance(x, bool) else None
+
+
 def _tool_calls(result: Any) -> list[str]:
     calls = get(result, "tool_calls") or get(get(result, "trace"), "tool_calls") or []
     names = []
@@ -364,6 +369,7 @@ def summarise_result(
         note=_note_lines(get(result, "note")),
         followups=followups,
         pos=float(pos) if isinstance(pos, (int, float)) else None,
+        forecast_seed=_int_or_none(get(forecast, "seed")),
         document=document,
         mentions=mentions,
         topic_index=topic_index,
