@@ -82,8 +82,8 @@ class SlotDef(BaseModel):
     fna_outputs: list[str] = []
     forecast_binding: str | None = None
     exported: bool = True  # forecast-only slots (event[], expectedChange[]) are not exported
-    catalog_key: str | None = None  # expenses.items[key]: the EXPENSE_ITEMS key
-    essential: bool | None = None  # expense items: essential flag from the catalog
+    store_as: Literal["value", "index", "int"] = "value"  # risk answers store the option index; counts store an int
+    label: str = ""  # short human label for the review UI
 
     @property
     def per_person(self) -> bool:
@@ -135,11 +135,34 @@ class SlotGroup(BaseModel):
     family: str = ""  # Mondrian family for conformal (§9.5)
 
 
+class ExpenseItem(BaseModel):
+    """One line of the FNA expense catalog (lib/fna/catalog.ts EXPENSE_ITEMS)."""
+
+    key: str
+    label: str
+    category: str
+    essential: bool
+    hint: str = ""
+
+
+class RiskQuestion(BaseModel):
+    """One investor risk question (lib/fna/riskProfile.ts); answers store the option index."""
+
+    id: str
+    dimension: Literal["tolerance", "capacity"]
+    question: str
+    options: list[str]
+    scores: list[int]
+
+
 class Catalog(BaseModel):
     version: str
     generated_from: dict[str, str] = {}  # source file → content hash
     groups: dict[str, SlotGroup] = Field(default_factory=dict)
     slots: list[SlotDef]
+    expense_items: list[ExpenseItem] = []
+    risk_questions: list[RiskQuestion] = []
+    excluded: dict[str, dict[str, str] | str] = {}
     _idx: dict[str, SlotDef] | None = PrivateAttr(default=None)
 
     def by_id(self) -> dict[str, SlotDef]:
@@ -165,6 +188,12 @@ class Catalog(BaseModel):
         s = self.slot(slot_id)
         g = self.groups.get(s.group)
         return g.family if g and g.family else s.group
+
+    def expense_item(self, key: str) -> ExpenseItem | None:
+        return next((e for e in self.expense_items if e.key == key), None)
+
+    def group_names(self) -> list[str]:
+        return list(self.groups)
 
 
 def _index(cat: Catalog) -> dict[str, SlotDef]:
