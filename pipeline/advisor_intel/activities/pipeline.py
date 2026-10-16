@@ -383,7 +383,9 @@ class PipelineActivities:
                 quality=transcript.quality,
             )
             checkpoints = PostgresCheckpointStore(self.store, scope=scope)
-            result = await invoke(self.stages.get("run_agent"), inputs, checkpoints=checkpoints, heartbeat=activity.heartbeat)
+            # The harness heartbeats every node; the background beat covers one long model request.
+            async with heartbeating("agent"):
+                result = await invoke(self.stages.get("run_agent"), inputs, checkpoints=checkpoints, heartbeat=activity.heartbeat)
             outcome = AgentOutcome.model_validate(dump(result.outcome))
             await self._save_new_profile(Profile.model_validate(dump(result.profile)))
             await self.store.put_stage_output(

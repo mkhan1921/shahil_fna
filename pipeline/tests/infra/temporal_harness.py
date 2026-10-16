@@ -166,9 +166,14 @@ class MockActivities:
 
 
 @contextlib.asynccontextmanager
-async def temporal_env(temporal_bin: str, objects: Any = None, *, threshold: int | None = None) -> AsyncIterator[WorkflowEnvironment]:
+async def temporal_env(
+    temporal_bin: str, objects: Any = None, *, threshold: int | None = None, interceptors: list[Any] | None = None
+) -> AsyncIterator[WorkflowEnvironment]:
     env = await WorkflowEnvironment.start_local(
-        dev_server_existing_path=temporal_bin, data_converter=data_converter(objects, threshold=threshold), dev_server_log_level="error"
+        dev_server_existing_path=temporal_bin,
+        data_converter=data_converter(objects, threshold=threshold),
+        interceptors=interceptors or [],
+        dev_server_log_level="error",
     )
     try:
         yield env

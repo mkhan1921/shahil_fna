@@ -249,6 +249,43 @@ async def test_nightly_failure_in_one_branch_lets_the_others_finish(temporal_bin
     assert C.REFIT_CONFORMAL not in names and {C.PROPOSE_LEXICON_FIT, C.SYNC_ERROR_DATASET, C.SYNC_GOLD_CANDIDATES} <= set(names)
 
 
+async def test_traces_carry_run_attributes_from_the_client_to_activities(temporal_bin):
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    from advisor_intel import telemetry
+    from advisor_intel.config import Settings
+    from advisor_intel.models.runs import VersionPins
+
+    exporter = InMemorySpanExporter()
+    telemetry.setup_telemetry(Settings(), exporter=exporter, simple_export=True, set_global=False, instrument_agents=False, force=True)
+    try:
+        mocks = MockActivities()
+        async with (
+            temporal_env(temporal_bin, interceptors=telemetry.temporal_interceptors()) as env,
+            running_worker(env.client, mocks) as tq,
+        ):
+            run_id = f"call-1-{uuid.uuid4().hex[:6]}"
+            with telemetry.run_context(call_id="call-1", workflow_id=run_id, pins=VersionPins(calibrator_version="cal-9")):
+                handle = await env.client.start_workflow(
+                    CallPipelineWorkflow.run, _args(), id=run_id, task_queue=tq, execution_timeout=EXEC_TIMEOUT
+                )
+            await wait_state(handle, RunState.AWAITING_REVIEW)
+            await handle.signal(CallPipelineWorkflow.review_submitted, _review())
+            await handle.result()
+        spans = exporter.get_finished_spans()
+        start = next(s for s in spans if s.name == "StartWorkflow:CallPipelineWorkflow")
+        ingest = next(s for s in spans if s.name == "RunActivity:ingest_audio")
+        agent = next(s for s in spans if s.name == "RunActivity:run_agent")
+        assert ingest.context.trace_id == start.context.trace_id == agent.context.trace_id
+        for s, stage in ((ingest, "ingest"), (agent, "agent")):
+            a = s.attributes
+            assert (a["call_id"], a["workflow_id"], a["stage"], a["calibrator_version"]) == ("call-1", run_id, stage, "cal-9")
+            assert a["schema_url"] == "https://opentelemetry.io/schemas/1.37.0"
+        assert any(s.name == "RunWorkflow:CallPipelineWorkflow" and s.attributes.get("stage") == "workflow" for s in spans)
+    finally:
+        telemetry.shutdown_telemetry()
+
+
 async def test_schedules_are_created_then_updated(temporal_bin):
     async with temporal_env(temporal_bin) as env:
         assert await ensure_schedules(env.client, "advisor-intel") == {NIGHTLY_SCHEDULE_ID: "created", MODEL_SWAP_SCHEDULE_ID: "created"}
