@@ -84,6 +84,7 @@ class UpdatePayload(BaseModel):
     normalization: dict[str, Any] | None = None
     review: ReviewState | None = None
     reason: str | None = None
+    source: FactSource | None = None  # a follow-up answer re-sources the fact (§10.6)
 
 
 RetractReason = Literal[
@@ -370,7 +371,7 @@ def _apply_one(facts: dict[str, Fact], op: StateOp) -> str | None:
             updates["status"] = payload.status
             if payload.status in ("stated", "implied") and f.source in SEED_SOURCES and op.actor == "reviewer":
                 updates["source"] = "reviewer"
-        for k in ("speaker_attribution", "instance_key", "fna_path", "entity_refs", "interpretation", "normalization"):
+        for k in ("speaker_attribution", "instance_key", "fna_path", "entity_refs", "interpretation", "normalization", "source"):
             v = getattr(payload, k)
             if v is not None:
                 updates[k] = v
