@@ -42,6 +42,15 @@ async def extract_followup_answer(
 ) -> tuple[Transcript, list[StateOp]]:
     """Ops that apply a follow-up answer to the facts it was asked about (not applied here)."""
     t = answer_transcript(profile, followup, text, call_id=profile.call_id)
+    return t, await followup_ops(profile, followup, t, catalog=catalog, pins=pins, run_id=run_id)
+
+
+async def extract_followup_ops(profile: Profile, transcript: Transcript, *, followup: FollowUp, pins: VersionPins, catalog: Catalog) -> list[StateOp]:
+    """The intake activity's entry: the answer already as a one-segment transcript."""
+    return await followup_ops(profile, followup, transcript, catalog=catalog, pins=pins, run_id=profile.run_id)
+
+
+async def followup_ops(profile: Profile, followup: FollowUp, t: Transcript, *, catalog: Catalog, pins: VersionPins, run_id: str) -> list[StateOp]:
     ctx = ProbeContext(catalog=catalog, transcript=t, discourse=DiscourseOutput(entities=dict(profile.entities)), pins=pins, run_id=run_id)
     lex = load_lexicon(pins.lexicon_version)
     seg_id = t.segments[0].segment_id
@@ -67,4 +76,4 @@ async def extract_followup_answer(
             specs.append(("ADD", fid, seg_id, {"slot_id": slot.slot_id, "instance_key": instance or None, "fna_path": draft.fna_path, "source": "followup",
                                                "status": "stated", "hypotheses": draft.hypotheses, "evidence": draft.evidence, "hedges": draft.hedges,
                                                "said": draft.value.said if draft.value else "", "provenance": prov}, "extractor"))
-    return t, make_ops(profile, specs)
+    return make_ops(profile, specs)

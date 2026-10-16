@@ -40,10 +40,15 @@ def _optional(name: str) -> Any:
         return None
 
 
-def default_services(**overrides: Any) -> HarnessServices:
-    """Services wired from every stage that is installed; ``overrides`` replace any of them."""
+def default_services(*, glossary_store: Any = None, web_search: Any = None, **overrides: Any) -> HarnessServices:
+    """Services wired from every stage that is installed; ``overrides`` replace any of them.
+
+    ``glossary_store`` is the practice glossary (a ``lexicon.glossary.GlossaryStore``) and
+    ``web_search`` the allow-listed search callable for term lookup; without them lookup still
+    searches the product catalogue and the client's CRM and prior-file terms.
+    """
     services = HarnessServices(extract=_extract, derive=_derive)
-    for name, fn in _wired().items():
+    for name, fn in _wired(glossary_store=glossary_store, web_search=web_search).items():
         if fn is not None:
             setattr(services, name, fn)
     for k, v in overrides.items():
@@ -51,16 +56,34 @@ def default_services(**overrides: Any) -> HarnessServices:
     return services
 
 
-def _wired() -> dict[str, Any]:
+def _crm_terms(crm: Any) -> list[str]:
+    if crm is None:
+        return []
+    terms = [p.name for p in crm.household] + [t for pr in crm.products for t in (pr.provider, pr.product)]
+    return [t for t in dict.fromkeys(terms) if t]
+
+
+def make_lookup_term(glossary_store: Any = None, *, web_search: Any = None, allowlist: list[str] | None = None) -> Any:
+    """The ``lookup_term`` service (§8.5): practice glossary, catalogue and the client's known terms, then web search."""
+    import asyncio
+
+    from ..lexicon import glossary as G
+
+    store = glossary_store if glossary_store is not None else G.InMemoryGlossary()
+
+    async def lookup_term(term: str, context: str, deps: HarnessDeps) -> ServiceResult:
+        inputs = deps.inputs
+        kw: dict[str, Any] = {"text": context, "crm_terms": _crm_terms(inputs.crm), "practice_products": list(inputs.glossary)}
+        ctx = G.TermContext.from_fna(inputs.base_document, **kw) if inputs.base_document is not None else G.TermContext(**kw)
+        res = await asyncio.to_thread(G.lookup_term, term, ctx, glossary=store, web_search=web_search, allowlist=allowlist)
+        return ServiceResult(data={**res.model_dump(mode="json"), "resolved": res.resolved})
+
+    return lookup_term
+
+
+def _wired(*, glossary_store: Any = None, web_search: Any = None) -> dict[str, Any]:
     """Verification, constraints, sensitivity, follow-ups and term lookup, when their modules exist."""
     out: dict[str, Any] = {}
-    glossary = _optional("advisor_intel.lexicon.glossary")
-    if glossary is not None:
-
-        async def lookup_term(term: str, context: str, deps: HarnessDeps) -> ServiceResult:
-            ctx = glossary.TermContext(text=context) if "text" in getattr(glossary.TermContext, "__dataclass_fields__", {}) else glossary.TermContext()
-            res = glossary.lookup_term(term, ctx)
-            return ServiceResult(data=res.model_dump(mode="json") if hasattr(res, "model_dump") else res)
-
-        out["lookup_term"] = lookup_term
+    if _optional("advisor_intel.lexicon.glossary") is not None:
+        out["lookup_term"] = make_lookup_term(glossary_store, web_search=web_search)
     return out

@@ -1,0 +1,56 @@
+"""ASR, diarization and second-pass providers for a run, from its version pins and settings (spec §1.3, §5).
+
+The one place that chooses and constructs the stage 1 adapters, shared by the in-process runner
+(``advisor_intel.pipeline``) and the Temporal ingest activity. ``pins.asr_provider`` /
+``asr_model_version`` pick the ASR adapter (``asr_from_pins``); ``pins.diarization_model`` the
+pyannoteAI model used when clients share a channel or the call is mono; the second pass is the
+Parakeet constrained re-decode when a Parakeet gateway is configured, the audio-model check when
+only a vLLM endpoint is, and off otherwise (``ADVISOR_INTEL_SECOND_PASS`` = ``constrained-redecode``,
+``audio-model`` or ``off`` overrides the choice).
+"""
+
+from __future__ import annotations
+
+import os
+
+from ..config import Settings, get_settings
+from ..models.runs import VersionPins
+from .asr import ASRProvider, ParakeetASR, asr_from_pins
+from .diarization import ChannelDiarizer, Diarizer, PyannoteAIDiarizer
+from .second_pass import AudioModelCheck, GrammarConstrainedRedecode, SecondPassProvider
+from .types import AsrError
+
+SECOND_PASS_ENV = "ADVISOR_INTEL_SECOND_PASS"
+
+
+class ProviderConfigError(AsrError):
+    """A provider is unknown or missing its credentials (not worth retrying)."""
+
+
+def build_asr(pins: VersionPins, settings: Settings | None = None) -> ASRProvider:
+    try:
+        return asr_from_pins(pins, settings or get_settings())
+    except AsrError as e:
+        raise ProviderConfigError(str(e)) from e
+
+
+def build_diarizer(pins: VersionPins, settings: Settings | None = None) -> Diarizer:
+    """pyannoteAI at the pinned model; stereo calls with one speaker per channel never call it."""
+    s = settings or get_settings()
+    if not s.pyannote_api_key:
+        return ChannelDiarizer()  # stereo split only: a mono call or a shared client channel then has one speaker
+    return PyannoteAIDiarizer(api_key=s.pyannote_api_key, model=pins.diarization_model)
+
+
+def build_second_pass(pins: VersionPins, settings: Settings | None = None) -> SecondPassProvider | None:
+    s = settings or get_settings()
+    method = os.environ.get(SECOND_PASS_ENV, "")
+    if method == "off":
+        return None
+    if method in ("", "constrained-redecode") and s.parakeet_base_url:
+        return GrammarConstrainedRedecode(ParakeetASR(base_url=s.parakeet_base_url))
+    if method in ("", "audio-model") and s.vllm_base_url:
+        return AudioModelCheck(base_url=s.vllm_base_url)
+    if method:
+        raise ProviderConfigError(f"second pass {method!r} needs {'PARAKEET_BASE_URL' if method == 'constrained-redecode' else 'VLLM_BASE_URL'}")
+    return None

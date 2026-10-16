@@ -46,7 +46,7 @@ def group_is_per_person(catalog: Catalog, group: str) -> bool:
 
 
 def persons(profile: Profile | None, discourse: DiscourseOutput | None) -> list[str]:
-    ents = (discourse.entities if discourse else None) or (profile.entities if profile else {}) or {}
+    ents = {**(profile.entities if profile else {}), **(discourse.entities if discourse else {})}
     out = ["client"]
     if "person.spouse" in ents:
         out.append("spouse")

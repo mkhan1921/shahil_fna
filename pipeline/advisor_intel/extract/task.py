@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..extract.reducer import apply_state_ops, make_ops
+from ..extract.reducer import ReducerResult, apply_state_ops, make_ops
 from ..lexicon.loader import load_lexicon
 from ..models.extraction import ExtractionResult, ExtractionTask
 from ..models.facts import Provenance
@@ -27,6 +27,20 @@ if TYPE_CHECKING:
 def _assumptions(deps: "HarnessDeps"):
     base = deps.inputs.base_document
     return base.assumptions if base is not None else None
+
+
+def _refers(fv) -> bool:
+    """A value read relative to another fact ('a thirteenth cheque', 'in five years from my birthday')."""
+    for h in fv.hypotheses:
+        f = h.intermediate
+        if getattr(f, "reference_slot", "") or getattr(f, "anchor", "call") not in ("", "call"):
+            return True
+    return False
+
+
+def _merge(a: ReducerResult, b: ReducerResult) -> ReducerResult:
+    return ReducerResult(profile=b.profile, applied=a.applied + b.applied, rejected=a.rejected + b.rejected,
+                         touched=list(dict.fromkeys(a.touched + b.touched)))
 
 
 async def extract_task(task: ExtractionTask, hdeps: "HarnessDeps") -> tuple[Profile, ExtractionResult]:
@@ -62,8 +76,13 @@ async def extract_task(task: ExtractionTask, hdeps: "HarnessDeps") -> tuple[Prof
         lexicon_version=lex.version,
         schema_version=hdeps.catalog.version,
     )
+    # Values read relative to another fact are drafted after the rest of the batch is applied, so a
+    # 'thirteenth cheque' finds the gross income stated in the same task.
+    later = {k for k, al in aligned.aligned.items() if _refers(al.value)}
     drafts = []
     for k, al in aligned.aligned.items():
+        if k in later:
+            continue
         slot, inst = keys[k]
         drafts.append(draft_fact(al, out.statuses[k], slot, k, inst, profile, lex, hdeps.transcript, assumptions=assumptions, retries=out.retries.get(k, 0)))
     for k, reason in out.failures.items():
@@ -87,6 +106,17 @@ async def extract_task(task: ExtractionTask, hdeps: "HarnessDeps") -> tuple[Prof
             mentions.setdefault(m.segment_id, set()).add(m.entity_id)
     specs, dropped = to_state_ops(drafts, unknown, profile, provenance, mentions)
     result = apply_state_ops(profile, make_ops(profile, specs))
+    if later:
+        mid = result.profile
+        rel = []
+        for k in later:
+            slot, inst = keys[k]
+            rel.append(draft_fact(aligned.aligned[k], out.statuses[k], slot, k, inst, mid, lex, hdeps.transcript, assumptions=assumptions,
+                                  retries=out.retries.get(k, 0)))
+        specs2, dropped2 = to_state_ops(rel, [], mid, provenance, mentions)
+        result = _merge(result, apply_state_ops(mid, make_ops(mid, specs2)))
+        drafts += rel
+        dropped += dropped2
     usage = out.usage.as_dict()
     usage["requests"] += aligned.requests
     usage["input_tokens"] += aligned.input_tokens
