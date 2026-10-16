@@ -8,7 +8,7 @@ import pytest
 
 from advisor_intel import llm, stats
 from advisor_intel.discourse.run import run_discourse
-from advisor_intel.extract.followup import extract_followup_answer
+from advisor_intel.extract.followup import answer_transcript, extract_followup_answer, extract_followup_ops
 from advisor_intel.extract.probes import ProbeContext, make_reopen
 from advisor_intel.extract.reducer import apply_state_ops, check_profile
 from advisor_intel.models.profile import FollowUp, Profile
@@ -90,3 +90,13 @@ async def test_lookup_term_service_uses_the_glossary_and_the_prior_file():
     assert res.data["resolved"] and res.data["candidate"]["canonical_name"] == "Sanlam Max Income Plan"
     res = await services.lookup_term("Zorblax Wealth Booster", "", deps)
     assert not res.data["resolved"] and res.data["product_type"] == "other"
+
+
+async def test_followup_intake_entry_takes_the_answer_as_a_transcript(profile):
+    p = await reopened(profile)
+    gold = {SPOUSE_GROSS: {"forms": [_amt("exact", 36_500, basis="gross")], "said": "thirty-six thousand five hundred gross a month"}}
+    fu = FollowUp(followup_id="fu2", fact_ids=[SPOUSE_GROSS], question="What is Lerato's gross monthly salary?", why="", expected_pos_change=0.05,
+                  answer_type="AMOUNT_EXACT")
+    t = answer_transcript(p, fu, "It's thirty-six thousand five hundred gross a month.", call_id=p.call_id)
+    ops = await extract_followup_ops(p, t, followup=fu, pins=pins_for("oracle-fu2", Oracle(T, [], gold)), catalog=CAT)
+    assert [o.op for o in ops] == ["UPDATE"] and ops[0].payload["source"] == "followup"
