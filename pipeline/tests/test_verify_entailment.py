@@ -63,7 +63,7 @@ def _verdicts_from(rule):
     def fn(messages, info: AgentInfo):
         prompt = messages[-1].parts[-1].content if hasattr(messages[-1].parts[-1], "content") else ""
         prompts.append(str(prompt))
-        claims = re.findall(r"^- (c\d+): (.*)$", str(prompt), flags=re.M)
+        claims = re.findall(r"^- (c\d+): (.*)$", str(prompt), flags=re.MULTILINE)
         out = {"verdicts": [{"claim_id": cid, "verdict": rule(text), "reason": "because"} for cid, text in claims]}
         return ModelResponse(parts=[TextPart(json.dumps(out))])
 
@@ -71,7 +71,7 @@ def _verdicts_from(rule):
 
 
 async def test_verdicts_scores_and_independence_from_the_extractor():
-    p, ra, inc, occ = _profile()
+    p, ra, inc, _occ = _profile()
     model, prompts = _verdicts_from(lambda t: "contradicted" if "65" in t else "entailed")
     with entailment_agent.override(model=model):
         res = await check_entailment(p, [ra, inc], transcript=_transcript(), pins=VersionPins())
@@ -109,7 +109,8 @@ async def test_corrective_ops_retract_contradicted_hypotheses_through_the_reduce
     assert check_profile(r.profile) == []
 
 
-async def test_a_contradicted_fact_with_a_prior_value_is_kept_for_review():
+async def test_a_contradicted_fact_with_a_prior_value_is_kept_for_review_as_contradicted():
+    """§4.3: a contradicted fact is always sent to review, as a mixture of the call's reading and the prior value."""
     b = ProfileBuilder()
     fid = b.add("income.{p}.grossMonthly", "client", money(45000), evidence=[ev("s0004", "forty-five thousand")], prior=money(40000))
     p = b.build()
@@ -117,7 +118,16 @@ async def test_a_contradicted_fact_with_a_prior_value_is_kept_for_review():
     with entailment_agent.override(model=model):
         res = await check_entailment(p, [fid], transcript=_transcript(), pins=VersionPins())
     assert res.facts[fid].status == "contradicted"
-    assert corrective_ops(p, res) == []
+    specs = corrective_ops(p, res)
+    assert [(s[0], s[1], s[4]) for s in specs] == [("UPDATE", fid, "verifier")] and specs[0][3]["status"] == "contradicted"
+    r = apply_state_ops(p, make_ops(p, specs))
+    f = r.profile.facts[fid]
+    assert not r.rejected and f.status == "contradicted" and f.source == "call"
+    assert [h.value for h in f.hypotheses] == [money(45000), money(40000)] and [h.weight for h in f.hypotheses] == [0.5, 0.5]
+    assert "prior FNA value" in f.hypotheses[1].rationale and check_profile(r.profile) == []
+    # the prior already among the readings is not added twice
+    again = corrective_ops(r.profile, res)
+    assert again[0][3] == {"status": "contradicted", "reason": specs[0][3]["reason"]}
     assert res.facts[fid].verification()["contradicted"] is True
 
 
@@ -324,7 +334,7 @@ async def test_a_deployment_that_rejects_logprobs_is_retried_without_them():
         seen.append(dict(info.model_settings or {}))
         if (info.model_settings or {}).get("openai_logprobs"):
             raise ModelHTTPError(status_code=400, model_name="verifier", body={"error": "logprobs are not supported"})
-        claims = re.findall(r"^- (c\d+): ", str(messages[-1].parts[-1].content), flags=re.M)
+        claims = re.findall(r"^- (c\d+): ", str(messages[-1].parts[-1].content), flags=re.MULTILINE)
         return ModelResponse(
             parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": "entailed", "reason": "r"} for c in claims]}))]
         )
@@ -337,13 +347,13 @@ async def test_a_deployment_that_rejects_logprobs_is_retried_without_them():
 
 async def test_the_verifier_runs_on_the_pinned_prompt():
     """The entailment prompt is a versioned file (§13.8): the pin picks it, the run records it, the model receives it."""
-    p, ra, inc, occ = _profile()
+    p, _ra, inc, _occ = _profile()
     seen: list[str] = []
 
     def fn(messages, info: AgentInfo):
         instr = getattr(messages[0], "instructions", None) or getattr(info, "instructions", None) or ""
         seen.append(str(instr))
-        claims = re.findall(r"^- (c\d+): (.*)$", str(messages[-1].parts[-1].content), flags=re.M)
+        claims = re.findall(r"^- (c\d+): (.*)$", str(messages[-1].parts[-1].content), flags=re.MULTILINE)
         return ModelResponse(parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": "entailed", "reason": "ok"} for c, _ in claims]}))])
 
     with entailment_agent.override(model=FunctionModel(fn)):

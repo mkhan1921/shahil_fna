@@ -167,13 +167,18 @@ async def verify_facts(
             idx = op.payload.get("hypothesis_index")
             if idx is not None:
                 retracted.setdefault(op.fact_id, set()).add(int(idx))
-        for fid, gone in retracted.items():
+        # Every fact a corrective op changed is re-recorded in its new form (so the next pass does not check it
+        # again): the surviving readings re-indexed after retractions; the status change to contradicted as is.
+        for fid in dict.fromkeys(op.fact_id for op in r.applied):
             if fid not in profile.facts:
                 continue
             f = profile.facts[fid]
-            fe = _surviving(ent.facts[fid], gone, [h.weight for h in f.hypotheses])
-            ver = {**f.verification, **fe.verification(), "retracted_hypotheses": sorted(gone), "checked_fingerprint": fingerprint(f)}
-            ver["contradicted"] = True  # a contradiction was found, even though the contradicted reading is gone
+            gone = retracted.get(fid, set())
+            fe = _surviving(ent.facts[fid], gone, [h.weight for h in f.hypotheses]) if gone else ent.facts[fid]
+            ver = {**f.verification, **fe.verification(), "checked_fingerprint": fingerprint(f)}
+            if gone:
+                ver["retracted_hypotheses"] = sorted(gone)
+            ver["contradicted"] = True  # a contradiction was found, even where the contradicted reading is gone
             profile = annotate(profile, fid, verification=ver)
     result.profile = profile
     result.results = {fid: _summary(fid, ent.facts.get(fid), cons.get(fid), fid not in profile.facts) for fid in ids}

@@ -99,6 +99,28 @@ async def test_verify_facts_annotates_and_applies_corrective_ops():
     assert check_profile(res.profile) == []
 
 
+async def test_a_reading_the_verifier_rejects_becomes_contradicted_when_a_prior_stands():
+    """§4.3 / §10.3: the fact is sent to review as contradicted (forced, flagged for tier A), not left stated with only
+    auto-accept blocked; and it is recorded in its new form so the next pass does not check it again."""
+    from advisor_intel.voi.flags import compute_flags
+    from advisor_intel.voi.priority import prioritise
+    from advisor_intel.voi.sensitivity import SensitivityRow
+
+    b = ProfileBuilder()
+    fid = b.add("income.{p}.grossMonthly", "client", money(45000), evidence=[ev("s0003", "forty-five thousand")], prior=money(40000))
+    p = b.build()
+    with entailment_agent.override(model=_verifier(lambda t: "contradicted")):
+        res = await verify_facts(p, [fid], transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=None)
+    f = res.profile.facts[fid]
+    assert [o.op for o in res.ops] == ["UPDATE"] and f.status == "contradicted" and len(f.hypotheses) == 2
+    assert f.verification["contradicted"] is True and f.verification["entailment"]["status"] == "contradicted"
+    assert not needs_verification(f) and res.results[fid]["contradicted_hypotheses"] == [0]
+    item = prioritise(res.profile, [SensitivityRow(fact_id=fid, slot_id="income.{p}.grossMonthly", tier="A", reasons=["tier A"])], catalog=CATALOG)[0]
+    assert item.forced == 1.0 and "independent check contradicted" in item.why
+    assert ("tier_a_contradicted", fid) in {(fl.kind, fl.fact_id) for fl in compute_flags(res.profile, catalog=CATALOG)}
+    assert check_profile(res.profile) == []
+
+
 async def test_verify_facts_without_probes_or_a_live_verifier():
     p, ra, *_ = _profile()
     res = await verify_facts(p, [ra, "nope#x"], transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=None)

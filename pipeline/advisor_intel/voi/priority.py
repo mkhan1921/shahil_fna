@@ -71,7 +71,12 @@ def forced_reasons(fact: Fact, row: SensitivityRow | None, tier: str) -> list[st
         msgs = fact.verification.get("constraint_messages") or []
         reasons.append(f"fails a check: {msgs[0]}" if msgs else "fails a hard consistency check")
     if fact.status == "contradicted":
-        reasons.append("the call holds two incompatible statements")
+        entailment = (fact.verification.get("entailment") or {}).get("status")
+        reasons.append(
+            "the call does not support this reading (the independent check contradicted it)"
+            if entailment == "contradicted"
+            else "the call holds two incompatible statements"
+        )
     if fact.speaker_attribution == "advisor_suggested" and tier == "A":
         reasons.append("the adviser proposed this and the client did not clearly agree")
     return reasons
