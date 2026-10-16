@@ -752,6 +752,7 @@ def _category_probs(ctx: _Ctx, label: str, word: str, *, kind: Literal["category
         named, how = m
         if how != "exact":
             ctx.conversions.append(f"label {label!r} → {named!r} ({how})")
+    ctx.notes["category"] = named
     p = float(ctx.use(ctx.lex.certainty(word, kind=kind)).value)  # type: ignore[arg-type]
     if p >= 1.0:
         return {named: 1.0}
