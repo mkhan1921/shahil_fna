@@ -11,13 +11,16 @@ configured — fails the run on a gated regression.
 tests and the GEPA and model-swap loops. ``python -m advisor_intel.evals.extraction_eval`` is its CLI.
 
 The pipeline runner is injected (``configure(runner=...)``); by default it is
-``advisor_intel.pipeline.process_cached_call(call, pins)``, imported lazily.
+``advisor_intel.pipeline.process_cached_call(call, pins)``, imported lazily, followed by the meeting note
+(``advisor_intel.note.generate_note``) written on the system's profile as if the adviser accepted every fact, so the
+§15.3 note metrics are measured (``configure(note=False)``, ``--no-note`` or ``ADVISOR_INTEL_EVAL_NOTE=0`` skip it).
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import re
 import subprocess
@@ -43,10 +46,13 @@ from .records import EvalRecord, SystemCallOutput, summarise_result
 from .scorers import ITEM_SCORE_NAMES, ITEM_SCORERS, ItemScorer, asr_metrics, item_metrics, summary_scores
 from .synthetic import SYNTHETIC_DATASET
 
+log = logging.getLogger(__name__)
+
 EVAL_NAME = "advisor-extraction"
 Runner = Callable[[CachedCall, VersionPins], Any]
 GATE_ENV = "ADVISOR_INTEL_EVAL_GATE"  # "1": the reporter gates the run against the baseline
 BASELINE_ENV = "ADVISOR_INTEL_EVAL_BASELINE"  # a baseline report path, or "store:<ref>" for the eval-baselines dataset
+NOTE_ENV = "ADVISOR_INTEL_EVAL_NOTE"  # "0": the default runner skips the meeting note
 
 
 # --------------------------------------------------------------------------- configuration
@@ -63,6 +69,7 @@ class EvalContext:
     analyse: Callable[[FnaDocument], Any] | None = None
     gold_pos: Callable[[GoldCall], float | None] | None = None
     reference_transcript: Callable[[str], Transcript | None] | None = None
+    note: bool = True  # the default runner writes the meeting note after stages 3–6
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -83,12 +90,27 @@ def reset() -> None:
     _CONTEXT = EvalContext()
 
 
-def default_runner() -> Runner:
-    """``advisor_intel.pipeline.process_cached_call``: stages 3–6 in-process on a cached call."""
+def default_runner(*, note: bool = True) -> Runner:
+    """``advisor_intel.pipeline.process_cached_call``: stages 3–6 in-process on a cached call, then (``note``) the
+    meeting note on the resulting profile, which the in-process runner leaves to the review (§11.6). A note that
+    fails to write leaves the run unscored on the note metrics, not errored."""
     fn = lazy_attr("advisor_intel.pipeline", "process_cached_call")
     if fn is None:
         raise RuntimeError("advisor_intel.pipeline.process_cached_call is not installed; pass a runner with configure(runner=...)")
-    return fn
+    write_note = lazy_attr("advisor_intel.note", "generate_note") if note else None
+    if write_note is None:
+        return fn
+
+    async def run_with_note(call: CachedCall, pins: VersionPins) -> Any:
+        result = await fn(call, pins)
+        if getattr(result, "note", None) is None and getattr(result, "profile", None) is not None:
+            try:
+                result.note = await write_note(result.profile, pins=pins)
+            except Exception as e:  # noqa: BLE001 - extraction is still scored without the note
+                log.warning("meeting note for %s failed: %s: %s", call.call_id, type(e).__name__, e)
+        return result
+
+    return run_with_note
 
 
 _VERSION_FILE = re.compile(r"^v(\d+)\.md$")
@@ -194,7 +216,7 @@ def run_stages_3_to_6_from_cache(input: dict[str, Any], hooks: Any = None) -> di
     """The experiment task: load the cached Stage 1–2 output, run stages 3–6 with the injected runner (the same
     harness code as production), and return the ``SystemCallOutput`` the scorers read."""
     pins = _CONTEXT.pins or current_version_pins()
-    runner = _CONTEXT.runner or default_runner()
+    runner = _CONTEXT.runner or default_runner(note=_CONTEXT.note)
     call = load_cached_call(input, getattr(hooks, "metadata", None), pins=pins)
     result = run_sync(runner(call, pins))
     out = summarise_result(result, call=call, transcript_kind=call.transcript_kind)
@@ -527,7 +549,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--experiment", default=None)
+    ap.add_argument("--no-note", action="store_true", help="skip the meeting note (its metrics are then not measured)")
     args = ap.parse_args(argv)
+    if args.no_note or os.environ.get(NOTE_ENV) == "0":
+        configure(note=False)
     cases = eval_cases(
         args.dataset,
         transcript_kinds=args.transcripts.split(",") if args.transcripts else None,
@@ -559,11 +584,13 @@ __all__ = [
     "EVAL_NAME",
     "EvalReport",
     "ItemReport",
+    "NOTE_ENV",
     "braintrust_eval",
     "braintrust_scorers",
     "build_report",
     "configure",
     "current_version_pins",
+    "default_runner",
     "eval_cases",
     "load_rows",
     "rows_path",

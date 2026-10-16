@@ -80,7 +80,7 @@ def sample_gold(t) -> GoldCall:
 
 async def test_the_eval_task_scores_the_real_pipeline(oracle_world):
     t, pins, tmp = oracle_world["transcript"], oracle_world["pins"], oracle_world["tmp"]
-    assert E.default_runner() is pipeline.process_cached_call  # the task's runner when none is configured
+    assert E.default_runner(note=False) is pipeline.process_cached_call  # the task's runner when none is configured
     store = LocalStore(tmp / "datasets")
     sync_gold([sample_gold(t)], store=store, transcript_kinds=("asr",))
     cases = E.eval_cases(GOLD_CALLS, store=store)
@@ -96,7 +96,10 @@ async def test_the_eval_task_scores_the_real_pipeline(oracle_world):
     assert built == [f"{CALL_ID}:asr"]
     for m in ("slot_recall", "slot_recall_tier_a", "value_coverage", "attribution"):
         assert report.scores[m] == pytest.approx(1.0), (m, report.items[0].misses)
-    assert report.scores["span_f1"] > 0.6 and report.scores["note_completeness"] is None  # the eval task skips the note
+    assert report.scores["span_f1"] > 0.6
+    # The meeting note, written after stages 3–6 on the "test" frontier pin (the note package's template): every
+    # sentence it keeps is supported, and the gold facts it cites are measured.
+    assert 0.0 < report.scores["note_completeness"] <= 1.0 and report.scores["note_supported"] == pytest.approx(1.0)
     row = load_rows(rows_path(E.EVAL_NAME, GOLD_CALLS))[0]
     out = row["output"]
     assert out["tool_calls"][0] == "make_plan" and "verify_facts" in out["tool_calls"] and out["document"] is not None

@@ -139,8 +139,36 @@ def test_braintrust_eval_runs_offline_and_the_reporter_gates(world, monkeypatch,
     assert "gate skipped" in capsys.readouterr().out
 
 
+async def test_the_default_runner_writes_the_meeting_note(monkeypatch):
+    """The in-process runner leaves the note to the review; the eval task writes it on the system's profile."""
+    from types import SimpleNamespace
+
+    runner_mod = pytest.importorskip("advisor_intel.pipeline")
+    note_mod = pytest.importorskip("advisor_intel.note")
+    profile, written = object(), []
+
+    async def process_cached_call(call, pins):
+        return SimpleNamespace(call_id=call.call_id, note=None, profile=profile)
+
+    async def generate_note(p, *, pins):
+        written.append((p, pins))
+        return SimpleNamespace(sentences=[])
+
+    async def broken(p, *, pins):
+        raise RuntimeError("model unavailable")
+
+    monkeypatch.setattr(runner_mod, "process_cached_call", process_cached_call)
+    monkeypatch.setattr(note_mod, "generate_note", generate_note)
+    call, pins = SimpleNamespace(call_id="c1"), VersionPins()
+    result = await E.default_runner()(call, pins)
+    assert result.note is not None and written == [(profile, pins)]
+    assert E.default_runner(note=False) is process_cached_call
+    monkeypatch.setattr(note_mod, "generate_note", broken)
+    assert (await E.default_runner()(call, pins)).note is None  # extraction is still scored without the note
+
+
 def test_cli_runs_the_local_dataset(world, monkeypatch):
-    monkeypatch.setattr(E, "default_runner", lambda: FakePipeline(world["golds"].__getitem__))
+    monkeypatch.setattr(E, "default_runner", lambda **_: FakePipeline(world["golds"].__getitem__))
     E.configure(pins=VersionPins(), cache=world["cache"], build=stage12_builder(discourse=False), gold_pos=lambda gold: None)
     monkeypatch.setattr(E, "get_store", lambda: world["store"])
     out = world["tmp"] / "cli.json"
