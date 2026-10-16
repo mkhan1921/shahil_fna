@@ -296,7 +296,11 @@ def categorical_phrase(dist: Dist, slot: SlotDef) -> str:
 
 # Categorical answers that read better as sentences; "{s}" is the subject.
 CATEGORY_SENTENCES: dict[str, dict[str, str]] = {
-    "estate.{p}.hasWill": {"yes": "{s} has a will", "no": "{s} does not have a will", "unsure": "{s} is not sure whether they have a valid will"},
+    "estate.{p}.hasWill": {
+        "yes": "{s} has a will",
+        "no": "{s} does not have a will",
+        "unsure": "{s} is not sure whether they have a valid will",
+    },
     "estate.{p}.guardianNominated": {
         "yes": "{s} has nominated a guardian for their minor children",
         "no": "{s} has not nominated a guardian for their minor children",
@@ -335,7 +339,7 @@ def _value_sentence(fact: Fact, q: Quantity, slot: SlotDef, s: str, sp: str, anc
 
     if slot.value_type == "text":
         text = d.value if isinstance(d, Point) else stats.mode_label(d)
-        return about(f"is described as \"{text}\"")
+        return about(f'is described as "{text}"')
     if slot.value_type == "probability" or fact.slot_id.endswith(".occurs"):
         return f"{_cap(s)} {_likelihood(stats.p_true(d))}."
     if slot.value_type == "boolean" or isinstance(d, Bernoulli) or (isinstance(d, Point) and isinstance(d.value, bool)):
@@ -383,6 +387,13 @@ def claims_for_fact(fact: Fact, *, profile: Profile, catalog: Catalog | None = N
     for i, h in enumerate(fact.hypotheses):
         if h.value is None or h.weight < min_weight - 1e-12:
             continue
-        out.append(Claim(claim_id=f"c{i}", fact_id=fact.fact_id, hypothesis_index=i, weight=h.weight,
-                         text=claim_text(fact, h.value, profile=profile, catalog=catalog)))
+        out.append(
+            Claim(
+                claim_id=f"c{i}",
+                fact_id=fact.fact_id,
+                hypothesis_index=i,
+                weight=h.weight,
+                text=claim_text(fact, h.value, profile=profile, catalog=catalog),
+            )
+        )
     return out

@@ -100,8 +100,10 @@ def _one_verdict_per_claim(ctx: RunContext[frozenset[str]], out: EntailmentVerdi
     missing, unknown = expected - set(got), set(got) - expected
     dups = {g for g in got if got.count(g) > 1}
     if missing or unknown or dups:
-        raise ModelRetry(f"Return exactly one verdict for each claim id {sorted(expected)}; missing {sorted(missing)}, "
-                         f"unknown {sorted(unknown)}, repeated {sorted(dups)}.")
+        raise ModelRetry(
+            f"Return exactly one verdict for each claim id {sorted(expected)}; missing {sorted(missing)}, "
+            f"unknown {sorted(unknown)}, repeated {sorted(dups)}."
+        )
     return out
 
 
@@ -149,7 +151,9 @@ def _match_label(rest: str, labels: Sequence[str]) -> str | None:
     return hits[0] if len(hits) == 1 else None
 
 
-def label_probabilities(tokens: list[TokenLogprob], *, key: str = "verdict", labels: Sequence[str] = VERDICTS) -> list[dict[str, float] | None]:
+def label_probabilities(
+    tokens: list[TokenLogprob], *, key: str = "verdict", labels: Sequence[str] = VERDICTS
+) -> list[dict[str, float] | None]:
     """P(label) at each ``"<key>": "`` value in the generated JSON, in order of appearance.
 
     The token covering the first character of the value and its top alternatives are mapped to labels
@@ -307,8 +311,9 @@ def _weighted(checks: list[HypothesisCheck], attr: str) -> float | None:
     return sum(w * s for w, s in pairs) / total if total > 0 else None
 
 
-async def _verify_fact(fact: Fact, claims: list[Claim], transcript: Transcript, resolved: Resolved, *, want_logprobs: bool,
-                       sem: asyncio.Semaphore) -> tuple[dict[str, tuple[str, str, float | None]], str | None, Usage]:
+async def _verify_fact(
+    fact: Fact, claims: list[Claim], transcript: Transcript, resolved: Resolved, *, want_logprobs: bool, sem: asyncio.Semaphore
+) -> tuple[dict[str, tuple[str, str, float | None]], str | None, Usage]:
     """Run the verifier on one fact's claims: claim id → (verdict, reason, P(entailed) from logprobs)."""
     prompt = verifier_prompt(fact, claims, transcript)
     deps = frozenset(c.claim_id for c in claims)
@@ -317,7 +322,9 @@ async def _verify_fact(fact: Fact, claims: list[Claim], transcript: Transcript, 
         usage = outcome.usage
         if outcome.output is None and want_logprobs:
             # Some deployments reject log-probabilities: retry once without them.
-            plain = Resolved(resolved.name, resolved.model, {k: v for k, v in (resolved.settings or {}).items() if "logprobs" not in k}, resolved.offline)  # type: ignore[arg-type]
+            plain = Resolved(
+                resolved.name, resolved.model, {k: v for k, v in (resolved.settings or {}).items() if "logprobs" not in k}, resolved.offline
+            )  # type: ignore[arg-type]
             outcome = await run_guarded(entailment_agent, prompt, plain, deps=deps)
             usage = usage.merge(outcome.usage)
     if outcome.output is None:
@@ -355,7 +362,9 @@ async def check_entailment(
         extra = logprob_settings(verifier_name) if logprobs is None else {"openai_logprobs": True, "openai_top_logprobs": TOP_LOGPROBS}
     resolved = resolve("verifier", pins, empty_json='{"verdicts": []}', extra_settings=extra)
     extractor_name = llm.role_model_name("reasoning", pins)
-    independent = llm.is_test(verifier_name) or llm.is_test(extractor_name) or llm.provider_of(verifier_name) != llm.provider_of(extractor_name)
+    independent = (
+        llm.is_test(verifier_name) or llm.is_test(extractor_name) or llm.provider_of(verifier_name) != llm.provider_of(extractor_name)
+    )
     if not independent:
         log.warning("verifier %s shares a provider family with the extractor %s (§9.1e)", verifier_name, extractor_name)
 
@@ -445,7 +454,15 @@ def corrective_ops(profile: Profile, result: EntailmentResult) -> list[tuple[str
         reasons = {c.index: c.reason for c in checked}
         if survivors:
             for i in bad:  # highest index first, so earlier indices stay valid
-                specs.append(("RETRACT", fid, seg, {"reason": "entailment_contradicted", "hypothesis_index": i, "note": reasons.get(i, "")}, "verifier"))
+                specs.append(
+                    (
+                        "RETRACT",
+                        fid,
+                        seg,
+                        {"reason": "entailment_contradicted", "hypothesis_index": i, "note": reasons.get(i, "")},
+                        "verifier",
+                    )
+                )
         elif fact.source not in SEED_SOURCES and fact.prior_value is None:
             note = "; ".join(r for r in reasons.values() if r)
             specs.append(("RETRACT", fid, seg, {"reason": "entailment_contradicted", "note": note}, "verifier"))

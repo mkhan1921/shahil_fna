@@ -41,7 +41,9 @@ def yes_probability(choice: Mapping[str, Any]) -> float:
     content = ((choice.get("logprobs") or {}).get("content")) or []
     if content:
         first = content[0]
-        cands = [(first.get("token", ""), first.get("logprob", -math.inf))] + [(t.get("token", ""), t.get("logprob", -math.inf)) for t in first.get("top_logprobs") or []]
+        cands = [(first.get("token", ""), first.get("logprob", -math.inf))] + [
+            (t.get("token", ""), t.get("logprob", -math.inf)) for t in first.get("top_logprobs") or []
+        ]
         p_yes = p_no = 0.0
         seen: set[str] = set()
         for tok, lp in cands:

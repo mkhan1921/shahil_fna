@@ -48,11 +48,20 @@ class Usage:
         self.output_tokens += int(getattr(run_usage, "output_tokens", 0) or 0)
 
     def merge(self, other: "Usage") -> "Usage":
-        return Usage(self.requests + other.requests, self.input_tokens + other.input_tokens, self.output_tokens + other.output_tokens,
-                     self.failures + other.failures)
+        return Usage(
+            self.requests + other.requests,
+            self.input_tokens + other.input_tokens,
+            self.output_tokens + other.output_tokens,
+            self.failures + other.failures,
+        )
 
     def as_dict(self) -> dict[str, int]:
-        return {"requests": self.requests, "input_tokens": self.input_tokens, "output_tokens": self.output_tokens, "failures": self.failures}
+        return {
+            "requests": self.requests,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "failures": self.failures,
+        }
 
 
 @dataclass
@@ -82,7 +91,9 @@ def is_offline(ctx: Any) -> bool:
     return getattr(getattr(ctx, "model", None), "model_name", "") == OFFLINE
 
 
-def resolve(role: llm.Role, pins: VersionPins | None, *, empty_json: str, thinking: bool = False, extra_settings: dict[str, Any] | None = None) -> Resolved:
+def resolve(
+    role: llm.Role, pins: VersionPins | None, *, empty_json: str, thinking: bool = False, extra_settings: dict[str, Any] | None = None
+) -> Resolved:
     rm = llm.for_role(role, pins, thinking=thinking)
     settings: dict[str, Any] = dict(rm.settings or {})
     if extra_settings:

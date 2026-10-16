@@ -30,10 +30,25 @@ def point(v: Any, unit: str = "none", period: str = "none") -> Quantity:
     return Quantity(dist=Point(value=v), unit=unit, period=period)  # type: ignore[arg-type]
 
 
-def ev(seg: str = "s0010", quote: str = "about sixty", role: str = "supports", conf: float = 0.93, speaker: str = "client_primary", start: int = 0) -> Evidence:
+def ev(
+    seg: str = "s0010",
+    quote: str = "about sixty",
+    role: str = "supports",
+    conf: float = 0.93,
+    speaker: str = "client_primary",
+    start: int = 0,
+) -> Evidence:
     return Evidence(
-        segment_id=seg, char_start=start, char_end=start + len(quote), quote=quote, speaker_role=speaker,
-        t_start=10.0, t_end=12.0, asr_mean_conf=conf, role=role, aligner_score=0.9,  # type: ignore[arg-type]
+        segment_id=seg,
+        char_start=start,
+        char_end=start + len(quote),
+        quote=quote,
+        speaker_role=speaker,
+        t_start=10.0,
+        t_end=12.0,
+        asr_mean_conf=conf,
+        role=role,
+        aligner_score=0.9,  # type: ignore[arg-type]
     )
 
 
@@ -48,11 +63,15 @@ class ProfileBuilder:
 
     def __init__(self, *, anchor: date = ANCHOR, spouse: bool = False, call_id: str = "c1") -> None:
         ents = {
-            "person.client_primary": Entity(entity_id="person.client_primary", type="person", canonical_name="Thabo", attributes={"person_key": "client"}),
+            "person.client_primary": Entity(
+                entity_id="person.client_primary", type="person", canonical_name="Thabo", attributes={"person_key": "client"}
+            ),
             "person.advisor": Entity(entity_id="person.advisor", type="person", canonical_name="Adviser"),
         }
         if spouse:
-            ents["person.spouse"] = Entity(entity_id="person.spouse", type="person", canonical_name="Lerato", attributes={"person_key": "spouse"})
+            ents["person.spouse"] = Entity(
+                entity_id="person.spouse", type="person", canonical_name="Lerato", attributes={"person_key": "spouse"}
+            )
         self.profile = Profile(call_id=call_id, run_id="wf-1", schema_version="profile_v1", anchor_date=anchor, entities=ents)
         self.specs: list[tuple[str, str, str | None, dict[str, Any], str]] = []
 
@@ -131,27 +150,84 @@ class ProfileBuilder:
         return self.profile
 
 
-def segment(seg_id: str, text: str, role: str = "client_primary", *, t0: float = 0.0, conf: float = 0.95, confs: list[float] | None = None,
-            rewritten: str | None = None, role_conf: float = 0.95, diar: float = 0.97) -> Segment:
+def segment(
+    seg_id: str,
+    text: str,
+    role: str = "client_primary",
+    *,
+    t0: float = 0.0,
+    conf: float = 0.95,
+    confs: list[float] | None = None,
+    rewritten: str | None = None,
+    role_conf: float = 0.95,
+    diar: float = 0.97,
+) -> Segment:
     toks = text.split()
     confs = confs or [conf] * len(toks)
     words = [Word(text=t, t_start=t0 + i * 0.4, t_end=t0 + i * 0.4 + 0.35, conf=c) for i, (t, c) in enumerate(zip(toks, confs))]
-    return Segment(segment_id=seg_id, speaker_label="spk_0" if role == "advisor" else "spk_1", speaker_role=role, role_conf=role_conf,  # type: ignore[arg-type]
-                   diarization_conf=diar, t_start=t0, t_end=t0 + 0.4 * max(1, len(toks)), words=words, text=text, rewritten_text=rewritten)
+    return Segment(
+        segment_id=seg_id,
+        speaker_label="spk_0" if role == "advisor" else "spk_1",
+        speaker_role=role,
+        role_conf=role_conf,  # type: ignore[arg-type]
+        diarization_conf=diar,
+        t_start=t0,
+        t_end=t0 + 0.4 * max(1, len(toks)),
+        words=words,
+        text=text,
+        rewritten_text=rewritten,
+    )
 
 
-def transcript(segments: list[Segment], *, spans: list[NumericSpan] | None = None, quality: QualityReport | None = None, call_id: str = "c1") -> Transcript:
-    return Transcript(call_id=call_id, anchor_date=ANCHOR, segments=segments, asr_provider="fake", asr_model_version="fake-1",
-                      numeric_spans=spans or [], quality=quality)
+def transcript(
+    segments: list[Segment], *, spans: list[NumericSpan] | None = None, quality: QualityReport | None = None, call_id: str = "c1"
+) -> Transcript:
+    return Transcript(
+        call_id=call_id,
+        anchor_date=ANCHOR,
+        segments=segments,
+        asr_provider="fake",
+        asr_model_version="fake-1",
+        numeric_spans=spans or [],
+        quality=quality,
+    )
 
 
-def span(span_id: str, seg_id: str, w0: int, w1: int, readings: list[tuple[float, float]], *, second: float | None = None, agree: bool | None = None) -> NumericSpan:
+def span(
+    span_id: str,
+    seg_id: str,
+    w0: int,
+    w1: int,
+    readings: list[tuple[float, float]],
+    *,
+    second: float | None = None,
+    agree: bool | None = None,
+) -> NumericSpan:
     return NumericSpan(
-        span_id=span_id, segment_id=seg_id, kind="amount", word_start=w0, word_end=w1, surface="x",
+        span_id=span_id,
+        segment_id=seg_id,
+        kind="amount",
+        word_start=w0,
+        word_end=w1,
+        surface="x",
         readings=[Reading(value=v, weight=w) for v, w in readings],
         second_pass_reading=Reading(value=second, weight=1.0) if second is not None else None,
         second_pass_agreement=agree,
     )
 
 
-__all__ = ["ANCHOR", "CATALOG", "PROV", "ProfileBuilder", "ev", "money", "person_of", "point", "qty", "segment", "span", "transcript", "unit_for"]
+__all__ = [
+    "ANCHOR",
+    "CATALOG",
+    "PROV",
+    "ProfileBuilder",
+    "ev",
+    "money",
+    "person_of",
+    "point",
+    "qty",
+    "segment",
+    "span",
+    "transcript",
+    "unit_for",
+]

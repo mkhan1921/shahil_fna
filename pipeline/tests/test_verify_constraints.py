@@ -22,8 +22,13 @@ def test_registry_declares_every_kind_with_severity_and_weight():
         assert r.severity in ("hard", "soft")
         assert 0 < r.weight <= 1
         assert r.severity == "soft" or r.weight == 1.0
-    for rid in ("retirement_age_vs_current_age", "education_start_after_now", "core_expenses_vs_income",
-                "self_employed_without_business", "fund_balance_after_contributions"):
+    for rid in (
+        "retirement_age_vs_current_age",
+        "education_start_after_now",
+        "core_expenses_vs_income",
+        "self_employed_without_business",
+        "fund_balance_after_contributions",
+    ):
         assert rid in RULE_INDEX
 
 
@@ -130,8 +135,13 @@ def test_coherence_and_range_rules():
     b.add("goals[].targetYear", "goal.trip", point(2020, "date"))
     vs = check_constraints(b.build())
     found = {v.rule_id for v in vs}
-    assert {"spouse_without_partner", "regime_without_marriage", "savings_pot_within_fund", "planning_age_after_retirement",
-            "goal_year_not_past"} <= found
+    assert {
+        "spouse_without_partner",
+        "regime_without_marriage",
+        "savings_pot_within_fund",
+        "planning_age_after_retirement",
+        "goal_year_not_past",
+    } <= found
 
 
 def test_annotate_counts_soft_violations_and_resets_cleared_ones():

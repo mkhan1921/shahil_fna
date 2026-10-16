@@ -308,8 +308,9 @@ def _education_start_after_now(v: ProfileView) -> Found:
         start_id = fact_id_for("dependants[].tertiaryStartAge", eid)
         start = v.num(start_id)
         if start is not None and start < age - 0.5:
-            yield [start_id, fact_id_for("dependants[].dateOfBirth", eid)], (
-                f"tertiary study for {eid} would start at {start:g}, before the call (the child is {age:.0f})"
+            yield (
+                [start_id, fact_id_for("dependants[].dateOfBirth", eid)],
+                (f"tertiary study for {eid} would start at {start:g}, before the call (the child is {age:.0f})"),
             )
 
 
@@ -361,8 +362,9 @@ def _core_expenses_vs_income(v: ProfileView) -> Found:
     core = [(fid, x) for fid, x, essential in _expense_facts(v) if essential]
     total = sum(x for _, x in core)
     if core and total > BUDGET_RATIO * income:
-        yield [fid for fid, _ in core] + income_ids, (
-            f"core expenses {_fmt_money(total)} a month exceed {BUDGET_RATIO:g}× the household's {basis} income ({_fmt_money(income)})"
+        yield (
+            [fid for fid, _ in core] + income_ids,
+            (f"core expenses {_fmt_money(total)} a month exceed {BUDGET_RATIO:g}× the household's {basis} income ({_fmt_money(income)})"),
         )
 
 
@@ -373,7 +375,10 @@ def _expense_line_vs_income(v: ProfileView) -> Found:
     income, basis, income_ids = inc
     for fid, x, _ in _expense_facts(v):
         if x > income:
-            yield [fid] + income_ids, f"one expense line ({_fmt_money(x)} a month) exceeds the household's {basis} income ({_fmt_money(income)})"
+            yield (
+                [fid] + income_ids,
+                f"one expense line ({_fmt_money(x)} a month) exceeds the household's {basis} income ({_fmt_money(income)})",
+            )
 
 
 def _repayments_vs_income(v: ProfileView) -> Found:
@@ -381,7 +386,9 @@ def _repayments_vs_income(v: ProfileView) -> Found:
     if inc is None:
         return
     income, basis, income_ids = inc
-    reps = [(fid, x) for eid in v.entities("liabilities[]") for fid in [fact_id_for("liabilities[].monthlyRepayment", eid)] if (x := v.num(fid))]
+    reps = [
+        (fid, x) for eid in v.entities("liabilities[]") for fid in [fact_id_for("liabilities[].monthlyRepayment", eid)] if (x := v.num(fid))
+    ]
     total = sum(x for _, x in reps)
     if reps and total > income:
         yield [fid for fid, _ in reps] + income_ids, f"debt repayments {_fmt_money(total)} a month exceed the household's {basis} income"
@@ -397,7 +404,10 @@ def _contributions_vs_income(v: ProfileView) -> Found:
         ids = [fact_id_for("retirementFunds[].employeeMonthly", eid), fact_id_for("retirementFunds[].employerMonthly", eid)]
         contrib = sum(x for fid in ids if (x := v.num(fid)))
         if gross and contrib > gross:
-            yield [fid for fid in ids if v.num(fid)] + [gross_id], f"contributions to {eid} ({_fmt_money(contrib)}) exceed {_who(owner)}'s gross income"
+            yield (
+                [fid for fid in ids if v.num(fid)] + [gross_id],
+                f"contributions to {eid} ({_fmt_money(contrib)}) exceed {_who(owner)}'s gross income",
+            )
 
 
 def _has_business(v: ProfileView) -> bool:
@@ -499,31 +509,119 @@ def _amount_vs_prior_scale(v: ProfileView) -> Found:
 
 RULES: tuple[Rule, ...] = (
     # range
-    Rule("retirement_age_vs_current_age", "range", "hard", 1.0, "Retirement age ≥ current age (unless retired)", _retirement_age_vs_current_age),
+    Rule(
+        "retirement_age_vs_current_age",
+        "range",
+        "hard",
+        1.0,
+        "Retirement age ≥ current age (unless retired)",
+        _retirement_age_vs_current_age,
+    ),
     Rule("person_age_plausible", "range", "hard", 1.0, "A date of birth gives an age between 16 and 110", _person_age_plausible),
-    Rule("dependant_born_before_call", "range", "hard", 1.0, "A dependant is born before the call (or within a year of it)", _dependant_born_before_call),
+    Rule(
+        "dependant_born_before_call",
+        "range",
+        "hard",
+        1.0,
+        "A dependant is born before the call (or within a year of it)",
+        _dependant_born_before_call,
+    ),
     Rule("goal_year_not_past", "range", "hard", 1.0, "A goal's target year is not before the call", _goal_year_not_past),
     Rule("will_date_not_future", "range", "hard", 1.0, "A will is not dated after the call", _will_date_not_future),
     Rule("savings_pot_within_fund", "range", "hard", 1.0, "A two-pot savings pot is part of its fund's value", _savings_pot_within_fund),
     # ordering
     Rule("planning_age_after_retirement", "ordering", "hard", 1.0, "Planning age > retirement age", _planning_after_retirement),
-    Rule("education_start_after_now", "ordering", "hard", 1.0, "Education start year ≥ anchor year when the child is under 18", _education_start_after_now),
-    Rule("dependency_end_after_now", "ordering", "soft", 0.3, "A child's dependency does not end before their current age", _dependency_end_after_now),
-    Rule("benefit_to_age_after_now", "ordering", "soft", 0.3, "Income protection pays to an age above the life assured's current age", _benefit_to_age_after_now),
+    Rule(
+        "education_start_after_now",
+        "ordering",
+        "hard",
+        1.0,
+        "Education start year ≥ anchor year when the child is under 18",
+        _education_start_after_now,
+    ),
+    Rule(
+        "dependency_end_after_now",
+        "ordering",
+        "soft",
+        0.3,
+        "A child's dependency does not end before their current age",
+        _dependency_end_after_now,
+    ),
+    Rule(
+        "benefit_to_age_after_now",
+        "ordering",
+        "soft",
+        0.3,
+        "Income protection pays to an age above the life assured's current age",
+        _benefit_to_age_after_now,
+    ),
     # budget
     Rule("core_expenses_vs_income", "budget", "soft", 0.5, "Monthly core expenses ≤ 1.5 × monthly net income", _core_expenses_vs_income),
-    Rule("expense_line_vs_income", "budget", "soft", 0.5, "No single monthly expense exceeds total monthly income", _expense_line_vs_income),
+    Rule(
+        "expense_line_vs_income", "budget", "soft", 0.5, "No single monthly expense exceeds total monthly income", _expense_line_vs_income
+    ),
     Rule("repayments_vs_income", "budget", "soft", 0.3, "Debt repayments do not exceed monthly income", _repayments_vs_income),
-    Rule("contributions_vs_income", "budget", "soft", 0.5, "Retirement contributions do not exceed the owner's gross income", _contributions_vs_income),
+    Rule(
+        "contributions_vs_income",
+        "budget",
+        "soft",
+        0.5,
+        "Retirement contributions do not exceed the owner's gross income",
+        _contributions_vs_income,
+    ),
     # coherence
-    Rule("self_employed_without_business", "coherence", "soft", 0.3, "Self-employed with no business entity", _self_employed_without_business),
-    Rule("spouse_without_partner", "coherence", "soft", 0.5, "A spouse is included but the client is single, divorced or widowed", _spouse_without_partner),
-    Rule("regime_without_marriage", "coherence", "soft", 0.5, "A marital regime is recorded for someone not married", _regime_without_marriage),
-    Rule("spouse_items_without_spouse", "coherence", "soft", 0.5, "A spouse owns or is insured by an item, but there is no spouse", _spouse_items_without_spouse),
-    Rule("not_working_with_employer_contributions", "coherence", "soft", 0.3, "An employer contributes for someone not working", _not_working_with_employer_contributions),
+    Rule(
+        "self_employed_without_business", "coherence", "soft", 0.3, "Self-employed with no business entity", _self_employed_without_business
+    ),
+    Rule(
+        "spouse_without_partner",
+        "coherence",
+        "soft",
+        0.5,
+        "A spouse is included but the client is single, divorced or widowed",
+        _spouse_without_partner,
+    ),
+    Rule(
+        "regime_without_marriage",
+        "coherence",
+        "soft",
+        0.5,
+        "A marital regime is recorded for someone not married",
+        _regime_without_marriage,
+    ),
+    Rule(
+        "spouse_items_without_spouse",
+        "coherence",
+        "soft",
+        0.5,
+        "A spouse owns or is insured by an item, but there is no spouse",
+        _spouse_items_without_spouse,
+    ),
+    Rule(
+        "not_working_with_employer_contributions",
+        "coherence",
+        "soft",
+        0.3,
+        "An employer contributes for someone not working",
+        _not_working_with_employer_contributions,
+    ),
     # cross-slot
-    Rule("fund_balance_after_contributions", "cross_slot", "hard", 1.0, "Fund balance > 0 if contributions > 0 for more than 2 years", _fund_balance_after_contributions),
-    Rule("fund_balance_zero_with_contributions", "cross_slot", "soft", 0.3, "Fund balance > 0 when contributions are paid (fund age unknown)", _fund_balance_zero_with_contributions),
+    Rule(
+        "fund_balance_after_contributions",
+        "cross_slot",
+        "hard",
+        1.0,
+        "Fund balance > 0 if contributions > 0 for more than 2 years",
+        _fund_balance_after_contributions,
+    ),
+    Rule(
+        "fund_balance_zero_with_contributions",
+        "cross_slot",
+        "soft",
+        0.3,
+        "Fund balance > 0 when contributions are paid (fund age unknown)",
+        _fund_balance_zero_with_contributions,
+    ),
     Rule("amount_vs_prior_scale", "cross_slot", "soft", 0.5, "An amount 10× (or a tenth of) the prior FNA value", _amount_vs_prior_scale),
 )
 RULE_INDEX: dict[str, Rule] = {r.rule_id: r for r in RULES}

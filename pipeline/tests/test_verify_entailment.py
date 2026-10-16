@@ -31,21 +31,29 @@ from .verify_factories import ProfileBuilder, ev, money, point, segment, transcr
 
 def _profile():
     b = ProfileBuilder()
-    ra = b.add("retirement.{p}.retirementAge", "client", [(point(60, "age"), 0.6), (point(65, "age"), 0.4)],
-               evidence=[ev("s0002", "I want to retire at sixty")], interpretation="SECRET-INTERPRETATION", self_score=0.77)
+    ra = b.add(
+        "retirement.{p}.retirementAge",
+        "client",
+        [(point(60, "age"), 0.6), (point(65, "age"), 0.4)],
+        evidence=[ev("s0002", "I want to retire at sixty")],
+        interpretation="SECRET-INTERPRETATION",
+        self_score=0.77,
+    )
     inc = b.add("income.{p}.grossMonthly", "client", money(45000), evidence=[ev("s0004", "forty-five thousand a month")])
     occ = b.add("{p}.occupation", "client", point("engineer"), evidence=[ev("s0006", "I'm an engineer")])
     return b.build(), ra, inc, occ
 
 
 def _transcript():
-    return transcript([
-        segment("s0001", "So when do you want to stop working?", "advisor", t0=0),
-        segment("s0002", "I want to retire at sixty, my wife says sixty-five", t0=5, rewritten="The client wants to retire at sixty."),
-        segment("s0003", "And what do you earn?", "advisor", t0=12),
-        segment("s0004", "About forty-five thousand a month before tax", t0=15, confs=[0.9, 0.5, 0.9, 0.9, 0.9, 0.9, 0.9]),
-        segment("s0006", "I'm an engineer at Eskom", t0=25),
-    ])
+    return transcript(
+        [
+            segment("s0001", "So when do you want to stop working?", "advisor", t0=0),
+            segment("s0002", "I want to retire at sixty, my wife says sixty-five", t0=5, rewritten="The client wants to retire at sixty."),
+            segment("s0003", "And what do you earn?", "advisor", t0=12),
+            segment("s0004", "About forty-five thousand a month before tax", t0=15, confs=[0.9, 0.5, 0.9, 0.9, 0.9, 0.9, 0.9]),
+            segment("s0006", "I'm an engineer at Eskom", t0=25),
+        ]
+    )
 
 
 def _verdicts_from(rule):
@@ -115,7 +123,7 @@ async def test_a_contradicted_fact_with_a_prior_value_is_kept_for_review():
 
 def _tokens(text: str, split_value: str | None = None):
     """Tokenise JSON text roughly like a BPE tokenizer; optionally split one verdict value in two."""
-    toks = re.findall(r'\w+|[^\w\s]+|\s+', text)
+    toks = re.findall(r"\w+|[^\w\s]+|\s+", text)
     if split_value:
         out = []
         for t in toks:
@@ -140,8 +148,12 @@ async def test_entail_score_from_token_probabilities():
     p, ra, _, _ = _profile()
 
     def fn(messages, info: AgentInfo):
-        out = {"verdicts": [{"claim_id": "c0", "verdict": "entailed", "reason": "said sixty"},
-                            {"claim_id": "c1", "verdict": "neutral", "reason": "the wife said it"}]}
+        out = {
+            "verdicts": [
+                {"claim_id": "c0", "verdict": "entailed", "reason": "said sixty"},
+                {"claim_id": "c1", "verdict": "neutral", "reason": "the wife said it"},
+            ]
+        }
         text = json.dumps(out)
         toks = _tokens(text, split_value="entailed")
         i_ent = toks.index("ent")
@@ -159,8 +171,11 @@ async def test_entail_score_from_token_probabilities():
 
 def test_label_probabilities_handle_merged_tokens_and_missing_alternatives():
     # the opening quote and the start of the label share one token
-    toks = [('{"verdicts":[{"claim_id":"c0","verdict', 0.0, []), ('":"ent', math.log(0.7), [('":"ent', math.log(0.7)), ('":"contr', math.log(0.2)),
-            ('":"neutral', math.log(0.1))]), ('ailed","reason":"x"}]}', 0.0, [])]
+    toks = [
+        ('{"verdicts":[{"claim_id":"c0","verdict', 0.0, []),
+        ('":"ent', math.log(0.7), [('":"ent', math.log(0.7)), ('":"contr', math.log(0.2)), ('":"neutral', math.log(0.1))]),
+        ('ailed","reason":"x"}]}', 0.0, []),
+    ]
     probs = label_probabilities(toks)
     assert probs[0] == pytest.approx({"entailed": 0.7, "neutral": 0.1, "contradicted": 0.2})
     # no alternatives: the chosen token's probability, the rest split evenly
@@ -171,12 +186,23 @@ def test_label_probabilities_handle_merged_tokens_and_missing_alternatives():
 def test_token_logprobs_reads_openai_responses_and_gemini_shapes():
     chat = ModelResponse(parts=[TextPart("x")], provider_details={"logprobs": [{"token": "a", "logprob": -0.1, "top_logprobs": []}]})
     assert token_logprobs(chat) == [("a", -0.1, [])]
-    responses = ModelResponse(parts=[TextPart("x", provider_details={"logprobs": [{"token": "b", "logprob": -0.2, "top_logprobs": [{"token": "c", "logprob": -2.0}]}]})])
+    responses = ModelResponse(
+        parts=[
+            TextPart(
+                "x", provider_details={"logprobs": [{"token": "b", "logprob": -0.2, "top_logprobs": [{"token": "c", "logprob": -2.0}]}]}
+            )
+        ]
+    )
     assert token_logprobs(responses) == [("b", -0.2, [("c", -2.0)])]
-    gemini = ModelResponse(parts=[TextPart("x")], provider_details={"logprobs": {
-        "chosen_candidates": [{"token": "d", "log_probability": -0.3}],
-        "top_candidates": [{"candidates": [{"token": "d", "log_probability": -0.3}, {"token": "e", "log_probability": -1.5}]}],
-    }})
+    gemini = ModelResponse(
+        parts=[TextPart("x")],
+        provider_details={
+            "logprobs": {
+                "chosen_candidates": [{"token": "d", "log_probability": -0.3}],
+                "top_candidates": [{"candidates": [{"token": "d", "log_probability": -0.3}, {"token": "e", "log_probability": -1.5}]}],
+            }
+        },
+    )
     assert token_logprobs(gemini) == [("d", -0.3, [("d", -0.3), ("e", -1.5)])]
     assert token_logprobs(ModelResponse(parts=[TextPart("x")])) is None
 
@@ -247,13 +273,29 @@ async def test_minicheck_client_reads_yes_probability_from_vllm():
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         seen["url"], seen["body"] = str(request.url), body
-        top = [{"token": "Yes", "logprob": math.log(0.8)}, {"token": "No", "logprob": math.log(0.15)}, {"token": "The", "logprob": math.log(0.05)}]
-        return httpx.Response(200, json={"choices": [{"message": {"content": "Yes"}, "logprobs": {"content": [{"token": "Yes", "logprob": math.log(0.8), "top_logprobs": top}]}}]})
+        top = [
+            {"token": "Yes", "logprob": math.log(0.8)},
+            {"token": "No", "logprob": math.log(0.15)},
+            {"token": "The", "logprob": math.log(0.05)},
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {"content": "Yes"},
+                        "logprobs": {"content": [{"token": "Yes", "logprob": math.log(0.8), "top_logprobs": top}]},
+                    }
+                ]
+            },
+        )
 
     client = MiniCheckClient("http://vllm:8000/v1", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
     scores = await client.score([("client_primary: I want to retire at sixty", "The client's target retirement age is 60.")])
     assert scores == [pytest.approx(0.8 / 0.95)]
     assert seen["url"] == "http://vllm:8000/v1/chat/completions"
-    assert seen["body"]["max_tokens"] == 1 and seen["body"]["logprobs"] is True and seen["body"]["model"] == "bespokelabs/Bespoke-MiniCheck-7B"
+    assert (
+        seen["body"]["max_tokens"] == 1 and seen["body"]["logprobs"] is True and seen["body"]["model"] == "bespokelabs/Bespoke-MiniCheck-7B"
+    )
     assert "Claim: The client's target retirement age is 60." in seen["body"]["messages"][1]["content"]
     assert yes_probability({"message": {"content": "No"}}) == 0.0
