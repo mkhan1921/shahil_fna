@@ -1,0 +1,549 @@
+# Vagueness lexicon (spec §8.2): hedges and vague expressions → priors.
+#
+# Loaded once per run and pinned in Provenance.lexicon_version. Entries marked "seed" are the spec's
+# §8.2 values, kept exactly; the rest extend them to South African adviser–client speech, English and
+# Afrikaans. They are defensible starting points, not truth: the nightly propose_lexicon_fit (§11.4)
+# re-fits any key with >= 20 advisor edits and opens a pull request, and CI runs the golden cases in
+# tests/lexicon_cases.yaml (§8.4). Keep one entry per line so a re-fit is a one-line diff.
+#
+# Keys are matched after canonicalisation (case, accents, punctuation, hyphens, "60s" → "sixties"),
+# so write them in plain lower case. A phrase that misses every key falls back to the nearest key with
+# embedding similarity >= params.near_miss_threshold (flag lexicon_near_miss), else to the slot's
+# population prior (flag lexicon_miss); both are logged for the weekly lexicon review (§8.3).
+version: "1.3"
+
+params:
+  near_miss_threshold: 0.8           # §8.3: nearest lexicon key with similarity >= 0.8 supplies a provisional prior
+  range_widen_rel: 0.05              # §8.3: AMOUNT_RANGE widened 5% each side
+  age_range_widen_years: 0.5         # an age range "60 to 65" is widened half a year each side
+  hedge_default_strength: 0.5        # a hedge term not in hedge_strength
+  approx_default: {dist: triangular, rel_halfwidth: 0.15}       # an approx word not in approx_words: the number stands
+  likelihood_default: {mean: 0.5, low: 0.3, high: 0.7}         # a likelihood word not in likelihood_words, no prior
+  certainty_default: {boolean: 0.97, category: 1.0, unknown_word: 0.75}   # §8.3: BOOLEAN p = 0.97 with no certainty word
+
+approx_words:    # spread around a stated value: relative half-width, or relative (low, mode, high) offsets
+  "exactly": {dist: point}                                        # seed
+  "about": {dist: triangular, rel_halfwidth: 0.10}                # seed
+  "roughly": {dist: triangular, rel_halfwidth: 0.15}              # seed
+  "ballpark": {dist: triangular, rel_halfwidth: 0.25}             # seed
+  "give or take": {dist: triangular, rel_halfwidth: 0.10}         # seed
+  "precisely": {dist: point}
+  "on the dot": {dist: point}
+  "around": {dist: triangular, rel_halfwidth: 0.10}
+  "approximately": {dist: triangular, rel_halfwidth: 0.10}
+  "approx": {dist: triangular, rel_halfwidth: 0.10}
+  "more or less": {dist: triangular, rel_halfwidth: 0.10}
+  "round about": {dist: triangular, rel_halfwidth: 0.10}
+  "roundabout": {dist: triangular, rel_halfwidth: 0.10}
+  "in the region of": {dist: triangular, rel_halfwidth: 0.15}
+  "in the ballpark of": {dist: triangular, rel_halfwidth: 0.25}
+  "somewhere around": {dist: triangular, rel_halfwidth: 0.15}
+  "something like": {dist: triangular, rel_halfwidth: 0.15}
+  "or so": {dist: triangular, rel_halfwidth: 0.15}
+  "or thereabouts": {dist: triangular, rel_halfwidth: 0.15}
+  "ish": {dist: triangular, rel_halfwidth: 0.10}
+  "plus minus": {dist: triangular, rel_halfwidth: 0.10}           # SA: "plus-minus fifty thousand"
+  "plus or minus": {dist: triangular, rel_halfwidth: 0.10}
+  "say": {dist: triangular, rel_halfwidth: 0.15}
+  "lets say": {dist: triangular, rel_halfwidth: 0.15}
+  "call it": {dist: triangular, rel_halfwidth: 0.10}
+  "at a guess": {dist: triangular, rel_halfwidth: 0.20}
+  "if i had to guess": {dist: triangular, rel_halfwidth: 0.25}
+  "maybe": {dist: triangular, rel_halfwidth: 0.20}
+  "probably": {dist: triangular, rel_halfwidth: 0.15}
+  "i think": {dist: triangular, rel_halfwidth: 0.10}
+  "about that": {dist: triangular, rel_halfwidth: 0.10}
+  "just under": {dist: triangular, rel_low: -0.08, rel_mode: -0.03, rel_high: 0.0}
+  "just below": {dist: triangular, rel_low: -0.08, rel_mode: -0.03, rel_high: 0.0}
+  "just over": {dist: triangular, rel_low: 0.0, rel_mode: 0.03, rel_high: 0.08}
+  "just above": {dist: triangular, rel_low: 0.0, rel_mode: 0.03, rel_high: 0.08}
+  "a bit over": {dist: triangular, rel_low: 0.0, rel_mode: 0.05, rel_high: 0.15}
+  "a little over": {dist: triangular, rel_low: 0.0, rel_mode: 0.05, rel_high: 0.15}
+  "a bit under": {dist: triangular, rel_low: -0.15, rel_mode: -0.05, rel_high: 0.0}
+  "a little under": {dist: triangular, rel_low: -0.15, rel_mode: -0.05, rel_high: 0.0}
+  "well over": {dist: triangular, rel_low: 0.05, rel_mode: 0.15, rel_high: 0.40}
+  "well under": {dist: triangular, rel_low: -0.40, rel_mode: -0.15, rel_high: -0.05}
+  "close to": {dist: triangular, rel_low: -0.10, rel_mode: -0.03, rel_high: 0.02}
+  "nearly": {dist: triangular, rel_low: -0.10, rel_mode: -0.03, rel_high: 0.0}
+  "almost": {dist: triangular, rel_low: -0.10, rel_mode: -0.03, rel_high: 0.0}
+  "getting on for": {dist: triangular, rel_low: -0.12, rel_mode: -0.05, rel_high: 0.0}
+  "not quite": {dist: triangular, rel_low: -0.10, rel_mode: -0.04, rel_high: 0.0}
+  "upwards of": {dist: triangular, rel_low: 0.0, rel_mode: 0.10, rel_high: 0.40}
+  "north of": {dist: triangular, rel_low: 0.0, rel_mode: 0.08, rel_high: 0.30}
+  "south of": {dist: triangular, rel_low: -0.30, rel_mode: -0.08, rel_high: 0.0}
+  "odd": {dist: triangular, rel_low: 0.0, rel_mode: 0.05, rel_high: 0.18}        # "forty-odd thousand"
+  "plus": {dist: triangular, rel_low: 0.0, rel_mode: 0.05, rel_high: 0.30}       # "fifty K plus"
+  "and change": {dist: triangular, rel_low: 0.0, rel_mode: 0.02, rel_high: 0.08}
+  "omtrent": {dist: triangular, rel_halfwidth: 0.10}              # Afr. about
+  "ongeveer": {dist: triangular, rel_halfwidth: 0.10}             # Afr. approximately
+  "sowat": {dist: triangular, rel_halfwidth: 0.10}                # Afr. about
+  "rondom": {dist: triangular, rel_halfwidth: 0.10}               # Afr. around
+  "naastenby": {dist: triangular, rel_halfwidth: 0.15}            # Afr. roughly
+  "amper": {dist: triangular, rel_low: -0.10, rel_mode: -0.03, rel_high: 0.0}    # Afr. almost
+  "byna": {dist: triangular, rel_low: -0.10, rel_mode: -0.03, rel_high: 0.0}     # Afr. nearly
+  "net onder": {dist: triangular, rel_low: -0.08, rel_mode: -0.03, rel_high: 0.0}  # Afr. just under
+  "net oor": {dist: triangular, rel_low: 0.0, rel_mode: 0.03, rel_high: 0.08}     # Afr. just over
+  "net bo": {dist: triangular, rel_low: 0.0, rel_mode: 0.03, rel_high: 0.08}      # Afr. just above
+  "presies": {dist: point}                                         # Afr. exactly
+
+vague_counts:    # a distribution over a count multiplier: items, years, or the head of a vague amount
+  "a couple": {dist: discrete, support: [2, 3], weights: [0.75, 0.25]}   # seed
+  "a few": {dist: triangular, low: 2, mode: 3, high: 5}                   # seed
+  "several": {dist: triangular, low: 3, mode: 5, high: 8}                 # seed
+  "a few hundred": {dist: triangular, low: 200, mode: 300, high: 500}     # seed
+  "one or two": {dist: discrete, support: [1, 2], weights: [0.5, 0.5]}
+  "two or three": {dist: discrete, support: [2, 3], weights: [0.5, 0.5]}
+  "three or four": {dist: discrete, support: [3, 4], weights: [0.5, 0.5]}
+  "four or five": {dist: discrete, support: [4, 5], weights: [0.5, 0.5]}
+  "five or six": {dist: discrete, support: [5, 6], weights: [0.5, 0.5]}
+  "a handful": {dist: triangular, low: 3, mode: 4, high: 6}
+  "a dozen": {dist: triangular, low: 10, mode: 12, high: 14}
+  "a dozen or so": {dist: triangular, low: 10, mode: 12, high: 16}
+  "a number of": {dist: triangular, low: 2, mode: 4, high: 8}
+  "quite a few": {dist: triangular, low: 4, mode: 6, high: 10}
+  "a good few": {dist: triangular, low: 4, mode: 6, high: 10}
+  "some": {dist: triangular, low: 2, mode: 3, high: 6}
+  "many": {dist: triangular, low: 5, mode: 10, high: 20}
+  "lots": {dist: triangular, low: 5, mode: 10, high: 20}
+  "a year or two": {dist: discrete, support: [1, 2], weights: [0.5, 0.5]}
+  "a year or so": {dist: triangular, low: 0.75, mode: 1, high: 1.5}
+  "a decade": {dist: triangular, low: 9, mode: 10, high: 11}
+  "a decade or so": {dist: triangular, low: 8, mode: 10, high: 13}
+  "a while": {dist: triangular, low: 1, mode: 3, high: 6}
+  "soon": {dist: triangular, low: 0.25, mode: 1, high: 2}
+  "n paar": {dist: triangular, low: 2, mode: 3, high: 5}                  # Afr. a few
+  "n hele paar": {dist: triangular, low: 4, mode: 6, high: 10}            # Afr. quite a few
+  "n klompie": {dist: triangular, low: 3, mode: 4, high: 6}               # Afr. a handful
+  "baie": {dist: triangular, low: 5, mode: 10, high: 20}                  # Afr. many
+  "n jaar of twee": {dist: discrete, support: [1, 2], weights: [0.5, 0.5]}   # Afr. a year or two
+
+vague_amounts:   # whole phrases in currency units; anything else is read as <vague count> × <scale words>
+  "six figures": {dist: lognormal, median: 250000, p10: 104167, p90: 600000}       # lognormals are symmetric in log space
+  "low six figures": {dist: triangular, low: 100000, mode: 150000, high: 300000}
+  "high six figures": {dist: triangular, low: 600000, mode: 800000, high: 999999}
+  "seven figures": {dist: lognormal, median: 2500000, p10: 1041667, p90: 6000000}
+  "tens of thousands": {dist: triangular, low: 20000, mode: 40000, high: 90000}
+  "hundreds of thousands": {dist: triangular, low: 200000, mode: 400000, high: 900000}
+  "millions": {dist: triangular, low: 2000000, mode: 3000000, high: 9000000}
+  "a few bob": {dist: triangular, low: 500, mode: 2000, high: 10000}
+  "a few rand": {dist: triangular, low: 50, mode: 300, high: 1000}
+  "duisende": {dist: triangular, low: 2000, mode: 5000, high: 20000}      # Afr. thousands
+
+scale_words:     # multipliers for spoken amounts; the §5.3 amount grammar uses the same table
+  "bar": 1000           # seed
+  "k": 1000             # seed
+  "mil": 1000000        # seed
+  "million": 1000000    # seed
+  "thousand": 1000
+  "grand": 1000
+  "hundred": 100
+  "hundred thousand": 100000
+  "hundred k": 100000
+  "m": 1000000
+  "mill": 1000000
+  "billion": 1000000000
+  "bn": 1000000000
+  "half a bar": 500
+  "a bar and a half": 1500
+  "half a mil": 500000
+  "half a million": 500000
+  "a million and a half": 1500000
+  "a mil and a half": 1500000
+  "quarter of a million": 250000
+  "quarter mil": 250000
+  "honderd": 100        # Afr.
+  "duisend": 1000       # Afr.
+  "miljoen": 1000000    # Afr.
+
+age_bands:       # ages as spoken; decades follow the seed shape (early D: D..D+3.5, mid: D+3..D+7, late: D+7..D+9.9)
+  "early sixties": {dist: triangular, low: 60, mode: 61.5, high: 63.5}   # seed
+  "mid sixties": {dist: triangular, low: 63, mode: 65, high: 67}         # seed
+  "late fifties": {dist: triangular, low: 57, mode: 58.5, high: 59.9}    # seed
+  "early teens": {dist: triangular, low: 13, mode: 13.5, high: 14.9}
+  "mid teens": {dist: triangular, low: 14, mode: 15, high: 16.5}
+  "late teens": {dist: triangular, low: 17, mode: 18, high: 19.9}
+  "teens": {dist: triangular, low: 13, mode: 16, high: 19.9}
+  "early twenties": {dist: triangular, low: 20, mode: 21.5, high: 23.5}
+  "mid twenties": {dist: triangular, low: 23, mode: 25, high: 27}
+  "late twenties": {dist: triangular, low: 27, mode: 28.5, high: 29.9}
+  "twenties": {dist: triangular, low: 20, mode: 25, high: 29.9}
+  "early thirties": {dist: triangular, low: 30, mode: 31.5, high: 33.5}
+  "mid thirties": {dist: triangular, low: 33, mode: 35, high: 37}
+  "late thirties": {dist: triangular, low: 37, mode: 38.5, high: 39.9}
+  "thirties": {dist: triangular, low: 30, mode: 35, high: 39.9}
+  "early forties": {dist: triangular, low: 40, mode: 41.5, high: 43.5}
+  "mid forties": {dist: triangular, low: 43, mode: 45, high: 47}
+  "late forties": {dist: triangular, low: 47, mode: 48.5, high: 49.9}
+  "forties": {dist: triangular, low: 40, mode: 45, high: 49.9}
+  "early fifties": {dist: triangular, low: 50, mode: 51.5, high: 53.5}
+  "mid fifties": {dist: triangular, low: 53, mode: 55, high: 57}
+  "fifties": {dist: triangular, low: 50, mode: 55, high: 59.9}
+  "late sixties": {dist: triangular, low: 67, mode: 68.5, high: 69.9}
+  "sixties": {dist: triangular, low: 60, mode: 65, high: 69.9}
+  "early seventies": {dist: triangular, low: 70, mode: 71.5, high: 73.5}
+  "mid seventies": {dist: triangular, low: 73, mode: 75, high: 77}
+  "late seventies": {dist: triangular, low: 77, mode: 78.5, high: 79.9}
+  "seventies": {dist: triangular, low: 70, mode: 75, high: 79.9}
+  "early eighties": {dist: triangular, low: 80, mode: 81.5, high: 83.5}
+  "mid eighties": {dist: triangular, low: 83, mode: 85, high: 87}
+  "late eighties": {dist: triangular, low: 87, mode: 88.5, high: 89.9}
+  "eighties": {dist: triangular, low: 80, mode: 85, high: 89.9}
+  "early nineties": {dist: triangular, low: 90, mode: 91.5, high: 93.5}
+  "nineties": {dist: triangular, low: 90, mode: 94, high: 99.9}
+  "after matric": {dist: triangular, low: 17, mode: 18, high: 19}        # §7.6: 18 after matric, ±1 year
+  "after school": {dist: triangular, low: 17, mode: 18, high: 19}
+  "straight after school": {dist: triangular, low: 17.5, mode: 18, high: 18.5}
+  "after a gap year": {dist: triangular, low: 18, mode: 19, high: 20}
+  "matric": {dist: triangular, low: 17.5, mode: 18, high: 18.5}
+  "grade r": {dist: triangular, low: 5.5, mode: 6, high: 6.5}            # §7.6: grade + 6 = age
+  "pension age": {dist: triangular, low: 60, mode: 65, high: 65}
+  "normal retirement age": {dist: triangular, low: 60, mode: 65, high: 65}
+
+age_offsets:     # templates around a stated age {n}: the age is n + (low, mode, high) years
+  "turning {n}": {dist: point}
+  "turn {n}": {dist: point}
+  "when i turn {n}": {dist: point}
+  "about {n}": {dist: triangular, low: -2, mode: 0, high: 2}
+  "around {n}": {dist: triangular, low: -2, mode: 0, high: 2}
+  "roughly {n}": {dist: triangular, low: -3, mode: 0, high: 3}
+  "more or less {n}": {dist: triangular, low: -2, mode: 0, high: 2}
+  "{n} ish": {dist: triangular, low: -2, mode: 0, high: 2}
+  "{n} or so": {dist: triangular, low: -2, mode: 0, high: 3}
+  "{n} odd": {dist: triangular, low: 0, mode: 2, high: 6}
+  "plus minus {n}": {dist: triangular, low: -2, mode: 0, high: 2}
+  "before {n}": {dist: triangular, low: -5, mode: -1.5, high: 0}
+  "by {n}": {dist: triangular, low: -3, mode: -0.5, high: 0}
+  "no later than {n}": {dist: triangular, low: -3, mode: -0.5, high: 0}
+  "under {n}": {dist: triangular, low: -5, mode: -1.5, high: 0}
+  "just under {n}": {dist: triangular, low: -1.5, mode: -0.5, high: 0}
+  "almost {n}": {dist: triangular, low: -1, mode: -0.5, high: 0}
+  "nearly {n}": {dist: triangular, low: -1, mode: -0.5, high: 0}
+  "after {n}": {dist: triangular, low: 0, mode: 1.5, high: 5}
+  "over {n}": {dist: triangular, low: 0, mode: 1.5, high: 5}
+  "just over {n}": {dist: triangular, low: 0, mode: 0.5, high: 1.5}
+  "at least {n}": {dist: triangular, low: 0, mode: 1, high: 5}
+  "{n} at the latest": {dist: triangular, low: -3, mode: -0.5, high: 0}
+  "{n} at the earliest": {dist: triangular, low: 0, mode: 0.5, high: 3}
+  "grade {n}": {dist: triangular, low: 5.5, mode: 6, high: 6.5}         # §7.6: grade + 6 = age
+  "omtrent {n}": {dist: triangular, low: -2, mode: 0, high: 2}          # Afr. about
+  "sowat {n}": {dist: triangular, low: -2, mode: 0, high: 2}            # Afr. about
+  "amper {n}": {dist: triangular, low: -1, mode: -0.5, high: 0}         # Afr. almost
+  "voor {n}": {dist: triangular, low: -5, mode: -1.5, high: 0}          # Afr. before
+  "na {n}": {dist: triangular, low: 0, mode: 1.5, high: 5}              # Afr. after
+
+relative_words:  # multiplier on the reference slot's value
+  "about the same": {dist: triangular, low: 0.9, mode: 1.0, high: 1.1}    # seed
+  "a bit less": {dist: triangular, low: 0.75, mode: 0.88, high: 0.97}     # seed
+  "a lot less": {dist: triangular, low: 0.4, mode: 0.6, high: 0.8}        # seed
+  "a bit more": {dist: triangular, low: 1.03, mode: 1.12, high: 1.25}     # seed
+  "exactly the same": {dist: point, value: 1.0}
+  "the same": {dist: triangular, low: 0.95, mode: 1.0, high: 1.05}
+  "the same as now": {dist: triangular, low: 0.95, mode: 1.0, high: 1.05}
+  "similar": {dist: triangular, low: 0.9, mode: 1.0, high: 1.1}
+  "roughly the same": {dist: triangular, low: 0.88, mode: 1.0, high: 1.12}
+  "more or less the same": {dist: triangular, low: 0.9, mode: 1.0, high: 1.1}
+  "a little less": {dist: triangular, low: 0.8, mode: 0.9, high: 0.98}
+  "slightly less": {dist: triangular, low: 0.85, mode: 0.93, high: 0.99}
+  "somewhat less": {dist: triangular, low: 0.75, mode: 0.85, high: 0.95}
+  "less": {dist: triangular, low: 0.6, mode: 0.8, high: 0.95}
+  "much less": {dist: triangular, low: 0.4, mode: 0.6, high: 0.8}
+  "a little more": {dist: triangular, low: 1.02, mode: 1.1, high: 1.2}
+  "slightly more": {dist: triangular, low: 1.01, mode: 1.07, high: 1.15}
+  "somewhat more": {dist: triangular, low: 1.05, mode: 1.15, high: 1.25}
+  "more": {dist: triangular, low: 1.05, mode: 1.2, high: 1.5}
+  "a lot more": {dist: triangular, low: 1.25, mode: 1.5, high: 2.0}
+  "much more": {dist: triangular, low: 1.25, mode: 1.5, high: 2.0}
+  "half": {dist: triangular, low: 0.45, mode: 0.5, high: 0.55}
+  "about half": {dist: triangular, low: 0.4, mode: 0.5, high: 0.6}
+  "a third": {dist: triangular, low: 0.3, mode: 0.33, high: 0.37}
+  "two thirds": {dist: triangular, low: 0.6, mode: 0.67, high: 0.72}
+  "three quarters": {dist: triangular, low: 0.7, mode: 0.75, high: 0.8}
+  "double": {dist: triangular, low: 1.9, mode: 2.0, high: 2.1}
+  "twice as much": {dist: triangular, low: 1.9, mode: 2.0, high: 2.1}
+  "dieselfde": {dist: triangular, low: 0.95, mode: 1.0, high: 1.05}             # Afr. the same
+  "omtrent dieselfde": {dist: triangular, low: 0.9, mode: 1.0, high: 1.1}       # Afr. about the same
+  "n bietjie minder": {dist: triangular, low: 0.75, mode: 0.88, high: 0.97}     # Afr. a bit less
+  "n bietjie meer": {dist: triangular, low: 1.03, mode: 1.12, high: 1.25}       # Afr. a bit more
+  "baie minder": {dist: triangular, low: 0.4, mode: 0.6, high: 0.8}             # Afr. a lot less
+  "baie meer": {dist: triangular, low: 1.25, mode: 1.5, high: 2.0}              # Afr. a lot more
+  "minder": {dist: triangular, low: 0.6, mode: 0.8, high: 0.95}                 # Afr. less
+
+rate_words:      # annual real rates
+  "flat": {dist: normal, mean: 0.0, sd: 0.02}             # seed
+  "growing a bit": {dist: normal, mean: 0.03, sd: 0.03}   # seed
+  "growing well": {dist: normal, mean: 0.08, sd: 0.05}    # seed
+  "struggling": {dist: normal, mean: -0.05, sd: 0.05}     # seed
+  "stable": {dist: normal, mean: 0.0, sd: 0.02}
+  "steady": {dist: normal, mean: 0.01, sd: 0.02}
+  "keeping up with inflation": {dist: normal, mean: 0.0, sd: 0.015}
+  "in line with inflation": {dist: normal, mean: 0.0, sd: 0.015}
+  "with inflation": {dist: normal, mean: 0.0, sd: 0.015}
+  "above inflation": {dist: normal, mean: 0.02, sd: 0.02}
+  "below inflation": {dist: normal, mean: -0.02, sd: 0.02}
+  "growing slowly": {dist: normal, mean: 0.02, sd: 0.02}
+  "growing": {dist: normal, mean: 0.04, sd: 0.04}
+  "growing fast": {dist: normal, mean: 0.12, sd: 0.07}
+  "booming": {dist: normal, mean: 0.15, sd: 0.08}
+  "doing well": {dist: normal, mean: 0.06, sd: 0.05}
+  "doing ok": {dist: normal, mean: 0.02, sd: 0.03}
+  "tough": {dist: normal, mean: -0.03, sd: 0.05}
+  "battling": {dist: normal, mean: -0.04, sd: 0.05}
+  "declining": {dist: normal, mean: -0.04, sd: 0.04}
+  "shrinking": {dist: normal, mean: -0.05, sd: 0.05}
+  "going down": {dist: normal, mean: -0.04, sd: 0.04}
+  "sukkel": {dist: normal, mean: -0.05, sd: 0.05}          # Afr. struggling
+  "groei": {dist: normal, mean: 0.04, sd: 0.04}            # Afr. growing
+
+rate_templates:  # a stated real rate around inflation, "{n}" percentage points: Normal(n/100, sd)
+  "inflation plus {n}": {sd: 0.01}
+  "cpi plus {n}": {sd: 0.01}
+  "inflation plus {n} percent": {sd: 0.01}
+  "cpi plus {n} percent": {sd: 0.01}
+
+likelihood_words:  # P(event) as a Beta for review display (mean, p10 low, p90 high); sampled as Bernoulli(mean)
+  "definitely": {mean: 0.95, low: 0.9, high: 0.99}      # seed
+  "probably": {mean: 0.70, low: 0.6, high: 0.8}         # seed
+  "might": {mean: 0.40, low: 0.25, high: 0.55}          # seed
+  "maybe": {mean: 0.35, low: 0.2, high: 0.5}            # seed
+  "unlikely": {mean: 0.15, low: 0.05, high: 0.25}       # seed
+  "thinking of": {mean: 0.55, low: 0.4, high: 0.7}      # seed
+  "certainly": {mean: 0.95, low: 0.9, high: 0.99}
+  "for sure": {mean: 0.95, low: 0.9, high: 0.99}
+  "almost certainly": {mean: 0.92, low: 0.85, high: 0.97}
+  "will": {mean: 0.85, low: 0.75, high: 0.93}
+  "going to": {mean: 0.8, low: 0.7, high: 0.9}
+  "most likely": {mean: 0.8, low: 0.7, high: 0.9}
+  "very likely": {mean: 0.85, low: 0.75, high: 0.93}
+  "likely": {mean: 0.7, low: 0.6, high: 0.8}
+  "planning to": {mean: 0.75, low: 0.6, high: 0.88}
+  "intend to": {mean: 0.75, low: 0.6, high: 0.88}
+  "want to": {mean: 0.6, low: 0.45, high: 0.75}
+  "would like to": {mean: 0.5, low: 0.35, high: 0.65}
+  "hoping to": {mean: 0.5, low: 0.35, high: 0.65}
+  "thinking about": {mean: 0.5, low: 0.35, high: 0.65}
+  "considering": {mean: 0.45, low: 0.3, high: 0.6}
+  "fifty fifty": {mean: 0.5, low: 0.4, high: 0.6}
+  "50 50": {mean: 0.5, low: 0.4, high: 0.6}
+  "not sure": {mean: 0.45, low: 0.3, high: 0.6}
+  "may": {mean: 0.4, low: 0.25, high: 0.55}
+  "could": {mean: 0.35, low: 0.2, high: 0.5}
+  "possibly": {mean: 0.35, low: 0.2, high: 0.5}
+  "perhaps": {mean: 0.35, low: 0.2, high: 0.5}
+  "toying with": {mean: 0.3, low: 0.15, high: 0.45}
+  "probably not": {mean: 0.25, low: 0.15, high: 0.35}
+  "doubt it": {mean: 0.15, low: 0.05, high: 0.25}
+  "very unlikely": {mean: 0.07, low: 0.02, high: 0.15}
+  "highly unlikely": {mean: 0.07, low: 0.02, high: 0.15}
+  "no chance": {mean: 0.03, low: 0.01, high: 0.08}
+  "never": {mean: 0.03, low: 0.01, high: 0.08}
+  "beslis": {mean: 0.95, low: 0.9, high: 0.99}          # Afr. definitely
+  "waarskynlik": {mean: 0.70, low: 0.6, high: 0.8}      # Afr. probably
+  "dalk": {mean: 0.35, low: 0.2, high: 0.5}             # Afr. maybe
+  "miskien": {mean: 0.35, low: 0.2, high: 0.5}          # Afr. perhaps
+  "onwaarskynlik": {mean: 0.15, low: 0.05, high: 0.25}  # Afr. unlikely
+
+hedge_strength:  # feature for calibration, 0 (certain) .. 1 (pure speculation)
+  "definitely": 0.0     # seed
+  "i think": 0.3        # seed
+  "probably": 0.3       # seed
+  "thinking of": 0.5    # seed
+  "maybe": 0.6          # seed
+  "might": 0.6          # seed
+  "no idea": 1.0        # seed
+  "certainly": 0.0
+  "for sure": 0.0
+  "exactly": 0.0
+  "absolutely": 0.0
+  "im sure": 0.1
+  "im pretty sure": 0.2
+  "im fairly sure": 0.2
+  "i believe": 0.25
+  "about": 0.2
+  "around": 0.2
+  "roughly": 0.25
+  "more or less": 0.25
+  "give or take": 0.25
+  "something like": 0.35
+  "ballpark": 0.4
+  "ish": 0.3
+  "i reckon": 0.35
+  "if i remember correctly": 0.35
+  "off the top of my head": 0.4
+  "i guess": 0.45
+  "i suppose": 0.45
+  "kind of": 0.4
+  "sort of": 0.4
+  "hopefully": 0.5
+  "hoping": 0.5
+  "thinking about": 0.5
+  "dont quote me": 0.5
+  "id have to check": 0.5
+  "possibly": 0.6
+  "perhaps": 0.6
+  "could be": 0.6
+  "not sure": 0.7
+  "im not sure": 0.7
+  "unlikely": 0.5
+  "havent decided": 0.8
+  "no clue": 1.0
+  "dont know": 1.0
+  "ek dink": 0.3        # Afr. I think
+  "seker": 0.3          # Afr. surely / probably
+  "dalk": 0.6           # Afr. maybe
+  "miskien": 0.6        # Afr. perhaps
+  "omtrent": 0.2        # Afr. about
+  "weet nie": 1.0       # Afr. don't know
+
+certainty_words: # P(the stated category / yes-no answer is right); a category's remainder goes to adjacent levels (§8.3)
+  "fairly": 0.6         # §8.3: "fairly conservative" → 0.6 on the named level, 0.4 across the adjacent levels
+  "probably": 0.70      # = likelihood_words.probably mean (§8.3 BOOLEAN rule)
+  "definitely": 0.99
+  "certainly": 0.99
+  "absolutely": 0.99
+  "for sure": 0.98
+  "of course": 0.98
+  "im sure": 0.95
+  "pretty sure": 0.85
+  "fairly sure": 0.85
+  "i believe": 0.85
+  "very": 0.9
+  "i think": 0.75
+  "i dont think": 0.75
+  "if i remember correctly": 0.7
+  "i reckon": 0.7
+  "more or less": 0.65
+  "quite": 0.6
+  "somewhat": 0.6
+  "kind of": 0.6
+  "sort of": 0.6
+  "i guess": 0.6
+  "i suppose": 0.6
+  "a bit": 0.55
+  "maybe": 0.5
+  "not sure": 0.5
+  "ek dink": 0.75       # Afr. I think
+  "beslis": 0.99        # Afr. definitely
+  "seker": 0.85         # Afr. surely
+  "dalk": 0.5           # Afr. maybe
+
+category_synonyms:  # spoken label → FNA union value(s), first one the slot allows wins (§8.3 bounded categorical fields)
+  "in community of property": icop
+  "community of property": icop
+  "cop": icop
+  "antenuptial contract": anc-accrual
+  "anc": anc-accrual
+  "with accrual": anc-accrual
+  "out of community": anc-accrual
+  "without accrual": anc-no-accrual
+  "no accrual": anc-no-accrual
+  "customary marriage": customary
+  "traditional marriage": customary
+  "living together": life-partner
+  "partner": life-partner
+  "cohabiting": life-partner
+  "widow": widowed
+  "widower": widowed
+  "cautious": moderately-conservative     # the FNA's own label for this risk category
+  "balanced": moderate
+  "business owner": self-employed
+  "own business": self-employed
+  "entrepreneur": self-employed
+  "sole proprietor": self-employed
+  "pensioner": retired
+  "retrenched": unemployed
+  "between jobs": unemployed
+  "not working": unemployed
+  "homemaker": unemployed
+  "contractor": contract
+  "freelancer": contract
+  "permanent": salaried
+  "employed": salaried
+  "employee": salaried
+  "on commission": commission
+  "commission earner": commission
+  "learner": student
+  "son": child
+  "daughter": child
+  "kid": child
+  "mother": parent
+  "father": parent
+  "mom": parent
+  "dad": parent
+  "ma": parent
+  "pa": parent
+  "brother": sibling
+  "sister": sibling
+  "government school": public
+  "model c": public                       # former Model C schools are public schools
+  "independent school": private
+  "house": primary-residence
+  "home": primary-residence
+  "flat": residential-property
+  "rental property": residential-property
+  "investment property": residential-property
+  "holiday home": residential-property
+  "office": commercial-property
+  "car": vehicle
+  "bakkie": vehicle
+  "furniture": personal-effects
+  "contents": personal-effects
+  "savings account": cash
+  "bank account": cash
+  "fixed deposit": money-market
+  "notice deposit": money-market
+  "unit trusts": unit-trust
+  "stocks": shares
+  "etf": shares
+  "etfs": shares
+  "tax free savings": tfsa
+  "tax free": tfsa
+  "sinking fund": endowment
+  "business": [business-interest, business]
+  "bitcoin": crypto
+  "bond": home-loan
+  "mortgage": home-loan
+  "car finance": vehicle-finance
+  "car payment": vehicle-finance
+  "store account": store-card
+  "clothing account": store-card
+  "nsfas": student-loan
+  "sars": tax
+  "life cover": life
+  "life insurance": life
+  "death cover": life
+  "disability cover": disability-lump
+  "income protector": income-protection
+  "income continuation": income-protection
+  "dread disease": severe-illness
+  "critical illness": severe-illness
+  "trauma cover": severe-illness
+  "funeral cover": funeral
+  "burial society": funeral
+  "ra": retirement-annuity
+  "retirement annuity": retirement-annuity
+  "pension fund": pension
+  "gepf": pension
+  "provident fund": provident
+  "pension preservation": preservation-pension
+  "provident preservation": preservation-provident
+  "guaranteed annuity": life-annuity
+  "my wife": spouse
+  "my husband": spouse
+  "the kids": children
+  "dont know": unsure
+  "not sure": unsure
+  "nice to have": low
+  "top priority": high
+  "must have": high
+
+ordered_scales:  # category sets that form a scale, low to high: certainty smoothing spreads to adjacent levels (§8.3)
+  - [conservative, moderately-conservative, moderate, moderately-aggressive, aggressive]
+  - [low, medium, high]
+  - ["no", unsure, "yes"]
+
+polarity:        # a near-miss never crosses these, so "a fair bit more" cannot borrow "a bit less"
+  down: [less, lower, under, below, fewer, smaller, cheaper, down, decline, declining, shrinking, struggling, minder, onder, laer]
+  up: [more, higher, over, above, bigger, up, growing, increase, meer, oor, bo]
+  negation: [not, "no", never, dont, nie, geen, without]
+
+recency_weight: {revising: 0.8, revised: 0.2}   # seed (§7.3 step 7)
