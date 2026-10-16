@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Check, CloudOff, Download, FileText, Keyboard, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, CloudOff, Download, FileText, Keyboard, Loader2, Presentation } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -64,7 +64,7 @@ export default function Sheet() {
   const params = useSearchParams();
   const id = params?.get('id') ?? null;
   const initial = params?.get('s') ?? null;
-  const { doc, analysis, loading, update, saveState } = useDocument(id);
+  const { doc, analysis, loading, update, saveState, flush } = useDocument(id);
   const { practice } = usePractice();
   const [exporting, setExporting] = useState(false);
   const [active, setActive] = useState('engagement');
@@ -135,6 +135,15 @@ export default function Sheet() {
           <button type="button" tabIndex={-1} onClick={() => setExporting(true)} className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-ink-2 hover:bg-wash">
             <Download size={15} /> <span className="hidden sm:inline">Export</span>
           </button>
+          <Link
+            href={`/present?id=${doc.id}`}
+            onClick={() => void flush()}
+            tabIndex={-1}
+            title="Planning session: present the needs and try trade-offs with the client"
+            className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-ink-2 hover:bg-wash"
+          >
+            <Presentation size={15} /> <span className="hidden sm:inline">Present</span>
+          </Link>
           <Link href={`/report?id=${doc.id}`} target="_blank" tabIndex={-1} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-[13px] font-medium text-white hover:bg-brand-2">
             <FileText size={15} /> Report
           </Link>

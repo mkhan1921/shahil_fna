@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Circle, ExternalLink, Printer, Wand2 } from 'lucide-react';
+import { CheckCircle2, Circle, ExternalLink, Presentation, Printer, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import type { PersonAnalysis, Status } from '@/lib/fna/analysis';
 import { ACTION, NEED_AREA } from '@/lib/fna/catalog';
@@ -176,6 +176,9 @@ export function AdviceSection({ doc, update, analysis }: SectionProps) {
             {recs.length} recommendations · new cost <strong className="text-ink tabular">{money(newCosts)}</strong> p.m. · after{' '}
             <strong className={after < 0 ? 'text-critical-ink tabular' : 'text-good-ink tabular'}>{money(after)}</strong>
           </span>
+          <Link href={`/present?id=${doc.id}`} className="inline-flex items-center gap-1 font-semibold text-brand-2 hover:underline" title="Try trade-offs with the client, then add the agreed plan here">
+            <Presentation size={12} /> Plan it with the client
+          </Link>
           <button type="button" onClick={draft} className="focus-ring inline-flex items-center gap-1 rounded bg-brand px-2 py-0.5 font-semibold text-white hover:bg-brand-2">
             <Wand2 size={12} /> Draft from analysis
           </button>
