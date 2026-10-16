@@ -173,12 +173,20 @@ def eval_cases(
     return out[:limit] if limit else out
 
 
-def load_cached_call(input: dict[str, Any], metadata: dict[str, Any] | None = None, *, pins: VersionPins | None = None) -> CachedCall:
+def load_cached_call(
+    input: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+    *,
+    pins: VersionPins | None = None,
+    cache: Stage12Cache | None = None,
+    build: Stage12Builder | None = None,
+) -> CachedCall:
+    """The dataset call with its cached Stage 1–2 output (§15.1)."""
     pins = pins or _CONTEXT.pins or current_version_pins()
     meta = dict(metadata or {})
     meta.setdefault("dataset", input.get("dataset", SYNTHETIC_DATASET))
     record = DatasetRecord(id=str(input.get("row_id") or input["call_id"]), input=input, metadata=meta)
-    return (_CONTEXT.cache or Stage12Cache()).load_call(record, pins, build=_CONTEXT.build)
+    return (cache or _CONTEXT.cache or Stage12Cache()).load_call(record, pins, build=build or _CONTEXT.build)
 
 
 def run_stages_3_to_6_from_cache(input: dict[str, Any], hooks: Any = None) -> dict[str, Any]:

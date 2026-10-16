@@ -51,6 +51,7 @@ class FakePipeline:
     pos: float | None = 0.8
     seed: int = 0
     note: bool = True
+    policy: Callable[[Any, Any, Any], dict[str, Any]] | None = None  # (gold fact, call, pins) → {"drop": bool, "attribution": str}
     calls: list[tuple[str, Any]] = field(default_factory=list)
 
     def __call__(self, call: Any, pins: Any) -> Any:
@@ -90,12 +91,14 @@ class FakePipeline:
                 specs.append(("MARK_UNKNOWN", fid, ev[0].segment_id if ev else None,
                               {"slot_id": gf.slot_id, "instance_key": inst, "fna_path": path, "provenance": prov, "evidence": ev}, "extractor"))
                 continue
-            if gf.value is None or not ev or rng.random() < self.drop:
+            decision = self.policy(gf, call, pins) if self.policy else {}
+            if gf.value is None or not ev or rng.random() < self.drop or decision.get("drop"):
                 continue
             shift = 1.5 if rng.random() < self.wrong else 1.0
             attribution = gf.attribution
             if rng.random() < self.flip_attribution:
                 attribution = "advisor_suggested" if attribution != "advisor_suggested" else "client"
+            attribution = decision.get("attribution", attribution)
             hyp = Hypothesis(value=quantity_from_gold(slot, gf.value, shift=shift, contradicted=gf.status == "contradicted"), weight=1.0, rationale="fake")
             specs.append(("ADD", fid, ev[0].segment_id, {
                 "slot_id": gf.slot_id, "instance_key": inst, "fna_path": path, "status": gf.status, "hypotheses": [hyp], "evidence": ev,

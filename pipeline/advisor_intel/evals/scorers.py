@@ -276,7 +276,7 @@ def fact_label(pair: FactPair) -> int | None:
     return 1
 
 
-def _value_text(v: ValueSummary | GoldValue | None) -> str:
+def value_text(v: ValueSummary | GoldValue | None) -> str:
     if v is None:
         return "no value"
     if v.kind in ("numeric",):
@@ -363,7 +363,7 @@ def value_coverage(
         if covers(p.system.value, p.gold.value):
             hits += 1
         else:
-            misses.append(f"{p.label}: extracted {_value_text(p.system.value)}, gold {_value_text(p.gold.value)}")
+            misses.append(f"{p.label}: extracted {value_text(p.system.value)}, gold {value_text(p.gold.value)}")
     return ratio(hits, total, misses)
 
 
