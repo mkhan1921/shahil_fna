@@ -654,13 +654,21 @@ class Store:
             return (await cur.fetchone())["id"]
 
     async def latest_client_document(self, client_id: str, *, before_id: int | None = None) -> FnaDocument | None:
+        found = await self.latest_client_document_id(client_id, before_id=before_id)
+        return await self.client_document(found) if found is not None else None
+
+    async def latest_client_document_id(self, client_id: str, *, before_id: int | None = None) -> int | None:
         async with self.db.connection() as conn:
             if before_id is None:
-                cur = await conn.execute("SELECT document FROM client_documents WHERE client_id = %s ORDER BY id DESC LIMIT 1", (client_id,))
+                cur = await conn.execute("SELECT id FROM client_documents WHERE client_id = %s ORDER BY id DESC LIMIT 1", (client_id,))
             else:
-                cur = await conn.execute(
-                    "SELECT document FROM client_documents WHERE client_id = %s AND id < %s ORDER BY id DESC LIMIT 1", (client_id, before_id)
-                )
+                cur = await conn.execute("SELECT id FROM client_documents WHERE client_id = %s AND id < %s ORDER BY id DESC LIMIT 1", (client_id, before_id))
+            row = await cur.fetchone()
+        return row["id"] if row else None
+
+    async def client_document(self, document_id: int) -> FnaDocument | None:
+        async with self.db.connection() as conn:
+            cur = await conn.execute("SELECT document FROM client_documents WHERE id = %s", (document_id,))
             row = await cur.fetchone()
         return FnaDocument.model_validate(row["document"]) if row else None
 
