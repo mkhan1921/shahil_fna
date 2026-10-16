@@ -9,9 +9,11 @@
 ``POST /calls/{id}/forecast``            forecast only with new pins (``ForecastWorkflow``, §2.1)
 ``POST /calls/{id}/rerun``               ``{from_stage, versions?, mode}`` → a new run from that stage, or a reset
 ``GET  /calls/{id}/review``              the ``ReviewBundle`` for the overlay
-``POST /calls/{id}/ops``                 reviewer ops (and flag clearances, follow-up edits, term confirmations)
-``POST /calls/{id}/submit``              refused while blocking flags are open; freezes the version; signals
-``GET  /calls/{id}/fna``                 the reviewed ``shahil-fna`` file and its provenance sidecar
+``POST /calls/{id}/ops``                 ``[StateOp]`` reviewer ops (or with flag clearances, follow-up edits, term
+                                         confirmations); an op sent again is applied once
+``POST /calls/{id}/submit``              ``{reviewer_id}`` or the app's ``ReviewResult``; refused while blocking flags
+                                         are open; freezes the version; signals; a repeat gets the first answer
+``GET  /calls/{id}/fna``                 ``{file, sidecar}``: the reviewed ``shahil-fna`` file and its provenance sidecar
 ``POST /calls/{id}/followups/{fid}/answer``  signal, or ``FollowupIntakeWorkflow`` once the run has completed
 ``POST /clients/{id}/fna``               a plain ``shahil-fna`` export seeds the client's prior
 ``GET  /calls/{id}/review-package``      the review as a file (file exchange, §11.5)
@@ -29,6 +31,7 @@ from __future__ import annotations
 
 import contextlib
 import hmac
+import json
 import logging
 import os
 import shutil
@@ -230,7 +233,7 @@ async def apply_actions(d: ApiDeps, run: RunRecord, actions: ReviewActions, revi
         run_id=run.workflow_id,
         profile_version=profile.version,
         applied=[op.seq for op in result.applied],
-        rejected=[RejectedOpView(op=r.op, reason=r.reason) for r in result.rejected],
+        rejected=[RejectedOpView(seq=int(r.op.payload.get("client_seq", r.op.seq)), op=r.op, reason=r.reason) for r in result.rejected],
         facts={fid: profile.facts.get(fid) for fid in result.touched},
         open_flags=profile.open_flags(),
         unknown_flags=unknown,
@@ -238,9 +241,21 @@ async def apply_actions(d: ApiDeps, run: RunRecord, actions: ReviewActions, revi
     )
 
 
+async def _earlier_submission(d: ApiDeps, call: CallRecord, run: RunRecord, reviewer_id: str) -> Submitted:
+    """A submission sent again (its reply was lost): the same answer, when the same reviewer sent it."""
+    done = [r for r in await d.store.review_results(run.workflow_id) if r.submitted]
+    record = ReviewResult.model_validate(done[-1].result) if done else None  # the record submit_review wrote last
+    if record is None or record.reviewer_id != reviewer_id or record.submitted_at is None:
+        raise HTTPException(409, "the review was already submitted")
+    frozen = [v.version for v in await d.store.profile_versions(run.workflow_id) if v.frozen]
+    return Submitted(call_id=call.call_id, run_id=run.workflow_id, profile_version=frozen[0], submitted_at=record.submitted_at)
+
+
 async def submit_review(
     d: ApiDeps, call: CallRecord, run: RunRecord, reviewer_id: str, *, spot: bool | None, review_seconds: float | None
 ) -> Submitted:
+    if await _submitted(d, run):
+        return await _earlier_submission(d, call, run, reviewer_id)
     profile = await _profile(d, run)
     if profile.open_flags():
         raise HTTPException(
@@ -250,8 +265,6 @@ async def submit_review(
                 "open_flags": [f.model_dump(mode="json") for f in profile.open_flags()],
             },
         )
-    if await _submitted(d, run):
-        raise HTTPException(409, "the review was already submitted")
     info = await d.temporal.describe(run.workflow_id)
     if info.status != "RUNNING":
         raise HTTPException(409, f"run {run.workflow_id} is {info.status.lower()}, not waiting for review")
@@ -516,23 +529,17 @@ async def post_ops(call_id: str, request: Request, run_id: str | None = None, d:
         raise _validation(e) from e
     actions = ReviewActions(ops=body) if isinstance(body, list) else body
     run = await _run(d, await _call(d, call_id), run_id)
-    return await apply_actions(d, run, actions, reviewer_of(request, actions.reviewer_id))
+    stamped = next((r for op in actions.ops if (r := (op.payload.get("review") or {}).get("reviewer_id"))), None)
+    return await apply_actions(d, run, actions, reviewer_of(request, actions.reviewer_id or stamped))
 
 
-@router.post("/calls/{call_id}/submit", response_model=Submitted)
-async def submit(call_id: str, body: SubmitRequest, d: ApiDeps = Depends(deps)) -> Submitted:
-    call = await _call(d, call_id)
-    run = await _run(d, call)
-    return await submit_review(d, call, run, body.reviewer_id, spot=body.spot_check, review_seconds=body.review_seconds)
-
-
-@router.post("/calls/{call_id}/review-result")
-async def post_review_result(call_id: str, body: ReviewResult, d: ApiDeps = Depends(deps)) -> dict[str, Any]:
-    """The file exchange's return leg: the reviewed result as a file (§11.5, §17 default for M3)."""
-    if body.call_id != call_id:
-        raise HTTPException(422, f"the result is for call {body.call_id}, not {call_id}")
-    call = await _call(d, call_id)
+async def take_result(d: ApiDeps, call: CallRecord, body: ReviewResult, *, submit: bool) -> tuple[OpsApplied | None, Submitted | None]:
+    """A reviewer's result: its ops (each applied once, however often it is sent) and side records, then the submission."""
+    if body.call_id != call.call_id:
+        raise HTTPException(422, f"the result is for call {body.call_id}, not {call.call_id}")
     run = await _run(d, call, body.run_id)
+    if submit and await _submitted(d, run):
+        return None, await _earlier_submission(d, call, run, body.reviewer_id)
     actions = ReviewActions(
         reviewer_id=body.reviewer_id,
         ops=body.ops,
@@ -542,10 +549,38 @@ async def post_review_result(call_id: str, body: ReviewResult, d: ApiDeps = Depe
     )
     applied = await apply_actions(d, run, actions, body.reviewer_id)
     await d.store.save_review_result(run.workflow_id, body)
-    submitted = None
-    if body.submitted:
-        submitted = await submit_review(d, call, run, body.reviewer_id, spot=None, review_seconds=body.review_seconds)
-    return {"applied": applied.model_dump(mode="json"), "submitted": submitted.model_dump(mode="json") if submitted else None}
+    submitted = await submit_review(d, call, run, body.reviewer_id, spot=None, review_seconds=body.review_seconds) if submit else None
+    return applied, submitted
+
+
+@router.post("/calls/{call_id}/submit", response_model=Submitted)
+async def submit(call_id: str, request: Request, d: ApiDeps = Depends(deps)) -> Submitted:
+    """Freeze the reviewed profile and signal the run (§11.5). The body is ``{reviewer_id}`` after the ops went
+    through ``/ops``, or the app's whole ``ReviewResult``: its side records (flag clearances, follow-up edits,
+    term confirmations) and any ops not sent yet are applied first. Sending a submission again is answered
+    with the first one."""
+    try:
+        raw = json.loads(await request.body() or b"{}")
+        body = ReviewResult.model_validate(raw) if isinstance(raw, dict) and "call_id" in raw else SubmitRequest.model_validate(raw)
+    except ValueError as e:  # pydantic's ValidationError is a ValueError too
+        raise (_validation(e) if isinstance(e, ValidationError) else HTTPException(422, "the body is not JSON")) from e
+    call = await _call(d, call_id)
+    if isinstance(body, ReviewResult):
+        _, submitted = await take_result(d, call, body, submit=True)
+        assert submitted is not None
+        return submitted
+    run = await _run(d, call)
+    return await submit_review(d, call, run, body.reviewer_id, spot=body.spot_check, review_seconds=body.review_seconds)
+
+
+@router.post("/calls/{call_id}/review-result")
+async def post_review_result(call_id: str, body: ReviewResult, d: ApiDeps = Depends(deps)) -> dict[str, Any]:
+    """The file exchange's return leg: the reviewed result as a file (§11.5, §17 default for M3)."""
+    applied, submitted = await take_result(d, await _call(d, call_id), body, submit=body.submitted)
+    return {
+        "applied": applied.model_dump(mode="json") if applied else None,
+        "submitted": submitted.model_dump(mode="json") if submitted else None,
+    }
 
 
 @router.get("/calls/{call_id}/fna")
@@ -568,7 +603,7 @@ async def get_fna(call_id: str, part: str | None = Query(None, pattern="^(fna|si
         )
     if part == "sidecar":
         return JSONResponse(sidecar, headers={"Content-Disposition": f'attachment; filename="{call_id}-sidecar.json"'})
-    return JSONResponse(FnaExport(fna=export, sidecar=sidecar).model_dump(mode="json"))
+    return JSONResponse(FnaExport(file=export, sidecar=sidecar).model_dump(mode="json"))
 
 
 @router.post("/calls/{call_id}/followups/{followup_id}/answer", response_model=AnswerRouted)

@@ -108,6 +108,7 @@ class ReviewActions(BaseModel):
 
 
 class RejectedOpView(BaseModel):
+    seq: int  # the seq the client gave the op
     op: StateOp
     reason: str
 
@@ -139,7 +140,7 @@ class Submitted(BaseModel):
 class FnaExport(BaseModel):
     """``GET /calls/{call_id}/fna``: the reviewed document as a ``shahil-fna`` file and its provenance sidecar."""
 
-    fna: ExportFile
+    file: ExportFile
     sidecar: dict[str, Any]
 
 

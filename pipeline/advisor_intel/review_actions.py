@@ -37,19 +37,34 @@ def classify(op: StateOp) -> ReviewAction:
     return "change_status" if op.payload.get("status") else "edit"
 
 
+def client_key(op: StateOp, reviewer_id: str) -> tuple[str, int, str, str]:
+    """Who sent an op and as which of their ops: the stamped reviewer, the client's seq, the op and its fact."""
+    stamped = (op.payload.get("review") or {}).get("reviewer_id") or op.payload.get("client_reviewer")
+    return (str(stamped or reviewer_id), int(op.payload.get("client_seq", op.seq)), op.op, op.fact_id)
+
+
 def prepare(profile: Profile, ops: list[StateOp], *, reviewer_id: str, at: datetime) -> tuple[list[StateOp], list[RejectedOp]]:
     """Number reviewer ops after the profile's last op and stamp review state and provenance.
 
-    Ops not from a reviewer are refused: this path is for reviewer actions only (§11.2).
+    Ops not from a reviewer are refused: this path is for reviewer actions only (§11.2). Each op keeps the
+    seq its client gave it (``client_seq``), and one the profile already holds is skipped, so a client
+    may send a batch again after a lost reply without applying it twice (§11.5).
     """
     ready: list[StateOp] = []
     refused: list[RejectedOp] = []
+    held = {client_key(o, reviewer_id) for o in profile.ops_log if o.actor == "reviewer" and "client_seq" in o.payload}
     seq = profile.next_seq()
     for op in ops:
         if op.actor != "reviewer":
             refused.append(RejectedOp(op=op, reason=f"only reviewer ops are accepted here, not {op.actor}"))
             continue
+        key = client_key(op, reviewer_id)
+        if op.seq > 0 and key in held:
+            continue  # sent before and applied
+        held.add(key)
         payload: dict[str, Any] = dict(op.payload)
+        if op.seq > 0:
+            payload.update(client_seq=op.seq, client_reviewer=key[0])
         if op.op in ("ADD", "MARK_UNKNOWN"):
             if op.op == "ADD":
                 payload["source"] = "reviewer"  # a reviewer's own value needs no transcript evidence

@@ -141,7 +141,7 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
                 assert result.pos == 0.7 and result.profile_version == done["profile_version"]
 
                 export = (await c.get("/calls/call-e2e/fna")).json()
-                doc = ExportFile.model_validate(export["fna"]).document
+                doc = ExportFile.model_validate(export["file"]).document
                 assert doc.advice.summary and "retirement age" in doc.advice.summary.lower()
                 assert export["sidecar"]["fields"]["retirement.client.retirementAge"]["review"]["status"] == "accepted"
                 assert (await store.get_forecast(run_id, mode="final")) is not None
@@ -308,7 +308,7 @@ async def test_a_scripted_call_through_the_merged_stage_code(store, objects, tem
                     final = await store.get_forecast(run_id, mode="final")
                     assert (final is None) == (not StageFunctions().available("run_forecast"))
                     export = (await c.get("/calls/call-real/fna")).json()
-                    assert ExportFile.model_validate(export["fna"]).document.income["spouse"].grossMonthly == 35_000
+                    assert ExportFile.model_validate(export["file"]).document.income["spouse"].grossMonthly == 35_000
                     version, note = await store.latest_note(run_id)
                     assert version == done["profile_version"] and note["sentences"]
                     assert notifier.sent and notifier.sent[0].kind == "review_ready"

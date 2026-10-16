@@ -372,10 +372,66 @@ async def test_submit_is_refused_while_blocking_flags_are_open(api):
     [(kind, wf, review)] = api.gw.signals
     assert kind == "review" and wf == "call-1-run-a" and review.profile_version == version and review.reviewer_id == "adv-1"
     assert [v.frozen for v in await api.store.profile_versions("call-1-run-a")][-1] is True
-    assert (await api.c.post("/calls/call-1/submit", json={"reviewer_id": "adv-1"})).status_code == 409
+    # A submission sent again (its reply was lost) gets the first answer; another reviewer's is refused.
+    again = await api.c.post("/calls/call-1/submit", json={"reviewer_id": "adv-1"})
+    assert again.status_code == 200 and again.json() == r.json() and len(api.gw.signals) == 1
+    assert (await api.c.post("/calls/call-1/submit", json={"reviewer_id": "adv-2"})).status_code == 409
     assert (await api.c.post("/calls/call-1/ops", json=[])).status_code == 409
     [rec] = await api.store.review_results("call-1-run-a")
     assert rec.submitted and rec.result["review_seconds"] == 412.5
+
+
+async def test_the_fna_apps_review_client(api):
+    """The app's opt-in client (lib/review/api.ts): bare op lists numbered after the bundle's last seq and
+    stamped with the reviewer, sent again after a lost reply, then its whole ReviewResult at submit."""
+    profile = await seed_run(api)
+    bundle = (await api.c.get("/calls/call-1/review")).json()
+    review = {"status": "accepted", "reviewer_id": "adv-7", "reviewed_at": NOW.isoformat()}
+    ops = [
+        o.model_dump(mode="json") for o in make_ops(profile, [("CONFIRM", RET_AGE, None, {"evidence": [], "review": review}, "reviewer")])
+    ]
+    assert ops[0]["seq"] == bundle["sidecar"]["last_seq"] + 1
+    first = await api.c.post("/calls/call-1/ops", json=ops)
+    assert first.status_code == 200 and len(first.json()["applied"]) == 1
+    events = len(await api.store.review_events(run_id="call-1-run-a"))
+    resent = await api.c.post("/calls/call-1/ops", json=ops)  # the reply was lost: the same batch again
+    assert resent.status_code == 200 and resent.json()["applied"] == [] and resent.json()["rejected"] == []
+    assert len(await api.store.review_events(run_id="call-1-run-a")) == events
+    stray = {**ops[0], "seq": ops[0]["seq"] + 1, "actor": "extractor"}
+    refused = (await api.c.post("/calls/call-1/ops", json=[stray])).json()["rejected"]
+    assert refused[0]["seq"] == ops[0]["seq"] + 1 and "only reviewer ops" in refused[0]["reason"]
+    result = {
+        "format": "advisor-intel-review-result",
+        "version": 1,
+        "call_id": "call-1",
+        "run_id": "call-1-run-a",
+        "base_profile_version": bundle["profile_version"],
+        "reviewer_id": "adv-7",
+        "ops": ops,
+        "flag_clearances": _clear_flag_body("adv-7")["flag_clearances"],
+        "followup_edits": [
+            {
+                "followup_id": "fu.retirement_age",
+                "action": "reword",
+                "question": "Is 63 the age?",
+                "reviewer_id": "adv-7",
+                "at": NOW.isoformat(),
+            }
+        ],
+        "term_confirmations": [],
+        "submitted": True,
+        "submitted_at": NOW.isoformat(),
+        "review_seconds": 95,
+    }
+    r = await api.c.post("/calls/call-1/submit", json=result)
+    assert r.status_code == 200, r.text
+    reviewed = await api.store.load_profile("call-1-run-a")
+    assert [o.op for o in reviewed.ops_log if o.actor == "reviewer"] == ["CONFIRM"] and not reviewed.open_flags()
+    assert (await api.store.get_followup("call-1-run-a", "fu.retirement_age")).followup.question == "Is 63 the age?"
+    assert [s[0] for s in api.gw.signals] == ["review"] and api.gw.signals[0][2].reviewer_id == "adv-7"
+    assert (await api.c.post("/calls/call-1/submit", json=result)).json() == r.json() and len(api.gw.signals) == 1
+    fna = (await api.c.get("/calls/call-1/fna")).json()
+    assert fna["file"]["format"] == "shahil-fna" and fna["sidecar"]["format"] == "advisor-intel-sidecar"
 
 
 async def test_submit_needs_a_run_waiting_for_review(api):
@@ -413,7 +469,7 @@ async def test_fna_export_with_sidecar_and_note(api):
     r = await api.c.get("/calls/call-1/fna")
     assert r.status_code == 200
     body = r.json()
-    export = ExportFile.model_validate(body["fna"])
+    export = ExportFile.model_validate(body["file"])
     assert export.format == "shahil-fna" and export.version == 1 and export.document.schemaVersion == 2
     assert export.document.retirement["client"].retirementAge == 62 and export.document.advice.summary == "Thabo plans to retire at 62."
     assert body["sidecar"]["fields"]["retirement.client.retirementAge"]["p_correct"] == 0.5
