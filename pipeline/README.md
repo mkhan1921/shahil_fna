@@ -58,6 +58,23 @@ result.followups, result.flags, result.forecast, result.note
 `tests/test_extract_e2e.py` and `tests/test_pipeline.py` run the sample call end to end with the
 gold-call oracle standing in for the model.
 
+## The review overlay's contract (spec §11)
+
+The FNA app reviews a call against JSON Schemas exported from these models (`lib/review/schema/`):
+`ReviewBundle`, `ReviewPackage`, `ReviewResult`, the reducer's op payloads, `models/sidecar.py` (what
+`binding.sidecar()` emits) and `evals/annotation.py` (annotate mode's gold file), plus the slot
+catalog. After changing any of them, or the extraction a fixture is built from, regenerate:
+
+```bash
+.venv/bin/python scripts/export_review_schemas.py          # lib/review/schema/*.json
+.venv/bin/python scripts/make_review_fixture.py            # the hand-built demo package (also public/demo/)
+.venv/bin/python scripts/make_pipeline_review_package.py   # the scripted call through process_call
+```
+
+Each takes `--check`. `tests/test_review_contracts.py` checks they are current, and replays the review
+result the app's tests write (`tests/fixtures/review_result.json` at the repo root) through the reducer:
+it must materialise to exactly the reviewed file the app saved.
+
 ## FNA engine (spec §12.7)
 
 `advisor_intel/fna_engine` is the app's needs analysis (`lib/fna`) ported to Python, with the TypeScript as
