@@ -333,3 +333,24 @@ async def test_a_deployment_that_rejects_logprobs_is_retried_without_them():
         res = await check_entailment(p, [ra], transcript=_transcript(), pins=VersionPins(), logprobs=True)
     assert [("openai_logprobs" in s) for s in seen] == [True, False]
     assert res.facts[ra].status == "entailed" and all(c.score_source == "verdict" for c in res.facts[ra].checks)
+
+
+async def test_the_verifier_runs_on_the_pinned_prompt():
+    """The entailment prompt is a versioned file (§13.8): the pin picks it, the run records it, the model receives it."""
+    p, ra, inc, occ = _profile()
+    seen: list[str] = []
+
+    def fn(messages, info: AgentInfo):
+        instr = getattr(messages[0], "instructions", None) or getattr(info, "instructions", None) or ""
+        seen.append(str(instr))
+        claims = re.findall(r"^- (c\d+): (.*)$", str(messages[-1].parts[-1].content), flags=re.M)
+        return ModelResponse(parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": "entailed", "reason": "ok"} for c, _ in claims]}))])
+
+    with entailment_agent.override(model=FunctionModel(fn)):
+        res = await check_entailment(p, [inc], transcript=_transcript(), pins=VersionPins(prompt_versions={"entailment": "v1"}))
+        assert res.prompt_version == "v1"
+        assert seen and "never evidence" in seen[-1] and "one verdict per claim" in seen[-1]
+        latest = await check_entailment(p, [inc], transcript=_transcript(), pins=VersionPins())
+    assert latest.prompt_version == "v1"  # the latest version when nothing is pinned
+    with pytest.raises(FileNotFoundError):
+        await check_entailment(p, [inc], transcript=_transcript(), pins=VersionPins(prompt_versions={"entailment": "v9"}))
