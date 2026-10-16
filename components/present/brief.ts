@@ -160,14 +160,15 @@ const budgetBridge = (c: Ctx): Bridge => {
   if (pos(t.debtRepayments)) rows.push({ key: 'debt', label: 'Debt repayments', value: -t.debtRepayments, kind: 'less' });
   if (pos(t.riskPremiums)) rows.push({ key: 'premiums', label: 'Insurance premiums', value: -t.riskPremiums, kind: 'less' });
   if (pos(t.savingsContributions)) rows.push({ key: 'savings', label: 'Savings & investments', value: -t.savingsContributions, kind: 'less' });
-  rows.push({ key: 'today', label: 'Left over today', value: t.surplus, kind: 'result', tone: t.surplus >= -0.5 ? 'good' : 'bad' });
+  rows.push({ key: 'today', label: t.surplus >= -0.5 ? 'Left over today' : 'Overspent today', value: t.surplus, kind: 'result', tone: t.surplus >= -0.5 ? 'good' : 'bad' });
   const step = (key: string, label: string, delta: number) => Math.abs(delta) > 0.5 && rows.push({ key, label, value: delta, kind: 'plan' });
   step('plan-pay', 'Change in take-home pay', p.takeHome - t.takeHome);
   step('plan-premiums', 'New cover premiums', -(p.riskPremiums - t.riskPremiums));
   step('plan-savings', 'New saving', -(p.savingsContributions - t.savingsContributions));
   step('plan-living', 'Spending cut', -(p.livingExpenses - t.livingExpenses));
   step('plan-debt', 'Debt repayments ended', -(p.debtRepayments - t.debtRepayments));
-  if (rows[rows.length - 1].kind === 'plan') rows.push({ key: 'plan-left', label: 'Left over with the plan', value: p.surplus, kind: 'result', tone: p.surplus >= -0.5 ? 'good' : 'bad' });
+  if (rows[rows.length - 1].kind === 'plan')
+    rows.push({ key: 'plan-left', label: p.surplus >= -0.5 ? 'Left over with the plan' : 'Overspent with the plan', value: p.surplus, kind: 'result', tone: p.surplus >= -0.5 ? 'good' : 'bad' });
   return { rows, monthly: true };
 };
 
@@ -414,7 +415,7 @@ const retirementGroups = (c: PlanCtx, k: PersonKey): AddressGroup[] => {
     );
   } else building.push(item('Saved today', 'Retirement savings the income is drawn from.', r.currentCapital));
   const watch: AddressItem[] = [
-    item('How much is drawn each year', `The income is ${pct(r.initialDrawdown)} of the capital at retirement. About 4–5% a year is sustainable; a living annuity allows 2.5% to 17.5%.`),
+    item('How much is drawn each year', `The income is ${pct(r.initialDrawdown, 1)} of the capital at retirement. About 4–5% a year is sustainable; a living annuity allows 2.5% to 17.5%.`),
     item('How long the money must last', `The plan runs to age ${r.planningAge}. Many people live longer, so a later planning age is safer.`),
     item('Tax relief', 'Contributions to retirement funds are deductible up to 27.5% of income, to R430,000 a year.'),
   ];
@@ -555,6 +556,79 @@ export const addressFor = (q: QuestionKey, c: PlanCtx, k: PersonKey = 'client'):
     default:
       return affordGroups(c);
   }
+};
+
+/* ------------------------------------------------------------------ */
+/* The account — a need set out as a balanced ledger                   */
+/* ------------------------------------------------------------------ */
+
+export interface AccountRow {
+  key: string;
+  label: string;
+  amount: number;
+  gloss?: string;
+  tone?: 'plan' | 'short' | 'over';
+}
+
+export interface Account {
+  monthly: boolean;
+  /** The heading of the side that lists what is needed. */
+  needHeading: string;
+  need: AccountRow[];
+  meet: AccountRow[];
+  /** Both sides total this: the need, or what is in place when that is more. */
+  total: number;
+  /** Points from the brief that are not lines of the account, for the matters to settle. */
+  notes: AddressItem[];
+}
+
+const ACCOUNT_QUESTIONS: QuestionKey[] = ['life', 'income', 'disability', 'illness', 'estate', 'emergency'];
+
+/**
+ * A need set out as a ledger: what would be needed on one side; what is in
+ * place, what the plan adds and what is still to be found on the other. The
+ * figures are the bridge's, so the two always agree; each line carries the
+ * plain-words explanation from the brief where there is one.
+ */
+export const accountFor = (q: QuestionKey, c: PlanCtx, k: PersonKey = 'client'): Account | null => {
+  if (!ACCOUNT_QUESTIONS.includes(q)) return null;
+  const bridge = bridgeFor(q, c, k);
+  if (!bridge) return null;
+  const groups = addressFor(q, c, k);
+  const lines = groups.filter((g) => g.heading !== 'Also to settle').flatMap((g) => g.items);
+  const settle = groups.filter((g) => g.heading === 'Also to settle').flatMap((g) => g.items);
+  const used = new Set<string>();
+  const gloss = (...titles: string[]) => {
+    for (const t of titles) {
+      const it = lines.find((x) => x.title === t);
+      if (it) {
+        used.add(it.title);
+        return it.text;
+      }
+    }
+    return undefined;
+  };
+  const need: AccountRow[] = [];
+  const meet: AccountRow[] = [];
+  for (const r of bridge.rows) {
+    if (r.kind === 'add') need.push({ key: r.key, label: r.label, amount: r.value, gloss: gloss(r.label) });
+    else if (r.kind === 'less') meet.push({ key: r.key, label: r.label, amount: -r.value, gloss: gloss(r.label) });
+    else if (r.kind === 'plan') meet.push({ key: r.key, label: r.label, amount: -r.value, gloss: gloss(r.label, 'Added by the plan'), tone: 'plan' });
+  }
+  const nothing = gloss('Nothing yet');
+  if (nothing && !meet.some((r) => r.tone !== 'plan')) meet.unshift({ key: 'nothing', label: 'Nothing yet', amount: 0, gloss: nothing });
+  const needed = sum(need, (r) => r.amount);
+  const have = sum(meet, (r) => r.amount);
+  if (needed - have > 0.5) meet.push({ key: 'short', label: 'Still to be found', amount: needed - have, tone: 'short' });
+  else if (have - needed > 0.5) need.push({ key: 'over', label: 'More than is needed', amount: have - needed, tone: 'over' });
+  return {
+    monthly: !!bridge.monthly,
+    needHeading: groups[0]?.heading ?? 'What would be needed',
+    need,
+    meet,
+    total: Math.max(needed, have),
+    notes: [...lines.filter((x) => !used.has(x.title)), ...settle],
+  };
 };
 
 /** The assumptions and caveats behind a question's figures, as the analysis states them. */

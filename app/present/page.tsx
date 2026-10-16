@@ -1,14 +1,14 @@
 'use client';
 
-import { ArrowLeft, ClipboardCheck, Eye, EyeOff, Maximize2, Minimize2, Moon, Sun, X } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Maximize2, Minimize2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { applies, isPerPerson, peopleFor, QUESTIONS, verdicts, type QuestionKey } from '@/components/present/answers';
-import { StatusIcon } from '@/components/present/charts';
-import { ContentsSection, NAV_LABEL, PlanSection, QuestionSection, sectionId, type SectionCtx } from '@/components/present/sections';
+import { ContentsSection, NAV_LABEL, PlanSection, plateCount, QuestionSection, sectionId, type SectionCtx } from '@/components/present/sections';
 import { PRESENT_CSS } from '@/components/present/theme';
 import { garamond } from '@/components/report/vintage/font';
+import { Manicule } from '@/components/report/vintage/ink';
 import { cx } from '@/components/ui';
 import type { Status } from '@/lib/fna/analysis';
 import { analyse } from '@/lib/fna/analysis';
@@ -20,9 +20,9 @@ import type { FnaDocument, PlanLevers, PracticeProfile } from '@/lib/fna/types';
 import { dateLong, money } from '@/lib/format';
 import { getDocument, getPlan, getPractice, saveDocument, savePlan } from '@/lib/store/db';
 
-const THEME_KEY = 'fna-present-theme';
 const RANK: Record<Status, number> = { na: 0, covered: 1, partial: 2, shortfall: 3 };
-const DOT: Record<Status, string> = { na: 'var(--pv-faint)', covered: 'var(--pv-good)', partial: 'var(--pv-warning)', shortfall: 'var(--pv-critical)' };
+/** Status dots on the dark bar: vermilion short, ochre partly met, sage met. */
+const DOT: Record<Status, string> = { na: '#7d705e', covered: '#9cb87a', partial: '#d6a54e', shortfall: '#e0745c' };
 
 function PresentView() {
   const params = useSearchParams();
@@ -35,7 +35,6 @@ function PresentView() {
   const [practice, setPractice] = useState<PracticeProfile>(defaultPractice());
   const [plan, setPlanState] = useState<PlanLevers>(emptyPlan());
   const [levers, setLevers] = useState(true);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [full, setFull] = useState(false);
   const [active, setActive] = useState('contents');
   const [confirm, setConfirm] = useState<(AdviceUpdate & { fresh: FnaDocument }) | null>(null);
@@ -96,30 +95,6 @@ function PresentView() {
     };
   }, [id, sample]);
 
-  /* Theme: the viewer’s last choice, else the system setting. */
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(THEME_KEY);
-      if (saved === 'light' || saved === 'dark') return setTheme(saved);
-    } catch {
-      /* storage unavailable */
-    }
-    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) setTheme('dark');
-  }, []);
-  const toggleTheme = useCallback(
-    () =>
-      setTheme((t) => {
-        const next = t === 'dark' ? 'light' : 'dark';
-        try {
-          localStorage.setItem(THEME_KEY, next);
-        } catch {
-          /* storage unavailable */
-        }
-        return next;
-      }),
-    [],
-  );
-
   const toggleFull = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     else void root.current?.requestFullscreen?.().catch(() => {});
@@ -157,7 +132,7 @@ function PresentView() {
     if (target) requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }));
   }, [doc, start]);
 
-  /* The contents bar follows the reader: the last section whose heading has passed under the bar. */
+  /* The bar follows the reader: the last leaf whose top has passed under it. */
   useEffect(() => {
     if (!doc) return;
     const scroller: HTMLElement | Window = full && root.current ? root.current : window;
@@ -191,7 +166,7 @@ function PresentView() {
     if (bar && link) bar.scrollTo({ left: link.offsetLeft - bar.clientWidth / 2 + link.clientWidth / 2, behavior: 'smooth' });
   }, [active]);
 
-  /* Keys: ← → between sections, F full screen, H hide the levers, T theme. */
+  /* Keys: ← → between leaves, F full screen, H hide the levers. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
@@ -206,13 +181,12 @@ function PresentView() {
       else if (k === 'arrowleft' || k === 'pageup') go(ids[Math.max(0, i - 1)]);
       else if (k === 'f') toggleFull();
       else if (k === 'h') setLevers((v) => !v);
-      else if (k === 't') toggleTheme();
       else return;
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [ids, active, go, toggleFull, toggleTheme]);
+  }, [ids, active, go, toggleFull]);
 
   useEffect(() => {
     if (doc) document.title = `Planning — ${[doc.client.firstName, doc.client.surname].filter(Boolean).join(' ') || 'Client'}`;
@@ -233,11 +207,19 @@ function PresentView() {
   const household = today.people.map((k) => today.persons[k]!.name).join(' & ');
   const back = sample ? '/' : `/client?id=${doc.id}`;
   const cost = planned.cashflow.totalOutgoings - today.cashflow.totalOutgoings;
-  const prepared = `Prepared ${practice.adviserName ? `by ${practice.adviserName} ` : ''}on ${dateLong(new Date())}${practice.practiceName ? ` · ${practice.practiceName}` : ''}`;
+  const firm = practice.practiceName || practice.fspName || '';
+  const prepared = `Prepared on ${dateLong(new Date())}${practice.adviserName ? ` by ${practice.adviserName}` : ''}`;
   const worst = (q: QuestionKey): Status => {
     const ks = isPerPerson(q) ? peopleFor(q, c) : (['client'] as const);
     return ks.map((k) => verdicts(q, c, k).plan.status).reduce<Status>((w, s) => (RANK[s] > RANK[w] ? s : w), 'na');
   };
+  /* Plates are numbered through the session, and the leaves are folioed like pages. */
+  let nextPlate = 2;
+  const plates = order.map((q) => {
+    const first = nextPlate;
+    nextPlate += plateCount(q, c);
+    return first;
+  });
 
   const prepare = async () => {
     if (!id) return;
@@ -265,7 +247,7 @@ function PresentView() {
   };
 
   const tool = (text: string, onClick: () => void, icon: ReactNode, pressed?: boolean) => (
-    <button type="button" onClick={onClick} aria-label={text} aria-pressed={pressed} title={text} className="pv-icon-btn">
+    <button type="button" onClick={onClick} aria-label={text} aria-pressed={pressed} title={text} className="pv-icon">
       {icon}
     </button>
   );
@@ -286,22 +268,19 @@ function PresentView() {
   );
 
   return (
-    <div ref={root} className={cx('pv min-h-screen', garamond.variable, full && 'overflow-y-auto')} data-theme={theme}>
+    <div ref={root} className={cx('pv min-h-screen', garamond.variable, full && 'overflow-y-auto')}>
       <style>{PRESENT_CSS}</style>
-      <header ref={head} className="pv-head">
-        <div className="pv-head-row">
-          <Link href={back} className="pv-icon-btn shrink-0" aria-label={sample ? 'Back to clients' : 'Back to the client file'} title={sample ? 'Back to clients' : 'Back to the client file'}>
-            <ArrowLeft size={18} />
+      <header ref={head} className="pv-top">
+        <div className="pv-top-row">
+          <Link href={back} className="pv-icon" aria-label={sample ? 'Back to clients' : 'Back to the client file'} title={sample ? 'Back to clients' : 'Back to the client file'}>
+            <ArrowLeft size={20} />
           </Link>
-          <div className="pv-head-title">
-            <div>{practice.practiceName || 'The planning session'}</div>
-            <div>{household}</div>
+          <div className="pv-top-title">
+            <small>{firm || 'The planning session'}</small>
+            <span>{household}</span>
           </div>
-          <div className="flex shrink-0 items-center">
-            {tool(levers ? 'Hide the levers (H)' : 'Show the levers (H)', () => setLevers((v) => !v), levers ? <EyeOff size={18} /> : <Eye size={18} />, !levers)}
-            {tool(theme === 'dark' ? 'Paper (T)' : 'Night (T)', toggleTheme, theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />)}
-            <span className="hidden sm:inline-flex">{tool(full ? 'Leave full screen (F)' : 'Full screen (F)', toggleFull, full ? <Minimize2 size={18} /> : <Maximize2 size={18} />)}</span>
-          </div>
+          {tool(levers ? 'Hide the levers (H)' : 'Show the levers (H)', () => setLevers((v) => !v), levers ? <EyeOff size={20} /> : <Eye size={20} />, !levers)}
+          <span className="hidden sm:inline-flex">{tool(full ? 'Leave full screen (F)' : 'Full screen (F)', toggleFull, full ? <Minimize2 size={20} /> : <Maximize2 size={20} />)}</span>
         </div>
         <nav ref={nav} className="pv-nav" aria-label="Sections">
           {navLink('contents', 'Contents')}
@@ -310,14 +289,14 @@ function PresentView() {
         </nav>
       </header>
 
-      <main className="pv-main">
-        <ContentsSection c={c} list={order} title={household} prepared={prepared} />
+      <main className="pv-desk">
+        <ContentsSection c={c} list={order} title={household} prepared={prepared} firm={firm} />
         {order.map((q, i) => (
-          <QuestionSection key={q} q={q} n={i + 1} c={c} />
+          <QuestionSection key={q} q={q} n={i + 1} c={c} plate={plates[i]} folio={i + 2} />
         ))}
         <PlanSection
           c={c}
-          n={order.length + 1}
+          folio={order.length + 2}
           action={
             summary.changes.length > 0 && (
               <button
@@ -327,7 +306,7 @@ function PresentView() {
                 title={sample ? 'This is the sample family — nothing is saved.' : 'Write the agreed plan into the record of advice'}
                 className="pv-button"
               >
-                <ClipboardCheck size={18} /> Add to the record of advice
+                Add to the record of advice
               </button>
             )
           }
@@ -335,84 +314,76 @@ function PresentView() {
       </main>
 
       <footer className="pv-foot">
-        <div className="pv-foot-row">
-          {summary.changes.length === 0 ? (
-            <span className="truncate italic" style={{ color: 'var(--pv-ink-2)' }}>
-              No changes yet ·{' '}
-              <b className="not-italic" style={{ color: 'var(--pv-ink)' }}>
-                {money(summary.surplusToday)}
-              </b>{' '}
-              a month free today
+        {summary.changes.length === 0 ? (
+          <div className="pv-foot-row">
+            <span>
+              <span className="pv-muted">No changes yet ·</span> <b>{money(summary.surplusToday)}</b> <span className="pv-muted">a month free today</span>
             </span>
-          ) : (
-            <>
-              <StatusIcon status={summary.surplusPlan >= -0.5 ? 'covered' : 'shortfall'} />
-              <span className="truncate" style={{ color: 'var(--pv-ink-2)' }}>
-                <span className="pv-sc">The plan</span>
-                {cost > 0.5 && (
-                  <>
-                    {' '}
-                    costs <b style={{ color: 'var(--pv-ink)' }}>{money(cost)}</b> a month
-                  </>
-                )}{' '}
-                · leaves <b style={{ color: 'var(--pv-ink)' }}>{money(summary.surplusPlan)}</b> free
-              </span>
-              {active !== 'plan' && (
-                <button type="button" onClick={() => go('plan')} className="pv-link-btn shrink-0 !py-1">
-                  See it
-                </button>
+          </div>
+        ) : (
+          <button type="button" className="pv-foot-row" onClick={() => go('plan')} title="Turn to the plan">
+            <span>
+              <span className="pv-muted">The plan </span>
+              {cost > 0.5 ? (
+                <>
+                  <b>{money(cost)}</b>
+                  <span className="pv-muted"> a month · </span>
+                </>
+              ) : (
+                <span className="pv-muted">{summary.unquoted > 0 ? 'with premiums to be quoted · ' : '· '}</span>
               )}
-            </>
-          )}
-        </div>
+              {summary.surplusPlan >= -0.5 ? (
+                <>
+                  <b>{money(summary.surplusPlan)}</b> <span className="pv-muted">left free</span>
+                </>
+              ) : (
+                <b className="is-over">{money(-summary.surplusPlan)} over budget</b>
+              )}
+            </span>
+            {active !== 'plan' && <span className="pv-foot-see">See it</span>}
+          </button>
+        )}
       </footer>
 
       {notice && (
-        <div
-          role="status"
-          className="pv-card fixed bottom-20 left-1/2 z-40 flex w-[min(36rem,calc(100%-2rem))] -translate-x-1/2 items-start gap-3 px-4 py-3 text-[16px] shadow-[0_8px_30px_rgba(0,0,0,0.25)]"
-        >
+        <div role="status" className="pv-notice">
           <span className="flex-1">
             {notice.text}
             {notice.href && (
               <>
                 {' '}
-                <Link href={notice.href} className="font-semibold underline underline-offset-2" style={{ color: 'var(--pv-plan)' }}>
-                  Open the record
-                </Link>
+                <Link href={notice.href}>Open the record</Link>
               </>
             )}
           </span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="pv-icon-btn !h-7 !w-7">
-            <X size={16} />
+          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="pv-strike !-mt-1">
+            <X size={18} />
           </button>
         </div>
       )}
 
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="pv-confirm-title">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setConfirm(null)} />
-          <div className="pv-card relative w-full max-w-lg p-6 shadow-2xl">
-            <h2 id="pv-confirm-title" className="pv-sc m-0 text-[21px] font-normal">
-              Add the agreed plan to the record of advice?
-            </h2>
-            <p className="mt-1 text-[16px] italic" style={{ color: 'var(--pv-ink-2)' }}>
+        <div className="pv-dialog" role="dialog" aria-modal="true" aria-labelledby="pv-confirm-title">
+          <div className="pv-dialog-back" onClick={() => setConfirm(null)} />
+          <div className="pv-dialog-card">
+            <h2 id="pv-confirm-title">Add the agreed plan to the record of advice?</h2>
+            <p className="m-0 mt-1 italic" style={{ color: 'var(--pv-ink-2)' }}>
               These changes will be made to {household}’s file:
             </p>
-            <ul className="mt-4 max-h-[50vh] list-none space-y-2 overflow-y-auto p-0 text-[16px]">
+            <ul>
               {confirm.lines.map((l) => (
-                <li key={l} className="flex gap-2">
-                  <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'var(--pv-plan)' }} aria-hidden />
-                  {l}
+                <li key={l}>
+                  <Manicule />
+                  <span>{l}</span>
                 </li>
               ))}
               {confirm.lines.length === 0 && <li style={{ color: 'var(--pv-ink-2)' }}>Nothing to add — the record already reflects this plan.</li>}
             </ul>
-            <p className="mt-4 text-[14.5px] italic" style={{ color: 'var(--pv-ink-2)' }}>
+            <p className="m-0 mt-4 text-[16.5px] italic" style={{ color: 'var(--pv-ink-2)' }}>
               Recommendations are added as “pending” for the client to accept. Review the rationale and quotes in the client file before the report is signed.
             </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirm(null)} className="pv-link-btn">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => setConfirm(null)} className="pv-button-2">
                 Cancel
               </button>
               <button type="button" autoFocus onClick={apply} disabled={confirm.lines.length === 0} className="pv-button">

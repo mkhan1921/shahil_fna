@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applies, peopleFor, QUESTIONS } from '@/components/present/answers';
-import { addressFor, basisFor, bridgeFor, fundedRows, retirementSources, runningTotals, studyCosts, type PlanCtx } from '@/components/present/brief';
+import { accountFor, addressFor, basisFor, bridgeFor, fundedRows, retirementSources, runningTotals, studyCosts, type PlanCtx } from '@/components/present/brief';
 import { analyse } from '@/lib/fna/analysis';
 import { applyPlan, closeEveryGap, emptyPlan } from '@/lib/fna/plan';
 import { sampleDocument } from '@/lib/fna/sample';
@@ -55,6 +55,27 @@ describe.each(Object.entries(plans))('the breakdowns, with %s', (_name, c) => {
       expect(s.grown + s.contributions + s.extra).toBeCloseTo(s.total, 0);
       expect(s.needed).toBeCloseTo(c.planned.persons[k]!.retirement.requiredCapitalReal, 0);
     }
+  });
+
+  it('sets each need out as an account that balances, explaining its lines', () => {
+    let accounts = 0;
+    for (const { q, k } of cases(c)) {
+      const a = accountFor(q, c, k);
+      if (!a) continue;
+      accounts++;
+      const total = (rows: { amount: number }[]) => rows.reduce((s, r) => s + r.amount, 0);
+      expect(total(a.need), `${q} ${k} need side`).toBeCloseTo(a.total, 0);
+      expect(total(a.meet), `${q} ${k} other side`).toBeCloseTo(a.total, 0);
+      // The shortfall is the bridge's, and only one side carries a balancing line.
+      const last = bridgeFor(q, c, k)!.rows.at(-1)!.value;
+      expect(a.meet.find((r) => r.tone === 'short')?.amount ?? 0, `${q} ${k}`).toBeCloseTo(Math.max(0, last), 0);
+      expect(a.need.find((r) => r.tone === 'over')?.amount ?? 0, `${q} ${k}`).toBeCloseTo(Math.max(0, -last), 0);
+      // Lines the analysis itemises carry their explanation.
+      for (const r of [...a.need, ...a.meet]) if (r.tone !== 'short' && r.tone !== 'over' && q !== 'emergency') expect(r.gloss, `${q} ${k} ${r.label}`).toBeTruthy();
+      for (const n of a.notes) expect(`${n.title} ${n.text}`).not.toMatch(/undefined|NaN/);
+    }
+    expect(accounts).toBeGreaterThan(5);
+    expect(accountFor('retirement', c, 'client')).toBeNull();
   });
 
   it('says what each question must address, in full sentences with real figures', () => {

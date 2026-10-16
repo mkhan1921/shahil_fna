@@ -5,13 +5,13 @@ import { useId, useState, type ReactNode } from 'react';
 import { cx } from '../ui';
 
 /*
- * Lever controls for presentation mode. A slider shows its value in words and
- * can carry a marker — “closes the gap”, “in the file” — that snaps the lever
- * to that value when clicked.
+ * The levers of the planning session, set as slips of paper. A slider shows
+ * its value in words and can carry a marker — “closes the gap”, “in the
+ * file” — that sets the lever to that value when chosen.
  */
 
 export function LeverCard({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('pv-card p-5', className)}>{children}</div>;
+  return <div className={cx('pv-slip', className)}>{children}</div>;
 }
 
 export function Slider({
@@ -33,7 +33,7 @@ export function Slider({
   step: number;
   onChange: (v: number) => void;
   format: (v: number) => string;
-  /** A reference value on the track; clicking it sets the lever to it. */
+  /** A reference value on the track; choosing it sets the lever to it. */
   marker?: { value: number; label: string };
   hint?: ReactNode;
   children?: ReactNode;
@@ -44,13 +44,13 @@ export function Slider({
   const mk = marker && marker.value >= min && marker.value <= max ? (marker.value - min) / span : null;
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="text-[15px] font-semibold">
+      <div className="pv-lever-head">
+        <label htmlFor={id} className="pv-lever-label">
           {label}
         </label>
-        <span className="text-[22px] font-semibold tracking-tight pv-tabular">{format(value)}</span>
+        <span className="pv-lever-value">{format(value)}</span>
       </div>
-      <div className="relative mt-1">
+      <div className={cx('pv-range-wrap', mk !== null && 'has-marker')}>
         <input
           id={id}
           type="range"
@@ -64,39 +64,29 @@ export function Slider({
           style={{ ['--fill' as string]: `${frac * 100}%` }}
         />
         {mk !== null && marker && (
-          <button
-            type="button"
-            onClick={() => onChange(marker.value)}
-            title={`Set to ${format(marker.value)}`}
-            className="absolute top-[24px] flex -translate-x-1/2 flex-col items-center text-[12px] leading-none text-[var(--pv-ink-2)] hover:text-[var(--pv-ink)]"
-            style={{ left: `calc(13px + (100% - 26px) * ${mk})` }}
-          >
-            <span className="h-2 w-[2px] bg-[var(--pv-ink-2)]" aria-hidden />
-            <span className="mt-1 whitespace-nowrap">{marker.label}</span>
+          <button type="button" onClick={() => onChange(marker.value)} title={`Set to ${format(marker.value)}`} className="pv-marker" style={{ left: `calc(13px + (100% - 26px) * ${mk})` }}>
+            {marker.label}
           </button>
         )}
       </div>
-      <div className={cx(mk !== null ? 'mt-7' : 'mt-1')}>
-        {hint && <p className="text-[13px] leading-snug text-[var(--pv-ink-2)]">{hint}</p>}
-        {children}
-      </div>
+      {hint && <p className="pv-hint">{hint}</p>}
+      {children}
     </div>
   );
 }
 
-/** A small rand input, for premiums quoted by insurers. */
+/** A blank on the slip for a premium quoted by an insurer. */
 export function RandInput({ label, value, onChange, placeholder = 'to be quoted' }: { label: string; value: number; onChange: (v: number) => void; placeholder?: string }) {
   const id = useId();
   const [text, setText] = useState<string | null>(null);
   return (
-    <div className="mt-3 flex items-center gap-2 text-[13.5px] text-[var(--pv-ink-2)]">
+    <div className="pv-blank-row">
       <label htmlFor={id}>{label}</label>
-      <span className="relative">
-        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--pv-muted)]">R</span>
+      <span className="pv-blank">
+        R
         <input
           id={id}
           inputMode="numeric"
-          className="h-9 w-32 rounded-lg border border-[var(--pv-border)] bg-[var(--pv-raised)] pl-6 pr-2.5 text-right text-[14px] text-[var(--pv-ink)] pv-tabular outline-none focus:border-[var(--pv-plan)]"
           placeholder={placeholder}
           value={text ?? (value ? Math.round(value).toLocaleString('en-ZA') : '')}
           onFocus={() => setText(value ? String(Math.round(value)) : '')}
@@ -128,9 +118,9 @@ export function Tabs<T extends string | number>({
 }) {
   if (options.length < 2) return null;
   return (
-    <div role="radiogroup" aria-label={label} className="pv-tabs">
+    <div role="radiogroup" aria-label={label} className={cx('pv-tabs', size === 'sm' && 'is-sm')}>
       {options.map((o) => (
-        <button key={String(o.value)} type="button" role="radio" aria-checked={o.value === value} onClick={() => onChange(o.value)} className={cx(size === 'sm' && '!px-2.5 !text-[15px]')}>
+        <button key={String(o.value)} type="button" role="radio" aria-checked={o.value === value} onClick={() => onChange(o.value)}>
           {o.label}
         </button>
       ))}
@@ -140,16 +130,11 @@ export function Tabs<T extends string | number>({
 
 export function CheckRow({ checked, onChange, label, detail }: { checked: boolean; onChange: (v: boolean) => void; label: ReactNode; detail?: ReactNode }) {
   return (
-    <label
-      className={cx(
-        'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition-colors',
-        checked ? 'border-[var(--pv-plan)] bg-[var(--pv-plan-wash)]' : 'border-[var(--pv-border)] hover:bg-[var(--pv-plan-wash)]',
-      )}
-    >
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--pv-plan)]" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-medium">{label}</span>
-        {detail && <span className="mt-0.5 block text-[13px] text-[var(--pv-ink-2)]">{detail}</span>}
+    <label className={cx('pv-check', checked && 'is-on')}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className="min-w-0">
+        <span className="pv-check-label">{label}</span>
+        {detail && <span className="pv-check-detail">{detail}</span>}
       </span>
     </label>
   );
@@ -158,28 +143,22 @@ export function CheckRow({ checked, onChange, label, detail }: { checked: boolea
 /** A year, moved one at a time. */
 export function YearStepper({ label, value, min, max, onChange, note }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void; note?: string }) {
   const btn = (dir: -1 | 1, icon: ReactNode, text: string) => (
-    <button
-      type="button"
-      onClick={() => onChange(Math.min(max, Math.max(min, value + dir)))}
-      disabled={dir < 0 ? value <= min : value >= max}
-      aria-label={text}
-      className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--pv-border)] text-[var(--pv-ink-2)] hover:border-[var(--pv-plan)] hover:text-[var(--pv-ink)] disabled:opacity-30"
-    >
+    <button type="button" onClick={() => onChange(Math.min(max, Math.max(min, value + dir)))} disabled={dir < 0 ? value <= min : value >= max} aria-label={text} title={text} className="pv-step">
       {icon}
     </button>
   );
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <div className="text-[15px] font-semibold">{label}</div>
-        {note && <div className="text-[13px] text-[var(--pv-ink-2)]">{note}</div>}
+    <div className="pv-stepper">
+      <div className="min-w-0">
+        <div className="pv-lever-label">{label}</div>
+        {note && <p className="pv-hint !mt-0">{note}</p>}
       </div>
-      <div className="flex items-center gap-2">
-        {btn(-1, <Minus size={16} />, `${label}: a year earlier`)}
-        <span className="w-14 text-center text-[22px] font-semibold tracking-tight pv-tabular" aria-live="polite">
+      <div className="pv-stepper-ctl">
+        {btn(-1, <Minus size={18} />, `${label}: a year earlier`)}
+        <span className="pv-lever-value w-[3.2em] text-center" aria-live="polite">
           {value}
         </span>
-        {btn(1, <Plus size={16} />, `${label}: a year later`)}
+        {btn(1, <Plus size={18} />, `${label}: a year later`)}
       </div>
     </div>
   );
