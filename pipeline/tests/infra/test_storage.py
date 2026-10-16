@@ -24,6 +24,7 @@ from advisor_intel.storage import (
     StaleProfile,
     Store,
     SyncGlossaryStore,
+    glossary_lines,
 )
 from advisor_intel.storage.migrate import SCHEMA_FILE, MigrationError, discover, migrate, render_schema, status
 
@@ -219,7 +220,9 @@ async def test_checkpoints_resume_latest_turn_per_execution(store: Store):
 # --------------------------------------------------------------------------- glossary
 
 
-async def test_glossary_get_put_search(store: Store, pg_dsn):
+async def test_glossary_is_the_lexicons_store(store: Store, pg_dsn):
+    from advisor_intel.lexicon.glossary import GlossaryStore, TermContext, confirm_term, lookup_term
+
     g = PostgresGlossaryStore(store.db)
     await g.put(
         GlossaryEntry(
@@ -228,27 +231,46 @@ async def test_glossary_get_put_search(store: Store, pg_dsn):
             aliases=["ten x ra"],
             product_type="retirement-annuity",
             provider="10X",
+            kind="fund",
             confirmed_by="adv-1",
+            confirmed_at=NOW,
         )
-    )
-    await g.put(
-        GlossaryEntry(term="Discovery Classic", canonical_name="Discovery Classic Saver", product_type="medical", provider="Discovery")
     )
     hit = await g.get("10x  ra")
-    assert hit is not None and hit.canonical_name == "10X Retirement Annuity"
-    assert (await g.get("Ten X RA")).term == "10X RA"
+    assert hit is not None and hit.canonical_name == "10X Retirement Annuity" and hit.kind == "fund" and hit.confirmed_at == NOW
+    assert (await g.get("Ten X RA")).term == "10X RA" and await g.get("unknown term") is None
     await g.put(
         GlossaryEntry(
-            term="10X RA", canonical_name="10X Retirement Annuity", aliases=["tenex"], product_type="retirement-annuity", provider="10X"
+            term="10X RA",
+            canonical_name="10X Retirement Annuity",
+            aliases=["tenex"],
+            product_type="retirement-annuity",
+            provider="10X",
+            confirmed_by="adv-2",
+            confirmed_at=NOW,
         )
     )
-    assert set((await g.get("10x ra")).aliases) == {"ten x ra", "tenex"}
-    found = await g.search("discovery saver")
-    assert found and found[0].provider == "Discovery"
-    assert (await g.search("10x"))[0].term == "10X RA"
-    assert await g.get("unknown term") is None
+    assert set((await g.get("10x ra")).aliases) == {"ten x ra", "tenex"} and len(await g.entries()) == 1
+    # The blocking store is the lexicon's GlossaryStore: lookup_term resolves from it, confirm_term writes to it.
     sync = SyncGlossaryStore(pg_dsn)
-    assert (await asyncio.to_thread(sync.get, "tenex")).canonical_name == "10X Retirement Annuity"
+    assert isinstance(sync, GlossaryStore)
+    found = await asyncio.to_thread(lookup_term, "tenex", TermContext(text="my tenex"), glossary=sync, allowlist=[])
+    assert found.resolved and found.source == "glossary" and found.candidate.canonical_name == "10X Retirement Annuity"
+    await asyncio.to_thread(
+        confirm_term,
+        sync,
+        "the green policy",
+        canonical_name="Discovery Life Plan",
+        confirmed_by="adv-1",
+        product_type="life",
+        provider="Discovery",
+    )
+    green = await g.get("The Green Policy")
+    assert green.source == "reviewer" and green.provider == "Discovery" and green.source_url is None
+    assert glossary_lines(await g.entries()) == [
+        "10X RA = 10X Retirement Annuity (retirement-annuity, 10X)",
+        "the green policy = Discovery Life Plan (life, Discovery)",
+    ]
 
 
 # --------------------------------------------------------------------------- follow-ups, review, forecasts, documents, notifications

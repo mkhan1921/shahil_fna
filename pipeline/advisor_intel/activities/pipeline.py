@@ -2,25 +2,33 @@
 runs its stage, saves the outputs, and is idempotent on ``(call_id, stage, versions)``.
 
 - ``ingest_audio`` and ``run_discourse`` cache their outputs per call and stage versions, so a
-  re-run never re-transcribes (§5) and extraction experiments start from the cache (§15.1).
+  re-run never re-transcribes (§5) and extraction experiments start from the cache (§15.1). A
+  scripted call (no audio) runs the stage 1 back half on the script's words.
 - ``run_agent`` drives the harness with ``activity.heartbeat`` and a Postgres checkpoint store, so
   a retry resumes from the last turn (§13.2); it saves the profile, facts and ops.
 - ``run_voi_and_followups``, ``run_forecast``, ``render_meeting_note`` record their output per run
   and stage inputs; ``apply_review`` and ``intake_followup_answer`` per submission and answer;
   notifications per scheduled activity, so a retry never sends twice.
+- VOI and the forecast are skipped (and say so in their outcome) when their packages are not
+  installed in the worker, as in the in-process runner (``advisor_intel.pipeline``).
 - A run started from a later stage (``start_stage``) takes its profile from the run it re-runs.
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import dataclasses
+import functools
 import hashlib
+import inspect
 import logging
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
@@ -41,6 +49,7 @@ from ..notify import Notifier, ReviewSummary, compose
 from ..review_actions import apply_reviewer_ops, change_summary
 from ..schema.slots import Catalog, load_catalog
 from ..storage.checkpoints import PostgresCheckpointStore
+from ..storage.glossary import PostgresGlossaryStore, SyncGlossaryStore, glossary_lines
 from ..storage.objects import ObjectStore, safe_segment
 from ..storage.records import CallRecord, ReviewEvent, RunRecord
 from ..storage.store import Store
@@ -76,6 +85,7 @@ from .stages import StageFunctions, heartbeating, in_activity, invoke
 log = logging.getLogger(__name__)
 
 COLLAPSE_PRIORITY = 0.005  # §10.3: auto-accepted facts below this priority are collapsed in review
+SAST = ZoneInfo("Africa/Johannesburg")
 
 
 def input_error(message: str) -> ApplicationError:
@@ -95,6 +105,12 @@ def dump(obj: Any) -> Any:
 def _execution() -> str:
     """The Temporal execution (run id) of the calling workflow: a reset starts a new one."""
     return (activity.info().workflow_run_id or "") if in_activity() else ""
+
+
+def call_date(call: CallRecord) -> date:
+    """The call's date in South Africa, the anchor for relative time (§5.1): from its start, else its upload."""
+    t = call.started_at or call.created_at or datetime.now(timezone.utc)
+    return (t.astimezone(SAST) if t.tzinfo else t).date()
 
 
 def forecast_seed(run_id: str) -> int:
@@ -235,10 +251,6 @@ class PipelineActivities:
         await self.objects.put_json(f"profiles/{safe_segment(profile.run_id)}/v{saved.version}.json", saved)
         return saved
 
-    def analyse(self, doc: FnaDocument) -> dict[str, Any]:
-        """The FNA engine's ``analyse()`` of a document, as a dict (§12.7)."""
-        return dump(self.stages.get("fna_analyse")(doc))
-
     # ------------------------------------------------------------------ stage 1: ingest
 
     @activity.defn(name=INGEST_AUDIO)
@@ -264,39 +276,65 @@ class PipelineActivities:
 
     async def _transcribe(self, call_id: str, pins: VersionPins) -> Transcript:
         call = await self._call(call_id)
+        if call.meta.get("script_uri"):
+            return await self._from_script(call, pins)
         if not call.audio_uri:
             raise input_error(f"call {call_id} has no audio")
+        ingest_call = self.stages.get("ingest_call")
+        from ..ingest.types import CallMeta
+        from ..pipeline import crm_names
+
         prior, crm = await self._prior(call)
-        crm_names = (
-            sorted({p.name for p in crm.household} | {x for p in crm.products for x in (p.provider, p.product) if x}) if crm else None
+        started = call.started_at or call.created_at or datetime.now(timezone.utc)
+        meta = CallMeta(
+            call_id=call.call_id,
+            started_at=started,
+            advisor_id=call.advisor_id,
+            client_ids=call.client_ids,
+            anchor_date=call_date(call),
+            advisor_channel=call.meta.get("advisor_channel"),
+            shared_client_channel=call.meta.get("shared_client_channel"),
         )
-        meta = {
-            "call_id": call.call_id,
-            "advisor_id": call.advisor_id,
-            "client_ids": call.client_ids,
-            "started_at": call.started_at,
-            "anchor_date": (call.started_at.date() if call.started_at else None),
-            "channel_layout": call.meta.get("channel_layout"),
-        }
-        meta_type = self.stages.get("ingest_meta") if self.stages.available("ingest_meta") else None
-        if meta_type is not None:
-            fields = {k: v for k, v in meta.items() if v is not None}
-            meta = meta_type.model_validate(fields) if hasattr(meta_type, "model_validate") else meta_type(**fields)
+        # Providers are built before the download: a configuration error fails the attempt at once, never retried.
+        asr = self.providers.asr(pins, self.settings)
+        diarizer = self.providers.diarizer(pins, self.settings)
+        second_pass = self.providers.second_pass(pins, self.settings)
         suffix = Path(call.meta.get("filename") or self.objects.key_for(call.audio_uri)).suffix or ".wav"
         with tempfile.TemporaryDirectory(prefix="advisor-intel-audio-") as tmp:
             audio = await self.objects.download(call.audio_uri, Path(tmp) / f"call{suffix}")
             async with heartbeating("ingest"):
                 return await invoke(
-                    self.stages.get("ingest_call"),
+                    ingest_call,
                     audio,
                     meta,
-                    asr=self.providers.asr(self.settings, pins),
-                    diarizer=self.providers.diarizer(self.settings, pins),
+                    asr=asr,
+                    diarizer=diarizer,
                     role_agent_pins=pins,
-                    second_pass=self.providers.second_pass(self.settings, pins),
+                    second_pass=second_pass,
                     prior_fna=prior,
-                    crm_names=crm_names,
+                    crm_names=crm_names(crm, prior),
                 )
+
+    async def _from_script(self, call: CallRecord, pins: VersionPins) -> Transcript:
+        """A scripted call (synthetic and demo calls, §15): the stage 1 back half on the script's words, no audio."""
+        from_script = self.stages.get("ingest_script")
+        from ..ingest import ScriptedCall
+        from ..pipeline import crm_names
+
+        prior, crm = await self._prior(call)
+        roles = dict(call.meta.get("script_roles") or {})
+        script = ScriptedCall.parse((await self.objects.get_bytes(call.meta["script_uri"])).decode(), roles=roles or None)
+        async with heartbeating("ingest"):
+            return await invoke(
+                from_script,
+                script,
+                call_date(call),
+                call_id=call.call_id,
+                roles="script" if roles else "heuristic",
+                role_agent_pins=pins,
+                prior_fna=prior,
+                crm_names=crm_names(crm, prior),
+            )
 
     # ------------------------------------------------------------------ stage 2: discourse
 
@@ -350,6 +388,8 @@ class PipelineActivities:
             call = await self._call(args.call_id)
             transcript = await self._transcript(args.call_id, pins)
             discourse = await self._discourse(args.call_id, pins)
+            if discourse is None:
+                raise input_error(f"call {args.call_id} has no discourse output; run from the discourse stage")
             doc, crm = await self._prior(call)
             catalog = self._catalog(pins)
             provenance = Provenance(
@@ -381,19 +421,57 @@ class PipelineActivities:
                 pins=pins,
                 budgets=budgets,
                 quality=transcript.quality,
+                crm=crm,
+                glossary=glossary_lines(await PostgresGlossaryStore(self.store.db).entries()),
+                base_document=doc,
+                call_minutes=transcript.duration / 60.0,
             )
             checkpoints = PostgresCheckpointStore(self.store, scope=scope)
             # The harness heartbeats every node; the background beat covers one long model request.
             async with heartbeating("agent"):
-                result = await invoke(self.stages.get("run_agent"), inputs, checkpoints=checkpoints, heartbeat=activity.heartbeat)
+                result = await invoke(
+                    self.stages.get("run_agent"),
+                    inputs,
+                    services=self._agent_services(),
+                    checkpoints=checkpoints,
+                    heartbeat=activity.heartbeat,
+                )
             outcome = AgentOutcome.model_validate(dump(result.outcome))
-            await self._save_new_profile(Profile.model_validate(dump(result.profile)))
+            agent_profile = Profile.model_validate(dump(result.profile))
+            followups = [FollowUp.model_validate(dump(q)) for q in getattr(result, "followups", None) or []]
+            if followups:  # the agent's drafts stand until VOI ranks them (§10.5)
+                agent_profile = agent_profile.model_copy(update={"open_questions": followups})
+            await self._save_new_profile(agent_profile)
             await self.store.put_stage_output(
                 args.call_id, "agent", key, inp.run_id, outcome.model_dump(mode="json"), pins.model_dump(mode="json")
             )
             return outcome
 
+    def _agent_services(self) -> Any:
+        """Every installed stage behind the agent's tools, with the practice glossary in Postgres (§8.5, §13.3)."""
+        factory = self.stages.optional("agent_services")
+        return factory(glossary_store=SyncGlossaryStore(self.store.db.dsn)) if factory is not None else None
+
     # ------------------------------------------------------------------ stage 6: VOI and follow-ups (§10)
+
+    def _pos_runs(self, base_document: FnaDocument | None) -> Callable[..., Any] | None:
+        """The forecast's reduced runs for VOI (§10.2), on the client's prior file; CPU-bound, so in a thread."""
+        runs = self.stages.optional("sensitivity_runs")
+        if runs is None:
+            return None
+        bound = functools.partial(runs, base_document=base_document)
+        if inspect.iscoroutinefunction(runs):
+            return bound
+
+        async def threaded(*a: Any, **kw: Any) -> Any:
+            return await asyncio.to_thread(bound, *a, **kw)
+
+        return threaded
+
+    def _analyser(self, today: date) -> Callable[[FnaDocument], Any] | None:
+        """The FNA engine's ``analyse()`` as of the call date (§12.7), or None when the engine is not installed."""
+        engine = self.stages.optional("fna_analyse")
+        return functools.partial(engine, today=today) if engine is not None else None
 
     @activity.defn(name=RUN_VOI)
     async def run_voi_and_followups(self, inp: StageInput) -> VoiOutcome:
@@ -406,20 +484,28 @@ class PipelineActivities:
                 return VoiOutcome.model_validate({**done.output, "cached": True})
             profile = await self._run_profile(inp.run_id, args.call_id)
             transcript = await self._transcript(args.call_id, pins)
-            async with heartbeating("voi"):
-                out = await invoke(
-                    self.stages.get("run_voi_and_followups"),
-                    profile,
-                    catalog=self._catalog(pins),
-                    pins=pins,
-                    pos_runs=self.stages.get("sensitivity_runs"),
-                    analyse=self.analyse,
-                    transcript=transcript,
-                    settings=self.settings,
-                )
-            new = Profile.model_validate(dump(out.profile))
-            followups = [FollowUp.model_validate(dump(q)) for q in out.followups]
-            flags = [BlockingFlag.model_validate(dump(f)) for f in out.flags]
+            voi = self.stages.optional("run_voi_and_followups")
+            if voi is None:  # as in the in-process runner: the agent's follow-ups and flags stand
+                log.warning("run %s: VOI is not installed in this worker; the review gets the agent's follow-ups", inp.run_id)
+                new, followups, flags = profile, list(profile.open_questions), list(profile.blocking_flags)
+            else:
+                doc, _ = await self._prior(await self._call(args.call_id))
+                async with heartbeating("voi"):
+                    out = await invoke(
+                        voi,
+                        profile,
+                        catalog=self._catalog(pins),
+                        pins=pins,
+                        pos_runs=self._pos_runs(doc),
+                        analyse=self._analyser(transcript.anchor_date),
+                        transcript=transcript,
+                        settings=self.settings,
+                        base_document=doc,
+                        seed=forecast_seed(inp.run_id),
+                    )
+                new = Profile.model_validate(dump(out.profile))
+                followups = [FollowUp.model_validate(dump(q)) for q in out.followups]
+                flags = [BlockingFlag.model_validate(dump(f)) for f in out.flags]
             if transcript.quality and transcript.quality.role_review_needed and not any(f.kind == "role_review" for f in flags):
                 flags.insert(
                     0,
@@ -434,10 +520,13 @@ class PipelineActivities:
             cleared = {f.flag_id: f for f in profile.blocking_flags if f.cleared}
             flags = [cleared.get(f.flag_id, f) for f in flags]
             saved = await self.store.save_profile(new.model_copy(update={"open_questions": followups, "blocking_flags": flags}))
-            result = VoiOutcome(profile_version=saved.version, n_followups=len(followups), n_flags=sum(not f.cleared for f in flags))
-            await self.store.put_stage_output(
-                args.call_id, "voi", key, inp.run_id, result.model_dump(mode="json"), pins.model_dump(mode="json")
+            result = VoiOutcome(
+                profile_version=saved.version, n_followups=len(followups), n_flags=sum(not f.cleared for f in flags), skipped=voi is None
             )
+            if voi is not None:  # a skipped VOI is not recorded: a worker with VOI installed runs it on a retry or re-run
+                await self.store.put_stage_output(
+                    args.call_id, "voi", key, inp.run_id, result.model_dump(mode="json"), pins.model_dump(mode="json")
+                )
             return result
 
     # ------------------------------------------------------------------ stage 8: forecast (§12)
@@ -457,9 +546,13 @@ class PipelineActivities:
             done = await self.store.get_stage_output(args.call_id, "forecast", key)
             if done is not None:
                 return ForecastOutcome.model_validate({**done.output, "cached": True})
+            engine = self.stages.optional("run_forecast")
+            if engine is None:  # as in the in-process runner; not recorded, so a worker with the engine runs it
+                log.warning("run %s: the forecast engine is not installed in this worker; no %s forecast", inp.run_id, mode)
+                return ForecastOutcome(run_id=inp.run_id, profile_version=profile.version, mode=mode, skipped=True)
             base, _ = await self._prior(await self._call(args.call_id))
             async with heartbeating("forecast"):
-                raw = await invoke(self.stages.get("run_forecast"), profile, base_document=base, mode=mode, seed=forecast_seed(inp.run_id))
+                raw = await invoke(engine, profile, base_document=base, mode=mode, seed=forecast_seed(inp.run_id))
             result = ForecastResult.model_validate(dump(raw))
             await self.store.save_forecast(
                 inp.run_id, profile.version, mode, result, config_version=pins.forecast_config_version, cma_version=pins.cma_version

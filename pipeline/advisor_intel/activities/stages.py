@@ -10,31 +10,37 @@ Expected signatures:
 ====================== =======================================================================
 name                   callable
 ====================== =======================================================================
-ingest_call            ``async (audio: Path, meta, *, asr, diarizer, role_agent_pins, second_pass=None,
-                       prior_fna=None, crm_names=None) -> Transcript`` (§5)
-ingest_meta            optional: the type ``meta`` is built from (keyword arguments call_id, advisor_id,
-                       client_ids, started_at, anchor_date, channel_layout); a dict when absent
+ingest_call            ``async (audio: Path, meta: CallMeta, *, asr, diarizer, role_agent_pins, second_pass=None,
+                       prior_fna=None, crm_names: CrmNames | None = None) -> Transcript`` (§5)
+ingest_script          ``async (script: ScriptedCall, anchor_date, *, call_id, roles, role_agent_pins, prior_fna,
+                       crm_names) -> Transcript``: a scripted call through the stage 1 back half (no audio)
 run_discourse          ``async (transcript, *, prior: Profile | None, crm: CrmRecord | None, pins, catalog)
                        -> DiscourseOutput`` (§6)
-agent_inputs           the harness's ``AgentInputs`` type (call_id, run_id, transcript, discourse, profile,
-                       pins, budgets, quality)
-run_agent              ``async (inputs, *, checkpoints: CheckpointStore, heartbeat) -> AgentResult``
-                       with ``.outcome: AgentOutcome`` and ``.profile: Profile`` (§13.2)
-run_voi_and_followups  ``(profile, *, catalog, pins, pos_runs, analyse, transcript, settings) -> VoiOutput``
-                       with ``.profile``, ``.followups``, ``.flags``, ``.priorities`` (§10)
-sensitivity_runs       the forecast engine's reduced runs, passed to VOI as ``pos_runs`` (§10.2)
-fna_analyse            the FNA engine's ``analyse(doc)`` (§12.7); dumped to a dict for VOI and review
+agent_inputs           the harness's ``AgentInputs`` (call_id, run_id, transcript, discourse, profile, pins, budgets,
+                       quality, crm, glossary, base_document, call_minutes)
+agent_services         ``(*, glossary_store) -> HarnessServices``: every installed stage behind the agent's tools
+run_agent              ``async (inputs, *, services, checkpoints: CheckpointStore, heartbeat) -> AgentResult``
+                       with ``.outcome: AgentOutcome``, ``.profile: Profile``, ``.followups`` (§13.2)
+run_voi_and_followups  ``async (profile, *, catalog, pins, pos_runs, analyse, transcript, settings, base_document,
+                       seed) -> VoiOutput`` with ``.profile``, ``.followups``, ``.flags`` (§10)
+sensitivity_runs       ``(profile, fact_ids, *, n_paths, seed, base_document) -> {fact_id: row}``: the forecast
+                       engine's reduced runs, VOI's ``pos_runs`` (§10.2)
+fna_analyse            the FNA engine's ``analyse(doc, *, today)`` (§12.7)
 run_forecast           ``(profile, *, base_document=None, mode="preview"|"final", seed=None) -> ForecastResult``
 extract_followup       ``async (profile, transcript, *, followup: FollowUp, pins, catalog) -> list[StateOp]``:
-                       the extraction sub-agent over a one-segment answer (§10.6)
-build_labels           ``(events: list[dict]) -> list[dict]``: §9.3 labels from review events
-retrain_calibrator     ``(labels: list[dict], *, previous: bytes | None, settings) -> dict`` with ``version``,
-                       ``artifact`` (bytes), ``metrics``, ``promote`` (§9.4)
-refit_conformal        ``(labels: list[dict], *, calibrator: bytes | None, alpha, min_calls) -> dict`` with
-                       ``tau`` (family → threshold), ``n_calib_calls``, ``enabled`` (§9.5)
+                       the extraction over a one-segment answer transcript (§10.6)
+build_labels           ``(before: Profile, ops: list[StateOp], *, after: Profile, spot_check: bool) -> LabelBatch``
+                       with ``.labels`` and ``.recall_misses``: §9.3 labels from one review
+calibration_label      the label model (``model_validate`` of a stored label row)
+retrain_calibrator     ``(labels, *, incumbent: Calibrator | None, pins) -> RetrainReport`` with ``.candidate``
+                       (``.version``, ``.metrics``, ``.to_bytes()``), ``.promoted``, ``.reason`` (§9.4)
+calibrator_type        the calibrator class (``from_bytes`` of a stored artifact)
+refit_conformal        ``(labels, *, alpha, min_calls, calibrator_version, settings) -> ConformalThresholds`` with
+                       ``.tau_by_family``, ``.tau_pooled``, ``.n_calls``, ``.enabled``, ``.reason`` (§9.5)
 load_lexicon           ``(version) -> Lexicon``
-propose_lexicon_fit    ``(pairs: list[dict], lex) -> dict | model`` with ``keys``/``keys_fitted``,
-                       optional ``yaml``/``diff`` and ``pull_request`` (§11.4)
+lexicon_edit_pair      the lexicon's ``EditPair`` (``from_fact(fact, edited)``: the pairs one reviewed fact gives)
+propose_lexicon_fit    ``(pairs: list[EditPair], lex) -> LexiconDiff`` with ``.changes`` (section, key),
+                       ``.new_version``, ``.yaml_text``, ``.diff_text`` (§11.4)
 sync_error_dataset     ``(rows: list[dict], *, settings) -> int`` rows inserted into ``production-errors``
 sync_gold_candidates   ``(rows: list[dict], *, settings) -> int`` rows inserted (§15.6)
 run_model_swap         ``(candidates: dict[str, str], *, settings) -> dict`` with ``results``, ``pull_requests``
@@ -57,19 +63,23 @@ from temporalio.exceptions import ApplicationError
 
 ENTRYPOINTS: dict[str, str] = {
     "ingest_call": "advisor_intel.ingest.run:ingest_call",
-    "ingest_meta": "advisor_intel.ingest.run:CallMeta",
+    "ingest_script": "advisor_intel.ingest.run:transcript_from_script_async",
     "run_discourse": "advisor_intel.discourse.run:run_discourse",
-    "agent_inputs": "advisor_intel.harness.run:AgentInputs",
+    "agent_inputs": "advisor_intel.harness.deps:AgentInputs",
+    "agent_services": "advisor_intel.harness.services:default_services",
     "run_agent": "advisor_intel.harness.run:run_agent",
     "run_voi_and_followups": "advisor_intel.voi.run:run_voi_and_followups",
     "sensitivity_runs": "advisor_intel.forecast.sensitivity:sensitivity_runs",
     "fna_analyse": "advisor_intel.fna_engine.analysis:analyse",
     "run_forecast": "advisor_intel.forecast.run:run_forecast",
-    "extract_followup": "advisor_intel.extract.followup:extract_followup_answer",
+    "extract_followup": "advisor_intel.extract.followup:extract_followup_ops",
     "build_labels": "advisor_intel.verify.labels:build_labels",
+    "calibration_label": "advisor_intel.verify.labels:Label",
     "retrain_calibrator": "advisor_intel.verify.calibrator:retrain",
-    "refit_conformal": "advisor_intel.verify.conformal:refit",
+    "calibrator_type": "advisor_intel.verify.calibrator:Calibrator",
+    "refit_conformal": "advisor_intel.verify.conformal:fit_conformal",
     "load_lexicon": "advisor_intel.lexicon.loader:load_lexicon",
+    "lexicon_edit_pair": "advisor_intel.lexicon.fit:EditPair",
     "propose_lexicon_fit": "advisor_intel.lexicon.fit:propose_lexicon_fit",
     "sync_error_dataset": "advisor_intel.evals.datasets:sync_error_dataset",
     "sync_gold_candidates": "advisor_intel.evals.datasets:sync_gold_candidates",
@@ -106,12 +116,15 @@ class StageFunctions:
                 raise StageUnavailable(f"{name}: cannot load {target} ({e})") from e
         return self._cache[name]
 
-    def available(self, name: str) -> bool:
+    def optional(self, name: str) -> Any | None:
+        """The entry, or None when its stage is not installed (for steps that run without it)."""
         try:
-            self.get(name)
-            return True
+            return self.get(name)
         except StageUnavailable:
-            return False
+            return None
+
+    def available(self, name: str) -> bool:
+        return self.optional(name) is not None
 
 
 async def invoke(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:

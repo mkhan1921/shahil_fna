@@ -95,6 +95,7 @@ class VoiOutcome(BaseModel):
     profile_version: int = 0
     n_followups: int = 0
     n_flags: int = 0
+    skipped: bool = False  # VOI is not installed in this worker: the agent's follow-ups and flags stand
 
 
 class ForecastOutcome(BaseModel):
@@ -103,6 +104,7 @@ class ForecastOutcome(BaseModel):
     mode: Literal["preview", "final"]
     pos: float | None = None
     cached: bool = False
+    skipped: bool = False  # the forecast engine is not installed in this worker
 
 
 class ReviewInput(BaseModel):
@@ -213,6 +215,7 @@ class LabelsOutcome(BaseModel):
     n_events: int = 0
     n_labels: int = 0
     n_calls: int = 0
+    n_recall_misses: int = 0  # facts reviewers added: logged, not labels (§9.3)
     labels_uri: str | None = None
 
 
@@ -231,14 +234,18 @@ class ConformalOutcome(BaseModel):
     tau: dict[str, float] = {}  # family (or "*") → threshold
     n_calib_calls: int = 0
     auto_accept_enabled: bool = False
+    thresholds_uri: str | None = None  # the full thresholds (per family, pooled, counts) the run-time check reads
     skipped_reason: str | None = None
 
 
 class LexiconFitOutcome(BaseModel):
     n_pairs: int = 0
-    keys_fitted: list[str] = []
+    keys_fitted: list[str] = []  # "section: key" entries the proposal re-fits
+    base_version: str | None = None
+    new_version: str | None = None
+    proposal_uri: str | None = None  # the proposed lexicon YAML
+    diff_uri: str | None = None
     pull_request: str | None = None
-    proposal_uri: str | None = None
 
 
 class DatasetSyncOutcome(BaseModel):

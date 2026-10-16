@@ -298,3 +298,9 @@ CREATE TABLE meeting_notes (
   created_at      timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (workflow_id, profile_version)
 );
+
+-- ===== 0003_glossary_kind =====
+
+-- The lexicon's glossary entries carry the catalogue kind of the resolved term (fund, policy,
+-- provider …) beside its FNA product type (§8.5); keys are the lexicon's canonical form.
+ALTER TABLE glossary ADD COLUMN kind text NOT NULL DEFAULT '';

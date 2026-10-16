@@ -1,5 +1,6 @@
 """One call end to end on the Temporal dev server: the API (with the real Temporal gateway), the worker
-(real workflows and activities over local Postgres and object storage) and fake stage functions."""
+(real workflows and activities over local Postgres and object storage) and fake stage functions; the last
+test runs a scripted call through the stage code as merged."""
 
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ import uuid
 import httpx
 import pytest
 
+from advisor_intel import llm
 from advisor_intel.activities import StageFunctions
 from advisor_intel.activities.providers import Providers
 from advisor_intel.api.app import create_app
@@ -18,6 +20,11 @@ from advisor_intel.config import Settings
 from advisor_intel.extract.reducer import make_ops
 from advisor_intel.models.fna import ExportFile
 from advisor_intel.models.runs import CallResult, VersionPins
+from advisor_intel.storage import PostgresCheckpointStore
+from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS
+from advisor_intel.testing.fakes import scripted_model
+from advisor_intel.testing.oracle import Oracle
+from advisor_intel.testing.transcripts import ingested_transcript
 from advisor_intel.worker import build_worker
 from advisor_intel.workflows.contracts import FollowupIntakeResult
 from advisor_intel.workflows.versioning import deployment_config, set_current_version
@@ -51,7 +58,7 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
     tq = f"e2e-{uuid.uuid4().hex[:6]}"
     settings = Settings(env="test", api_token=TOKEN, task_queue=tq)
     stages = StageFunctions(fakes.overrides())
-    providers = Providers(asr=lambda s, p: "asr", diarizer=lambda s, p: "diarizer", second_pass=lambda s, p: None)
+    providers = Providers(asr=lambda p, s: "asr", diarizer=lambda p, s: "diarizer", second_pass=lambda p, s: None)
     async with temporal_env(temporal_bin, objects, threshold=64 * 1024) as env:
         cfg = deployment_config(build=f"e2e-{uuid.uuid4().hex[:6]}")
         worker = build_worker(
@@ -156,7 +163,7 @@ async def test_rerun_by_reset_rewinds_to_the_stage_and_reuses_earlier_outputs(st
     tq = f"e2e-{uuid.uuid4().hex[:6]}"
     settings = Settings(env="test", api_token=TOKEN, task_queue=tq)
     stages = StageFunctions(fakes.overrides())
-    providers = Providers(asr=lambda s, p: "asr", diarizer=lambda s, p: "diarizer", second_pass=lambda s, p: None)
+    providers = Providers(asr=lambda p, s: "asr", diarizer=lambda p, s: "diarizer", second_pass=lambda p, s: None)
     async with temporal_env(temporal_bin, objects) as env:
         cfg = deployment_config(build=f"e2e-{uuid.uuid4().hex[:6]}")
         worker = build_worker(
@@ -210,3 +217,76 @@ async def test_rerun_by_reset_rewinds_to_the_stage_and_reuses_earlier_outputs(st
                     "/calls/call-reset/rerun", json={"from_stage": "review", "mode": "reset", "versions": {"cma_version": "x"}}
                 )
                 assert bad.status_code == 422
+
+
+async def test_a_scripted_call_through_the_merged_stage_code(store, objects, temporal_bin):
+    """The stage code as merged, under Temporal: scripted stage 1, discourse, the agent harness (the oracle's
+    extractions, Postgres checkpoints, the practice glossary), the review and the meeting note. Stages not merged
+    here (VOI, the forecast) are skipped as in the in-process runner."""
+    oracle = Oracle(await ingested_transcript(SAMPLE_CALL, call_id="call-real"), SAMPLE_OBJECTS, SAMPLE_GOLD)
+    pins = VersionPins(reasoning_model=llm.register_local_model("oracle-e2e", scripted_model(oracle.handler)))
+
+    async def oracle_pins() -> VersionPins:
+        return pins
+
+    notifier = RecordingNotifier()
+    tq = f"e2e-{uuid.uuid4().hex[:6]}"
+    settings = Settings(env="test", api_token=TOKEN, task_queue=tq)
+    try:
+        async with temporal_env(temporal_bin, objects) as env:
+            cfg = deployment_config(build=f"e2e-{uuid.uuid4().hex[:6]}")
+            async with build_worker(env.client, settings, store=store, objects=objects, notifier=notifier, deployment=cfg, task_queue=tq):
+                await set_current_version(env.client, cfg.version)
+                gateway = ClientGateway(env.client, tq)
+                app = create_app(settings=settings, store=store, objects=objects, temporal=gateway, pins=oracle_pins)
+                async with httpx.AsyncClient(
+                    transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}
+                ) as c:
+                    script = "\n".join(f"{role}: {text}" for role, text in SAMPLE_CALL)
+                    body = {
+                        "call_id": "call-real",
+                        "advisor_id": "adv-1",
+                        "client_ids": ["cl-real"],
+                        "started_at": "2026-10-15T09:00:00+02:00",
+                        "script": script,
+                        "script_roles": {r: r for r in ("advisor", "client_primary", "client_secondary")},
+                    }
+                    r = await c.post("/calls", json=body)
+                    assert r.status_code == 201, r.text
+                    run_id = r.json()["workflow_id"]
+
+                    async def in_review():
+                        v = (await c.get("/calls/call-real")).json()
+                        return v if v.get("state") in ("AWAITING_REVIEW", "FAILED") else None
+
+                    view = await _until(in_review, timeout=90)
+                    assert view["state"] == "AWAITING_REVIEW" and view["quality"]["n_speakers"] == 3
+                    bundle = (await c.get("/calls/call-real/review")).json()
+                    doc = bundle["median_document"]
+                    assert doc["income"]["spouse"]["grossMonthly"] == 35_000 and {d["name"] for d in doc["dependants"]} == {
+                        "Thandi",
+                        "Lwazi",
+                    }
+                    assert bundle["sidecar"]["fields"]["income.spouse.grossMonthly"]["status"] == "stated"
+                    assert bundle["deterministic_analysis"]  # the FNA engine ran as of the call date
+                    assert (bundle["preview_forecast"] is None) == (not StageFunctions().available("run_forecast"))
+                    # The agent checkpointed every turn to Postgres, in its execution's scope.
+                    execution = (await gateway.describe(run_id)).execution_run_id
+                    cp = await PostgresCheckpointStore(store, scope=execution).load(run_id)
+                    assert cp is not None and cp.turn >= 3 and cp.messages and cp.harness_state["plan"]
+                    s = await c.post("/calls/call-real/submit", json={"reviewer_id": "adv-1"})
+                    assert s.status_code == 200, s.text
+
+                    async def complete():
+                        v = (await c.get("/calls/call-real")).json()
+                        return v if v.get("workflow_status") in ("COMPLETED", "FAILED") else None
+
+                    done = await _until(complete, timeout=60)
+                    assert done["state"] == "COMPLETE"
+                    export = (await c.get("/calls/call-real/fna")).json()
+                    assert ExportFile.model_validate(export["fna"]).document.income["spouse"].grossMonthly == 35_000
+                    version, note = await store.latest_note(run_id)
+                    assert version == done["profile_version"] and note["sentences"]
+                    assert notifier.sent and notifier.sent[0].kind == "review_ready"
+    finally:
+        llm.unregister_local_model("oracle-e2e")

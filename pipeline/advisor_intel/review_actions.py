@@ -14,10 +14,10 @@ from datetime import datetime
 from typing import Any
 
 from .extract.reducer import ReducerResult, RejectedOp, apply_state_ops
+from .lexicon.glossary import GlossaryEntry
 from .models.facts import Provenance
 from .models.profile import Profile, StateOp
 from .models.review import FlagClearance, FollowupEdit, TermConfirmation
-from .storage.glossary import GlossaryEntry
 from .storage.records import ReviewAction, ReviewEvent
 
 _REVIEW_STATUS = {"CONFIRM": "accepted", "UPDATE": "edited", "RETRACT": "rejected", "MARK_UNKNOWN": "edited", "ADD": "edited"}
@@ -153,13 +153,13 @@ def term_confirmation_events(run_id: str, confirmations: list[TermConfirmation])
 
 
 def glossary_entry(c: TermConfirmation) -> GlossaryEntry:
-    """A confirmed or corrected term resolution becomes a practice glossary entry (§8.5)."""
+    """A confirmed or corrected term resolution becomes a practice glossary entry, sourced to the reviewer (§8.5)."""
     return GlossaryEntry(
         term=c.term,
         canonical_name=c.canonical_name,
-        product_type=c.product_type,
-        provider=c.provider,
-        source="adviser",
+        product_type=c.product_type or None,
+        provider=c.provider or None,
+        source="reviewer",
         confirmed_by=c.reviewer_id,
         confirmed_at=c.at,
     )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from datetime import date
 from typing import Any
 
 from .. import binding
@@ -67,12 +68,12 @@ async def transcript_for(store: Store, call_id: str, run: RunRecord) -> Transcri
     return await store.load_transcript(call_id, ingest_key(run.versions)) or await store.load_transcript(call_id)
 
 
-def analyse_or_none(stages: StageFunctions, doc: FnaDocument) -> dict[str, Any] | None:
-    """The FNA engine's analysis of the median document, when the engine is installed."""
+def analyse_or_none(stages: StageFunctions, doc: FnaDocument, today: date) -> dict[str, Any] | None:
+    """The FNA engine's analysis of the median document as of the call date (§12.7), when the engine is installed."""
     if not stages.available("fna_analyse"):
         return None
     try:
-        return dump(stages.get("fna_analyse")(doc))
+        return dump(stages.get("fna_analyse")(doc, today=today))
     except Exception as e:  # the overlay works without it; the app runs analyse() itself
         log.warning("FNA analysis failed for the review bundle: %s", e)
         return None
@@ -121,7 +122,7 @@ async def build_bundle(
         followups=profile.open_questions,
         blocking_flags=profile.blocking_flags,
         preview_forecast=preview,
-        deterministic_analysis=analyse_or_none(stages, median),
+        deterministic_analysis=analyse_or_none(stages, median, profile.anchor_date),
         quality=transcript.quality,
         spot_check=spot_check(run.workflow_id, settings.spot_check_rate),
         versions=run.versions,

@@ -2,7 +2,7 @@
 
 from .checkpoints import Checkpoint, PostgresCheckpointStore
 from .db import Database
-from .glossary import GlossaryEntry, PostgresGlossaryStore, SyncGlossaryStore, normalise_term
+from .glossary import GlossaryEntry, PostgresGlossaryStore, SyncGlossaryStore, glossary_lines, normalise_term
 from .objects import ForeignURI, LocalObjectStore, ObjectNotFound, ObjectStore, S3ObjectStore, open_object_store
 from .records import (
     CalibratorRecord,
@@ -46,6 +46,7 @@ __all__ = [
     "Store",
     "SyncGlossaryStore",
     "content_hash",
+    "glossary_lines",
     "normalise_term",
     "open_object_store",
 ]

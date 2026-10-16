@@ -10,7 +10,7 @@
   ``clientConcerns`` and a draft ``advice.summary``. Objectives and concerns in the client's own
   words come from the engagement text slots, which are facts with aligned spans like any other.
 
-With a ``"test"`` model pin (offline runs) the note is written by a deterministic template over the
+With a ``"test"`` model pin (offline runs, ``llm.is_stub``) the note is written by a deterministic template over the
 same facts, so the pipeline still produces a valid, fully grounded note.
 """
 
@@ -25,7 +25,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, NativeOutput
 from pydantic_ai.models import Model
-from pydantic_ai.models.test import TestModel
 
 from .. import llm, stats
 from ..binding import describe_value
@@ -427,7 +426,7 @@ def _resolve_model(pins: VersionPins, model: Model | str | None) -> tuple[Model 
     if model is not None:
         return model, getattr(model, "model_name", str(model)), None
     rm = llm.for_role("frontier", pins)
-    if isinstance(rm.model, TestModel):
+    if llm.is_stub(rm.name):  # offline fakes give schema-valid filler, not a note
         return None, "template", None
     return rm.model, rm.name, rm.settings
 

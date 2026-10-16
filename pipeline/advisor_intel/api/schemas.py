@@ -14,7 +14,7 @@ from ..models.fna import ExportFile
 from ..models.profile import BlockingFlag, StateOp
 from ..models.review import FlagClearance, FollowupEdit, TermConfirmation
 from ..models.runs import RunState, Stage, VersionPins
-from ..models.transcript import QualityReport
+from ..models.transcript import QualityReport, SpeakerRole
 from ..workflows.contracts import RunStatus
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -27,7 +27,8 @@ def check_id(v: str, what: str = "id") -> str:
 
 
 class CallCreate(BaseModel):
-    """Metadata for ``POST /calls``: the ``metadata`` form field with an upload, or the JSON body with ``audio_uri``."""
+    """Metadata for ``POST /calls``: the ``metadata`` form field with an upload, or the JSON body with ``audio_uri``
+    or a ``script`` (a scripted call for synthetic and demo runs: ``speaker[@channel]: text`` lines, no audio)."""
 
     call_id: str | None = None
     advisor_id: str = ""
@@ -36,7 +37,10 @@ class CallCreate(BaseModel):
     client_name: str | None = None
     started_at: datetime | None = None
     audio_uri: str | None = None
-    channel_layout: Literal["stereo_split", "mono"] | None = None
+    script: str | None = Field(default=None, max_length=1_000_000)
+    script_roles: dict[str, SpeakerRole] = {}  # the script's speakers → roles; empty: roles are inferred
+    advisor_channel: int | None = Field(default=None, ge=0, le=1)  # stereo: the channel the recorder puts the adviser on
+    shared_client_channel: bool | None = None  # two clients on one channel (default: two or more client ids, §5.2)
     versions: dict[str, Any] = {}  # overrides of the deployment's version pins
     review_reminder_seconds: int | None = Field(default=None, ge=1)
     budget_usd: float | None = Field(default=None, gt=0)

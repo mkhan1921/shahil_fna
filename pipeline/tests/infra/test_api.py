@@ -11,7 +11,7 @@ import pytest
 
 from advisor_intel.activities.keys import ingest_key
 from advisor_intel.activities.stages import StageFunctions
-from advisor_intel.api.app import create_app
+from advisor_intel.api.app import create_app, deployment_pins
 from advisor_intel.api.temporal import WorkflowInfo
 from advisor_intel.config import Settings
 from advisor_intel.extract.reducer import make_ops
@@ -20,7 +20,7 @@ from advisor_intel.models.forecast import ForecastResult
 from advisor_intel.models.runs import FollowupAnswer, RunState, Stage, VersionPins
 from advisor_intel.note import NoteSentence
 from advisor_intel.note.note import MeetingNote
-from advisor_intel.storage import CallRecord, PostgresGlossaryStore, Store
+from advisor_intel.storage import CalibratorRecord, CallRecord, PostgresGlossaryStore, Store
 from advisor_intel.workflows.contracts import RunStatus
 
 from .factories import GROSS, RET_AGE, flagged, make_transcript, sample_document, seeded_profile, with_call_facts
@@ -78,7 +78,9 @@ async def _pins() -> VersionPins:
 @pytest.fixture
 async def api(store: Store, objects):
     gw = FakeGateway()
-    stages = StageFunctions({"fna_analyse": lambda doc: {"needs": {"retirement": "shortfall"}, "client": doc.client.firstName}})
+    stages = StageFunctions(
+        {"fna_analyse": lambda doc, *, today: {"needs": {"retirement": "shortfall"}, "client": doc.client.firstName, "as_of": str(today)}}
+    )
     app = create_app(settings=Settings(env="test", api_token=TOKEN), store=store, objects=objects, temporal=gw, stages=stages, pins=_pins)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}
@@ -192,6 +194,45 @@ async def test_create_call_by_upload_or_uri(api):
     assert (await api.c.post("/calls", json={"call_id": "bad id!", "audio_uri": uri})).status_code == 422
 
 
+async def test_deployment_pins_follow_the_routing_the_asr_provider_and_the_promoted_calibrator(store: Store, monkeypatch):
+    monkeypatch.delenv("ADVISOR_INTEL_PINS", raising=False)
+    s = Settings(env="local", asr_provider="assemblyai")
+    pins = await deployment_pins(s, store)
+    assert (pins.asr_provider, pins.asr_model_version, pins.calibrator_version) == ("assemblyai", "universal-3", "cold-start")
+    assert pins.frontier_model == s.models.frontier and pins.reasoning_model == s.models.reasoning
+    await store.register_calibrator(CalibratorRecord(version="cal-7", promoted=True))
+    monkeypatch.setenv("ADVISOR_INTEL_ASR_MODEL_VERSION", "universal-3-pro")
+    pins = await deployment_pins(s, store)
+    assert pins.calibrator_version == "cal-7" and pins.asr_model_version == "universal-3-pro"
+    assert await deployment_pins(Settings(env="test")) == VersionPins()
+
+
+async def test_create_a_scripted_call_and_stereo_hints(api):
+    script = "advisor: Morning Sipho.\nclient_primary: Morning. I'd like to retire at sixty."
+    body = {
+        "call_id": "call-s",
+        "advisor_id": "adv-1",
+        "script": script,
+        "script_roles": {"advisor": "advisor", "client_primary": "client_primary"},
+    }
+    r = await api.c.post("/calls", json={**body, "advisor_channel": 0, "shared_client_channel": False})
+    assert r.status_code == 201, r.text
+    call = await api.store.get_call("call-s")
+    assert call.audio_uri is None and (await api.objects.get_bytes(call.meta["script_uri"])).decode() == script
+    assert (
+        call.meta["script_roles"] == body["script_roles"]
+        and call.meta["advisor_channel"] == 0
+        and call.meta["shared_client_channel"] is False
+    )
+    both = await api.c.post("/calls", json={**body, "call_id": "call-t", "audio_uri": "file:///x.wav"})
+    assert both.status_code == 422 and "one of 'audio_uri' and 'script'" in both.text
+    upload = await api.c.post(
+        "/calls", files={"audio": ("a.wav", b"RIFF", "audio/wav")}, data={"metadata": json.dumps({**body, "call_id": "call-u"})}
+    )
+    assert upload.status_code == 422 and "not both" in upload.text
+    assert (await api.c.post("/calls", json={**body, "call_id": "call-v", "script_roles": {"x": "boss"}})).status_code == 422
+
+
 async def test_oversized_recordings_are_refused(api, monkeypatch):
     monkeypatch.setenv("ADVISOR_INTEL_MAX_UPLOAD_MB", "1")
     r = await api.c.post(
@@ -258,7 +299,7 @@ async def test_review_bundle(api):
     assert b["preview_forecast"]["pos"] == 0.71 and b["attribution_text"].startswith(
         "Of the uncertainty in this plan, about 60% is markets"
     )
-    assert b["deterministic_analysis"] == {"needs": {"retirement": "shortfall"}, "client": "Thabo"}
+    assert b["deterministic_analysis"] == {"needs": {"retirement": "shortfall"}, "client": "Thabo", "as_of": "2026-10-15"}  # the call date
     assert b["quality"]["n_speakers"] == 2 and isinstance(b["spot_check"], bool)
     audio = await api.c.get("/calls/call-1/audio", headers={"Range": "bytes=0-3"})
     assert audio.status_code == 206 and audio.content == b"RIFF"
@@ -313,7 +354,8 @@ async def test_reviewer_ops_go_through_the_reducer_and_are_written_immediately(a
     r = await api.c.post("/calls/call-1/ops", json=side)
     assert r.status_code == 200 and r.json()["open_flags"] == [] and r.json()["unknown_flags"] == []
     assert (await api.store.get_followup("call-1-run-a", "fu.retirement_age")).followup.question == "Retire at 60, 63 or 65?"
-    assert (await PostgresGlossaryStore(api.store.db).get("10x ra")).canonical_name == "10X Retirement Annuity"
+    entry = await PostgresGlossaryStore(api.store.db).get("10x ra")
+    assert entry.canonical_name == "10X Retirement Annuity" and entry.source == "reviewer" and entry.confirmed_by == "adv-1"
     assert {e.action for e in await api.store.review_events(run_id="call-1-run-a")} >= {"clear_flag", "edit_followup", "confirm_term"}
 
 

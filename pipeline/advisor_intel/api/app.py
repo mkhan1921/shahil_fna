@@ -1,8 +1,8 @@
 """The FastAPI backend (spec §11.5, §14.3): calls, runs, review, follow-ups and the FNA file exchange.
 
 =======================================  ==============================================================
-``POST /calls``                          upload (multipart ``audio`` + ``metadata``) or JSON with ``audio_uri``
-                                         → ``{call_id, workflow_id}``; starts ``CallPipelineWorkflow``
+``POST /calls``                          upload (multipart ``audio`` + ``metadata``) or JSON with ``audio_uri`` or a
+                                         scripted call (``script``) → ``{call_id, workflow_id}``; starts ``CallPipelineWorkflow``
 ``GET  /calls/{id}``                     run state (Temporal query), quality report, versions
 ``GET  /calls/{id}/profile``             the profile (latest fact versions)
 ``GET  /calls/{id}/forecast``            the latest ``ForecastResult``
@@ -111,23 +111,21 @@ def _now() -> datetime:
 
 
 async def deployment_pins(settings: Settings, store: Store | None = None) -> VersionPins:
-    """The version pins a new call runs with: the deployment's model routing and the promoted calibrator.
+    """The version pins a new call runs with: the deployment's model routing and ASR provider
+    (``advisor_intel.pipeline.deployment_pins``) and the promoted calibrator.
 
-    ``ADVISOR_INTEL_PINS=test`` (or ``env=test``) keeps the offline test models.
+    ``ADVISOR_INTEL_PINS=test`` (or ``env=test``) keeps the offline test models;
+    ``ADVISOR_INTEL_ASR_MODEL_VERSION`` and ``ADVISOR_INTEL_LEXICON_VERSION`` override those pins.
     """
     if settings.env == "test" or os.environ.get("ADVISOR_INTEL_PINS") == "test":
         return VersionPins()
-    m = settings.models
-    base = VersionPins()
+    from ..pipeline import deployment_pins as routing_pins
+
+    base = routing_pins(settings)
     calibrator = (await store.current_calibrator_version()) if store is not None else None
     return base.model_copy(
         update={
-            "frontier_model": m.frontier,
-            "reasoning_model": m.reasoning,
-            "verifier_model": m.verifier,
-            "small_model": m.small,
-            "asr_provider": settings.asr_provider,
-            "asr_model_version": os.environ.get("ADVISOR_INTEL_ASR_MODEL_VERSION", f"{settings.asr_provider}-default"),
+            "asr_model_version": os.environ.get("ADVISOR_INTEL_ASR_MODEL_VERSION", base.asr_model_version),
             "lexicon_version": os.environ.get("ADVISOR_INTEL_LEXICON_VERSION", base.lexicon_version),
             "calibrator_version": calibrator or base.calibrator_version,
         }
@@ -302,7 +300,8 @@ def _validation(e: ValidationError) -> HTTPException:
 
 @router.post("/calls", status_code=201, response_model=CallCreated)
 async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreated:
-    """Store the recording (or take an ``audio_uri`` already in the object store) and start the call's workflow."""
+    """Store the recording (or take an ``audio_uri`` already in the object store, or a scripted call) and start the
+    call's workflow."""
     upload: UploadFile | None = None
     try:
         if request.headers.get("content-type", "").startswith("multipart/form-data"):
@@ -314,18 +313,21 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
             audio = form.get("audio")
             if not isinstance(audio, UploadFile):
                 raise HTTPException(422, "multipart uploads need an 'audio' file field")
+            if meta.script:
+                raise HTTPException(422, "send a recording or a script, not both")
             if (audio.size or 0) > limit:
                 raise HTTPException(413, f"the recording is larger than {limit // 2**20} MB")
             upload = audio
         else:
             meta = CallCreate.model_validate(await request.json())
-            if not meta.audio_uri:
-                raise HTTPException(422, "send the recording as a multipart 'audio' file, or give 'audio_uri'")
+            if bool(meta.audio_uri) == bool(meta.script):
+                raise HTTPException(422, "send the recording as a multipart 'audio' file, or give one of 'audio_uri' and 'script'")
     except ValidationError as e:
         raise _validation(e) from e
     call_id = meta.call_id or f"call-{_now():%Y%m%d}-{uuid.uuid4().hex[:8]}"
     if await d.store.get_call(call_id) is not None:
         raise HTTPException(409, f"call {call_id} exists; use POST /calls/{call_id}/rerun")
+    script_uri: str | None = None
     if upload is not None:
         name = Path(upload.filename or "call.wav").name
         key = f"audio/{safe_segment(call_id)}/{safe_segment(name)}"
@@ -335,6 +337,11 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
             tmp.flush()
             audio_uri = await d.objects.put_file(key, Path(tmp.name), content_type=upload.content_type)
         content_type, filename = upload.content_type, name
+    elif meta.script:
+        audio_uri = content_type = filename = None
+        script_uri = await d.objects.put_bytes(
+            f"scripts/{safe_segment(call_id)}/call.txt", meta.script.encode(), content_type="text/plain; charset=utf-8"
+        )
     else:
         assert meta.audio_uri is not None
         if not d.objects.owns(meta.audio_uri) or not await d.objects.exists(meta.audio_uri):
@@ -351,11 +358,14 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
             "client_name": meta.client_name,
             "filename": filename,
             "content_type": content_type,
-            "channel_layout": meta.channel_layout,
+            "advisor_channel": meta.advisor_channel,
+            "shared_client_channel": meta.shared_client_channel,
         }.items()
-        if v
+        if v is not None and v != ""
     }
     call_meta["prior_document_id"] = prior_id  # the prior is the document as it stood before this call (§3.6)
+    if meta.script:
+        call_meta.update(script_uri=script_uri, script_roles=dict(meta.script_roles))
     run_id = new_run_id(call_id)
     pins = _apply_overrides(await d.pins(), meta.versions)
     await d.store.upsert_call(
