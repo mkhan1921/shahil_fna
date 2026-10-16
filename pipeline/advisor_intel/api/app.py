@@ -39,7 +39,7 @@ import tempfile
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +48,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import TypeAdapter, ValidationError
 from starlette.datastructures import UploadFile
-from temporalio.service import RPCError
+from temporalio.service import RPCError, RPCStatusCode
 
 from .. import binding
 from ..activities.keys import ingest_key
@@ -110,7 +110,7 @@ class ApiDeps:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def deployment_pins(settings: Settings, store: Store | None = None) -> VersionPins:
@@ -618,10 +618,17 @@ async def answer_followup(call_id: str, followup_id: str, body: AnswerRequest, d
     )
     info = await d.temporal.describe(run.workflow_id)
     with run_context(call_id=call_id, workflow_id=run.workflow_id, stage="followup_intake", pins=run.versions):
+        routed = None
         if info.status == "RUNNING":
-            await d.temporal.signal_answer(run.workflow_id, answer)
-            routed, wf = "signal", run.workflow_id
-        else:
+            try:
+                await d.temporal.signal_answer(run.workflow_id, answer)
+                routed, wf = "signal", run.workflow_id
+            except RPCError as e:
+                # The run finished between describe and signal: the answer goes to the intake workflow instead.
+                if e.status != RPCStatusCode.NOT_FOUND:
+                    raise
+                log.info("run %s completed before the answer to %s reached it; starting the intake workflow", run.workflow_id, followup_id)
+        if routed is None:
             wf = f"{run.workflow_id}.followup.{safe_segment(followup_id)}.{uuid.uuid4().hex[:6]}"
             args = CallArgs(call_id=call_id, advisor_id=call.advisor_id, client_ids=call.client_ids, versions=run.versions)
             await d.temporal.start_followup_intake(FollowupIntakeArgs(run_id=run.workflow_id, args=args, answer=answer), workflow_id=wf)
@@ -781,7 +788,7 @@ def main() -> None:
     logging.basicConfig(level=os.environ.get("ADVISOR_INTEL_LOG_LEVEL", "INFO"))
     settings = get_settings()
     setup_telemetry(settings, service_name="advisor-intel-api")
-    host = os.environ.get("ADVISOR_INTEL_API_HOST") or ("0.0.0.0" if settings.api_token else "127.0.0.1")  # noqa: S104 - open only with a token
+    host = os.environ.get("ADVISOR_INTEL_API_HOST") or ("0.0.0.0" if settings.api_token else "127.0.0.1")
     uvicorn.run(create_app(settings=settings), host=host, port=int(os.environ.get("ADVISOR_INTEL_API_PORT", "8000")), proxy_headers=True)
 
 

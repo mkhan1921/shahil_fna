@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
 
@@ -37,8 +38,44 @@ def test_fallback_model_on_different_provider(monkeypatch):
 def test_cost_estimate():
     usd = llm.usage_cost_usd("anthropic:claude-opus-5-5", input_tokens=1_000_000, output_tokens=100_000, cache_read_tokens=500_000)
     assert abs(usd - (0.5 * 4.0 + 0.1 * 20.0 + 0.5 * 0.20)) < 1e-9
+    # Cache writes are part of input_tokens and cost 1.25× the input price.
+    written = llm.usage_cost_usd("anthropic:claude-opus-5-5", input_tokens=1_000_000, output_tokens=0, cache_read_tokens=500_000, cache_write_tokens=200_000)
+    assert abs(written - (0.3 * 4.0 + 0.5 * 0.20 + 0.2 * 4.0 * 1.25)) < 1e-9
     assert llm.usage_cost_usd("test", input_tokens=10, output_tokens=10) == 0.0
     assert llm.usage_cost_usd("anthropic:x", input_tokens=1, output_tokens=1, reported=0.42) == 0.42
+    assert llm.usage_cost_usd("other:unknown-model", input_tokens=1_000_000, output_tokens=0) == 5.0  # pessimistic default
+
+
+def test_settings_read_budgets_thresholds_and_hide_secrets(monkeypatch):
+    from advisor_intel.config import get_settings
+
+    for k, v in {
+        "ADVISOR_INTEL_BUDGET_USD_CAP": "40",
+        "ADVISOR_INTEL_BUDGET_TOOL_CALLS": "300",
+        "ADVISOR_INTEL_BUDGET_WALL_CLOCK_SOFT_S": "900",
+        "ADVISOR_INTEL_CONFORMAL_ALPHA": "0.05",
+        "ADVISOR_INTEL_MIN_CONFORMAL_CALLS": "80",
+        "ADVISOR_INTEL_SPOT_CHECK_RATE": "0.2",
+        "ADVISOR_INTEL_EXTRACTION_EFFORT": "high",
+        "ADVISOR_INTEL_REFUSAL_FALLBACKS": "false",
+        "ADVISOR_INTEL_WEB_SEARCH_ALLOWLIST": "sars.gov.za, fsca.co.za",
+        "ADVISOR_INTEL_API_TOKEN": "tok-secret-123",
+        "BRAINTRUST_API_KEY": "bt-secret-456",
+        "ADVISOR_INTEL_ENV": "production",
+    }.items():
+        monkeypatch.setenv(k, v)
+    s = get_settings.__wrapped__()
+    assert s.budgets.usd_cap == 40 and s.budgets.tool_calls == 300 and s.budgets.wall_clock_soft_s == 900
+    assert s.budgets.orchestrator_requests == 80  # untouched fields keep their defaults
+    assert s.conformal_alpha == 0.05 and s.min_conformal_calls == 80 and s.spot_check_rate == 0.2
+    assert s.models.extraction_effort == "high" and s.models.refusal_fallbacks is False
+    assert s.web_search_allowlist == ["sars.gov.za", "fsca.co.za"]
+    assert s.env == "production" and s.api_token == "tok-secret-123" and s.braintrust_api_key == "bt-secret-456"
+    shown = repr(s) + str(s)
+    assert "tok-secret-123" not in shown and "bt-secret-456" not in shown
+    monkeypatch.setenv("ADVISOR_INTEL_BUDGET_USD_CAP", "lots")
+    with pytest.raises(ValueError, match="BUDGET_USD_CAP"):
+        get_settings.__wrapped__()
 
 
 def test_hashed_embedder_is_deterministic_and_normalised():

@@ -54,6 +54,31 @@ def _tool_names(turn: list[ModelMessage]) -> set[str]:
     return {p.tool_name for m in turn for p in m.parts if isinstance(p, (ToolCallPart, ToolReturnPart))}
 
 
+SUMMARY_HEADER = "Summary of earlier turns (compacted):"
+
+
+def _text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, (list, tuple)):
+        return "\n".join(_text(c) for c in content)
+    return json.dumps(content, default=str)
+
+
+def earlier_summaries(turns: list[list[ModelMessage]]) -> list[str]:
+    """The summaries an earlier compaction wrote into these turns: nothing in them may be lost again."""
+    out = []
+    for turn in turns:
+        for m in turn:
+            if isinstance(m, ModelRequest):
+                for p in m.parts:
+                    if isinstance(p, UserPromptPart) and _text(p.content).startswith(SUMMARY_HEADER):
+                        body = _text(p.content)[len(SUMMARY_HEADER) :].split("\n\nYour notes:", 1)[0].strip()
+                        if body:
+                            out.append(body)
+    return out
+
+
 def digest(turns: list[list[ModelMessage]]) -> str:
     lines = []
     for turn in turns:
@@ -64,6 +89,10 @@ def digest(turns: list[list[ModelMessage]]) -> str:
                 elif isinstance(p, ToolReturnPart):
                     c = p.content if isinstance(p.content, str) else json.dumps(p.content, default=str)
                     lines.append(f"  → {c[:200]}")
+                elif isinstance(p, UserPromptPart) and isinstance(m, ModelRequest):
+                    text = _text(p.content)
+                    if not text.startswith(SUMMARY_HEADER):  # earlier summaries are carried whole, see earlier_summaries
+                        lines.append(f"- user: {text[:300]}")
     return "\n".join(lines)
 
 
@@ -87,15 +116,26 @@ async def compact_history(ctx: RunContext[HarnessDeps], messages: list[ModelMess
             keep_idx.add(i)
     dropped = [t for i, t in enumerate(older) if i not in keep_idx]
     kept = [t for i, t in enumerate(older) if i in keep_idx]
+    # A second compaction drops the first one's summary with the turns around it: carry it into the new
+    # summary whole, so a fact that survived one compaction survives the next.
+    previous = earlier_summaries(dropped)
     text = digest(dropped)
     rm = llm.for_role("small", deps.pins)
-    if not llm.is_stub(rm.name) and text:
+    if not llm.is_stub(rm.name) and (text or previous):
         prompt = pinned("compaction", deps.pins.prompt_versions)
-        res = await summary_agent.run(text[:60_000], model=rm.model, model_settings=rm.settings, instructions=prompt.text)
-        deps.add_usage({"requests": res.usage.requests, "input_tokens": res.usage.input_tokens or 0, "output_tokens": res.usage.output_tokens or 0})
+        earlier = "\n\n".join(f"Earlier summary (keep every fact, task and id in it):\n{s}" for s in previous)
+        res = await summary_agent.run((earlier + "\n\nNew turns:\n" + text)[:60_000] if earlier else text[:60_000], model=rm.model,
+                                      model_settings=rm.settings, instructions=prompt.text)
+        deps.add_usage({"requests": res.usage.requests, "input_tokens": res.usage.input_tokens or 0, "output_tokens": res.usage.output_tokens or 0,
+                        "cache_read_tokens": res.usage.cache_read_tokens or 0,
+                        "cost_usd": llm.usage_cost_usd(rm.name, input_tokens=res.usage.input_tokens or 0, output_tokens=res.usage.output_tokens or 0,
+                                                       cache_read_tokens=res.usage.cache_read_tokens or 0,
+                                                       cache_write_tokens=res.usage.cache_write_tokens or 0)})
         text = res.output
+    else:
+        text = "\n".join([*previous, text]) if previous else text
     notes = "\n".join(f"- {n}" for n in deps.state.notes)
-    summary = ModelRequest(parts=[UserPromptPart(content=f"Summary of earlier turns (compacted):\n{text}\n\nYour notes:\n{notes or '(none)'}\n"
+    summary = ModelRequest(parts=[UserPromptPart(content=f"{SUMMARY_HEADER}\n{text}\n\nYour notes:\n{notes or '(none)'}\n"
                                                           "Re-read the plan and profile with view_plan and view_profile before continuing.")])
     first = head[0]
     if isinstance(first, ModelRequest):

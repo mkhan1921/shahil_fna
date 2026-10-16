@@ -4,7 +4,7 @@ checkpoints and the glossary (spec §14.2)."""
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import psycopg
@@ -32,7 +32,7 @@ from .factories import GROSS, RET_AGE, flagged, make_transcript, reviewer_accept
 
 pytestmark = pytest.mark.postgres
 
-NOW = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
 
 
 async def _setup_call(store: Store, call_id: str = "call-1", run_id: str = "call-1-run-a") -> None:
@@ -83,6 +83,10 @@ async def test_schema_file_is_the_rendered_migrations_and_applies(empty_pg_dsn, 
     names = {r[0] for r in a}
     assert {"calls", "run_versions", "transcripts", "entities", "facts", "facts_latest", "state_ops", "agent_checkpoints", "followups",
             "review_events", "forecasts", "calibrators", "lexicons", "glossary"} <= names  # fmt: skip
+    # Per-run lookups are indexed (the primary keys cover the rest).
+    async with await psycopg.AsyncConnection.connect(pg_dsn, autocommit=True) as conn:
+        idx = {r[0] for r in await (await conn.execute("SELECT indexname FROM pg_indexes WHERE schemaname = 'public'")).fetchall()}
+    assert {"notifications_run_idx", "stage_outputs_run_idx", "review_events_run_idx", "profiles_call_idx"} <= idx
 
 
 # --------------------------------------------------------------------------- profiles and append-only facts

@@ -8,12 +8,14 @@ unfinished groups marked (§13.6).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from pydantic import BaseModel
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage
+from pydantic_ai.usage import RunUsage
 
 from .. import llm
 from ..models.extraction import Plan
@@ -27,7 +29,7 @@ from .deps import AgentInputs, HarnessDeps, HarnessServices, ProfileSink
 from .loop import LoopDetector
 from .orchestrator import Finish, orchestrator
 from .policy import policy_model
-from .state import HarnessState
+from .state import HarnessState, usage_snapshot
 
 RESUME_PROMPT = "You were interrupted and are resuming. Re-read the plan with view_plan and continue where you left off."
 SOFT_BUDGET_NOTE = "The time budget is nearly spent: finish the remaining tier A tasks, skip the rest with a reason, then run the final checks and finish."
@@ -91,36 +93,45 @@ async def run_agent(
         if "profile" in cp.harness_state.get("_extra", {}):
             profile = Profile.model_validate(cp.harness_state["_extra"]["profile"])
     loop = LoopDetector([e.args_hash for e in state.events[-10:]])
-    deps = HarnessDeps(inputs=inputs, catalog=catalog, services=services, state=state, budget=BudgetGuard(budgets=budgets, model_name=rm.name),
-                       loop=loop, profile=profile, on_profile=on_profile)
+    # A resumed attempt continues the run's budgets: the orchestrator's usage so far seeds Pydantic AI's
+    # limits and the wall clock already spent counts against the soft and hard limits (§13.6).
+    budget = BudgetGuard(budgets=budgets, model_name=rm.name, already_elapsed=state.elapsed_s)
+    prior_usage = RunUsage(**state.orchestrator_usage) if state.orchestrator_usage else None
+    deps = HarnessDeps(inputs=inputs, catalog=catalog, services=services, state=state, budget=budget, loop=loop, profile=profile, on_profile=on_profile)
     instructions = pinned("orchestrator", inputs.pins.prompt_versions).text
     # On resume the history may end with tool calls that never ran: run them first, then tell the agent.
     prompt = None if history else deps.brief()
     outcome = AgentOutcome()
     finish: Finish | None = None
+    last_usage: Any = prior_usage or RunUsage()
     try:
-        async with orchestrator.iter(prompt, deps=deps, message_history=history, usage_limits=usage_limits(budgets), model=model,
+        async with orchestrator.iter(prompt, deps=deps, message_history=history, usage_limits=usage_limits(budgets), usage=prior_usage, model=model,
                                      model_settings=rm.settings if model is rm.model else None, instructions=instructions) as run:
             if history:
                 run.enqueue(RESUME_PROMPT)
             async for _node in run:
                 # The previous node has run: checkpoint first, so a crash from here on loses nothing done.
                 state.turn += 1
+                last_usage = run.usage
+                state.orchestrator_usage = usage_snapshot(run.usage)
+                state.elapsed_s = round(budget.elapsed(), 3)
                 extra = {"profile": deps.profile.model_dump(mode="json")} if checkpoint_profile else {}
                 await checkpoints.save(inputs.run_id, state.turn, dump_messages(run.all_messages()), {**state.model_dump(mode="json"), "_extra": extra})
                 if heartbeat is not None:
                     heartbeat({"turn": state.turn, "profile_version": deps.profile.version})
-                deps.budget.check(run.usage, state.subagent_usage)
-                if deps.budget.soft_hit and not state.soft_budget_warned:
+                budget.check(run.usage, state.subagent_usage)
+                if budget.soft_hit and not state.soft_budget_warned:
                     state.soft_budget_warned = True
                     state.notes.append(SOFT_BUDGET_NOTE)
                     run.enqueue(SOFT_BUDGET_NOTE)
             finish = run.result.output if run.result else None
-            outcome.usage = deps.budget.spent(run.usage, state.subagent_usage)
+            last_usage = run.usage
     except (UsageLimitExceeded, BudgetExceeded) as e:
         outcome.partial = True
         outcome.reason = str(e)
-        outcome.usage = {"usd": round(state.subagent_usage.cost_usd, 4), "wall_clock_s": round(deps.budget.elapsed(), 1)}
+    outcome.usage = budget.spent(last_usage, state.subagent_usage)
+    state.orchestrator_usage = usage_snapshot(last_usage)
+    state.elapsed_s = round(budget.elapsed(), 3)
     plan = state.plan
     if plan is not None:
         unfinished = sorted({t.slot_group for t in plan.tasks if t.status in ("todo", "running")})

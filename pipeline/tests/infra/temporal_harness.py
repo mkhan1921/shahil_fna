@@ -34,6 +34,7 @@ class MockActivities:
     failing_answers: tuple[str, ...] = ()
     failing_nightly: tuple[str, ...] = ()
     fail_discourse: bool = False
+    slow_note_s: float = 0.0  # how long render_meeting_note takes (to race signals against the final steps)
     calls: list[tuple[str, Any]] = field(default_factory=list)
     profile_version: int = 3
 
@@ -105,6 +106,8 @@ class MockActivities:
         @activity.defn(name=C.RENDER_NOTE)
         async def render_note(inp: C.StageInput) -> C.NoteOutcome:
             m.calls.append((C.RENDER_NOTE, inp))
+            if m.slow_note_s:
+                await asyncio.sleep(m.slow_note_s)
             return C.NoteOutcome(profile_version=m.profile_version, sentences=6)
 
         def check(name: str, inp: Any) -> None:

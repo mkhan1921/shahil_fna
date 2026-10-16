@@ -8,8 +8,9 @@ working state. Values only change through ``HarnessDeps.apply``, which runs the 
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -68,7 +69,7 @@ class HarnessServices:
     sensitivity: ProfileFn | None = None
     followups: ProfileFn | None = None
     lookup_term: LookupFn | None = None
-    derive: Callable[[Profile, "HarnessDeps"], Awaitable[Profile]] | None = None
+    derive: Callable[[Profile, HarnessDeps], Awaitable[Profile]] | None = None
 
 
 ProfileSink = Callable[[Profile], Awaitable[None]]

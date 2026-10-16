@@ -54,7 +54,7 @@ def unregister_local_model(name: str) -> None:
 
 
 def is_test(name: str) -> bool:
-    return name in ("", "test") or name.startswith("test:") or name.startswith("local:")
+    return name in ("", "test") or name.startswith(("test:", "local:"))
 
 
 def is_stub(name: str) -> bool:
@@ -151,12 +151,21 @@ def for_role(role: Role, pins: VersionPins | None = None, *, thinking: bool = Fa
     return RoleModel(role=role, name=name, model=build_model(name, secondary=secondary), settings=model_settings(name, thinking=thinking, effort=effort))
 
 
-def usage_cost_usd(name: str, *, input_tokens: int, output_tokens: int, cache_read_tokens: int = 0, reported: float | None = None) -> float:
-    """USD for one model's usage: the provider-reported cost when present, else the price table."""
+CACHE_WRITE_MULTIPLIER = 1.25  # a cache write costs 1.25× the input price (5-minute cache)
+
+
+def usage_cost_usd(
+    name: str, *, input_tokens: int, output_tokens: int, cache_read_tokens: int = 0, cache_write_tokens: int = 0, reported: float | None = None
+) -> float:
+    """USD for one model's usage: the provider-reported cost when present, else the price table.
+
+    ``input_tokens`` is Pydantic AI's total, which includes the cache reads and writes; those are priced
+    at the cache-read price and the cache-write multiple, the rest at the input price.
+    """
     if reported:
         return float(reported)
     if is_test(name):
         return 0.0
     p_in, p_out, p_cache = PRICES_PER_MTOK.get(model_id(name), _DEFAULT_PRICE)
-    fresh_in = max(0, input_tokens - cache_read_tokens)
-    return (fresh_in * p_in + output_tokens * p_out + cache_read_tokens * p_cache) / 1e6
+    fresh_in = max(0, input_tokens - cache_read_tokens - cache_write_tokens)
+    return (fresh_in * p_in + output_tokens * p_out + cache_read_tokens * p_cache + cache_write_tokens * p_in * CACHE_WRITE_MULTIPLIER) / 1e6

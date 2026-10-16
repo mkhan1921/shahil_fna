@@ -14,7 +14,6 @@ before it (a re-run reuses their stored outputs).
 
 from __future__ import annotations
 
-import asyncio
 from datetime import timedelta
 
 from temporalio import workflow
@@ -171,6 +170,12 @@ class CallPipelineWorkflow:
         await self._render_note(stage_in)
 
         result = await self._forecast(StageInput(run_id=run_id, args=args.final()))
+        # An answer signalled while the note and the final forecast ran would otherwise be lost: the API
+        # signals a run it saw RUNNING, and FollowupIntakeWorkflow only takes answers once this run is over.
+        while self._pending_answers():
+            await self._take_answers(run_id, args, forecast=False)
+            await self._render_note(stage_in)
+            result = await self._forecast(StageInput(run_id=run_id, args=args.final()))
         self.state = RunState.COMPLETE
         self._stage = ""
         return CallResult(
@@ -200,7 +205,7 @@ class CallPipelineWorkflow:
                 continue
             try:
                 await workflow.wait_condition(lambda: self.review is not None or self._pending_answers(), timeout=remaining)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass  # the loop sends the reminder
 
     def _pending_answers(self) -> bool:

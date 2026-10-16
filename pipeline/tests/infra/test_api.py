@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import httpx
@@ -28,7 +28,7 @@ from .factories import GROSS, RET_AGE, flagged, make_transcript, sample_document
 pytestmark = pytest.mark.postgres
 
 TOKEN = "s3cret-token"
-NOW = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
 
 
 class FakeGateway:
@@ -454,6 +454,29 @@ async def test_followup_answers_are_routed_by_run_status(api):
     wf, args = api.gw.intakes[0]
     assert r.json()["workflow_id"] == wf and args.run_id == "call-1-run-a" and args.answer.text == "Actually sixty-four"
     assert (await api.c.post("/calls/call-1/followups/fu.nope/answer", json={"text": "x"})).status_code == 404
+
+
+async def test_answer_falls_back_to_the_intake_workflow_when_the_run_completes_mid_signal(api):
+    """describe() said RUNNING, but the run finished before the signal arrived: the answer is not lost."""
+    from temporalio.service import RPCError, RPCStatusCode
+
+    await seed_run(api)
+    gw = api.gw
+
+    async def gone(workflow_id, answer):
+        raise RPCError("workflow execution already completed", RPCStatusCode.NOT_FOUND, b"")
+
+    gw.signal_answer = gone
+    r = await api.c.post("/calls/call-1/followups/fu.retirement_age/answer", json={"text": "Sixty-three"})
+    assert r.status_code == 200 and r.json()["routed"] == "intake_workflow" and len(gw.intakes) == 1
+    assert gw.intakes[0][1].answer.text == "Sixty-three"
+
+    async def broken(workflow_id, answer):
+        raise RPCError("unavailable", RPCStatusCode.UNAVAILABLE, b"")
+
+    gw.signal_answer = broken
+    with pytest.raises(RPCError):  # any other failure is not swallowed
+        await api.c.post("/calls/call-1/followups/fu.retirement_age/answer", json={"text": "Sixty-four"})
 
 
 async def test_fna_export_with_sidecar_and_note(api):
