@@ -26,11 +26,12 @@ last 100 spot-checked calls, ``AutoAcceptMonitor`` alerts and switches auto-acce
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
+from typing import Any, Callable, Iterable, Iterator, Literal, Mapping, Protocol, Sequence
 
 from pydantic import BaseModel
 
@@ -141,6 +142,29 @@ def spans_from_otel(spans: Iterable[Any]) -> list[TraceSpan]:
             )
         )
     return sorted(out, key=lambda x: x.start)
+
+
+@contextlib.contextmanager
+def captured_spans() -> Iterator[Callable[[], list[TraceSpan]]]:
+    """The OpenTelemetry spans of every agent run inside the block: Pydantic AI's instrumentation (GenAI conventions,
+    with tool arguments and results) into an in-memory exporter, for scoring a run in-process (red-team runs, tests).
+    The instrumentation default is process-wide and restored on exit."""
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from pydantic_ai import Agent
+    from pydantic_ai.models.instrumented import InstrumentationSettings
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    previous = Agent._instrument_default
+    Agent.instrument_all(InstrumentationSettings(tracer_provider=provider, include_content=True, version=5))
+    try:
+        yield lambda: spans_from_otel(exporter.get_finished_spans())
+    finally:
+        Agent.instrument_all(previous)
+        provider.shutdown()
 
 
 def spans_from_braintrust(rows: Iterable[Any]) -> list[TraceSpan]:
@@ -327,14 +351,14 @@ class RunTrace(BaseModel):
             facts = get(profile, "facts") or {}
             upd["facts"] = [
                 RunFact(
-                    fact_id=f.fact_id,
-                    slot_id=f.slot_id,
-                    source=f.source,
-                    status=f.status,
-                    grounded=bool(f.evidence),
-                    field_retries=int(f.field_retries or 0),
-                    auto_accepted=bool(f.auto_accepted),
-                    review_status=f.review.status,
+                    fact_id=str(get(f, "fact_id")),
+                    slot_id=str(get(f, "slot_id") or str(get(f, "fact_id")).split("#", 1)[0]),
+                    source=str(get(f, "source") or "call"),
+                    status=str(get(f, "status") or ""),
+                    grounded=bool(get(f, "evidence")),
+                    field_retries=int(get(f, "field_retries") or 0),
+                    auto_accepted=bool(get(f, "auto_accepted")),
+                    review_status=str(get(get(f, "review"), "status") or "pending"),
                 )
                 for f in facts.values()
             ]

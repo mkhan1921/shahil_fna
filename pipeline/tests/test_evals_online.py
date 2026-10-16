@@ -322,32 +322,19 @@ def test_spot_checks_and_the_auto_accept_monitor(tmp_path):
 async def test_the_reference_run_of_the_real_harness_passes(tmp_path):
     """The harness's deterministic policy (stub pins) is the reference trace: its OpenTelemetry spans pass every rule."""
     pipeline = pytest.importorskip("advisor_intel.pipeline")
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-    from pydantic_ai import Agent
-    from pydantic_ai.models.instrumented import InstrumentationSettings
-
     from advisor_intel.evals.datasets import DatasetRecord, LocalBlobStore, Stage12Cache
     from advisor_intel.models.runs import VersionPins
     from advisor_intel.testing.calls import SAMPLE_CALL
     from advisor_intel.testing.transcripts import ingested_transcript
 
-    exporter = InMemorySpanExporter()
-    tp = TracerProvider()
-    tp.add_span_processor(SimpleSpanProcessor(exporter))
     t = await ingested_transcript(SAMPLE_CALL, call_id="call-online")
     rec = DatasetRecord(
         id="call-online", input={"call_id": "call-online", "transcript": t.model_dump(mode="json")}, metadata={"dataset": "gold-calls"}
     )
     cached = Stage12Cache(LocalBlobStore(tmp_path)).load_call(rec, VersionPins())
-    previous = Agent._instrument_default
-    Agent.instrument_all(InstrumentationSettings(tracer_provider=tp, include_content=True, version=5))
-    try:
+    with O.captured_spans() as spans:
         res = await pipeline.process_cached_call(cached, VersionPins())
-    finally:
-        Agent.instrument_all(previous)
-    run = O.RunTrace.from_result(res, spans=O.spans_from_otel(exporter.get_finished_spans()))
+    run = O.RunTrace.from_result(res, spans=spans())
     assert run.tool_calls[0].tool == "make_plan" and run.tool_calls[1].args.get("task_id")
     rep = O.check_policy(run)
     assert rep.passed, rep.violations
@@ -355,3 +342,6 @@ async def test_the_reference_run_of_the_real_harness_passes(tmp_path):
     assert scores.schema_valid_rate == 1.0 and scores.budget_exceeded == 0.0 and scores.policy == 1.0 and run.facts_known
     names_only = O.score_run(O.RunTrace.from_result(res))
     assert names_only.policy == 1.0 and names_only.schema_valid_rate is None
+    from pydantic_ai import Agent
+
+    assert Agent._instrument_default is False  # the capture restored the process default
