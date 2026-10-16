@@ -73,7 +73,9 @@ def make_lookup_term(glossary_store: Any = None, *, web_search: Any = None, allo
 
     async def lookup_term(term: str, context: str, deps: HarnessDeps) -> ServiceResult:
         inputs = deps.inputs
-        kw: dict[str, Any] = {"text": context, "crm_terms": _crm_terms(inputs.crm), "practice_products": list(inputs.glossary)}
+        # inputs.glossary holds context lines for extraction ("term = canonical name (type, provider)"); confirmed terms
+        # are resolved from the glossary store itself.
+        kw: dict[str, Any] = {"text": context, "crm_terms": _crm_terms(inputs.crm)}
         ctx = G.TermContext.from_fna(inputs.base_document, **kw) if inputs.base_document is not None else G.TermContext(**kw)
         res = await asyncio.to_thread(G.lookup_term, term, ctx, glossary=store, web_search=web_search, allowlist=allowlist)
         return ServiceResult(data={**res.model_dump(mode="json"), "resolved": res.resolved})
