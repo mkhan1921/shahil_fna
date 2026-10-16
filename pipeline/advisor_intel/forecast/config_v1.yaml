@@ -1,0 +1,46 @@
+# Monte Carlo forecast configuration (spec §12.1). Version-pinned: a change to any value is a new
+# config_version, recorded on every ForecastResult with the capital market assumptions version.
+config_version: config_v1
+n_paths: 10000                 # full run; sensitivity runs use n_paths_sensitivity (§10.2)
+n_paths_sensitivity: 1000
+n_paths_max: 40000             # the path count is raised until the PoS CI is at most 2 points wide, up to this cap (§12.6)
+pos_ci_max_width: 0.02
+step: annual
+horizon_age: 100               # for the primary client; extended to the latest planning age when that is later
+max_years: 110
+seed_policy: per_run_fixed     # reproducible; sensitivity runs reuse market draws (common random numbers)
+asset_classes: [za_equity, za_bonds, za_cash, global_equity, global_bonds]
+capital_market_assumptions: cma/2026Q4.yaml   # vols, correlations and the asset mix; means come from the document (§12.8)
+inflation: {model: ar1, mean: fna.assumptions.cpi, phi: 0.6, sd: 0.015}   # FNA default 0.045
+fx_usdzar: {model: gbm, drift_real: 0.01, vol: 0.15}
+return_model: mvn_log          # v1: multivariate normal on real log returns; block_bootstrap for the quarterly check (§12.6)
+fat_tails: {enabled: true, df: 5, max_multiplier: 4.0}   # Student-t multiplier on shocks, capped so one year cannot draw an absurd shock
+success_definition:
+  essential_spend_met_until_age: fna.retirement.{p}.planningAge   # FNA default 92
+  allow_property_sale: false
+  tolerance: 0.001             # unmet essential spend below 0.1% of the year's essential spend is rounding, not failure
+portfolio_policy: from_profile_or_default     # the client's risk-profile mix, else the default glide path by age
+drawdown_band: {min: 0.025, max: 0.175}       # living annuity drawdown (§12.3 step 7)
+expenses:
+  children_end_age: 18         # child-related expense lines stop when the youngest child turns 18 (end of matric)
+  support_keys: [family-support]   # stop when the supported dependants' support years end
+block_bootstrap: {mean_block_months: 24, recentre: true, us_cpi_annual: 0.025}
+modes:
+  preview:                     # before review: the same headline run, lighter attribution
+    n_paths: 10000
+    attribution_n: 1000
+    shapley_paths: 500
+    shapley_contexts: 50
+    shapley_permutations: 100
+    shapley_inner: 3
+    top_drivers: 10
+    need_bands_k: 200
+  final:                       # after review (§12.5): N = 2,000; Shapley 200 permutations on a 1,000-path run
+    n_paths: 10000
+    attribution_n: 2000
+    shapley_paths: 1000
+    shapley_contexts: 100
+    shapley_permutations: 200
+    shapley_inner: 3
+    top_drivers: 10
+    need_bands_k: 1000

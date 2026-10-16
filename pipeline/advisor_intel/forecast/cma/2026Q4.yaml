@@ -1,0 +1,78 @@
+# Capital market assumptions, 2026 Q4 (spec §12.1). Owned by the practice's investment team, versioned and
+# pinned per run (cma_version on every ForecastResult).
+#
+# PLACEHOLDER VALUES: representative long-run SA assumptions for development and tests. The investment team
+# replaces them at the quarterly CMA review; set status: approved when they do.
+#
+# What this file supplies (§12.8): volatilities, correlations and the asset mix of each portfolio. It does not
+# set expected returns: every portfolio's mean comes from the FNA document's assumptions (pre- and
+# post-retirement returns, the risk capital return, CPI). relative_real_return only places one asset class
+# relative to another, so a cash bucket earns less than a balanced one around the same document mean; only
+# the differences between classes matter.
+cma_version: 2026Q4
+as_of: '2026-09-30'
+owner: Investment team
+status: placeholder
+notes: Development placeholder; replace at the Q4 2026 CMA review.
+
+# Annual volatility of real log returns in each class's own currency. Global classes are in US dollars;
+# their rand return adds the change in the real USDZAR rate (fx below).
+asset_classes:
+  - {name: za_equity, currency: ZAR, vol: 0.18, relative_real_return: 0.060}
+  - {name: za_bonds, currency: ZAR, vol: 0.09, relative_real_return: 0.030}
+  - {name: za_cash, currency: ZAR, vol: 0.01, relative_real_return: 0.010}
+  - {name: global_equity, currency: USD, vol: 0.15, relative_real_return: 0.050}
+  - {name: global_bonds, currency: USD, vol: 0.06, relative_real_return: 0.015}
+
+# Correlation of real log-return shocks, in asset_classes order. Must be symmetric and positive definite
+# together with fx.correlation_with_assets (checked on load).
+correlation:
+  - [1.00, 0.35, 0.00, 0.55, 0.05]
+  - [0.35, 1.00, 0.20, 0.15, 0.30]
+  - [0.00, 0.20, 1.00, 0.00, 0.05]
+  - [0.55, 0.15, 0.00, 1.00, 0.25]
+  - [0.05, 0.30, 0.05, 0.25, 1.00]
+
+fx:
+  usdzar_spot: 17.50           # rand per US dollar at as_of
+  gbpusd: 1.33                 # cross rates are held fixed; GBP and EUR amounts move with USDZAR
+  eurusd: 1.16
+  # Correlation of the real USDZAR change with each class's shock: the rand weakens when SA assets fall.
+  correlation_with_assets: {za_equity: -0.35, za_bonds: -0.30, za_cash: 0.00, global_equity: -0.25, global_bonds: 0.10}
+
+policies:
+  # Household investments (cash, discretionary, TFSA, offshore) are placed around this mix, whose mean is the
+  # document's pre-retirement return.
+  reference: {za_equity: 0.40, za_bonds: 0.25, za_cash: 0.10, global_equity: 0.20, global_bonds: 0.05}
+  # Default accumulation mix by age (portfolio_policy when the profile has no complete risk profile);
+  # linear between points, flat outside them.
+  glide_path:
+    - {age: 30, allocation: {za_equity: 0.45, za_bonds: 0.15, za_cash: 0.05, global_equity: 0.30, global_bonds: 0.05}}
+    - {age: 45, allocation: {za_equity: 0.40, za_bonds: 0.20, za_cash: 0.08, global_equity: 0.25, global_bonds: 0.07}}
+    - {age: 55, allocation: {za_equity: 0.33, za_bonds: 0.27, za_cash: 0.12, global_equity: 0.20, global_bonds: 0.08}}
+    - {age: 65, allocation: {za_equity: 0.25, za_bonds: 0.32, za_cash: 0.18, global_equity: 0.15, global_bonds: 0.10}}
+    - {age: 75, allocation: {za_equity: 0.20, za_bonds: 0.35, za_cash: 0.25, global_equity: 0.10, global_bonds: 0.10}}
+  # Living annuity mix by age after retirement.
+  living_annuity:
+    - {age: 60, allocation: {za_equity: 0.30, za_bonds: 0.30, za_cash: 0.15, global_equity: 0.15, global_bonds: 0.10}}
+    - {age: 80, allocation: {za_equity: 0.20, za_bonds: 0.35, za_cash: 0.25, global_equity: 0.10, global_bonds: 0.10}}
+  # Accumulation mix for each FNA risk profile category (from_profile).
+  risk_profiles:
+    conservative: {za_equity: 0.15, za_bonds: 0.35, za_cash: 0.35, global_equity: 0.05, global_bonds: 0.10}
+    moderately-conservative: {za_equity: 0.25, za_bonds: 0.35, za_cash: 0.20, global_equity: 0.10, global_bonds: 0.10}
+    moderate: {za_equity: 0.35, za_bonds: 0.30, za_cash: 0.12, global_equity: 0.15, global_bonds: 0.08}
+    moderately-aggressive: {za_equity: 0.42, za_bonds: 0.22, za_cash: 0.08, global_equity: 0.23, global_bonds: 0.05}
+    aggressive: {za_equity: 0.50, za_bonds: 0.12, za_cash: 0.05, global_equity: 0.30, global_bonds: 0.03}
+  cash: {za_cash: 1.0}
+  tfsa: {za_equity: 0.55, za_bonds: 0.10, za_cash: 0.05, global_equity: 0.30}
+  offshore: {global_equity: 0.70, global_bonds: 0.30}
+  # Goal and education savings; mean = the document's risk capital return, as the FNA's goals and education use.
+  capital: {za_equity: 0.25, za_bonds: 0.35, za_cash: 0.25, global_equity: 0.10, global_bonds: 0.05}
+  discretionary: glide_path    # or an allocation; follows the primary client's age
+
+# Assets the forecast does not draw on (allow_property_sale: false): deterministic real growth for net worth.
+real_assets:
+  property_real_growth: 0.0
+  business_real_growth: 0.0
+  lifestyle_real_growth: {vehicle: -0.10, personal-effects: -0.05, other: -0.02}
+  loan_account_nominal: true   # a loan account is a fixed rand amount, so it loses value with inflation
