@@ -321,7 +321,10 @@ slots:
   - path: income.{p}.annualBonus
     group: income
     tier: B
+    relative: true
     question: What bonus or 13th cheque does this person receive per year?
+    hints:
+      - "A 13th cheque is one month's salary: AMOUNT_RELATIVE to income.{p}.grossMonthly with the words as said."
     prior: {kind: mixture, components: [[0.45, {kind: point, value: 0}], [0.55, {kind: lognormal, median: 60000, p10: 15000, p90: 250000}]]}
     bounds: [0, 20000000]
     outputs: [life, income-protection, retirement, cashflow]

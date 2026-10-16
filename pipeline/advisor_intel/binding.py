@@ -130,19 +130,10 @@ def _container(doc: dict[str, Any], dotted: str) -> Any:
 
 
 def quantity_unit(slot: SlotDef) -> tuple[str, str]:
-    """(Quantity.unit, Quantity.period) for a slot's FnaDocument unit."""
-    return {
-        "rand": ("ZAR", "once"),
-        "rand_monthly": ("ZAR", "monthly"),
-        "rand_annual": ("ZAR", "annual"),
-        "years": ("years", "none"),
-        "months": ("months", "none"),
-        "age": ("age", "none"),
-        "year": ("date", "none"),
-        "decimal": ("pct", "none"),
-        "date": ("date", "none"),
-        "count": ("count", "none"),
-    }.get(slot.fna_unit, ("none", "none"))
+    """(Quantity.unit, Quantity.period) for a slot's FnaDocument unit (the lexicon's mapping)."""
+    from .lexicon.normalize import quantity_unit as unit_of
+
+    return unit_of(slot)
 
 
 def to_quantity(slot: SlotDef, raw: Any) -> Quantity:

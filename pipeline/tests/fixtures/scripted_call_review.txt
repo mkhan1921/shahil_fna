@@ -1,0 +1,95 @@
+# A ~10 minute annual review call: adviser Sipho Dlamini with Thabo and Lerato Mokoena (fictional household,
+# the FNA sample). Slang amounts, Afrikaans, a self-correction, a spouse correction, crosstalk and pauses.
+# Markup: {words|means=value} is what the speaker meant; {words|heard=…} is what the ASR wrote instead.
+advisor: Good morning Thabo, good morning Lerato. Thanks so much for making the time today. Before we start, this meeting is recorded for compliance purposes, is that okay with both of you?
+thabo: Morning Sipho. Yes, that's fine with us.
+lerato: Ja, no problem, go ahead.
+advisor: Great. So today we'll update your financial needs analysis. It's been about a year since we last sat down, so I want to go through your income, your expenses, the house, your retirement funds and your cover, and then we'll look at the kids' education. Let's start with income. Thabo, what are you taking home these days?
+thabo: I take home about {forty two|means=42000} thousand a month after tax. The gross is a hundred thousand, and there's a bonus in December, roughly a hundred thousand as well.
+advisor: Okay, and is the bonus guaranteed or performance based?
+thabo: It's performance based, so it depends on the year. Last year it was a bit less.
+advisor: Thanks Thabo. And Lerato, what about your salary?
+lerato: I earn fifty five thousand gross, and I take home about thirty eight thousand rand a month. My employer doesn't pay the medical aid, Thabo's company does.
+advisor: Right, the medical aid comes off Thabo's payslip. How much is that each month?
+thabo: It's nine thousand eight hundred and fifty a month for the four of us.
+advisor: Okay. Now the monthly budget. Roughly what do you spend on groceries?
+lerato: Groceries are about eight bar a month, maybe nine with the kids eating everything.
+thabo: And petrol is another five bar a month for both cars.
+advisor: And school fees for Neo and Kagiso?
+lerato: Neo is at a private school, that's ninety eight thousand a year. Kagiso's school is thirty four thousand a year.
+advisor: How old are the kids now?
+lerato: Neo is in grade nine this year, and Kagiso is seven, she's in grade one.
+advisor: So Neo will be in matric in three years. Are you thinking of university for him?
+thabo: Definitely, he wants to study engineering. We think it will cost about a hundred and fifty thousand a year.
+lerato: Maybe more, if he goes to Stellenbosch.
+advisor: Do you have anything saved for that yet?
+lerato: We have about {eighty five thousand|means=85000} in a unit trust for him, and we put away fifteen hundred a month.
+advisor: Good. Let's talk about the house. What do you think the house is worth now?
+thabo: It's worth about {two point eight|means=2800000}, maybe two point nine.
+advisor: And the bond, what's outstanding on it?
+thabo: The bond is sitting at about {two fifty|means=250000}... sorry, no, it's more like one point eight five million, I was thinking of the car.
+lerato: Ja, it's one point eight five on the bond. The car is the two fifty.
+advisor: Okay, so one point eight five million on the bond and about two hundred and fifty thousand on the vehicle finance. What's the repayment on the bond?
+thabo: Eighteen thousand eight hundred a month, at prime, which is now ten point seven five percent.
+advisor: And the car repayment?
+thabo: Seven thousand nine hundred a month, the interest rate is about {twelve and a quarter|means=12.25} percent.
+[pause 2.0]
+advisor: Let's move to retirement. Thabo, your pension fund at work, do you know the latest value?
+thabo: The last statement said one point three two million. My savings pot under the two-pot system is about thirty eight thousand.
+advisor: And your contributions?
+thabo: I put in seven and a half thousand a month and the company puts in ten thousand.
+advisor: And your RA? Is that still with Allan Gray?
+thabo: Yes, the Allan Gray RA is about three hundred and fifteen thousand. I put in two and a half thousand a month.
+advisor: Lerato, your provident fund at Brightwater?
+lerato: It's about {five hundred and sixty|heard=five hundred and sixteen|means=560000} thousand. And I have a preservation fund from my previous employer, one eight four.
+advisor: One eight four, that's a hundred and eighty four thousand?
+lerato: Yes, a hundred and eighty four thousand.
+[overlap 0.6]
+thabo: And don't forget the tax free savings.
+lerato: Oh ja, my TFSA at Easy Equities, that's about one six eight, and I put in fifteen hundred a month.
+advisor: When would you both like to retire?
+thabo: I'd like to retire at sixty, maybe sixty two.
+lerato: I'm only thirty seven, so I'll work until sixty five probably.
+advisor: And Thabo, you're turning forty this year?
+thabo: Yes, I turned forty in April.
+advisor: Now your risk cover. Thabo, you have life cover with Discovery?
+thabo: Yes, Discovery life cover of five million, and disability cover of three million. The premium is about {two thousand four hundred|means=2400} a month.
+advisor: Any income protection?
+thabo: Yes, income protection of sixty thousand a month through Discovery as well.
+lerato: I only have the group life through work, three times my salary, and a funeral policy with Old Mutual for twenty five thousand.
+advisor: Do you have wills in place?
+lerato: We do have wills, I think they're from twenty nineteen.
+advisor: We should review those. Who is the executor, and have you named a guardian for the children?
+thabo: My brother is the executor, and Lerato's sister would be the guardian. We haven't changed anything since Kagiso was born.
+advisor: Okay, that's important, because Kagiso isn't mentioned in the will then. And funeral costs, have you thought about what that would cost?
+lerato: We said about fifty thousand each, that's what my aunt's funeral cost last year.
+advisor: Let's talk about medical aid for a moment. Which plan are you on?
+thabo: We're on Discovery, the classic comprehensive plan, and we added gap cover this year. The gap cover is about four hundred and fifty rand a month.
+advisor: And short-term insurance for the house and the cars?
+lerato: That's with OUTsurance, about three thousand two hundred a month for everything.
+advisor: Now a few questions for your risk profile. If your investments dropped by twenty percent in a year, what would you do?
+thabo: Honestly, I'd leave it. We're investing for the long term, at least fifteen years.
+lerato: I'd be nervous, I'd probably want to move some of it to cash.
+advisor: That's useful, I'll note that you see risk a bit differently. And how much of your savings would you put offshore?
+thabo: Maybe a third. We don't use the offshore allowance at the moment, but I'd like to start, maybe a hundred thousand a year.
+advisor: And the emergency fund, how many months of expenses would you want to keep in cash?
+lerato: At least three months, so roughly a hundred and twenty thousand.
+advisor: One more on the two-pot system. Have either of you made a withdrawal from the savings pot?
+thabo: I took out twenty thousand last year when the car broke, but I don't want to do that again.
+advisor: That's sensible, every withdrawal is taxed at your marginal rate. Your mother, Thabo, you still support her?
+thabo: Yes, my mom is in her late sixties. We send her three and a half thousand a month.
+advisor: Okay. Any other savings or investments?
+thabo: We have about {ninety five thousand|means=95000} in a money market account as an emergency fund, and four hundred and ten thousand in a balanced unit trust.
+lerato: Plus the joint savings account, about forty eight thousand.
+advisor: And credit cards or other loans?
+thabo: The credit card is about thirty two thousand. Lerato has a personal loan of forty eight thousand at twenty three and a half percent.
+lerato: Ja, I want to settle that this year, it's too expensive.
+advisor: That's a good plan. Any big goals in the next few years?
+lerato: We want to go overseas in twenty twenty eight, maybe half a bar a month into a holiday fund.
+thabo: And I'd like to replace the Fortuner, so maybe another six hundred k in about five years.
+advisor: Last question on expenses. In retirement, how much do you think you'd need each month in today's money?
+thabo: Probably about the same as now, maybe a bit less. Say sixty thousand a month.
+lerato: Ek dink so, sestig duisend rand per maand is reg.
+advisor: Perfect. So to summarise, income of a hundred thousand and fifty five thousand gross, the bond at one point eight five million, retirement funds of about two point four million together, and life cover of five million on Thabo. I'll run the numbers and send you the updated analysis by Friday.
+thabo: Thanks Sipho, that sounds good.
+lerato: Thank you, baie dankie.

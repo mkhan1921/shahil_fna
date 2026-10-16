@@ -252,4 +252,4 @@ class ExtractionResult(BaseModel):
     gaps: list[str] = []  # tier A slots still not_discussed
     warnings: list[str] = []
     dropped: list[str] = []  # extractions without a located source, or out of bounds
-    usage: dict[str, int] = {}
+    usage: dict[str, float] = {}  # requests, tokens and cost_usd of the sub-agents

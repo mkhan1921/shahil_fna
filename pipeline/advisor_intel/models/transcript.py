@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 SpeakerRole = Literal["advisor", "client_primary", "client_secondary", "other", "unknown"]
 SegmentFlag = Literal["self_correction", "interrupted", "crosstalk", "low_asr"]
 SpanKind = Literal["amount", "age", "product"]
+SpanFlag = Literal["low_asr", "crosstalk", "scale_ambiguous"]
 
 
 class Word(BaseModel):
@@ -49,7 +50,8 @@ class Reading(BaseModel):
     scale_source: str | None = None  # the scale word or digit pattern that set the magnitude
     lexicon_key: str | None = None  # for age bands and product names
     weight: float  # normalised score (ASR × grammar)
-    is_rate: bool = False
+    is_rate: bool = False  # value is the spoken percentage ("eleven and a half percent" → 11.5)
+    provider: str | None = None  # product readings: the canonical provider ("Allan Gray")
 
 
 class NumericSpan(BaseModel):
@@ -65,6 +67,7 @@ class NumericSpan(BaseModel):
     provider_itn: str | None = None  # the ASR provider's own inverse text normalisation, kept as a candidate
     accepted: bool = True  # False when no grammar path accepted the span
     mean_conf: float = 1.0
+    flags: set[SpanFlag] = set()  # low_asr (no grammar path accepted), crosstalk over the span, scale_ambiguous
     second_pass_reading: Reading | None = None
     second_pass_agreement: bool | None = None
     second_pass_method: str | None = None

@@ -13,6 +13,7 @@ dependencies = [
   "scipy>=1.13",
   "scikit-learn>=1.5",
   "rapidfuzz>=3.9",
+  "jsonschema>=4.20",  # validates the shared SARS tables in fna_tables/ (§12.7)
   "rank-bm25>=0.2.2",
   "pyyaml>=6",
   "fastapi>=0.115",
