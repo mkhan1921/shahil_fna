@@ -50,6 +50,7 @@ VERDICTS: tuple[str, ...] = ("entailed", "neutral", "contradicted")
 VERDICT_SCORE: dict[str, float] = {"entailed": 1.0, "neutral": 0.5, "contradicted": 0.0}
 SEED_SOURCES = frozenset({"prior_fna", "crm", "fna_default"})
 TOP_LOGPROBS = 5
+API_ERRORS = ("ModelHTTPError", "ModelAPIError", "FallbackExceptionGroup")  # provider rejections worth one retry without log-probabilities
 
 
 # --------------------------------------------------------------------------- the verifier agent
@@ -320,7 +321,7 @@ async def _verify_fact(
     async with sem:
         outcome = await run_guarded(entailment_agent, prompt, resolved, deps=deps)
         usage = outcome.usage
-        if outcome.output is None and want_logprobs:
+        if outcome.output is None and want_logprobs and (outcome.error or "").startswith(API_ERRORS):
             # Some deployments reject log-probabilities: retry once without them.
             plain = Resolved(
                 resolved.name, resolved.model, {k: v for k, v in (resolved.settings or {}).items() if "logprobs" not in k}, resolved.offline

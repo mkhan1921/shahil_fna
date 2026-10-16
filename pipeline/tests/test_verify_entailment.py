@@ -312,3 +312,24 @@ async def test_a_local_pin_runs_the_registered_model_without_override():
     finally:
         llm.unregister_local_model("verify-entailment-test")
     assert res.facts[ra].status == "entailed" and len(prompts) == 1 and res.facts[ra].model == pin
+
+
+async def test_a_deployment_that_rejects_logprobs_is_retried_without_them():
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    p, ra, _, _ = _profile()
+    seen = []
+
+    def fn(messages, info: AgentInfo):
+        seen.append(dict(info.model_settings or {}))
+        if (info.model_settings or {}).get("openai_logprobs"):
+            raise ModelHTTPError(status_code=400, model_name="verifier", body={"error": "logprobs are not supported"})
+        claims = re.findall(r"^- (c\d+): ", str(messages[-1].parts[-1].content), flags=re.M)
+        return ModelResponse(
+            parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": "entailed", "reason": "r"} for c in claims]}))]
+        )
+
+    with entailment_agent.override(model=FunctionModel(fn)):
+        res = await check_entailment(p, [ra], transcript=_transcript(), pins=VersionPins(), logprobs=True)
+    assert [("openai_logprobs" in s) for s in seen] == [True, False]
+    assert res.facts[ra].status == "entailed" and all(c.score_source == "verdict" for c in res.facts[ra].checks)
