@@ -580,8 +580,16 @@ def describe_value(q: Quantity | None, *, money: bool | None = None) -> str:
     return f"{fmt(s['p10'])}–{fmt(s['p90'])}, most likely {fmt(s['p50'])}{per}"
 
 
+def _quantity(q: Quantity | None) -> dict[str, Any] | None:
+    """The full distribution, beside its summary: the overlay draws it, edits it and re-adds it on re-attribution."""
+    return None if q is None else q.model_dump(mode="json")
+
+
 def sidecar(profile: Profile, *, catalog: Catalog | None = None) -> dict[str, Any]:
-    """Probabilities and evidence keyed by concrete fna_path (§3.6, §17 default)."""
+    """Probabilities and evidence keyed by concrete fna_path (§3.6, §17 default).
+
+    ``models/sidecar.py`` describes the result; the review overlay's TypeScript types are checked against it.
+    """
     catalog = catalog or load_catalog(profile.schema_version)
     fields: dict[str, Any] = {}
     for f in sorted(profile.facts.values(), key=lambda x: x.fact_id):
@@ -598,10 +606,14 @@ def sidecar(profile: Profile, *, catalog: Catalog | None = None) -> dict[str, An
             "change": f.change,
             "source": f.source,
             "value": summarise_value(f.value),
+            "quantity": _quantity(f.value),
             "value_text": describe_value(f.value),
             "prior_value": summarise_value(f.prior_value),
             "prior_text": describe_value(f.prior_value) if f.prior_value is not None else None,
-            "hypotheses": [{"value": summarise_value(h.value), "text": describe_value(h.value), "weight": round(h.weight, 4), "rationale": h.rationale, "revises": h.revises} for h in f.hypotheses],
+            "hypotheses": [
+                {"value": summarise_value(h.value), "quantity": _quantity(h.value), "text": describe_value(h.value), "weight": round(h.weight, 4), "rationale": h.rationale, "revises": h.revises}
+                for h in f.hypotheses
+            ],
             "p_correct": round(f.p_correct, 4),
             "auto_accepted": f.auto_accepted,
             "review_priority": round(f.review_priority, 6),
@@ -614,6 +626,7 @@ def sidecar(profile: Profile, *, catalog: Catalog | None = None) -> dict[str, An
             "entity_refs": f.entity_refs,
             "review": f.review.model_dump(mode="json"),
             "derivation": f.derivation,
+            "term_resolution": f.term_resolution,
         }
     return {
         "format": "advisor-intel-sidecar",
@@ -621,6 +634,8 @@ def sidecar(profile: Profile, *, catalog: Catalog | None = None) -> dict[str, An
         "call_id": profile.call_id,
         "run_id": profile.run_id,
         "profile_version": profile.version,
+        # Reviewer ops are numbered after this (the reducer rejects a seq that is not after the log's last).
+        "last_seq": profile.ops_log[-1].seq if profile.ops_log else 0,
         "schema_version": profile.schema_version,
         "anchor_date": profile.anchor_date.isoformat(),
         "fields": fields,

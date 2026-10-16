@@ -1,0 +1,295 @@
+{
+  "$defs": {
+    "FlagClearance": {
+      "properties": {
+        "flag_id": {
+          "title": "Flag Id",
+          "type": "string"
+        },
+        "resolution": {
+          "enum": [
+            "accepted",
+            "edited",
+            "marked_unknown",
+            "dismissed"
+          ],
+          "title": "Resolution",
+          "type": "string"
+        },
+        "reviewer_id": {
+          "title": "Reviewer Id",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "flag_id",
+        "resolution",
+        "reviewer_id",
+        "at"
+      ],
+      "title": "FlagClearance",
+      "type": "object"
+    },
+    "FollowupEdit": {
+      "properties": {
+        "followup_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Followup Id"
+        },
+        "action": {
+          "enum": [
+            "reword",
+            "drop",
+            "add"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "question": {
+          "default": "",
+          "title": "Question",
+          "type": "string"
+        },
+        "reviewer_id": {
+          "title": "Reviewer Id",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "followup_id",
+        "action",
+        "reviewer_id",
+        "at"
+      ],
+      "title": "FollowupEdit",
+      "type": "object"
+    },
+    "StateOp": {
+      "properties": {
+        "op": {
+          "enum": [
+            "ADD",
+            "UPDATE",
+            "RETRACT",
+            "CONFIRM",
+            "MARK_UNKNOWN"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "fact_id": {
+          "title": "Fact Id",
+          "type": "string"
+        },
+        "segment_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Segment Id"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "actor": {
+          "enum": [
+            "extractor",
+            "verifier",
+            "reviewer",
+            "deriver",
+            "loader"
+          ],
+          "title": "Actor",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "op",
+        "fact_id",
+        "segment_id",
+        "payload",
+        "actor",
+        "seq"
+      ],
+      "title": "StateOp",
+      "type": "object"
+    },
+    "TermConfirmation": {
+      "properties": {
+        "term": {
+          "title": "Term",
+          "type": "string"
+        },
+        "canonical_name": {
+          "title": "Canonical Name",
+          "type": "string"
+        },
+        "product_type": {
+          "default": "",
+          "title": "Product Type",
+          "type": "string"
+        },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
+        "confirmed": {
+          "default": true,
+          "title": "Confirmed",
+          "type": "boolean"
+        },
+        "reviewer_id": {
+          "title": "Reviewer Id",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term",
+        "canonical_name",
+        "reviewer_id",
+        "at"
+      ],
+      "title": "TermConfirmation",
+      "type": "object"
+    }
+  },
+  "description": "What the app sends back: reviewer ops and side records, by API or as a file.",
+  "properties": {
+    "format": {
+      "const": "advisor-intel-review-result",
+      "default": "advisor-intel-review-result",
+      "title": "Format",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "call_id": {
+      "title": "Call Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "base_profile_version": {
+      "title": "Base Profile Version",
+      "type": "integer"
+    },
+    "reviewer_id": {
+      "title": "Reviewer Id",
+      "type": "string"
+    },
+    "ops": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/StateOp"
+      },
+      "title": "Ops",
+      "type": "array"
+    },
+    "flag_clearances": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FlagClearance"
+      },
+      "title": "Flag Clearances",
+      "type": "array"
+    },
+    "followup_edits": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/FollowupEdit"
+      },
+      "title": "Followup Edits",
+      "type": "array"
+    },
+    "term_confirmations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TermConfirmation"
+      },
+      "title": "Term Confirmations",
+      "type": "array"
+    },
+    "submitted": {
+      "default": false,
+      "title": "Submitted",
+      "type": "boolean"
+    },
+    "submitted_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Submitted At"
+    },
+    "review_seconds": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Review Seconds"
+    }
+  },
+  "required": [
+    "call_id",
+    "run_id",
+    "base_profile_version",
+    "reviewer_id"
+  ],
+  "title": "ReviewResult",
+  "type": "object"
+}
