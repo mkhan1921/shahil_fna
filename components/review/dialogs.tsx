@@ -518,6 +518,11 @@ export function TranscriptDialog({ session, open, onClose, audio, fact }: { sess
 /* Submitting (§11.2 "Submit")                                         */
 /* ------------------------------------------------------------------ */
 
+export interface SubmitNotice {
+  tone: 'good' | 'warning' | 'info';
+  text: string;
+}
+
 export interface SubmitChoices {
   downloadResult: boolean;
   downloadFile: boolean;
@@ -539,6 +544,7 @@ export function SubmitDialog({
   error,
   household,
   localChanged,
+  notice,
   onDownloadResult,
   onDownloadFile,
 }: {
@@ -552,6 +558,8 @@ export function SubmitDialog({
   household: string;
   /** The client's file was edited on this device while the review was open. */
   localChanged: boolean;
+  /** After an API submission: how the pipeline's reviewed file compares with the one saved here. */
+  notice: SubmitNotice | null;
   onDownloadResult: () => void;
   onDownloadFile: () => void;
 }) {
@@ -573,6 +581,7 @@ export function SubmitDialog({
               {household}’s file on this device now holds the reviewed values. The review result records every decision for the pipeline{apiAvailable ? ', which has received it' : ''}.
             </span>
           </p>
+          {notice && <Callout tone={notice.tone}>{notice.text}</Callout>}
           <div className="flex flex-wrap gap-2">
             <Button icon={<Download size={14} />} onClick={onDownloadResult}>
               Review result

@@ -534,7 +534,8 @@ const rebase = (session: ReviewSession, local: FnaDocument, stamp: Stamp): Revie
     for (const row of changes.addedRows) {
       const pp = parsePath(row);
       const r = getPath(mine, row);
-      if (isListContainer(pp.container) && r) listOfDoc(doc, pp.container).push(structuredClone(r));
+      // A row the call proposes too (the device holds an earlier review of this call): the call's version is under review.
+      if (isListContainer(pp.container) && r && pp.key !== null && !hasRow(doc, pp.container, pp.key)) listOfDoc(doc, pp.container).push(structuredClone(r));
     }
     for (const row of changes.removedRows) {
       const pp = parsePath(row);

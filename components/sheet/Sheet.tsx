@@ -9,6 +9,7 @@ import { subscribe } from '@/lib/store/db';
 import { useDocument, usePractice } from '@/lib/store/hooks';
 import AppShell from '../AppShell';
 import ExportDialog from '../ExportDialog';
+import SendToPipeline from '../review/SendToPipeline';
 import { EmptyState } from '../ui';
 import LiveSummary from './LiveSummary';
 import SheetFrame, { SaveIndicator, goToSection } from './SheetFrame';
@@ -83,6 +84,7 @@ export default function Sheet() {
         actions={
           <div className="flex items-center gap-2">
             <SaveIndicator state={saveState} />
+            <SendToPipeline doc={doc} flush={flush} />
             {reviews.map((r) => (
               <Link
                 key={r.callId}

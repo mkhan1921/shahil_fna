@@ -12,11 +12,14 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { analyse, type Analysis } from '@/lib/fna/analysis';
 import { dateLong } from '@/lib/format';
-import { apiReady, createReviewApi } from '@/lib/review/api';
+import { normaliseDocument } from '@/lib/fna/defaults';
+import type { FnaDocument } from '@/lib/fna/types';
+import { apiReady, createReviewApi, type ReviewedFna } from '@/lib/review/api';
 import { slotById } from '@/lib/review/catalog';
 import { reviewResultBlob, reviewResultName, reviewedFileName } from '@/lib/review/exchange';
 import { bundleDate, compareNeeds, movedNeeds } from '@/lib/review/impact';
 import { factTitle, householdName } from '@/lib/review/labels';
+import { diffDocuments } from '@/lib/review/paths';
 import { badgeAt, buildQueue, entryFact, entryOf, flowStep, nextUndecided, progress, queueKey, queueOrder, type QueueGroup } from '@/lib/review/queue';
 import { canSubmit, commitPending, factAt, isDecided, isReviewItem, openFlags, submit, toResult, unsentOps, type ReviewAction, type ReviewSession } from '@/lib/review/session';
 import { getDocument, saveDocument } from '@/lib/store/db';
@@ -25,7 +28,7 @@ import { downloadBlob, exportDocument } from '@/lib/store/transfer';
 import AppShell from '../AppShell';
 import SheetFrame, { SaveIndicator } from '../sheet/SheetFrame';
 import { Button, Callout, EmptyState } from '../ui';
-import { AddFactDialog, FollowupDialog, SubmitDialog, TermDialog, TranscriptDialog, type SubmitChoices } from './dialogs';
+import { AddFactDialog, FollowupDialog, SubmitDialog, TermDialog, TranscriptDialog, type SubmitChoices, type SubmitNotice } from './dialogs';
 import FieldPopover, { STATUS_LABEL, type Panel } from './FieldPopover';
 import { OverlayProvider, type OverlayApi } from './overlay';
 import { ImpactStrip, ReviewQueue } from './ReviewRail';
@@ -93,6 +96,22 @@ export default function ReviewWorkspace({ callId }: { callId: string | null }) {
   return <Workspace handle={handle} session={handle.session} />;
 }
 
+/** After an API submission: does the pipeline's reviewed file (GET /calls/{id}/fna) agree with the one saved here? */
+const compareWithPipeline = async (fetchFna: () => Promise<ReviewedFna>, mine: FnaDocument): Promise<SubmitNotice> => {
+  try {
+    const theirs = normaliseDocument((await fetchFna()).file.document);
+    const d = diffDocuments(theirs, normaliseDocument(structuredClone(mine)));
+    const places = [...d.fields, ...d.addedRows, ...d.removedRows];
+    if (!places.length) return { tone: 'good', text: 'The pipeline’s reviewed file matches the one saved here.' };
+    return {
+      tone: 'warning',
+      text: `The pipeline’s reviewed file differs from the one saved here in ${places.length} place${places.length === 1 ? '' : 's'} (${places.slice(0, 3).join(', ')}${places.length > 3 ? ' …' : ''}): check them before advising.`,
+    };
+  } catch {
+    return { tone: 'info', text: 'The pipeline has the review; its reviewed file was not ready to compare yet.' };
+  }
+};
+
 function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewSession }) {
   const { dispatch: rawDispatch, editSheet, commit, error, clearError, saveState, api, sync, sendOps, replace, flush, get } = handle;
   const { practice } = usePractice();
@@ -107,7 +126,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
   const [last, setLast] = useState<{ label: string; before: Analysis } | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [termFact, setTermFact] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  const [submitting, setSubmitting] = useState<{ busy: boolean; error: string | null; notice?: SubmitNotice | null }>({ busy: false, error: null });
   const [docExists, setDocExists] = useState(false);
   const [localChanged, setLocalChanged] = useState(false);
   const sheetEdit = useRef<Analysis | null>(null);
@@ -378,20 +397,23 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
       const reviewed = submit(now, at);
       const result = toResult(reviewed, { submitted: true, at });
       let sentSeq = now.sentSeq;
+      const doc = { ...structuredClone(reviewed.working), id: reviewed.docId, updatedAt: at };
+      let notice: SubmitNotice | null = null;
       if (c.sendToApi && ready) {
         const sent = await sendOps();
         const after = get() ?? now;
         if (!sent || unsentOps(after).length) throw new Error('Your decisions could not all be sent to the pipeline. Check the connection and submit again.');
         sentSeq = after.sentSeq;
-        await createReviewApi(api).submit(reviewed.callId, result);
+        const client = createReviewApi(api);
+        await client.submit(reviewed.callId, result);
+        notice = await compareWithPipeline(() => client.getFna(reviewed.callId), doc);
       }
-      const doc = { ...structuredClone(reviewed.working), id: reviewed.docId, updatedAt: at };
       await saveDocument(doc);
       replace({ ...reviewed, sentSeq });
       await flush();
       if (c.downloadResult) downloadBlob(reviewResultBlob(result), reviewResultName(doc, result, at));
       if (c.downloadFile) downloadBlob(await exportDocument(doc), reviewedFileName(doc, at, false));
-      setSubmitting({ busy: false, error: null });
+      setSubmitting({ busy: false, error: null, notice });
       setPopover(null);
     } catch (e) {
       setSubmitting({ busy: false, error: e instanceof Error ? e.message : String(e) });
@@ -597,6 +619,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
           apiAvailable={ready}
           busy={submitting.busy}
           error={submitting.error}
+          notice={submitting.notice ?? null}
           household={household}
           localChanged={localChanged}
           onDownloadResult={() => downloadResult(true)}

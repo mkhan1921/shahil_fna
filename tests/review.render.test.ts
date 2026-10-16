@@ -97,7 +97,7 @@ describe('the dialogs', () => {
     expect(tr.replace(/<[^>]+>/g, '')).toContain('We still owe about eighteen fifty on the bond.');
     expect(tr).toContain('bg-warning/35'); // the quote behind the fact in view is highlighted
     const sub = renderToStaticMarkup(
-      createElement(SubmitDialog, { session: demo, open: true, onClose: noop, onSubmit: noop, apiAvailable: false, busy: false, error: null, household: 'Thabo & Lerato Mokoena', localChanged: true, onDownloadResult: noop, onDownloadFile: noop }),
+      createElement(SubmitDialog, { session: demo, open: true, onClose: noop, onSubmit: noop, apiAvailable: false, busy: false, error: null, household: 'Thabo & Lerato Mokoena', localChanged: true, notice: null, onDownloadResult: noop, onDownloadFile: noop }),
     );
     expect(sub).toContain('Submit review');
     expect(sub).toContain('The client file changed while you reviewed');

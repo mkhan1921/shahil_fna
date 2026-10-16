@@ -316,6 +316,15 @@ describe('a client file changed on this device after it was exported for the cal
     expect(s.working.income.client.grossMonthly).toBe(118_000);
     expect(s.conflicts).toEqual([{ path: 'income.client.grossMonthly', local: 110_000, call: 118_000 }]);
   });
+
+  it('starting over on a device that holds an earlier review of the same call keeps one copy of each row the call made', () => {
+    const earlier = act(fresh(), { type: 'reject', factId: F.krugerValue, reason: 'misheard' });
+    const kruger = rowIdForNewEntity(bundle.call_id, 'property.krugerrands_new');
+    expect(getPath(earlier.working, `assets[${kruger}].value`)).toBe(0);
+    const again = createSession(bundle, { docId: bundle.prior_document!.id, reviewerId: STAMP.reviewerId, now: STAMP.at, local: earlier.working });
+    expect(again.working.assets.filter((a) => a.id === kruger)).toHaveLength(1);
+    expect(getPath(again.working, `assets[${kruger}].value`)).toBe(60_000);
+  });
 });
 
 describe('the needs analysis follows the review', () => {
