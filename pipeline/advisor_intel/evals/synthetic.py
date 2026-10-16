@@ -2450,21 +2450,25 @@ def fallback_transcript(
     return Transcript(call_id=call_id, anchor_date=anchor, segments=segments, asr_provider="script", asr_model_version="script-1")
 
 
-def script_transcript(turns: Sequence[ScriptTurn], anchor: date, call_id: str) -> Transcript:
-    """The script as a Transcript: ``advisor_intel.ingest.transcript_from_script`` when installed, else the fallback."""
+@functools.lru_cache(maxsize=64)
+def _ingested_json(turns: tuple[tuple[str, str], ...], anchor: date, call_id: str, seed: int) -> str | None:
+    """The ingested transcript as JSON (memoised: generation, the dataset record and the Stage 1–2 cache build the
+    same transcript from the same script), or None when the ingest package is not installed."""
     try:
-        from ..ingest import transcript_from_script  # type: ignore[attr-defined]
+        from ..ingest import ScriptedCall, transcript_from_script
+        from ..ingest import ScriptTurn as IngestTurn
     except ImportError:
-        return fallback_transcript(turns, anchor, call_id)
-    for kwargs in ({"call_id": call_id}, {}):
-        try:
-            t = transcript_from_script(list(turns), anchor, **kwargs)
-            break
-        except TypeError:
-            continue
-    else:
-        return fallback_transcript(turns, anchor, call_id)
-    return t if t.call_id == call_id else t.model_copy(update={"call_id": call_id})
+        return None
+    roles = {speaker: speaker for speaker, _ in turns if speaker in SPEAKER_LABELS}
+    script = ScriptedCall(turns=[IngestTurn(speaker=s, text=t) for s, t in turns], roles=roles)  # type: ignore[arg-type]
+    return transcript_from_script(script, anchor, call_id=call_id, seed=seed, roles="script").model_dump_json()
+
+
+def script_transcript(turns: Sequence[ScriptTurn], anchor: date, call_id: str, *, seed: int = 0) -> Transcript:
+    """The script as a Transcript through the real stage 1 back half (``ingest.transcript_from_script``: scripted
+    ASR words, gold speaker turns and roles, segmentation, numeric spans), else the offline fallback."""
+    raw = _ingested_json(tuple((str(s), str(t)) for s, t in turns), anchor, call_id, seed)
+    return Transcript.model_validate_json(raw) if raw is not None else fallback_transcript(turns, anchor, call_id)
 
 
 def spans_on_transcript(

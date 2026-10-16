@@ -28,6 +28,7 @@ Definitions (all fractions in [0, 1] unless noted):
 
 from __future__ import annotations
 
+import inspect
 import math
 import re
 import threading
@@ -586,7 +587,11 @@ def unsupported_sentences(system: SystemCallOutput) -> list[str]:
 def note_quality(
     system: SystemCallOutput, gold: GoldCall, *, alignment: Alignment | None = None, catalog: Catalog | None = None
 ) -> tuple[MetricResult, MetricResult]:
-    """(completeness: gold note facts the note cites; supported: share of sentences that are supported)."""
+    """(completeness: gold note facts the note cites; supported: share of sentences that are supported).
+
+    A run that produced no note (the eval task skips the note stage) is not measured, rather than scored 0."""
+    if not system.note:
+        return MetricResult(value=None, misses=["no meeting note in this run"]), MetricResult(value=None)
     catalog = catalog or load_catalog()
     al = _alignment(system, gold, alignment)
     cited: set[FactKey] = set()
@@ -877,9 +882,21 @@ def default_analyse() -> Callable[[FnaDocument], Any] | None:
     return lazy_attr("advisor_intel.fna_engine.analysis", "analyse")
 
 
+def _analyse_on(analyse: Callable[..., Any], doc: FnaDocument, day: Any) -> Any:
+    """``analyse(doc)`` as of the call date when the engine takes one (the Python port's ``today=``): ages, tax years
+    and horizons are the call's, not the day the eval runs."""
+    try:
+        params = inspect.signature(analyse).parameters
+    except (TypeError, ValueError):
+        params = {}  # type: ignore[assignment]
+    if "today" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return analyse(doc, today=day)
+    return analyse(doc)
+
+
 def fna_agreement(records: Sequence[EvalRecord], *, analyse: Callable[[FnaDocument], Any] | None = None) -> dict[str, Any]:
     """Need-status agreement and median relative shortfall error per need, system vs gold FnaDocument run through
-    the FNA engine (§15.3). The error is |S_system − S_gold| / max(N_gold, 1), as in §10.2."""
+    the FNA engine as of the call date (§15.3). The error is |S_system − S_gold| / max(N_gold, 1), as in §10.2."""
     analyse = analyse or default_analyse()
     if analyse is None:
         return {}
@@ -888,8 +905,8 @@ def fna_agreement(records: Sequence[EvalRecord], *, analyse: Callable[[FnaDocume
     for r in records:
         if r.gold.document is None or r.system.document is None:
             continue
-        gt = need_table(analyse(r.gold.document))
-        st = need_table(analyse(FnaDocument.model_validate(r.system.document)))
+        gt = need_table(_analyse_on(analyse, r.gold.document, r.gold.anchor_date))
+        st = need_table(_analyse_on(analyse, FnaDocument.model_validate(r.system.document), r.gold.anchor_date))
         for k, g in gt.items():
             s = st.get(k)
             total += 1

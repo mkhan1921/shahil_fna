@@ -46,9 +46,14 @@ def make_runner(golds):
     return FakePipeline(golds.__getitem__, policy=policy)
 
 
+@pytest.fixture(scope="module")
+def synthetic():
+    return generate_calls(30, seed=31)
+
+
 @pytest.fixture
-def setup(tmp_path):
-    calls = generate_calls(30, seed=31)
+def setup(tmp_path, synthetic):
+    calls = synthetic
     golds = {c.call_id: c.gold for c in calls}
     store = LocalStore(tmp_path / "ds")
     sync_synthetic(calls, store=store)

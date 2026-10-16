@@ -322,7 +322,7 @@ def test_stage12_cache_builds_once_then_hits(tmp_path):
         D.Stage12Cache(D.LocalBlobStore(tmp_path / "empty")).load_call(rec_no_script, pins)
     # a synthetic record carries its script, so Stage 1 can be rebuilt from it offline
     c = D.Stage12Cache(D.LocalBlobStore(tmp_path / "other")).load_call(rec, pins)
-    assert [s.text for s in c.transcript.segments] == [t.text for t in call.script]
+    assert c.transcript == call.transcript() and " ".join(s.text for s in c.transcript.segments) == " ".join(t.text for t in call.script)
 
 
 def test_s3_blob_store_with_a_fake_client():
@@ -364,4 +364,4 @@ def test_gold_records_one_per_transcript_kind(tmp_path):
     assert sorted(r.id for r in rows) == ["real-1:asr", "real-1:human"]
     assert all(r.metadata["dataset"] == "gold-calls" and "split:dev" in r.tags for r in rows)
     D.sync_transcripts([call.transcript()], store=store)
-    assert store.fetch("gold-transcripts")[0].metadata["segments"] == len(call.script)
+    assert store.fetch("gold-transcripts")[0].metadata["segments"] == len(call.transcript().segments)

@@ -108,6 +108,7 @@ def test_reviewed_facts_from_a_profile():
         role="supports",
     )
     p = Profile(call_id="c", run_id="r", schema_version="profile_v1", anchor_date=date(2026, 1, 1))
+
     def add(slot, inst, path, q):
         payload = {
             "slot_id": slot,

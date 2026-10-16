@@ -60,13 +60,17 @@ def call(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     return run_sync(fn(*args, **kwargs))
 
 
-def lazy_attr(module: str, attr: str) -> Any | None:
-    """``module.attr`` if the module imports, else None (other stages are built in parallel)."""
+def lazy_module(module: str) -> Any | None:
+    """The module if it imports, else None (other stages are built in parallel)."""
     try:
-        mod = importlib.import_module(module)
+        return importlib.import_module(module)
     except ImportError:
         return None
-    return getattr(mod, attr, None)
+
+
+def lazy_attr(module: str, attr: str) -> Any | None:
+    """``module.attr`` if the module imports, else None."""
+    return getattr(lazy_module(module), attr, None)
 
 
 def to_jsonable(obj: Any) -> Any:

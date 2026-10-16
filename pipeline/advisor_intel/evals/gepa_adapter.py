@@ -4,8 +4,8 @@ GEPA evolves prompt text in place; the harness, schemas and code stay as they ar
 group's instruction block (``prompts/extract_slot_group/<group>/v{n}.md``) and the entailment verifier prompt
 (``prompts/entailment/v{n}.md``). ``ExtractionAdapter`` implements gepa 0.1.4's ``GEPAAdapter``:
 
-- ``evaluate`` writes the candidate texts into an overlay copy of the prompts tree (exported as
-  ``ADVISOR_INTEL_PROMPTS_DIR`` and pinned in ``VersionPins.prompt_versions``), runs extraction on a minibatch of
+- ``evaluate`` writes the candidate texts into an overlay copy of the prompts tree (read by the pipeline's prompt
+  loader for the duration and pinned in ``VersionPins.prompt_versions``), runs extraction on a minibatch of
   cached calls through the injected pipeline callable, and scores each call 0.4·status accuracy + 0.4·slot recall
   + 0.2·value coverage over the optimised groups;
 - ``make_reflective_dataset`` turns each call into feedback text ("missed retirement.client.retirementAge; marked
@@ -31,7 +31,7 @@ from pydantic import BaseModel
 
 from ..models.runs import VersionPins
 from ..schema.slots import load_catalog
-from ._runtime import PROMPTS_DIR_ENV, call, prompts_dir, run_sync, stable_hash, unit_hash
+from ._runtime import PROMPTS_DIR_ENV, call, lazy_module, prompts_dir, run_sync, stable_hash, unit_hash
 from .datasets import Stage12Cache
 from .extraction_eval import EvalReport, Runner, load_cached_call, run_local
 from .gold import GoldCall
@@ -89,14 +89,21 @@ class PromptStore:
 
     @contextlib.contextmanager
     def overlay(self, candidate: Mapping[str, str]) -> Iterator[tuple[Path, dict[str, str]]]:
-        """A temporary copy of the prompts tree with each candidate text as the component's next version; the
-        environment points the prompt loader at it for the duration (restored afterwards)."""
+        """A temporary copy of the prompts tree with each candidate text as the component's next version. For the
+        duration, ``ADVISOR_INTEL_PROMPTS_DIR`` and the pipeline's own loader (``advisor_intel.prompts``, whose
+        ``PROMPTS_DIR`` and version cache are swapped) read from it; both are restored afterwards. The swap is
+        process-wide, so candidates are evaluated one at a time."""
         tmp = Path(tempfile.mkdtemp(prefix="gepa-prompts-"))
         versions: dict[str, str] = {}
         previous = os.environ.get(PROMPTS_DIR_ENV)
+        loader = lazy_module("advisor_intel.prompts")
+        loader_dir = getattr(loader, "PROMPTS_DIR", None)
+        skip = shutil.ignore_patterns("__pycache__", "*.py", "*.pyc")
         try:
+            if loader_dir is not None and Path(loader_dir).exists() and Path(loader_dir).resolve() != self.root.resolve():
+                shutil.copytree(loader_dir, tmp, dirs_exist_ok=True, ignore=skip)  # every component the pipeline loads
             if self.root.exists():
-                shutil.copytree(self.root, tmp, dirs_exist_ok=True)
+                shutil.copytree(self.root, tmp, dirs_exist_ok=True, ignore=skip)
             for component, text in candidate.items():
                 n, current = self.latest(component)
                 if text == current and n:
@@ -110,13 +117,25 @@ class PromptStore:
                 (tmp / component / f"{label}.md").write_text(text)
                 versions[component] = label
             os.environ[PROMPTS_DIR_ENV] = str(tmp)
+            if loader_dir is not None:
+                loader.PROMPTS_DIR = tmp
+                _clear_prompt_cache(loader)
             yield tmp, versions
         finally:
             if previous is None:
                 os.environ.pop(PROMPTS_DIR_ENV, None)
             else:
                 os.environ[PROMPTS_DIR_ENV] = previous
+            if loader_dir is not None:
+                loader.PROMPTS_DIR = loader_dir
+                _clear_prompt_cache(loader)  # unpinned loads cached during the overlay saw the candidate as newest
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _clear_prompt_cache(loader: Any) -> None:
+    clear = getattr(getattr(loader, "load_prompt", None), "cache_clear", None)
+    if clear is not None:
+        clear()
 
 
 # --------------------------------------------------------------------------- held-out calls

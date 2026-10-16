@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sys
-import types
 from collections import Counter
 
 import numpy as np
@@ -19,7 +18,7 @@ from advisor_intel.evals.datasets import LocalStore, fetch_for_calibration, sync
 from advisor_intel.evals.gold import GoldCall
 from advisor_intel.evals.spoken import read_amount, say_amount, words_af
 from advisor_intel.models.runs import VersionPins
-from advisor_intel.models.transcript import Segment, Transcript, Word
+from advisor_intel.models.transcript import Segment, Word
 
 
 @pytest.fixture(scope="module")
@@ -187,34 +186,15 @@ def test_llm_writer_keeps_every_keyed_phrase():
     assert any(t.text.startswith("Okay. ") for t in script)
 
 
-def test_transcripts_come_from_ingest_when_installed(monkeypatch):
-    """When ingestion is installed its transcript is used, and gold spans are re-found on its segments."""
-
-    def transcript_from_script(turns, anchor_date, call_id="x"):
-        segs, n = [], 0
-        for speaker, text in turns:
-            halves = [text] if len(text) < 60 else [text[: len(text) // 2], text[len(text) // 2 :]]
-            for h in halves:
-                n += 1
-                segs.append(
-                    Segment(
-                        segment_id=f"s{n:04d}",
-                        speaker_label="spk",
-                        speaker_role=speaker,
-                        t_start=n,
-                        t_end=n + 1,
-                        words=[Word(text=w, t_start=n, t_end=n + 0.1, conf=0.9) for w in h.split()],
-                        text=h,
-                    )
-                )
-        return Transcript(call_id=call_id, anchor_date=anchor_date, segments=segs, asr_provider="tts+asr", asr_model_version="t")
-
-    fake = types.ModuleType("advisor_intel.ingest")
-    fake.transcript_from_script = transcript_from_script
-    monkeypatch.setitem(sys.modules, "advisor_intel.ingest", fake)
+def test_transcripts_come_from_ingest_with_the_scripts_roles(monkeypatch):
+    """Stage 1's back half builds the transcript (scripted ASR words, gold roles, its own segmentation), and the gold
+    spans are re-found on its segments; without the ingest package the one-segment-per-turn fallback is used."""
     c = syn.generate_call(2, seed=9)
     tr = c.transcript()
-    assert tr.asr_provider == "tts+asr" and len(tr.segments) > len(c.script)
+    assert tr.asr_provider != "script" and tr.numeric_spans and tr.call_id == c.call_id
+    assert " ".join(s.text for s in tr.segments) == " ".join(t.text for t in c.script)  # segmentation may merge a speaker's turns
+    assert {s.speaker_role for s in tr.segments} == {t.speaker for t in c.script}
+    assert c.transcript() == tr  # deterministic: generation, datasets and the cache see the same transcript
     idx = tr.index()
     found = 0
     for f in c.gold.facts:
@@ -222,6 +202,14 @@ def test_transcripts_come_from_ingest_when_installed(monkeypatch):
             assert idx[s.segment_id].text[s.char_start : s.char_end] == s.quote
             found += 1
     assert found > 20
+    monkeypatch.setitem(sys.modules, "advisor_intel.ingest", None)  # not installed
+    syn._ingested_json.cache_clear()
+    try:
+        fb = syn.script_transcript(c.script, c.anchor_date, c.call_id)
+    finally:
+        syn._ingested_json.cache_clear()
+    assert fb.asr_provider == "script" and [s.text for s in fb.segments] == [t.text for t in c.script]
+    assert isinstance(fb.segments[0], Segment) and isinstance(fb.segments[0].words[0], Word)
 
 
 def test_render_audio_with_a_tts_provider():
