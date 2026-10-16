@@ -50,7 +50,7 @@ MAX_DISAGREEMENTS = 2
 Reason = Literal["tier_a", "entity_attribute", "prior_field", "topic_index"]
 Reopen = Callable[[str, "str | None", list[str]], Awaitable[list[StateOp]]]
 UNPARTNERED = ("single", "divorced", "widowed")
-ANNUITIES = ("living-annuity", "life-annuity")
+CONTRIBUTING_FUNDS = ("pension", "provident", "retirement-annuity")
 MONTHLY_BENEFIT_POLICIES = ("income-protection", "family-income")
 BENEFICIARY_POLICIES = ("life", "family-income", "funeral")
 
@@ -177,13 +177,12 @@ def entity_required(profile: Profile, entity_id: str, kind: str) -> list[str]:
         return out
     if kind == "fund":
         ftype = v("retirementFunds[].type")
-        return ["retirementFunds[].type", "retirementFunds[].value"] + (
-            ["retirementFunds[].drawdownRate"]
-            if ftype == "living-annuity"
-            else []
-            if ftype in ANNUITIES
-            else ["retirementFunds[].employeeMonthly"]
-        )
+        out = ["retirementFunds[].type", "retirementFunds[].value"]
+        if ftype == "living-annuity":
+            out.append("retirementFunds[].drawdownRate")
+        elif ftype in (None, *CONTRIBUTING_FUNDS):  # preservation funds and annuities take no contributions
+            out.append("retirementFunds[].employeeMonthly")
+        return out
     if kind == "asset":
         return ["assets[].type", "assets[].value"]
     if kind == "liability":

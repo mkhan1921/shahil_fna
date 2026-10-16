@@ -150,7 +150,7 @@ class EvidenceIndex:
         return list(out.values())
 
 
-def _primary_evidence(fact: Fact) -> list[Evidence]:
+def primary_evidence(fact: Fact) -> list[Evidence]:
     main = [e for e in fact.evidence if e.role in ("supports", "revises")]
     return main or [e for e in fact.evidence if e.role != "context"] or list(fact.evidence)
 
@@ -286,7 +286,7 @@ def features(
     slot = catalog.slot(fact.slot_id)
     ver = verification if verification is not None else fact.verification
     index = index or EvidenceIndex(transcript)
-    evidence = _primary_evidence(fact)
+    evidence = primary_evidence(fact)
     segs = [index.segments[sid] for sid in dict.fromkeys(e.segment_id for e in evidence) if sid in index.segments]
     words = [w for ev in evidence for w in index.words(ev)]
     if words:
