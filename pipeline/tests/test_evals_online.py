@@ -348,3 +348,39 @@ async def test_the_reference_run_of_the_real_harness_passes(tmp_path, monkeypatc
     from pydantic_ai import Agent
 
     assert Agent._instrument_default is False  # the capture restored the process default
+
+
+async def test_a_run_traced_by_the_production_telemetry_passes(tmp_path, monkeypatch):
+    """The worker's tracing (``advisor_intel.telemetry``: run attributes on every span, Pydantic AI's GenAI spans) gives
+    the online scorers what they read: the run's call and workflow ids and its tool calls in order (§14.4)."""
+    pipeline = pytest.importorskip("advisor_intel.pipeline")
+    telemetry = pytest.importorskip("advisor_intel.telemetry")
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from pydantic_ai import Agent
+
+    from advisor_intel.config import Settings
+    from advisor_intel.evals.datasets import DatasetRecord, LocalBlobStore, Stage12Cache
+    from advisor_intel.models.runs import VersionPins
+    from advisor_intel.testing.calls import SAMPLE_CALL
+    from advisor_intel.testing.transcripts import ingested_transcript
+
+    from tests.evals_fakes import small_forecast
+
+    small_forecast(monkeypatch)
+    t = await ingested_transcript(SAMPLE_CALL, call_id="call-traced")
+    rec = DatasetRecord(id="call-traced", input={"call_id": "call-traced", "transcript": t.model_dump(mode="json")}, metadata={})
+    cached = Stage12Cache(LocalBlobStore(tmp_path)).load_call(rec, VersionPins())
+    exporter, previous = InMemorySpanExporter(), Agent._instrument_default
+    telemetry.setup_telemetry(Settings(), exporter=exporter, simple_export=True, set_global=False, force=True)
+    try:
+        with telemetry.run_context(call_id="call-traced", workflow_id="call-traced-run-a", stage="agent", pins=VersionPins()):
+            res = await pipeline.process_cached_call(cached, VersionPins())
+    finally:
+        telemetry.shutdown_telemetry()
+        Agent.instrument_all(previous)
+    run = O.RunTrace.from_spans(O.spans_from_otel(exporter.get_finished_spans()), profile=res.profile, outcome=res.outcome)
+    assert (run.call_id, run.run_id) == ("call-traced", "call-traced-run-a")
+    assert [c.tool for c in run.tool_calls] == res.tool_calls and run.agent_runs
+    rep = O.check_policy(run)
+    assert rep.passed, rep.violations
+    assert O.score_run(run).schema_valid_rate == 1.0

@@ -13,12 +13,13 @@ models or the lexicon starts from the cache (§15.1).
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from ..config import get_settings
 from ..models.crm import CrmRecord
@@ -32,6 +33,8 @@ from ..schema.slots import Catalog, load_catalog
 from ._runtime import braintrust_enabled, data_dir, stable_hash, to_jsonable
 from .gold import GoldCall
 from .synthetic import SYNTHETIC_DATASET, SYNTHETIC_TAG, SyntheticCall, assert_not_synthetic, script_transcript
+
+log = logging.getLogger(__name__)
 
 GOLD_CALLS = "gold-calls"
 GOLD_TRANSCRIPTS = "gold-transcripts"
@@ -537,7 +540,7 @@ def sync_gold_candidates(
         else:
             cand = _candidate_from_row(r)
             questions, call_id = {}, str(r.get("call_id") or r.get("run_id") or "")
-            followup_edits = [FollowupEdit.model_validate(fe) for fe in r.get("followup_edits") or [] if fe]
+            followup_edits = _followup_edits(call_id, r.get("followup_edits") or [])
         if cand is not None:
             candidates.append(cand)
         edits.extend(_followup_record(call_id, fe, questions) for fe in followup_edits)
@@ -546,6 +549,20 @@ def sync_gold_candidates(
     store = store or get_store(settings=settings)
     n = len(store.insert(GOLD_CANDIDATES, candidates)) if candidates else 0
     return n + (len(store.insert(FOLLOWUP_EDITS, edits)) if edits else 0)
+
+
+def _followup_edits(call_id: str, raw: Iterable[Any]) -> list[FollowupEdit]:
+    """The nightly row's follow-up edits (``FollowupEdit`` dumps); one that does not parse is logged and skipped, so
+    a malformed review event cannot stop the night's sync."""
+    out = []
+    for fe in raw:
+        if not fe:
+            continue
+        try:
+            out.append(fe if isinstance(fe, FollowupEdit) else FollowupEdit.model_validate(fe))
+        except ValidationError as e:
+            log.warning("call %s: skipping a follow-up edit that does not parse: %s", call_id, e.errors()[:2])
+    return out
 
 
 def _followup_record(call_id: str, fe: FollowupEdit, questions: Mapping[str, str]) -> DatasetRecord:

@@ -239,7 +239,10 @@ def test_conformal_and_forecast_summaries():
         seen.append((g.call_id, seed))
         return 0.60
 
-    unpriced = [_record(right_auto.model_copy(update={"forecast_seed": 77}), gold), _record(system, gold.model_copy(update={"call_id": "c3"}))]
+    unpriced = [
+        _record(right_auto.model_copy(update={"forecast_seed": 77}), gold),
+        _record(system, gold.model_copy(update={"call_id": "c3"})),
+    ]
     assert S.pos_error(unpriced, gold_pos=gold_pos)["pos_error_median"] == pytest.approx(20.0)
     assert seen == [("c1", 77)]  # a run without a forecast is not priced
     assert S.pos_error(unpriced, gold_pos=lambda g: 0.8)["pos_error_median"] == pytest.approx(0.0)  # a one-argument callable works too
