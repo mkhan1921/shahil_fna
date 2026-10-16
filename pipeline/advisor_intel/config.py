@@ -34,7 +34,7 @@ class ModelRouting(BaseModel):
     reasoning: str = "anthropic:claude-opus-5-5"  # extraction, thinking on
     verifier: str = "openai:gpt-5"  # a different family from the extractor (§9.1e)
     small: str = "anthropic:claude-haiku-5-5"
-    secondary: str = "google-gla:gemini-2.5-pro"  # FallbackModel on provider outage
+    secondary: str = "google:gemini-2.5-pro"  # FallbackModel on provider outage
     # Extraction runs with thinking on (§7.2). Current Claude models take adaptive thinking with an
     # effort level rather than a token budget; "medium" is the closest match to the spec's ~4k budget.
     extraction_effort: Literal["low", "medium", "high"] = "medium"
