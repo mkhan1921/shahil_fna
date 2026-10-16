@@ -1,0 +1,108 @@
+# South African product catalogue (spec §7.2 context pack, §8.5 unknown terms).
+#
+# Product names and the FnaDocument type they map to (lib/fna/types.ts), with the one-line rules that
+# change how a statement is read. The practice's own provider and product lists are added at run time
+# (TermContext); adviser-confirmed meanings of anything else live in the practice glossary.
+# kind: fund → retirementFunds[].type, asset → assets[].type, policy → policies[].type,
+#       liability → liabilities[].type, fund_component → a field of a retirement fund,
+#       expense → an expenses.items key, other → not an FNA product.
+version: "1"
+
+products:
+  - {name: retirement annuity, aliases: [RA, R A, retirement annuity fund, retirement annuities, RA fund, personal retirement annuity], kind: fund, fna_type: retirement-annuity, rule: "A retirement fund: contributions deductible under s11F, preserved until 55, two-pot rules apply."}
+  - {name: pension fund, aliases: [pension, company pension, employer pension fund, occupational pension fund, pension scheme], kind: fund, fna_type: pension, rule: "Employer retirement fund; employee and employer contributions usually via payroll."}
+  - {name: provident fund, aliases: [provident, company provident fund, provident scheme], kind: fund, fna_type: provident, rule: "Employer retirement fund; since March 2021 new contributions follow pension annuitisation rules."}
+  - {name: Government Employees Pension Fund, aliases: [GEPF, government pension, government pension fund], kind: fund, fna_type: pension, rule: "Defined-benefit fund for public servants: the value is an actuarial interest, not an account balance."}
+  - {name: pension preservation fund, aliases: [pension preservation, preserved pension, pension preserver, preservation fund], kind: fund, fna_type: preservation-pension, context_words: [pension], rule: "Holds a former employer's pension benefit; one withdrawal before retirement."}
+  - {name: provident preservation fund, aliases: [provident preservation, preserved provident, provident preserver, preservation fund], kind: fund, fna_type: preservation-provident, context_words: [provident], rule: "Holds a former employer's provident benefit; one withdrawal before retirement."}
+  - {name: living annuity, aliases: [LA, investment linked living annuity, ILLA, drawdown annuity, living annuity fund], kind: fund, fna_type: living-annuity, rule: "Post-retirement: drawdown of 2.5% to 17.5% of the capital a year; the capital is not guaranteed."}
+  - {name: life annuity, aliases: [guaranteed annuity, guaranteed life annuity, with profit annuity, compulsory annuity, conventional annuity], kind: fund, fna_type: life-annuity, rule: "Post-retirement income guaranteed for life by an insurer; no capital remains."}
+  - {name: two-pot savings component, aliases: [savings pot, two pot, savings component, access pot, two pot savings], kind: fund_component, fna_type: savingsPot, rule: "Part of a retirement fund since September 2024: one withdrawal a tax year (at least R2,000), taxed at marginal rates."}
+  - {name: retirement component, aliases: [retirement pot], kind: fund_component, rule: "Part of a retirement fund that is preserved until retirement; counts in the fund value."}
+  - {name: vested component, aliases: [vested pot, vested benefit], kind: fund_component, rule: "Savings built before September 2024; counts in the fund value."}
+  - {name: tax-free savings account, aliases: [TFSA, tax free savings, tax free savings account, tax free account, tax free investment, TFIA, tax free unit trust], kind: asset, fna_type: tfsa, rule: "Capped annual and lifetime contributions; growth and withdrawals are tax-free."}
+  - {name: endowment, aliases: [endowment policy, endowment plan, sinking fund, investment policy], kind: asset, fna_type: endowment, rule: "Five-year restriction period; taxed inside the policy."}
+  - {name: unit trust, aliases: [unit trusts, collective investment scheme, CIS, discretionary investment, managed fund, balanced fund, mutual fund, discretionary unit trust], kind: asset, fna_type: unit-trust, rule: "Discretionary investment: liquid, capital gains tax on disposal."}
+  - {name: exchange traded fund, aliases: [ETF, ETFs, index tracker, tracker fund, index fund], kind: asset, fna_type: shares, rule: "Listed index fund: liquid, capital gains tax on disposal."}
+  - {name: shares, aliases: [stocks, equities, share portfolio, JSE shares, direct shares, share account], kind: asset, fna_type: shares, rule: "Listed shares: liquid, capital gains tax on disposal."}
+  - {name: money market, aliases: [money market fund, money market account, call account, notice deposit, fixed deposit, 32 day notice, notice account], kind: asset, fna_type: money-market, rule: "Cash-like: liquid within a notice period."}
+  - {name: savings account, aliases: [bank account, cheque account, current account, transactional account], kind: asset, fna_type: cash, rule: "Cash: liquid."}
+  - {name: offshore investment, aliases: [offshore, offshore portfolio, offshore allowance, feeder fund, offshore account, foreign investment], kind: asset, fna_type: offshore, rule: "Held or priced in foreign currency: kept in its currency, converted with FX in the forecast."}
+  - {name: crypto, aliases: [bitcoin, cryptocurrency, crypto currency, ethereum, crypto assets], kind: asset, fna_type: crypto, rule: "Volatile and liquid; capital gains tax on disposal."}
+  - {name: stokvel, aliases: [stokvel savings, savings club, rotating savings club], kind: asset, fna_type: cash, rule: "Informal rotating savings club: treat the balance due as cash savings."}
+  - {name: Krugerrand, aliases: [kruger rand, krugerrands, gold coins, gold coin], kind: asset, fna_type: other, rule: "Bullion coins: record as an other asset at market value."}
+  - {name: primary residence, aliases: [our house, the house, family home, my house], kind: asset, fna_type: primary-residence, rule: "Not liquid; the primary-residence capital gains exclusion applies."}
+  - {name: rental property, aliases: [investment property, rental flat, buy to let, holiday home], kind: asset, fna_type: residential-property, rule: "Not liquid; rental income goes to monthlyIncome."}
+  - {name: business interest, aliases: [my business, shares in the business, member's interest, close corporation, CC], kind: asset, fna_type: business-interest, rule: "Not liquid; a buy-and-sell policy may fund it on death."}
+  - {name: loan account, aliases: [shareholder loan, loan to the company, director's loan], kind: asset, fna_type: loan-account, rule: "Money owed to the client by a company or trust."}
+  - {name: life cover, aliases: [life insurance, life policy, death cover, life assurance, life cover policy, whole life], kind: policy, fna_type: life, rule: "Pays a lump sum on death."}
+  - {name: disability cover, aliases: [lump sum disability, capital disability, disability benefit, disability insurance, disability lump sum], kind: policy, fna_type: disability-lump, rule: "Pays a lump sum on permanent disability."}
+  - {name: income protection, aliases: [income protector, income continuation, income replacement, temporary disability, income disability], kind: policy, fna_type: income-protection, rule: "Pays a monthly benefit while the life assured cannot work, after a waiting period."}
+  - {name: severe illness cover, aliases: [dread disease, critical illness, trauma cover, severe illness, severe illness benefit, dread disease cover], kind: policy, fna_type: severe-illness, rule: "Pays a lump sum on diagnosis of a listed condition."}
+  - {name: funeral cover, aliases: [funeral policy, funeral plan, burial society, burial policy, burial cover], kind: policy, fna_type: funeral, rule: "Pays a small lump sum quickly on death for funeral costs."}
+  - {name: family income benefit, aliases: [spouses pension, family income, income for the family], kind: policy, fna_type: family-income, rule: "Pays a monthly income to the family after death."}
+  - {name: group life cover, aliases: [group life, group risk, company life cover, approved group life, unapproved group life, group cover], kind: policy, fna_type: life, is_group: true, rule: "Employer cover: ends when the client leaves the employer."}
+  - {name: key person cover, aliases: [key man cover, key person, keyman], kind: policy, fna_type: life, rule: "Business-owned cover: beneficiary is the business."}
+  - {name: buy and sell cover, aliases: [buy and sell, buy and sell agreement, buy and sell policy], kind: policy, fna_type: life, rule: "Funds the purchase of a deceased partner's share: beneficiary is the business or partners."}
+  - {name: home loan, aliases: [bond, mortgage, access bond, home loan account], kind: liability, fna_type: home-loan, rule: "Secured on the home; often has credit life cover."}
+  - {name: vehicle finance, aliases: [car finance, car loan, vehicle loan, balloon payment, instalment sale], kind: liability, fna_type: vehicle-finance, rule: "Secured on the vehicle."}
+  - {name: personal loan, aliases: [unsecured loan, micro loan, mashonisa loan], kind: liability, fna_type: personal-loan, rule: "Unsecured debt."}
+  - {name: credit card, aliases: [credit cards, credit card debt], kind: liability, fna_type: credit-card, rule: "Unsecured, high interest."}
+  - {name: store card, aliases: [store account, clothing account, retail account, Edgars account, Woolworths card, Truworths account], kind: liability, fna_type: store-card, rule: "Unsecured retail credit."}
+  - {name: overdraft, aliases: [overdraft facility, bank overdraft], kind: liability, fna_type: overdraft, rule: "Unsecured, repayable on demand."}
+  - {name: student loan, aliases: [study loan, NSFAS loan, NSFAS, education loan], kind: liability, fna_type: student-loan, rule: "Education debt."}
+  - {name: SARS debt, aliases: [tax debt, money owed to SARS, provisional tax owing, tax owing], kind: liability, fna_type: tax, rule: "Owed to SARS."}
+  - {name: business loan, aliases: [business finance, surety for the business, business overdraft], kind: liability, fna_type: business-loan, rule: "Business debt the client signed surety for."}
+  - {name: medical aid, aliases: [medical scheme, hospital plan, medical cover], kind: expense, fna_type: medical-aid, rule: "Not an FNA policy: a medical expense (payroll medical aid goes to income)."}
+  - {name: gap cover, aliases: [gap insurance, medical gap cover], kind: expense, fna_type: gap-cover, rule: "Not an FNA policy: a medical expense."}
+
+providers:  # major SA insurers, asset managers, platforms and banks; the practice's list is added at run time
+  - {name: Discovery, aliases: [Discovery Life, Discovery Invest, Discovery Bank, Discovery Health], kinds: [insurer, asset_manager, bank, medical_scheme], domain: discovery.co.za}
+  - {name: Old Mutual, aliases: [Old Mutual Wealth, Old Mutual Investment Group, OM], kinds: [insurer, asset_manager], domain: oldmutual.co.za}
+  - {name: Sanlam, aliases: [Sanlam Life, Sanlam Investments, Glacier, Glacier by Sanlam], kinds: [insurer, asset_manager, platform], domain: sanlam.co.za}
+  - {name: Liberty, aliases: [Liberty Life, Liberty Group], kinds: [insurer], domain: liberty.co.za}
+  - {name: STANLIB, aliases: [Stanlib Asset Management], kinds: [asset_manager], domain: stanlib.com}
+  - {name: Momentum, aliases: [Momentum Life, Momentum Wealth, Momentum Investments, Momentum Metropolitan, Metropolitan, MMI], kinds: [insurer, asset_manager], domain: momentum.co.za}
+  - {name: Hollard, aliases: [Hollard Life], kinds: [insurer], domain: hollard.co.za}
+  - {name: PPS, aliases: [Professional Provident Society], kinds: [insurer], domain: pps.co.za}
+  - {name: BrightRock, aliases: [Bright Rock], kinds: [insurer], domain: brightrock.co.za}
+  - {name: FMI, aliases: [FMI Life], kinds: [insurer], domain: fmi.co.za}
+  - {name: Assupol, aliases: [Assupol Life], kinds: [insurer], domain: assupol.co.za}
+  - {name: Clientèle, aliases: [Clientele, Clientele Life], kinds: [insurer], domain: clientele.co.za}
+  - {name: Capitec, aliases: [Capitec Bank], kinds: [bank, insurer], domain: capitecbank.co.za}
+  - {name: Absa, aliases: [Absa Life, Absa Investments, Absa Bank], kinds: [bank, insurer, asset_manager], domain: absa.co.za}
+  - {name: Standard Bank, aliases: [Standard Bank Life], kinds: [bank, insurer], domain: standardbank.co.za}
+  - {name: FNB, aliases: [First National Bank, FNB Life], kinds: [bank, insurer], domain: fnb.co.za}
+  - {name: Nedbank, aliases: [Nedgroup Investments, Nedgroup, Nedbank Life], kinds: [bank, asset_manager], domain: nedbank.co.za}
+  - {name: Investec, aliases: [Investec Bank, Investec Wealth], kinds: [bank, asset_manager], domain: investec.com}
+  - {name: Allan Gray, aliases: [Allan Gray Investment Platform, Alan Gray], kinds: [asset_manager, platform], domain: allangray.co.za}
+  - {name: Coronation, aliases: [Coronation Fund Managers], kinds: [asset_manager], domain: coronation.com}
+  - {name: Ninety One, aliases: [Investec Asset Management, "91"], kinds: [asset_manager], domain: ninetyone.com}
+  - {name: PSG, aliases: [PSG Wealth, PSG Asset Management], kinds: [asset_manager, platform], domain: psg.co.za}
+  - {name: Sygnia, aliases: [Sygnia Asset Management], kinds: [asset_manager, platform], domain: sygnia.co.za}
+  - {name: Satrix, aliases: [Satrix ETFs], kinds: [asset_manager], domain: satrix.co.za}
+  - {name: 10X, aliases: [10X Investments, ten X], kinds: [asset_manager], domain: 10x.co.za}
+  - {name: M&G Investments, aliases: [M and G, M&G, Prudential, Prudential Investment Managers], kinds: [asset_manager], domain: mandg.co.za}
+  - {name: Foord, aliases: [Foord Asset Management], kinds: [asset_manager], domain: foord.co.za}
+  - {name: EasyEquities, aliases: [Easy Equities], kinds: [platform], domain: easyequities.co.za}
+  - {name: Alexander Forbes, aliases: [Alex Forbes], kinds: [administrator], domain: alexanderforbes.co.za}
+  - {name: Santam, aliases: [Santam Insurance], kinds: [short_term_insurer], domain: santam.co.za}
+  - {name: OUTsurance, aliases: [Outsurance], kinds: [short_term_insurer, insurer], domain: outsurance.co.za}
+
+named_products:  # well-known branded products
+  - {name: Old Mutual Greenlight, aliases: [Greenlight], provider: Old Mutual, kind: policy, fna_type: life, rule: "Old Mutual's risk cover range (life, disability, severe illness)."}
+  - {name: Old Mutual Max Investments, aliases: [Max Investments], provider: Old Mutual, kind: asset, fna_type: unit-trust, rule: "A unit trust investment platform."}
+  - {name: Momentum Myriad, aliases: [Myriad], provider: Momentum, kind: policy, fna_type: life, rule: "Momentum's risk cover range."}
+  - {name: Liberty Lifestyle Protector, aliases: [Lifestyle Protector], provider: Liberty, kind: policy, fna_type: life, rule: "Liberty's risk cover range."}
+  - {name: Sanlam Matrix, provider: Sanlam, kind: policy, fna_type: life, rule: "Sanlam's risk cover range."}
+  - {name: Discovery Life Plan, aliases: [Discovery Classic Life Plan, Discovery Essential Life Plan], provider: Discovery, kind: policy, fna_type: life, rule: "Discovery's life cover."}
+  - {name: Discovery Income Continuation Benefit, aliases: [Income Continuation Benefit, ICB], provider: Discovery, kind: policy, fna_type: income-protection, rule: "Discovery's income protection."}
+  - {name: PPS Professional Life Provider, aliases: [Professional Life Provider], provider: PPS, kind: policy, fna_type: life, rule: "PPS's life cover for graduate professionals."}
+  - {name: BrightRock Needs Matched Life Cover, aliases: [needs matched cover, needs matched life cover], provider: BrightRock, kind: policy, fna_type: life, rule: "BrightRock's needs-matched life cover."}
+  - {name: FMI Income Protection, aliases: [FMI income protector], provider: FMI, kind: policy, fna_type: income-protection, rule: "FMI's income protection."}
+  - {name: Satrix Top 40, aliases: [Satrix 40, Top 40 ETF, Satrix Top 40 ETF], provider: Satrix, kind: asset, fna_type: shares, rule: "A JSE Top 40 index ETF."}
+  - {name: Allan Gray Balanced Fund, aliases: [Allan Gray Balanced], provider: Allan Gray, kind: asset, fna_type: unit-trust, rule: "A balanced unit trust."}
+  - {name: Coronation Balanced Plus, aliases: [Balanced Plus], provider: Coronation, kind: asset, fna_type: unit-trust, rule: "A balanced unit trust."}
+  - {name: Ninety One Opportunity Fund, aliases: [Opportunity Fund], provider: Ninety One, kind: asset, fna_type: unit-trust, rule: "A balanced unit trust."}
+  - {name: Sygnia Skeleton Balanced 70, aliases: [Skeleton 70, Skeleton Balanced 70], provider: Sygnia, kind: asset, fna_type: unit-trust, rule: "A low-cost balanced index unit trust."}
+  - {name: Discovery Vitality, aliases: [Vitality], provider: Discovery, kind: other, rule: "A wellness rewards programme, not a product: it changes Discovery premiums and benefits."}

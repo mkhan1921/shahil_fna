@@ -1,0 +1,196 @@
+# Seed example utterances per slot group for the topic index's embedding pass (spec §6.5).
+# Replace and extend from gold calls: each group should have 10–30 labelled examples, and the
+# per-group thresholds are refitted for 0.97 recall on gold calls (topics.fit_thresholds).
+version: seed-1
+default_threshold: {hashed-256: 0.22, default: 0.45}
+groups:
+  people:
+    - I'm fifty-two, I turn fifty-three in March
+    - when were you born
+    - she's forty-eight this year
+    - I work as a financial manager at a logistics company
+    - I've got my own business, I'm self-employed
+    - I'm on commission mostly
+    - do either of you smoke
+    - I quit smoking five years ago
+    - any health issues we should know about, any medication
+    - I had a heart scare last year
+    - I do a lot of scuba diving and I fly a small plane
+    - I'm a teacher at a government school
+  household:
+    - we've been married for twenty years
+    - we got married in community of property
+    - we signed an antenuptial contract with accrual
+    - we're not married, we live together
+    - I'm divorced
+    - should we include your wife in the plan
+    - we'd like to do this together as a couple
+    - my husband passed away three years ago
+    - we had a traditional customary marriage
+    - we got married in the UK
+  dependants:
+    - we have two kids, a daughter and a son
+    - my daughter Thandi is fourteen
+    - he's in grade nine at the moment
+    - my mother lives with us and we support her
+    - I send my parents about four thousand a month
+    - my younger brother still depends on us
+    - our son has special needs, he'll always need support
+    - they'll be dependent until they finish studying
+    - the little one is only three
+    - she matriculates next year
+  education:
+    - school fees are about five thousand a month
+    - she's at a private school
+    - they go to the public school down the road
+    - she wants to study medicine at Wits
+    - she might go overseas to study, maybe the UK
+    - varsity will cost about a hundred and fifty a year
+    - we've got a unit trust for the kids' education
+    - we put away two thousand a month for his studies
+    - a four-year degree, engineering
+    - straight after matric she'll go to university
+    - he might take a gap year first
+  income:
+    - I earn about sixty thousand a month gross
+    - my take-home is around forty-two
+    - I get a thirteenth cheque in December
+    - my bonus is usually about three months' salary
+    - I get rental income from the flat
+    - she earns more than me now
+    - medical aid comes off my salary
+    - there are four of us on the medical aid
+    - my package is about a million a year
+    - the business pays me a salary of
+    - the business has been growing a bit
+  income_changes:
+    - I'm expecting a promotion next year
+    - there's talk of retrenchments at work
+    - I might go part-time when the baby comes
+    - I'm thinking of changing jobs
+    - my salary will roughly halve when I go part-time
+    - we might sell the business in five years
+  expenses:
+    - our groceries are about eight to ten thousand a month
+    - rent is twelve thousand
+    - electricity and water about three thousand
+    - we pay a domestic worker twice a week
+    - DStv and Netflix
+    - petrol is about four thousand a month
+    - the levies on the townhouse
+    - we spend a lot on eating out
+    - we support my mom with about three thousand a month
+    - gym contracts for both of us
+    - cellphone contracts and fibre
+    - school transport and aftercare
+    - we tithe ten percent at church
+  retirement_funds:
+    - I've got an RA with Allan Gray
+    - my company pension fund
+    - the provident fund at work
+    - I moved my pension into a preservation fund when I left
+    - the two-pot savings component
+    - my mom has a living annuity, she draws five percent
+    - I contribute seven and a half percent and my employer matches
+    - the retirement annuity is worth about eight hundred thousand
+    - I put two thousand a month into my RA
+    - beneficiaries are nominated on the fund
+  assets:
+    - our house is worth about three million
+    - we have a flat in Sea Point that we rent out
+    - we've got about fifty thousand in the bank
+    - a money market account for emergencies
+    - unit trusts with Coronation
+    - a tax-free savings account
+    - shares and ETFs on EasyEquities
+    - some offshore investments in dollars
+    - I own forty percent of the business
+    - the car is paid off, it's worth about two hundred
+    - a bit of crypto
+    - that money is for the kids' varsity
+  liabilities:
+    - we still owe about one point two million on the bond
+    - the bond repayment is fifteen thousand a month
+    - car finance is about six thousand a month
+    - credit card debt of around thirty thousand
+    - a personal loan we're paying off
+    - the interest rate on the bond is prime
+    - store cards at Woolworths and Edgars
+    - an overdraft facility
+    - we owe SARS from last year
+    - there's credit life on the car loan
+  policies:
+    - I have life cover with Discovery of about three million
+    - group life through work, four times salary
+    - income protection that pays seventy-five percent of my salary
+    - a funeral policy with Old Mutual
+    - disability cover as a lump sum
+    - severe illness cover
+    - the beneficiary is my wife
+    - the policy pays into a trust for the kids
+    - the premium is about fifteen hundred a month
+    - family income benefit that pays my wife monthly
+  policy_terms:
+    - the waiting period is three months
+    - it pays until sixty-five
+    - it's own occupation disability
+    - the disability is accelerated from the life cover
+    - the premium goes up ten percent a year
+    - the cover escalates with inflation
+    - I took out the policy in 2015
+  retirement:
+    - I want to retire at sixty
+    - maybe sixty-five if we need to
+    - in about eight years I'd like to stop working
+    - we'd want about the same as we live on now
+    - seventy percent of what I earn
+    - forty thousand a month in today's money
+    - plan for us living to ninety-five
+    - we'll have rental income in retirement
+    - I'd like to work part-time after retiring
+  goals:
+    - we want to go overseas for our anniversary
+    - a new car in three years
+    - a deposit for a house for our son
+    - our daughter's wedding
+    - we're saving for a trip to Europe, about a hundred and fifty thousand
+    - renovating the kitchen next year
+    - we've saved about twenty thousand towards it
+  estate:
+    - we did our wills years ago
+    - I don't have a will
+    - I'm not sure where the will is
+    - my brother is the executor
+    - we nominated guardians for the kids
+    - we have a family trust
+    - the funeral would cost about fifty thousand
+    - the bank is the executor
+  estate_needs:
+    - if I die she'd need extra help with the kids
+    - the business has debts that would need settling
+    - I want to leave money to the church
+    - when we married I had about two hundred thousand
+    - my first wife passed away and her estate
+  risk_profile:
+    - when the market crashed in 2020 I sold everything
+    - I'm fairly conservative with money
+    - I don't like seeing my investments go down
+    - I'm in it for the long term, I can ride out the dips
+    - I've only ever had bank savings
+    - I follow the markets quite closely
+    - if I lost my job we could survive about three months
+    - I need this money in about five years
+  engagement:
+    - the reason we came to see you is
+    - we want to make sure we're on track for retirement
+    - my biggest worry is what happens if I die
+    - we want to retire without worrying about money
+    - our accountant does the tax returns
+    - we also have an attorney who did the wills
+  events:
+    - we might inherit something from my father
+    - we're thinking of selling the holiday house
+    - we might emigrate to Australia
+    - she might go overseas to study in the UK
+    - we'll probably have to help my parents with medical costs
+    - we're planning to buy a holiday home in a few years
