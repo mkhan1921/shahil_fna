@@ -1,27 +1,28 @@
 'use client';
 
-import { ArrowLeft, ChevronLeft, ChevronRight, ClipboardCheck, Eye, EyeOff, LayoutGrid, Maximize2, Minimize2, Moon, Sun, X } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Eye, EyeOff, Maximize2, Minimize2, Moon, Sun, X } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { applies, QUESTIONS, TOPIC, type QuestionKey } from '@/components/present/answers';
-import { AgendaScreen, PlanScreen, QuestionScreen, type ScreenCtx } from '@/components/present/screens';
+import { applies, isPerPerson, peopleFor, QUESTIONS, verdicts, type QuestionKey } from '@/components/present/answers';
+import { StatusIcon } from '@/components/present/charts';
+import { ContentsSection, NAV_LABEL, PlanSection, QuestionSection, sectionId, type SectionCtx } from '@/components/present/sections';
 import { PRESENT_CSS } from '@/components/present/theme';
-import { StatusIcon } from '@/components/present/visuals';
+import { garamond } from '@/components/report/vintage/font';
 import { cx } from '@/components/ui';
+import type { Status } from '@/lib/fna/analysis';
 import { analyse } from '@/lib/fna/analysis';
 import { defaultPractice } from '@/lib/fna/defaults';
 import { applyPlan, emptyPlan, normalisePlan, planAfterAdvice, planToAdvice, summarisePlan, type AdviceUpdate } from '@/lib/fna/plan';
 import { draftRecommendations } from '@/lib/fna/recommend';
 import { sampleDocument } from '@/lib/fna/sample';
-import type { FnaDocument, PersonKey, PlanLevers, PracticeProfile } from '@/lib/fna/types';
+import type { FnaDocument, PlanLevers, PracticeProfile } from '@/lib/fna/types';
 import { dateLong, money } from '@/lib/format';
 import { getDocument, getPlan, getPractice, saveDocument, savePlan } from '@/lib/store/db';
 
-type Screen = 'agenda' | QuestionKey | 'plan';
-
 const THEME_KEY = 'fna-present-theme';
-const isScreen = (s: string | null | undefined): s is Screen => s === 'agenda' || s === 'plan' || QUESTIONS.includes(s as QuestionKey);
+const RANK: Record<Status, number> = { na: 0, covered: 1, partial: 2, shortfall: 3 };
+const DOT: Record<Status, string> = { na: 'var(--pv-faint)', covered: 'var(--pv-good)', partial: 'var(--pv-warning)', shortfall: 'var(--pv-critical)' };
 
 function PresentView() {
   const params = useSearchParams();
@@ -33,14 +34,15 @@ function PresentView() {
   const [doc, setDoc] = useState<FnaDocument | null | undefined>(undefined);
   const [practice, setPractice] = useState<PracticeProfile>(defaultPractice());
   const [plan, setPlanState] = useState<PlanLevers>(emptyPlan());
-  const [screen, setScreen] = useState<Screen>(isScreen(start) ? start : 'agenda');
-  const [person, setPerson] = useState<PersonKey>('client');
   const [levers, setLevers] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [full, setFull] = useState(false);
+  const [active, setActive] = useState('contents');
   const [confirm, setConfirm] = useState<(AdviceUpdate & { fresh: FnaDocument }) | null>(null);
   const [notice, setNotice] = useState<{ text: string; href?: string } | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  const head = useRef<HTMLElement>(null);
+  const nav = useRef<HTMLElement>(null);
   const dialogOpen = useRef(false);
   dialogOpen.current = !!confirm;
 
@@ -119,8 +121,8 @@ function PresentView() {
   );
 
   const toggleFull = useCallback(() => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void root.current?.requestFullscreen?.();
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void root.current?.requestFullscreen?.().catch(() => {});
   }, []);
   useEffect(() => {
     const on = () => setFull(!!document.fullscreenElement);
@@ -135,24 +137,61 @@ function PresentView() {
   const summary = useMemo(() => (doc && today && planned ? summarisePlan(doc, deferred, today, planned) : null), [doc, today, planned, deferred]);
 
   /* The questions this family has something to answer for, in conversation order. */
-  const order = useMemo<Screen[]>(() => (doc && today ? ['agenda', ...QUESTIONS.filter((q) => applies(q, { doc, today, planned: today })), 'plan'] : ['agenda', 'plan']), [doc, today]);
-  const current: Screen = order.includes(screen) ? screen : 'agenda';
-  const index = order.indexOf(current);
-  const go = useCallback((s: string) => {
-    if (!isScreen(s)) return;
-    setScreen(s);
-    window.scrollTo({ top: 0 });
-    root.current?.scrollTo({ top: 0 });
-  }, []);
-  const step = useCallback(
-    (dir: 1 | -1) => {
-      const next = order[Math.min(order.length - 1, Math.max(0, index + dir))];
-      if (next !== current) go(next);
-    },
-    [order, index, current, go],
-  );
+  const order = useMemo<QuestionKey[]>(() => (doc && today ? QUESTIONS.filter((q) => applies(q, { doc, today, planned: today })) : []), [doc, today]);
+  const ids = useMemo(() => ['contents', ...order.map(sectionId), 'plan'], [order]);
 
-  /* Keys: ← → between screens, Home the questions, End the plan, F full screen, H hide the levers, T theme. */
+  const go = useCallback((target: string) => {
+    const el = document.getElementById(target);
+    if (!el) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    setActive(target);
+  }, []);
+
+  /* Open on the question asked for in the link, if any. */
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || !doc || !start) return;
+    opened.current = true;
+    const target = start === 'plan' ? 'plan' : QUESTIONS.includes(start as QuestionKey) ? sectionId(start as QuestionKey) : null;
+    if (target) requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }));
+  }, [doc, start]);
+
+  /* The contents bar follows the reader: the last section whose heading has passed under the bar. */
+  useEffect(() => {
+    if (!doc) return;
+    const scroller: HTMLElement | Window = full && root.current ? root.current : window;
+    let raf = 0;
+    const update = () => {
+      const line = (head.current?.getBoundingClientRect().bottom ?? 0) + 90;
+      let current = ids[0];
+      for (const s of ids) {
+        const el = document.getElementById(s);
+        if (el && el.getBoundingClientRect().top <= line) current = s;
+      }
+      const el = scroller === window ? document.documentElement : (scroller as HTMLElement);
+      const top = scroller === window ? window.scrollY : el.scrollTop;
+      if (top + el.clientHeight >= el.scrollHeight - 4) current = ids[ids.length - 1];
+      setActive(current);
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    };
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    update();
+    return () => {
+      scroller.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [doc, ids, full]);
+  useEffect(() => {
+    const bar = nav.current;
+    const link = bar?.querySelector<HTMLElement>(`[data-target="${active}"]`);
+    if (bar && link) bar.scrollTo({ left: link.offsetLeft - bar.clientWidth / 2 + link.clientWidth / 2, behavior: 'smooth' });
+  }, [active]);
+
+  /* Keys: ← → between sections, F full screen, H hide the levers, T theme. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
@@ -162,10 +201,9 @@ function PresentView() {
         return;
       }
       const k = e.key.toLowerCase();
-      if (k === 'arrowright' || k === 'pagedown') step(1);
-      else if (k === 'arrowleft' || k === 'pageup') step(-1);
-      else if (k === 'home') go('agenda');
-      else if (k === 'end') go('plan');
+      const i = ids.indexOf(active);
+      if (k === 'arrowright' || k === 'pagedown') go(ids[Math.min(ids.length - 1, i + 1)]);
+      else if (k === 'arrowleft' || k === 'pageup') go(ids[Math.max(0, i - 1)]);
       else if (k === 'f') toggleFull();
       else if (k === 'h') setLevers((v) => !v);
       else if (k === 't') toggleTheme();
@@ -174,7 +212,7 @@ function PresentView() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [step, go, toggleFull, toggleTheme]);
+  }, [ids, active, go, toggleFull, toggleTheme]);
 
   useEffect(() => {
     if (doc) document.title = `Planning — ${[doc.client.firstName, doc.client.surname].filter(Boolean).join(' ') || 'Client'}`;
@@ -191,13 +229,15 @@ function PresentView() {
       </div>
     );
 
-  const c: ScreenCtx = { doc, today, planned, plan, setPlan, summary, person, setPerson, levers, go };
+  const c: SectionCtx = { doc, today, planned, plan, setPlan, summary, levers, go };
   const household = today.people.map((k) => today.persons[k]!.name).join(' & ');
   const back = sample ? '/' : `/client?id=${doc.id}`;
-  const label = (s: Screen) => (s === 'agenda' ? 'Questions' : s === 'plan' ? 'The plan' : TOPIC[s]);
-  const prev = index > 0 ? order[index - 1] : null;
-  const next = index < order.length - 1 ? order[index + 1] : null;
   const cost = planned.cashflow.totalOutgoings - today.cashflow.totalOutgoings;
+  const prepared = `Prepared ${practice.adviserName ? `by ${practice.adviserName} ` : ''}on ${dateLong(new Date())}${practice.practiceName ? ` · ${practice.practiceName}` : ''}`;
+  const worst = (q: QuestionKey): Status => {
+    const ks = isPerPerson(q) ? peopleFor(q, c) : (['client'] as const);
+    return ks.map((k) => verdicts(q, c, k).plan.status).reduce<Status>((w, s) => (RANK[s] > RANK[w] ? s : w), 'na');
+  };
 
   const prepare = async () => {
     if (!id) return;
@@ -208,7 +248,7 @@ function PresentView() {
   const apply = async () => {
     if (!confirm || !id) return;
     const { fresh, recommendations, summary: text, retirement, goals } = confirm;
-    const nextDoc: FnaDocument = {
+    const next: FnaDocument = {
       ...fresh,
       retirement,
       goals,
@@ -216,167 +256,134 @@ function PresentView() {
       status: fresh.status === 'draft' ? 'in-progress' : fresh.status,
       updatedAt: new Date().toISOString(),
     };
-    await saveDocument(nextDoc);
+    await saveDocument(next);
     dirty.current = true;
     setPlanState(planAfterAdvice(plan));
-    setDoc(nextDoc);
+    setDoc(next);
     setConfirm(null);
     setNotice({ text: 'Added to the record of advice. The client’s decisions are marked “pending” until confirmed.', href: `/client?id=${id}&s=advice` });
   };
 
-  const iconButton = (text: string, onClick: () => void, icon: ReactNode, pressed?: boolean) => (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={text}
-      aria-pressed={pressed}
-      title={text}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-[var(--pv-ink-2)] transition-colors hover:bg-[var(--pv-plan-wash)] hover:text-[var(--pv-ink)]"
-    >
+  const tool = (text: string, onClick: () => void, icon: ReactNode, pressed?: boolean) => (
+    <button type="button" onClick={onClick} aria-label={text} aria-pressed={pressed} title={text} className="pv-icon-btn">
       {icon}
     </button>
   );
-  const navButton = (s: Screen, icon: ReactNode, badge?: number) => (
-    <button
-      type="button"
-      onClick={() => go(s)}
-      aria-current={current === s ? 'page' : undefined}
-      className={cx(
-        'inline-flex h-10 items-center gap-2 rounded-xl px-3 text-[14.5px] font-medium transition-colors',
-        current === s ? 'bg-[var(--pv-plan)] text-white' : 'text-[var(--pv-ink-2)] hover:bg-[var(--pv-plan-wash)] hover:text-[var(--pv-ink)]',
-      )}
+  const navLink = (target: string, label: string, extra?: ReactNode) => (
+    <a
+      key={target}
+      href={`#${target}`}
+      data-target={target}
+      aria-current={active === target ? 'true' : undefined}
+      onClick={(e) => {
+        e.preventDefault();
+        go(target);
+      }}
     >
-      {icon}
-      <span className="hidden sm:inline">{label(s)}</span>
-      {!!badge && <span className={cx('rounded-full px-1.5 text-[12px] font-semibold pv-tabular', current === s ? 'bg-white/25' : 'bg-[var(--pv-plan-wash)] text-[var(--pv-plan)]')}>{badge}</span>}
-    </button>
+      {extra}
+      {label}
+    </a>
   );
 
   return (
-    <div ref={root} className={cx('pv min-h-screen font-sans', full && 'overflow-y-auto')} data-theme={theme}>
+    <div ref={root} className={cx('pv min-h-screen', garamond.variable, full && 'overflow-y-auto')} data-theme={theme}>
       <style>{PRESENT_CSS}</style>
-      <header className="sticky top-0 z-20 border-b border-[var(--pv-border)] bg-[var(--pv-surface)]">
-        <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-          <Link
-            href={back}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--pv-ink-2)] hover:bg-[var(--pv-plan-wash)] hover:text-[var(--pv-ink)]"
-            aria-label={sample ? 'Back to clients' : 'Back to the client file'}
-            title={sample ? 'Back to clients' : 'Back to the client file'}
-          >
+      <header ref={head} className="pv-head">
+        <div className="pv-head-row">
+          <Link href={back} className="pv-icon-btn shrink-0" aria-label={sample ? 'Back to clients' : 'Back to the client file'} title={sample ? 'Back to clients' : 'Back to the client file'}>
             <ArrowLeft size={18} />
           </Link>
-          <div className="min-w-0">
-            <div className="truncate text-[11.5px] font-semibold uppercase tracking-[0.12em] text-[var(--pv-ink-2)]">{practice.practiceName || 'Planning session'}</div>
-            <div className="truncate text-[16px] font-semibold">{household}</div>
+          <div className="pv-head-title">
+            <div>{practice.practiceName || 'The planning session'}</div>
+            <div>{household}</div>
           </div>
-          <nav className="ml-auto flex shrink-0 items-center gap-1" aria-label="Session">
-            {navButton('agenda', <LayoutGrid size={17} aria-hidden />)}
-            {navButton('plan', <ClipboardCheck size={17} aria-hidden />, summary.changes.length)}
-          </nav>
-          <div className="flex shrink-0 items-center gap-0.5 border-l border-[var(--pv-border)] pl-2">
-            {iconButton(levers ? 'Hide the levers (H)' : 'Show the levers (H)', () => setLevers((v) => !v), levers ? <EyeOff size={18} /> : <Eye size={18} />, !levers)}
-            {iconButton(theme === 'dark' ? 'Light theme (T)' : 'Dark theme (T)', toggleTheme, theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />)}
-            {iconButton(full ? 'Leave full screen (F)' : 'Full screen (F)', toggleFull, full ? <Minimize2 size={18} /> : <Maximize2 size={18} />)}
+          <div className="flex shrink-0 items-center">
+            {tool(levers ? 'Hide the levers (H)' : 'Show the levers (H)', () => setLevers((v) => !v), levers ? <EyeOff size={18} /> : <Eye size={18} />, !levers)}
+            {tool(theme === 'dark' ? 'Paper (T)' : 'Night (T)', toggleTheme, theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />)}
+            <span className="hidden sm:inline-flex">{tool(full ? 'Leave full screen (F)' : 'Full screen (F)', toggleFull, full ? <Minimize2 size={18} /> : <Maximize2 size={18} />)}</span>
           </div>
         </div>
-        <div className="h-[3px] bg-[var(--pv-grid)]" aria-hidden>
-          <div className="pv-anim h-full" style={{ width: `${(index / Math.max(1, order.length - 1)) * 100}%`, background: practice.brandColor || 'var(--pv-plan)' }} />
-        </div>
+        <nav ref={nav} className="pv-nav" aria-label="Sections">
+          {navLink('contents', 'Contents')}
+          {order.map((q) => navLink(sectionId(q), NAV_LABEL[q], <span className="pv-dot" style={{ background: DOT[worst(q)] }} aria-hidden />))}
+          {navLink('plan', summary.changes.length ? `The plan · ${summary.changes.length}` : 'The plan')}
+        </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-[1180px] px-5 pb-32 pt-[clamp(20px,5vh,56px)] sm:px-8">
-        {current === 'agenda' ? (
-          <AgendaScreen c={c} list={order.filter((s): s is QuestionKey => s !== 'agenda' && s !== 'plan')} />
-        ) : current === 'plan' ? (
-          <PlanScreen
-            c={c}
-            action={
-              summary.changes.length > 0 && (
-                <button
-                  type="button"
-                  onClick={prepare}
-                  disabled={sample}
-                  title={sample ? 'This is the sample family — nothing is saved.' : 'Write the agreed plan into the record of advice'}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--pv-plan)] px-5 py-3 text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <ClipboardCheck size={18} /> Add to the record of advice
-                </button>
-              )
-            }
-          />
-        ) : (
-          <QuestionScreen key={current} q={current} c={c} />
-        )}
+      <main className="pv-main">
+        <ContentsSection c={c} list={order} title={household} prepared={prepared} />
+        {order.map((q, i) => (
+          <QuestionSection key={q} q={q} n={i + 1} c={c} />
+        ))}
+        <PlanSection
+          c={c}
+          n={order.length + 1}
+          action={
+            summary.changes.length > 0 && (
+              <button
+                type="button"
+                onClick={prepare}
+                disabled={sample}
+                title={sample ? 'This is the sample family — nothing is saved.' : 'Write the agreed plan into the record of advice'}
+                className="pv-button"
+              >
+                <ClipboardCheck size={18} /> Add to the record of advice
+              </button>
+            )
+          }
+        />
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--pv-border)] bg-[var(--pv-surface)]">
-        <div className="mx-auto flex h-16 max-w-[1180px] items-center gap-3 px-3 sm:px-6">
-          <button
-            type="button"
-            onClick={() => step(-1)}
-            disabled={!prev}
-            className="inline-flex min-w-0 items-center gap-1 rounded-xl px-3 py-2 text-[14.5px] font-medium text-[var(--pv-ink-2)] hover:bg-[var(--pv-plan-wash)] hover:text-[var(--pv-ink)] disabled:invisible"
-          >
-            <ChevronLeft size={18} className="shrink-0" /> <span className="hidden truncate md:inline">{prev && label(prev)}</span>
-          </button>
-          {current !== 'plan' ? (
-            <button
-              type="button"
-              onClick={() => go('plan')}
-              title="See the plan"
-              className="mx-auto inline-flex min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-[14.5px] text-[var(--pv-ink-2)] hover:bg-[var(--pv-plan-wash)]"
-            >
-              {summary.changes.length === 0 ? (
-                <span className="truncate">
-                  No changes yet · <b className="font-semibold text-[var(--pv-ink)]">{money(summary.surplusToday)}</b> a month free today
-                </span>
-              ) : (
-                <>
-                  <StatusIcon status={summary.surplusPlan >= -0.5 ? 'covered' : 'shortfall'} />
-                  <span className="truncate">
-                    The plan
-                    {cost > 0.5 && (
-                      <>
-                        {' '}
-                        costs <b className="font-semibold text-[var(--pv-ink)]">{money(cost)}</b> a month
-                      </>
-                    )}{' '}
-                    · leaves <b className="font-semibold text-[var(--pv-ink)]">{money(summary.surplusPlan)}</b> free
-                  </span>
-                </>
-              )}
-            </button>
+      <footer className="pv-foot">
+        <div className="pv-foot-row">
+          {summary.changes.length === 0 ? (
+            <span className="truncate italic" style={{ color: 'var(--pv-ink-2)' }}>
+              No changes yet ·{' '}
+              <b className="not-italic" style={{ color: 'var(--pv-ink)' }}>
+                {money(summary.surplusToday)}
+              </b>{' '}
+              a month free today
+            </span>
           ) : (
-            <span className="mx-auto" />
+            <>
+              <StatusIcon status={summary.surplusPlan >= -0.5 ? 'covered' : 'shortfall'} />
+              <span className="truncate" style={{ color: 'var(--pv-ink-2)' }}>
+                <span className="pv-sc">The plan</span>
+                {cost > 0.5 && (
+                  <>
+                    {' '}
+                    costs <b style={{ color: 'var(--pv-ink)' }}>{money(cost)}</b> a month
+                  </>
+                )}{' '}
+                · leaves <b style={{ color: 'var(--pv-ink)' }}>{money(summary.surplusPlan)}</b> free
+              </span>
+              {active !== 'plan' && (
+                <button type="button" onClick={() => go('plan')} className="pv-link-btn shrink-0 !py-1">
+                  See it
+                </button>
+              )}
+            </>
           )}
-          <button
-            type="button"
-            onClick={() => step(1)}
-            disabled={!next}
-            className="inline-flex min-w-0 items-center gap-1 rounded-xl px-3 py-2 text-[14.5px] font-medium text-[var(--pv-ink-2)] hover:bg-[var(--pv-plan-wash)] hover:text-[var(--pv-ink)] disabled:invisible"
-          >
-            <span className="hidden truncate md:inline">{next && label(next)}</span> <ChevronRight size={18} className="shrink-0" />
-          </button>
         </div>
       </footer>
 
       {notice && (
         <div
           role="status"
-          className="fixed bottom-20 left-1/2 z-40 flex w-[min(36rem,calc(100%-2rem))] -translate-x-1/2 items-start gap-3 rounded-xl border border-[var(--pv-border)] bg-[var(--pv-raised)] px-4 py-3 text-[14px] shadow-[0_8px_30px_rgba(0,0,0,0.2)]"
+          className="pv-card fixed bottom-20 left-1/2 z-40 flex w-[min(36rem,calc(100%-2rem))] -translate-x-1/2 items-start gap-3 px-4 py-3 text-[16px] shadow-[0_8px_30px_rgba(0,0,0,0.25)]"
         >
           <span className="flex-1">
             {notice.text}
             {notice.href && (
               <>
                 {' '}
-                <Link href={notice.href} className="font-semibold text-[var(--pv-plan)] underline underline-offset-2">
+                <Link href={notice.href} className="font-semibold underline underline-offset-2" style={{ color: 'var(--pv-plan)' }}>
                   Open the record
                 </Link>
               </>
             )}
           </span>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="text-[var(--pv-muted)] hover:text-[var(--pv-ink)]">
+          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="pv-icon-btn !h-7 !w-7">
             <X size={16} />
           </button>
         </div>
@@ -386,33 +393,29 @@ function PresentView() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="pv-confirm-title">
           <div className="absolute inset-0 bg-black/50" onClick={() => setConfirm(null)} />
           <div className="pv-card relative w-full max-w-lg p-6 shadow-2xl">
-            <h2 id="pv-confirm-title" className="text-[19px] font-semibold">
+            <h2 id="pv-confirm-title" className="pv-sc m-0 text-[21px] font-normal">
               Add the agreed plan to the record of advice?
             </h2>
-            <p className="mt-1 text-[14px] text-[var(--pv-ink-2)]">These changes will be made to {household}’s file:</p>
-            <ul className="mt-4 max-h-[50vh] space-y-2 overflow-y-auto text-[14.5px]">
+            <p className="mt-1 text-[16px] italic" style={{ color: 'var(--pv-ink-2)' }}>
+              These changes will be made to {household}’s file:
+            </p>
+            <ul className="mt-4 max-h-[50vh] list-none space-y-2 overflow-y-auto p-0 text-[16px]">
               {confirm.lines.map((l) => (
                 <li key={l} className="flex gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--pv-plan)]" aria-hidden />
+                  <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'var(--pv-plan)' }} aria-hidden />
                   {l}
                 </li>
               ))}
-              {confirm.lines.length === 0 && <li className="text-[var(--pv-ink-2)]">Nothing to add — the record already reflects this plan.</li>}
+              {confirm.lines.length === 0 && <li style={{ color: 'var(--pv-ink-2)' }}>Nothing to add — the record already reflects this plan.</li>}
             </ul>
-            <p className="mt-4 text-[13px] text-[var(--pv-ink-2)]">
+            <p className="mt-4 text-[14.5px] italic" style={{ color: 'var(--pv-ink-2)' }}>
               Recommendations are added as “pending” for the client to accept. Review the rationale and quotes in the client file before the report is signed.
             </p>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirm(null)} className="rounded-xl px-4 py-2 text-[14.5px] font-medium text-[var(--pv-ink-2)] hover:text-[var(--pv-ink)]">
+              <button type="button" onClick={() => setConfirm(null)} className="pv-link-btn">
                 Cancel
               </button>
-              <button
-                type="button"
-                autoFocus
-                onClick={apply}
-                disabled={confirm.lines.length === 0}
-                className="rounded-xl bg-[var(--pv-plan)] px-4 py-2 text-[14.5px] font-semibold text-white hover:opacity-90 disabled:opacity-40"
-              >
+              <button type="button" autoFocus onClick={apply} disabled={confirm.lines.length === 0} className="pv-button">
                 Add to the record
               </button>
             </div>

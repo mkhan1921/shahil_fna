@@ -128,26 +128,12 @@ export function Tabs<T extends string | number>({
 }) {
   if (options.length < 2) return null;
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex rounded-xl border border-[var(--pv-border)] bg-[var(--pv-surface)] p-1">
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <button
-            key={String(o.value)}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            onClick={() => onChange(o.value)}
-            className={cx(
-              'rounded-lg font-medium transition-colors',
-              size === 'md' ? 'px-4 py-1.5 text-[15px]' : 'px-3 py-1 text-[13.5px]',
-              on ? 'bg-[var(--pv-plan)] text-white' : 'text-[var(--pv-ink-2)] hover:text-[var(--pv-ink)]',
-            )}
-          >
-            {o.label}
-          </button>
-        );
-      })}
+    <div role="radiogroup" aria-label={label} className="pv-tabs">
+      {options.map((o) => (
+        <button key={String(o.value)} type="button" role="radio" aria-checked={o.value === value} onClick={() => onChange(o.value)} className={cx(size === 'sm' && '!px-2.5 !text-[15px]')}>
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
