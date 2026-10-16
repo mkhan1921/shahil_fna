@@ -106,3 +106,17 @@ def test_fact_extremes():
                           period="monthly", p_correct=0.5)
     prof = reject(prof, gone)
     assert fact_extremes(prof.facts[gone], CATALOG.slot("income.{p}.otherTaxableMonthly")) == (None, None)
+
+
+def test_variants_with_different_horizons_share_one_market(monkeypatch):
+    """A fact that moves the plan's horizon (a younger spouse plans for longer): the market is sized for the longest
+    variant and each batch of variants runs on its first years."""
+    import advisor_intel.forecast.sensitivity as S
+
+    monkeypatch.setattr(S, "MAX_BATCH_PATHS", 500)  # one variant per batch, as with many candidates at full size
+    doc = sample_document()
+    prof, dob = add_fact(prior_profile(doc), "{p}.dateOfBirth", "spouse.dateOfBirth", Triangular(low=1970.0, mode=1985.0, high=1995.0),
+                         instance="spouse", unit="date", p_correct=0.6)
+    for seed in range(3):
+        row = sensitivity_runs(prof, [dob], n_paths=500, seed=seed, base_document=doc, config=CFG, cma=CMA_, tax_model=TAX)[dob]
+        assert row.bound and 0.0 <= min(row.pos_low, row.pos_high) <= max(row.pos_low, row.pos_high) <= 1.0

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import StylePreview from '@/components/report/StylePreview';
+import ReviewApiCard from '@/components/review/ReviewApiCard';
 import { Button, Callout, Card, CardBody, CardHeader, cx, Grid, PercentField, SelectField, TextArea, TextField, Toggle } from '@/components/ui';
 import { REPORT_STYLE } from '@/lib/fna/catalog';
 import { DEFAULT_ASSUMPTIONS } from '@/lib/fna/defaults';
@@ -211,9 +212,11 @@ export default function SettingsPage() {
             </CardBody>
           </Card>
 
+          <ReviewApiCard />
+
           <Callout tone="info" title="Where is my data?">
-            Practice settings and client files are stored in this browser on this device only (IndexedDB). They are never uploaded. Use Export on the Clients page to back up
-            client files, and repeat this setup on each device you use.
+            Practice settings and client files are stored in this browser on this device only (IndexedDB). They are never uploaded, unless you turn on the review API above, which
+            sends call reviews to the address you give. Use Export on the Clients page to back up client files, and repeat this setup on each device you use.
           </Callout>
 
           <div className="flex justify-end">

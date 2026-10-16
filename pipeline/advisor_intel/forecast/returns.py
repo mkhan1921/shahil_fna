@@ -78,6 +78,12 @@ class MarketPaths:
     def n_years(self) -> int:
         return int(self.infl.shape[1])
 
+    def head(self, n_years: int) -> MarketPaths:
+        """The first ``n_years`` years (views): a market realised for a longer horizon starts with the same years."""
+        if n_years >= self.n_years:
+            return self
+        return MarketPaths(self.class_log[:, :, :n_years], self.infl[:, :n_years], self.fx_log[:, :n_years], self.class_mean)
+
     @property
     def class_gross(self) -> np.ndarray:
         """(5, P, T) real gross returns per class, exp(class_log)."""

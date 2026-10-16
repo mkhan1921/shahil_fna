@@ -102,7 +102,7 @@ def test_dob_from_prior_id_number(sample_fna_json):
     assert f.value.dist == Point(value="1986-04-12") and f.status == "not_discussed" and f.derivation == "dob_from_id_number"
 
 
-def test_a_spouse_with_facts_from_the_call_is_included():
+def test_a_spouse_with_facts_from_the_call_is_a_partner_in_the_plan():
     from advisor_intel.models import Entity
     from advisor_intel.schema.derivations import derive_all
 
@@ -116,5 +116,8 @@ def test_a_spouse_with_facts_from_the_call_is_included():
             "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=35000), unit="ZAR", period="monthly"), weight=1, rationale="")],
             "evidence": [ev], "provenance": Provenance(run_id="r")}, "extractor")
     p = apply_state_ops(p, make_ops(p, [spec])).profile
-    f = derive_all(p).facts["household.includeSpouse"]
-    assert f.status == "implied" and f.derivation == "include_spouse_on_call" and f.value.dist.p > 0.9 and f.evidence[0].segment_id == seg
+    d = derive_all(p)
+    f = d.facts["household.includeSpouse"]
+    assert f.status == "implied" and f.derivation == "partner_on_call" and f.value.dist.p > 0.9 and f.evidence[0].segment_id == seg
+    ms = d.facts["household.maritalStatus"]
+    assert ms.status == "implied" and stats.mode_label(ms.value.dist) == "married" and set(ms.value.dist.probs) == {"married", "life-partner"}

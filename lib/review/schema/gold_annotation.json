@@ -1,0 +1,463 @@
+{
+  "$defs": {
+    "GoldFact": {
+      "properties": {
+        "fact_id": {
+          "title": "Fact Id",
+          "type": "string"
+        },
+        "slot_id": {
+          "title": "Slot Id",
+          "type": "string"
+        },
+        "instance_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instance Key"
+        },
+        "fna_path": {
+          "title": "Fna Path",
+          "type": "string"
+        },
+        "entity_label": {
+          "default": "",
+          "title": "Entity Label",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "stated",
+            "implied",
+            "explicitly_unknown",
+            "not_discussed",
+            "contradicted"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GoldQuantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "speaker_attribution": {
+          "default": "client",
+          "enum": [
+            "client",
+            "advisor_suggested",
+            "advisor_confirmed_by_client",
+            "mixed"
+          ],
+          "title": "Speaker Attribution",
+          "type": "string"
+        },
+        "spans": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GoldSpan"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fact_id",
+        "slot_id",
+        "fna_path",
+        "status"
+      ],
+      "title": "GoldFact",
+      "type": "object"
+    },
+    "GoldOption": {
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        },
+        "weight": {
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "weight"
+      ],
+      "title": "GoldOption",
+      "type": "object"
+    },
+    "GoldOptions": {
+      "description": "Several values the client gave ('60 or 65'), labels ('fairly conservative'), or an event's yes / no.",
+      "properties": {
+        "kind": {
+          "const": "options",
+          "default": "options",
+          "title": "Kind",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/GoldOption"
+          },
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "title": "GoldOptions",
+      "type": "object"
+    },
+    "GoldPoint": {
+      "properties": {
+        "kind": {
+          "const": "point",
+          "default": "point",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "GoldPoint",
+      "type": "object"
+    },
+    "GoldQuantity": {
+      "properties": {
+        "value": {
+          "discriminator": {
+            "mapping": {
+              "options": "#/$defs/GoldOptions",
+              "point": "#/$defs/GoldPoint",
+              "range": "#/$defs/GoldRange"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/GoldPoint"
+            },
+            {
+              "$ref": "#/$defs/GoldRange"
+            },
+            {
+              "$ref": "#/$defs/GoldOptions"
+            }
+          ],
+          "title": "Value"
+        },
+        "unit": {
+          "enum": [
+            "ZAR",
+            "USD",
+            "GBP",
+            "EUR",
+            "years",
+            "months",
+            "age",
+            "pct",
+            "count",
+            "date",
+            "none"
+          ],
+          "title": "Unit",
+          "type": "string"
+        },
+        "period": {
+          "default": "none",
+          "enum": [
+            "once",
+            "monthly",
+            "annual",
+            "none"
+          ],
+          "title": "Period",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "unit"
+      ],
+      "title": "GoldQuantity",
+      "type": "object"
+    },
+    "GoldRange": {
+      "description": "A range or a vague amount: the bounds as said (if any) and the annotator's quantiles.",
+      "properties": {
+        "kind": {
+          "const": "range",
+          "default": "range",
+          "title": "Kind",
+          "type": "string"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Low"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "High"
+        },
+        "p10": {
+          "title": "P10",
+          "type": "number"
+        },
+        "p50": {
+          "title": "P50",
+          "type": "number"
+        },
+        "p90": {
+          "title": "P90",
+          "type": "number"
+        }
+      },
+      "required": [
+        "p10",
+        "p50",
+        "p90"
+      ],
+      "title": "GoldRange",
+      "type": "object"
+    },
+    "GoldSpan": {
+      "properties": {
+        "segment_id": {
+          "title": "Segment Id",
+          "type": "string"
+        },
+        "char_start": {
+          "title": "Char Start",
+          "type": "integer"
+        },
+        "char_end": {
+          "title": "Char End",
+          "type": "integer"
+        },
+        "quote": {
+          "title": "Quote",
+          "type": "string"
+        },
+        "speaker_role": {
+          "title": "Speaker Role",
+          "type": "string"
+        },
+        "t_start": {
+          "title": "T Start",
+          "type": "number"
+        },
+        "t_end": {
+          "title": "T End",
+          "type": "number"
+        },
+        "role": {
+          "default": "supports",
+          "enum": [
+            "supports",
+            "revises",
+            "contradicts",
+            "context"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "segment_id",
+        "char_start",
+        "char_end",
+        "quote",
+        "speaker_role",
+        "t_start",
+        "t_end"
+      ],
+      "title": "GoldSpan",
+      "type": "object"
+    },
+    "TranscriptRef": {
+      "description": "The transcript the spans point into: the ASR output or the human verbatim transcript (§15.1).",
+      "properties": {
+        "source": {
+          "default": "asr",
+          "enum": [
+            "asr",
+            "human"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "asr_provider": {
+          "default": "",
+          "title": "Asr Provider",
+          "type": "string"
+        },
+        "asr_model_version": {
+          "default": "",
+          "title": "Asr Model Version",
+          "type": "string"
+        }
+      },
+      "title": "TranscriptRef",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "format": {
+      "const": "advisor-intel-gold-annotation",
+      "default": "advisor-intel-gold-annotation",
+      "title": "Format",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "call_id": {
+      "title": "Call Id",
+      "type": "string"
+    },
+    "annotator_id": {
+      "title": "Annotator Id",
+      "type": "string"
+    },
+    "role": {
+      "default": "annotator",
+      "enum": [
+        "annotator",
+        "adjudicator"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "profile_v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "anchor_date": {
+      "format": "date",
+      "title": "Anchor Date",
+      "type": "string"
+    },
+    "transcript": {
+      "$ref": "#/$defs/TranscriptRef"
+    },
+    "prior_document_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prior Document Id"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "completed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Completed At"
+    },
+    "facts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/GoldFact"
+      },
+      "title": "Facts",
+      "type": "array"
+    }
+  },
+  "required": [
+    "call_id",
+    "annotator_id",
+    "anchor_date",
+    "started_at"
+  ],
+  "title": "GoldAnnotation",
+  "type": "object"
+}
