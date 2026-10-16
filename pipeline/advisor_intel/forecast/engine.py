@@ -238,6 +238,7 @@ class _Simulation:
     def __init__(self, inp: ForecastInput, market: MarketPaths, config: ForecastConfig, cma: CMA, tax_model: TaxModel) -> None:
         if market.n_years < inp.n_years or market.n_paths != inp.n:
             raise ValueError(f"market has {market.n_paths} paths x {market.n_years} years; the input needs {inp.n} x {inp.n_years}")
+        market = market.head(inp.n_years)  # a batch of sensitivity variants shares a market sized for its longest horizon
         self.inp = inp
         self.T = inp.n_years
         self.P = inp.n
