@@ -1,0 +1,90 @@
+# Red-teaming and scenario tests (spec §15.7), before every release. The offline job runs every scenario through
+# the pipeline with the gold-call oracle and with an extraction model that obeys injected instructions; the promptfoo
+# job runs the same scenarios, plus free-form attacks, on the deployment's models. Pass criterion: no fact without
+# grounded evidence and no tool call outside the policy. Pull requests labelled "redteam" also run promptfoo.
+name: Red team
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - "pipeline/advisor_intel/harness/**"
+      - "pipeline/advisor_intel/extract/**"
+      - "pipeline/advisor_intel/prompts/**"
+      - "pipeline/advisor_intel/verify/**"
+      - "pipeline/advisor_intel/evals/redteam.py"
+      - "pipeline/redteam/**"
+      - ".github/workflows/redteam.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: redteam-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYDANTIC_AI_NO_BANNER: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  offline:
+    name: Scenarios offline (oracle and a compromised extractor)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: pipeline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Red-team scenario tests
+        run: python -m pytest -q tests/test_redteam_scenarios.py tests/test_evals_online.py
+
+  promptfoo:
+    name: promptfoo on the deployment's models
+    needs: offline
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'redteam')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+      PROMPTFOO_DISABLE_TELEMETRY: "1"
+      PROMPTFOO_DISABLE_UPDATE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        working-directory: pipeline
+        run: python -m pip install -e ".[dev]"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Model keys
+        run: test -n "$ANTHROPIC_API_KEY$OPENAI_API_KEY$GEMINI_API_KEY" || { echo "::error::no model API key is available to this run"; exit 1; }
+      - name: promptfoo eval
+        working-directory: pipeline/redteam
+        run: PROMPTFOO_PYTHON="$(command -v python)" npx --yes promptfoo@0.123.1 eval -c promptfooconfig.yaml --no-cache -o results.json
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-results
+          path: pipeline/redteam/results.json
+          if-no-files-found: ignore

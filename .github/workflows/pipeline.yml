@@ -1,0 +1,105 @@
+# The advisor call intelligence pipeline (pipeline/): lint, the slot-catalog check, schema limits, the test suite,
+# Temporal workflow replay tests and the time-skipping workflow tests (spec §4, §13.9, §15).
+name: Pipeline
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "pipeline/**"
+      - "lib/fna/**"
+      - "fna_tables/**"
+      - ".github/workflows/pipeline.yml"
+  pull_request:
+    paths:
+      - "pipeline/**"
+      - "lib/fna/**"
+      - "fna_tables/**"
+      - ".github/workflows/pipeline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYDANTIC_AI_NO_BANNER: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+defaults:
+  run:
+    working-directory: pipeline
+
+jobs:
+  test:
+    name: Lint, catalog, schema limits and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Lint the evaluation code
+        run: ruff check --select F,E advisor_intel/evals redteam tests/test_evals_*.py tests/test_redteam_scenarios.py
+      - name: The slot catalog matches the FNA app (spec §4)
+        run: python -m advisor_intel.schema.generate --check
+      - name: Every slot group compiles within the provider schema limits (spec §4.4)
+        run: python -m pytest -q tests/test_schema_limits.py
+      - name: Tests
+        # slow: performance targets and the 2,000-document parity run (fna-parity.yml); temporal: the job below.
+        # PostgreSQL tests use the runner's preinstalled server binaries and skip without them.
+        run: python -m pytest -q -m "not slow and not temporal" -k "not replay" --junitxml=test-reports/pytest.xml
+      - name: Workflow replay tests (recorded histories against this worker code, spec §13.1)
+        run: |
+          set +e
+          python -m pytest -q -k replay --junitxml=test-reports/replay.xml
+          status=$?
+          if [ "$status" -eq 5 ]; then echo "::notice::no replay tests collected"; exit 0; fi
+          exit "$status"
+      - name: Keep the test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-test-reports
+          path: pipeline/test-reports/
+          if-no-files-found: ignore
+
+  temporal:
+    name: Temporal workflow tests (time-skipping)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Install the Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "TEMPORAL_CLI_PATH=$HOME/.temporalio/bin/temporal" >> "$GITHUB_ENV"
+      - name: Workflow tests
+        run: |
+          set +e
+          python -m pytest -q -m temporal --junitxml=test-reports/temporal.xml
+          status=$?
+          if [ "$status" -eq 5 ]; then echo "::notice::no Temporal tests collected"; exit 0; fi
+          exit "$status"
+      - name: Keep the test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporal-test-reports
+          path: pipeline/test-reports/
+          if-no-files-found: ignore

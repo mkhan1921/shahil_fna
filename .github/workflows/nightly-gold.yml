@@ -1,0 +1,115 @@
+# The gold suite (spec §15.4): nightly and before every release, on the human transcripts and the ASR transcripts
+# of the gold calls, gated against the default branch's gold baseline. A passing nightly run on the default branch
+# becomes the new baseline. On Monday mornings the weekly error analysis (§15.5) clusters the week's production
+# errors with that night's gold run and writes the labelling sheet.
+name: Nightly gold suite
+
+on:
+  schedule:
+    - cron: "30 0 * * *" # 02:30 SAST, after the nightly_feedback schedule (02:00)
+    - cron: "0 5 * * 1" # Mondays 07:00 SAST: the weekly error analysis
+  push:
+    tags: ["v*"] # before every release
+  workflow_dispatch:
+    inputs:
+      sync_synthetic:
+        description: Regenerate the 300 synthetic calls and sync them to synthetic-calls first
+        type: boolean
+        default: false
+      error_analysis:
+        description: Run the weekly error analysis instead of the gold suite
+        type: boolean
+        default: false
+      experiment:
+        description: The gold experiment the error analysis reads (default today's nightly run)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-gold
+  cancel-in-progress: false
+
+env:
+  BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  PYDANTIC_AI_NO_BANNER: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+defaults:
+  run:
+    working-directory: pipeline
+
+jobs:
+  gold-suite:
+    name: Gold suite (human and ASR transcripts)
+    if: github.event.schedule != '0 5 * * 1' && !inputs.error_analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      ADVISOR_INTEL_EVAL_DATASET: gold-calls
+      REPORT: .data/evals/reports/advisor-extraction-gold-calls-latest.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Braintrust key
+        run: test -n "$BRAINTRUST_API_KEY" || { echo "::error::BRAINTRUST_API_KEY is not set"; exit 1; }
+      - name: Sync the synthetic calls
+        if: inputs.sync_synthetic
+        run: python -m advisor_intel.evals.datasets sync-synthetic --n 300 --seed 0
+      - name: Gold suite
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then name="gold-release-$GITHUB_REF_NAME"; else name="gold-nightly-$(date -u +%F)"; fi
+          ADVISOR_INTEL_EVAL_EXPERIMENT="$name" braintrust eval advisor_intel/evals/eval_extraction.py
+      - name: Release gate against the default branch's gold baseline
+        run: python -m advisor_intel.evals.gate check --current "$REPORT" --baseline-ref "${{ github.event.repository.default_branch }}" --markdown .data/evals/gate.md
+      - name: Publish the baseline
+        if: github.event_name == 'schedule' && github.ref_name == github.event.repository.default_branch
+        run: python -m advisor_intel.evals.gate publish --report "$REPORT" --ref "${{ github.ref_name }}"
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-report
+          path: |
+            pipeline/.data/evals/reports/
+            pipeline/.data/evals/gate.md
+          if-no-files-found: ignore
+
+  error-analysis:
+    name: Weekly error analysis (spec §15.5)
+    if: github.event.schedule == '0 5 * * 1' || inputs.error_analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Cluster, label and sample the week's errors
+        env:
+          EXPERIMENT: ${{ inputs.experiment }}
+        run: |
+          experiment="${EXPERIMENT:-gold-nightly-$(date -u +%F)}"
+          python -m advisor_intel.evals.error_analysis weekly --days 7 --experiment "$experiment" --out .data/error-analysis | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Keep the labelling sheet
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-analysis
+          path: pipeline/.data/error-analysis/

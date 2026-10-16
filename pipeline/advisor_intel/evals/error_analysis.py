@@ -619,7 +619,13 @@ def main(argv: list[str] | None = None) -> int:
     from .extraction_eval import EVAL_NAME, load_rows, rows_path
 
     if args.experiment:
-        records = experiment_records(args.experiment)
+        try:
+            records = experiment_records(args.experiment)
+        except Exception as e:  # noqa: BLE001 - a missing or unreadable gold run still leaves the production errors
+            print(
+                f"could not read the gold experiment {args.experiment!r} ({type(e).__name__}: {e}): production errors only", file=sys.stderr
+            )
+            records = []
     else:
         path = args.rows or rows_path(EVAL_NAME, GOLD_CALLS)
         records = records_from_rows(load_rows(path)) if path.exists() else []

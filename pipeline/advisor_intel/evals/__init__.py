@@ -13,8 +13,9 @@ Modules:
 - ``gepa_adapter``: prompt optimisation with GEPA (§15.6).
 - ``rl_reward`` and ``finetune``: the fine-tuning and RL tracks (§15.8–15.9).
 - ``error_analysis``: weekly error clustering and sampling (§15.5).
-- ``online``: online scorers over production traces (§13.4, §14.4).
-- ``redteam``: scenario and injection transcripts and the pass criterion (§15.7).
+- ``online``: online scorers over production traces and the wrong-auto-accept monitor (§13.4, §14.4); ``online_push``
+  uploads the scorers to Braintrust.
+- ``redteam``: scenario and injection calls and the pass criterion (§15.7), run by promptfoo from ``pipeline/redteam``.
 
 Nothing here imports another stage's package at module import time: the pipeline runner, ingestion, the FNA engine
 and the forecast are reached through injected callables or lazy imports, so this package works offline.
