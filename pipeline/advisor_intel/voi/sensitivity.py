@@ -220,6 +220,11 @@ def candidates(profile: Profile, catalog: Catalog, *, include_missing: bool = Tr
     return out
 
 
+def trusted(fact: Fact) -> bool:
+    """Values the forecast samples as given (§12.2): prior FNA, CRM, defaults, the reviewer's, or reviewed facts."""
+    return fact.source in ("prior_fna", "crm", "fna_default", "reviewer") or fact.review.status in ("accepted", "edited")
+
+
 def fact_ends(fact: Fact, slot: SlotDef, *, min_mass: float = MIN_OUTCOME_MASS) -> list[Any]:
     """q10 and q90 (numeric), or the outcomes with at least ``min_mass`` (categorical, boolean); [] for no spread."""
     dist = fact.value.dist if fact.value is not None else slot.population_prior
@@ -325,7 +330,7 @@ async def sensitivity(
             tier=catalog.slot(f.slot_id).sensitivity_tier,
             reasons=reasons,
             virtual=virtual,
-            p_correct=1.0 if virtual else f.p_correct,
+            p_correct=1.0 if virtual or trusted(f) else f.p_correct,
         )
 
     # PoS view: the forecast engine's reduced runs (common random numbers across facts).

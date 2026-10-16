@@ -118,15 +118,22 @@ def fit_conformal(
     families: Sequence[str] = FAMILIES,
     auto_accept_tier_a: bool | None = None,
     calibrator_version: str = "",
+    last_n: int | None = None,
     settings: Settings | None = None,
 ) -> ConformalThresholds:
-    """The nightly ``refit_conformal`` step: τ from the calibration calls (§9.5)."""
+    """The nightly ``refit_conformal`` step: τ from the calibration calls (§9.5).
+
+    ``labels`` (or ``calls``) are in review order and come from calls processed with the current pipeline
+    versions; ``last_n`` keeps only the most recent calls.
+    """
     s = settings or get_settings()
     alpha = s.conformal_alpha if alpha is None else alpha
     min_calls = s.min_conformal_calls if min_calls is None else min_calls
     tier_a = s.auto_accept_tier_a if auto_accept_tier_a is None else auto_accept_tier_a
     if calls is None:
         calls = calibration_calls(labels or [], auto_accept_tier_a=tier_a)
+    if last_n is not None:
+        calls = list(calls)[-last_n:]
     n = len(calls)
     fam_alpha = alpha / max(1, len(families))
     th = ConformalThresholds(

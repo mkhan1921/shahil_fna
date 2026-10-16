@@ -162,6 +162,18 @@ async def test_voi_maths_on_stub_pos_runs_and_analyse():
     assert i.i_pos == 0 and i.i_extract == pytest.approx(0.4 * 0.15) and i.i_fna == 0  # a point value: no content spread
 
 
+async def test_prior_values_carry_no_extraction_risk():
+    b = ProfileBuilder()
+    seed = b.seed("income.{p}.grossMonthly", "client", money(45000))  # p_correct left at the model default (0.5)
+    p = b.build()
+
+    def pos_runs(profile, fact_ids, *, n_paths, seed):
+        return {fid: {"pos_base": 0.7, "pos_q10": 0.7, "pos_q90": 0.7, "pos_prior": 0.5} for fid in fact_ids}
+
+    rows = {r.fact_id: r for r in await sensitivity(p, catalog=CATALOG, pos_runs=pos_runs, include_missing=False)}
+    assert rows[seed].p_correct == 1.0 and rows[seed].i_extract == 0.0
+
+
 async def test_async_pos_runs_and_failures_degrade_to_the_other_view():
     b = ProfileBuilder()
     ra = b.add("retirement.{p}.retirementAge", "client", qty(Triangular(low=55, mode=60, high=65), "age"))

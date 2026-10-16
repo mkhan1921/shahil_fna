@@ -64,6 +64,13 @@ def test_fewer_than_50_calls_turns_auto_accept_off():
     assert not th.enabled and "49 calibration calls" in th.reason and th.tau_for("income_expenses") is None
 
 
+def test_only_the_last_n_calibration_calls_count():
+    old = [_label(f"old{i}", 0.99, 0) for i in range(20)]  # an earlier pipeline's confident mistakes
+    recent = [_label(f"call{i}", i / 100, 0) for i in range(1, 51)]
+    th = fit_conformal(old + recent, alpha=0.1, min_calls=50, mondrian=False, last_n=50, settings=Settings())
+    assert th.n_calls == 50 and th.tau_pooled == 0.46
+
+
 def test_mondrian_per_family_at_alpha_over_5_with_pooled_fallback():
     labels = []
     for i in range(60):
