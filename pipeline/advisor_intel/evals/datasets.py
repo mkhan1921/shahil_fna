@@ -780,7 +780,7 @@ def main(argv: list[str] | None = None) -> int:
     """``python -m advisor_intel.evals.datasets``: sync synthetic calls, gold calls and transcripts (§15.1)."""
     import argparse
 
-    from .gold import AnnotationFile, adjudicate
+    from .gold import adjudicate, load_annotation
 
     ap = argparse.ArgumentParser(description="Sync the evaluation datasets (Braintrust with BRAINTRUST_API_KEY, else local JSONL).")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -791,6 +791,13 @@ def main(argv: list[str] | None = None) -> int:
     gold = sub.add_parser("sync-gold", help="adjudicate two annotators' files per call and sync the gold call")
     gold.add_argument("pairs", nargs="+", help="each call's annotation files as A.json,B.json[,ADJUDICATOR.json] (the app's annotate mode)")
     gold.add_argument("--heldout", action="store_true", help="the held-out test calls GEPA and fine-tuning never see")
+    gold.add_argument(
+        "--prior",
+        type=Path,
+        action="append",
+        default=[],
+        help="a client's prior FnaDocument JSON (the app's export keeps only its id); repeat per call, matched by id",
+    )
     tr = sub.add_parser("sync-transcripts", help="sync Transcript JSON files to gold-transcripts")
     tr.add_argument("files", nargs="+", type=Path)
     tr.add_argument("--kind", choices=["human", "asr"], default="human")
@@ -801,9 +808,11 @@ def main(argv: list[str] | None = None) -> int:
         ids = sync_synthetic(generate_calls(args.n, seed=args.seed, start=args.start))
         print(f"{len(ids)} synthetic calls synced to {SYNTHETIC_DATASET}")
     elif args.cmd == "sync-gold":
+        priors = {d.id: d for d in (FnaDocument.model_validate_json(f.read_text()) for f in args.prior)}
         golds = []
         for pair in args.pairs:
-            files = [AnnotationFile.model_validate_json(Path(f).read_text()) for f in pair.split(",") if f]
+            raws = [json.loads(Path(f).read_text()) for f in pair.split(",") if f]
+            files = [load_annotation(r, prior_document=priors.get(r.get("prior_document_id") or "")) for r in raws]
             if len(files) < 2:
                 ap.error(f"{pair}: two annotators' files are needed")
             golds.append(

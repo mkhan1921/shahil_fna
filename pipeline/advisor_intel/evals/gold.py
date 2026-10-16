@@ -5,10 +5,15 @@ plus one ``GoldFact`` per slot they filled (status, attribution, the evidence sp
 client meant, averaged over the two annotators), the entities with their FnaDocument rows (the entity mapping),
 and the labels the discourse metrics need (mentions, topic index).
 
-Annotation file format
-----------------------
-The FNA sheet's annotate mode exports one ``AnnotationFile`` per annotator per call (the app-side shape lives in
-``lib/review/`` once the UI ships it; this model is the contract until then)::
+Annotation files
+----------------
+The FNA sheet's annotate mode exports one file per annotator per call in the app's format
+(``advisor_intel.evals.annotation.GoldAnnotation``, ``"format": "advisor-intel-gold-annotation"``, checked on the app
+side by ``lib/review/schema/gold_annotation.json``): facts keyed like the system's (slot id, instance key, concrete
+path), each value a point, a range with the annotator's p10 / p50 / p90, or weighted options. ``from_app_annotation``
+reads it into the adjudication format below, rebuilding the annotator's document as the client's prior file with
+every annotated value written in; ``load_annotation`` takes either format. The adjudication format
+(``AnnotationFile``) also carries mentions and topic labels for the discourse metrics::
 
     {
       "format": "advisor-intel-annotation", "version": 1,
@@ -250,6 +255,9 @@ _LIST_ENTITY_TYPE = {
     "policies": "policy",
     "goals": "goal",
     "expenses.custom": "account",
+    "event": "goal",  # forecast-only lists (§12.2): life events and income changes
+    "income.client.expectedChange": "goal",
+    "income.spouse.expectedChange": "goal",
 }
 
 
@@ -310,6 +318,125 @@ def gold_value(slot: SlotDef, *, p10: Any = None, p50: Any = None, p90: Any = No
     lo, hi = (p10 if p10 is not None else mid), (p90 if p90 is not None else mid)
     gv = GoldValue(kind="numeric", p10=lo, p50=mid, p90=hi)
     return gv.model_copy(update={"vague": bool(gv.p90 is not None and gv.p10 is not None and gv.p90 > gv.p10)})
+
+
+def _app_scale(slot: SlotDef, period: str) -> float:
+    """Annotated money in another period than the slot stores (an annual figure for a monthly field)."""
+    from ..lexicon.normalize import quantity_unit
+
+    _, want = quantity_unit(slot)
+    if period == want or {period, want} - {"monthly", "annual"}:
+        return 1.0
+    return 12.0 if (period, want) == ("monthly", "annual") else 1.0 / 12.0
+
+
+def _numeric(x: Any) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
+def _app_value(slot: SlotDef, q: Any) -> dict[str, Any]:
+    """An app ``GoldQuantity`` as quantiles (numbers) or a value (labels, yes / no, text) for ``gold_value``."""
+    v, k = q.value, _app_scale(slot, q.period)
+    labelled = slot.value_type in ("category", "boolean", "text") or (slot.value_type == "count" and slot.categories)
+    if v.kind == "range":
+        return {"p10": v.p10 * k, "p50": v.p50 * k, "p90": v.p90 * k}
+    if v.kind == "point":
+        return {"p50": v.value * k} if _numeric(v.value) and not labelled else {"value": v.value}
+    values = [o.value for o in v.options]
+    if slot.value_type == "probability" and all(isinstance(x, bool) for x in values):
+        return {"p50": sum(o.weight for o in v.options if o.value is True)}
+    if not labelled and all(_numeric(x) for x in values):
+        p10, p50, p90 = q.quantiles()
+        return {"p10": p10 * k, "p50": p50 * k, "p90": p90 * k}
+    return {"value": max(v.options, key=lambda o: o.weight).value}
+
+
+def _row_name(doc: dict[str, Any], container: str, key: str) -> str:
+    """The name a prior row goes by in the document (a dependant's name, a policy's insurer or description)."""
+    try:
+        for field in ("name", "description", "insurer", "provider"):
+            v = get_path(doc, f"{container}[{key}].{field}")
+            if isinstance(v, str) and v.strip():
+                return v.strip()
+    except (KeyError, TypeError, IndexError):
+        pass
+    return ""
+
+
+def from_app_annotation(ann: Any, *, prior_document: FnaDocument | None = None, catalog: Catalog | None = None) -> AnnotationFile:
+    """An annotation from the app's annotate mode (``GoldAnnotation``, or its JSON) in the adjudication format.
+
+    List rows become entities keyed by the instance key the app recorded (the pipeline's entity id for a prior row,
+    the annotator's own for an added one), so two annotators' rows line up; the annotator's document is the prior file
+    with every annotated value written at its path (``set_path`` adds the rows an annotator created)."""
+    from .annotation import GoldAnnotation
+
+    ann = ann if isinstance(ann, GoldAnnotation) else GoldAnnotation.model_validate(ann)
+    catalog = catalog or load_catalog(ann.schema_version)
+    doc = (prior_document or FnaDocument()).model_dump(mode="json")
+    facts: list[AnnotatedFact] = []
+    entities: dict[str, AnnotatedEntity] = {}
+    for f in ann.facts:
+        slot = slot_for(catalog, f.slot_id)
+        pp = parse_path(f.fna_path)
+        if pp.key is not None and pp.container not in ("expenses.items", "riskProfile.answers") and f.instance_key:
+            e = entities.setdefault(pp.key, AnnotatedEntity(row_id=pp.key, fna_list=pp.container, entity_id=f.instance_key))
+            for name in (f.entity_label, _row_name(doc, pp.container, pp.key)):
+                if name and name not in e.names:
+                    e.names.append(name)
+        found = f.status in ("stated", "implied", "contradicted") and f.value is not None
+        values = _app_value(slot, f.value) if found else {}
+        facts.append(
+            AnnotatedFact(
+                fna_path=f.fna_path,
+                slot_id=slot.slot_id,
+                instance_key=f.instance_key,
+                status=f.status,
+                attribution=f.speaker_attribution,
+                spans=[
+                    AnnotatedSpan(
+                        segment_id=s.segment_id,
+                        char_start=s.char_start,
+                        char_end=s.char_end,
+                        quote=s.quote,
+                        t_start=s.t_start,
+                        t_end=s.t_end,
+                    )
+                    for s in f.spans
+                ],
+                note=f.note,
+                **values,
+            )
+        )
+        gv = gold_value(slot, **values) if found else None
+        if gv is not None:
+            try:
+                _write_value(doc, slot, f.fna_path, gv)
+            except (KeyError, TypeError, ValueError):
+                pass  # a path the document cannot hold (a forecast-only slot) stays a fact only
+    spent = (ann.completed_at - ann.started_at).total_seconds() if ann.completed_at else None
+    return AnnotationFile(
+        call_id=ann.call_id,
+        annotator_id=ann.annotator_id,
+        role=ann.role,
+        annotated_at=ann.completed_at or ann.started_at,
+        anchor_date=ann.anchor_date,
+        transcript=ann.transcript.source,
+        document=FnaDocument.model_validate(doc),
+        facts=facts,
+        entities=list(entities.values()),
+        seconds_spent=spent,
+    )
+
+
+def load_annotation(raw: str | bytes | dict[str, Any], *, prior_document: FnaDocument | None = None) -> AnnotationFile:
+    """An annotation file in either format: the app's export or the adjudication format."""
+    import json
+
+    data = json.loads(raw) if isinstance(raw, (str, bytes)) else raw
+    if data.get("format") == "advisor-intel-gold-annotation":
+        return from_app_annotation(data, prior_document=prior_document)
+    return AnnotationFile.model_validate(data)
 
 
 # --------------------------------------------------------------------------- adjudication

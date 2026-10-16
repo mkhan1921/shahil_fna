@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -188,3 +190,66 @@ def test_default_note_facts():
     assert [f.slot_id for f in G.default_note_facts(g, CAT)] == ["retirement.{p}.retirementAge"]
     g2 = g.model_copy(update={"note_fact_ids": ["{p}.smoker#client"]})
     assert [f.slot_id for f in G.default_note_facts(g2, CAT)] == ["{p}.smoker"]
+
+
+APP_FIXTURES = Path(__file__).resolve().parents[2] / "tests" / "fixtures"  # the app's own exports (lib/review)
+needs_app_fixture = pytest.mark.skipif(
+    not (APP_FIXTURES / "gold_annotation.json").exists(), reason="the app's annotation fixture is absent"
+)
+
+
+def app_annotation():
+    raw = json.loads((APP_FIXTURES / "gold_annotation.json").read_text())
+    prior = FnaDocument.model_validate(json.loads((APP_FIXTURES / "review_package.json").read_text())["bundle"]["prior_document"])
+    return raw, prior
+
+
+@needs_app_fixture
+def test_the_apps_annotation_export_reads_into_the_adjudication_format():
+    raw, prior = app_annotation()
+    a = G.load_annotation(json.dumps(raw), prior_document=prior)
+    assert (a.call_id, a.annotator_id, a.transcript, a.seconds_spent) == ("call-2026-10-15-mokoena", "annotator-07", "asr", 4500.0)
+    facts = {(f.slot_id, f.instance_key): f for f in a.facts}
+    ra = facts[("retirement.{p}.retirementAge", "client")]
+    assert (ra.p10, ra.p50, ra.p90) == (60, 62, 65) and ra.spans and ra.spans[0].quote
+    cost = facts[("dependants[].tertiaryCostAnnual", "person.kagiso_mokoena_2")]
+    assert (cost.p10, cost.p50, cost.p90) == (150_000, 150_000, 450_000)  # options 60% R150k / 40% R450k as quantiles
+    assert facts[("event[].occurs", "event.annotator_kagiso_studies_overseas")].p50 == pytest.approx(0.4)  # P(yes)
+    assert facts[("policies[].cover", "policy.annotator_policies_1")].status == "explicitly_unknown"
+    # the annotator's document is the prior file with the annotated values written in
+    assert a.document.income["client"].grossMonthly == 118_000 and a.document.retirement["client"].retirementAge == 62
+    kagiso = next(d for d in a.document.dependants if d.id.startswith("b4db1d21"))
+    assert kagiso.tertiaryCostAnnual == 150_000 and len(a.document.dependants) == len(prior.dependants)
+    ents = {e.entity_id: e for e in a.entities}
+    assert ents["person.kagiso_mokoena_2"].names == ["Kagiso Mokoena"]
+    assert ents["policy.annotator_policies_1"].names[0] == "Group disability through work"
+    # two annotators' exports adjudicate into a gold call: quantiles averaged, prior rows matched by entity id
+    raw_b = json.loads(json.dumps(raw))
+    for f in raw_b["facts"]:
+        if f["slot_id"] == "retirement.{p}.retirementAge":
+            f["value"]["value"].update(p10=58, p50=60, p90=63)
+    b = G.load_annotation(dict(raw_b, annotator_id="annotator-08"), prior_document=prior)
+    gold = G.adjudicate(a, b)
+    by_key = {(f.slot_id, f.instance_key): f for f in gold.facts}
+    v = by_key[("retirement.{p}.retirementAge", "client")].value
+    assert (v.p10, v.p50, v.p90) == (59, 61, 64) and not by_key[("retirement.{p}.retirementAge", "client")].disputed
+    assert gold.annotators == ["annotator-07", "annotator-08"] and gold.document.retirement["client"].retirementAge == 61
+    assert {e.entity_id: e.type for e in gold.entities}["event.annotator_kagiso_studies_overseas"] == "goal"
+
+
+@needs_app_fixture
+def test_the_gold_sync_cli_takes_the_apps_files(tmp_path, monkeypatch):
+    from advisor_intel.evals import datasets as D
+
+    monkeypatch.delenv("BRAINTRUST_API_KEY", raising=False)
+    monkeypatch.setenv("ADVISOR_INTEL_DATA_DIR", str(tmp_path))
+    raw, prior = app_annotation()
+    (tmp_path / "a.json").write_text(json.dumps(raw))
+    (tmp_path / "b.json").write_text(json.dumps(dict(raw, annotator_id="annotator-08")))
+    (tmp_path / "prior.json").write_text(prior.model_dump_json())
+    assert D.main(["sync-gold", f"{tmp_path / 'a.json'},{tmp_path / 'b.json'}", "--prior", str(tmp_path / "prior.json"), "--heldout"]) == 0
+    rows = D.LocalStore().fetch("gold-calls")
+    assert sorted(r.id for r in rows) == ["call-2026-10-15-mokoena:asr", "call-2026-10-15-mokoena:human"]
+    assert all(r.metadata["split"] == "heldout" for r in rows)
+    gold = G.GoldCall.model_validate(rows[0].expected)
+    assert gold.document.income["client"].grossMonthly == 118_000 and len(gold.facts) == 6
