@@ -22,7 +22,7 @@ from .types import BiasPhrase, CrmNames, PhraseKind, Vocabulary
 
 VOCAB_FILE = Path(__file__).parent / "vocab" / "za_finance.txt"
 BOOST = {"name": 2.0, "product": 2.0, "amount": 1.5, "age": 1.2, "vocab": 1.0, "distractor": 0.6}
-FORMS_PER_AMOUNT = 4
+FORMS_PER_AMOUNT = 5
 FORMS_PER_DISTRACTOR = 2
 MIN_AMOUNT = 100.0
 GENERIC_NAMES = frozenset({"bank", "fund", "provider", "platform", "lisp platform", "money market", "employer", "insurer", "other", "n/a", "na"})

@@ -140,6 +140,10 @@ cases:
   - {text: "two fifteen", kind: amount, values: [215, 215000, 2150000], exact: true}
   - {text: "twelve fifty", kind: amount, values: [1250, 1250000], exact: true}
   - {text: "fifteen fifty", kind: amount, values: [1550, 1550000], exact: true}
+  - {text: "one eight four", kind: amount, values: [184, 184000, 1840000], exact: true}
+  - {text: "one six eight", kind: amount, values: [168, 168000, 1680000], exact: true}
+  - {text: "two two two", kind: amount, values: [222, 222000, 2220000], exact: true}
+  - {text: "four oh five", kind: amount, values: [405, 405000, 4050000], exact: true}
   - {text: "two five", kind: amount, values: [2500, 2500000], exact: true, top: 2500000}
   - {text: "one eight", kind: amount, values: [1800, 1800000], exact: true}
   # ---------------------------------------------------------------- amounts: digits and mixed written forms
@@ -281,7 +285,7 @@ cases:
   - {text: "percent", kind: amount, accepted: false}
   - {text: "point", kind: amount, accepted: false}
   - {text: "and", kind: amount, accepted: false}
-  - {text: "two two two", kind: amount, accepted: false}
+  - {text: "two two two two", kind: amount, accepted: false}
   - {text: "thousand million", kind: amount, accepted: false}
   - {text: "million thousand", kind: amount, accepted: false}
   - {text: "two thousand three thousand", kind: amount, accepted: false}

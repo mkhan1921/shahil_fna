@@ -4,7 +4,8 @@ Each speaker's words are merged into runs, split when the pause exceeds 1.2 s, w
 takes a turn in the gap (without overlapping), or when the run would pass 30 s. A long run is split at the
 best break before 30 s: a long pause or a sentence end, never between two number words. A segment is
 ``crosstalk`` when another speaker's speech overlaps it by more than 300 ms (words on stereo, or
-overlapping diarization turns on mono), and ``low_asr`` when its mean word confidence is below 0.6.
+overlapping diarization turns within 0.5 s of it on mono), and ``low_asr`` when its mean word confidence is
+below 0.6.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ PAUSE_SPLIT_S = 1.2
 MAX_SEGMENT_S = 30.0
 CROSSTALK_MIN_S = 0.3
 LOW_ASR_CONF = 0.6
+TURN_OVERLAP_PAD_S = 0.5  # mono: overlapped speech often yields words for one speaker only, just outside the other's segment
 
 _NUMBERS = number_vocabulary()
 _DIGIT = re.compile(r"\d")
@@ -165,7 +167,7 @@ def _flag(segments: list[Segment], turns: Sequence[SpeakerTurn], crosstalk_s: fl
         others = [o for o in segments[lo:hi] if o.speaker_label != s.speaker_label and o.t_end > s.t_start and o.t_start < s.t_end]
         overlap = _intersection(speech[s.segment_id], _union([iv for o in others for iv in speech[o.segment_id]])) if others else 0.0
         if turns:
-            overlap = max(overlap, overlap_seconds(turns, s.t_start, s.t_end))
+            overlap = max(overlap, overlap_seconds(turns, s.t_start - TURN_OVERLAP_PAD_S, s.t_end + TURN_OVERLAP_PAD_S))
         if overlap > crosstalk_s:
             s.flags.add("crosstalk")
 

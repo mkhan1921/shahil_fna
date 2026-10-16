@@ -36,8 +36,8 @@ from .asr.base import AsrAudio, HttpProvider
 from .asr.fake import ScriptRender
 from .asr.parakeet import ParakeetASR
 from .audio import PreparedAudio, wav_bytes
-from .grammars import ProductName, format_reading, lattice_readings, parse, reading_spoken_forms, same_value
-from .spans import span_interval
+from .grammars import ProductName, format_reading, reading_spoken_forms, same_value
+from .spans import Tok, find_in_tokens, span_interval, tok_from_text, tok_from_word
 from .types import BiasPhrase, Vocabulary
 
 CONF_THRESHOLD = 0.75
@@ -104,6 +104,15 @@ class SecondPassProvider(Protocol):
     async def check(self, request: SecondPassRequest) -> SecondPassResult: ...
 
 
+def readings_in(toks: Sequence[Tok], kind: SpanKind, extra_products: Sequence[ProductName] = ()) -> tuple[list[Reading], str]:
+    """Readings of the spans of ``kind`` found in a re-heard window (context words around the number are fine),
+    and the words those spans cover."""
+    found = [f for f in find_in_tokens(toks, tuple(extra_products)) if f.kind == kind and f.readings]
+    readings = [r.model_copy(update={"weight": r.weight / len(found)}) for f in found for r in f.readings or []]
+    surface = " ".join(t.arcs[0][0] for f in found for t in toks[f.start : f.end])
+    return readings, surface
+
+
 def best_candidate(decoded: Sequence[Reading], candidates: Sequence[Reading]) -> tuple[Reading | None, float]:
     """The candidate the decoded readings support most (summed decoded weight of matching readings)."""
     best, best_mass = None, 0.0
@@ -140,12 +149,10 @@ class GrammarConstrainedRedecode:
         lo = request.span_start - request.clip_start - self.window_pad_s
         hi = request.span_end - request.clip_start + self.window_pad_s
         words = [w for w in result.words if w.t_end > lo and w.t_start < hi]
-        heard = " ".join(w.text for w in words)
-        if not words:
-            return SecondPassResult(reading=None, method=self.method, raw="")
-        decoded = lattice_readings([[(w.text, max(w.conf, 1e-3)), *w.alts] for w in words], request.kind, extra_products=request.extra_products)
-        reading, mass = best_candidate(decoded.readings, request.candidates)
-        return SecondPassResult(reading=reading, method=self.method, confidence=round(mass, 4) if reading else None, raw=heard)
+        decoded, surface = readings_in([tok_from_word(w) for w in words], request.kind, request.extra_products)
+        reading, mass = best_candidate(decoded, request.candidates)
+        return SecondPassResult(reading=reading, method=self.method, confidence=round(mass, 4) if reading else None,
+                                raw=surface or " ".join(w.text for w in words))
 
 
 @dataclass
@@ -246,10 +253,10 @@ class ScriptedSecondPass:
                     if (isinstance(it.value, str) and c.value == it.value) or (
                             not isinstance(it.value, str) and not isinstance(c.value, str) and math.isclose(float(c.value), float(it.value))):
                         return SecondPassResult(reading=c, method=self.method, confidence=1.0, raw=it.said)
-        said = " ".join(w.text.strip(",.?!") for w in self.render.reference if w.t_end > a and w.t_start < b)
-        decoded = parse(said, request.kind, extra_products=request.extra_products).readings if said else []
+        said_words = [w.text for w in self.render.reference if w.t_end > a and w.t_start < b]
+        decoded, _ = readings_in([tok_from_text(w) for w in said_words], request.kind, request.extra_products)
         reading, mass = best_candidate(decoded, request.candidates)
-        return SecondPassResult(reading=reading, method=self.method, confidence=round(mass, 4) if reading else None, raw=said)
+        return SecondPassResult(reading=reading, method=self.method, confidence=round(mass, 4) if reading else None, raw=" ".join(said_words))
 
 
 def channel_for_label(label: str) -> int | None:

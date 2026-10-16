@@ -180,18 +180,32 @@ def parse(text: str, kind: SpanKind, *, extra_products: tuple[ProductName, ...] 
     return lattice_readings([[(w, 1.0)] for w in words], kind, extra_products=extra_products)
 
 
+def _same_reading(a: Reading, b: Reading) -> bool:
+    """The same quantity, however its magnitude was spelled: equal value, period, rate flag, key and provider,
+    and the same currency or none stated on one side."""
+    return (same_value(a, b) and a.period == b.period and a.lexicon_key == b.lexicon_key and a.provider == b.provider
+            and (a.currency == b.currency or a.currency is None or b.currency is None))
+
+
 def merge_readings(primary: list[Reading], secondary: list[Reading], secondary_share: float) -> list[Reading]:
-    """Mix two normalised reading sets; readings present in both add their masses (§5.3 ITN candidate)."""
-    mass: dict[tuple, float] = defaultdict(float)
-    proto: dict[tuple, Reading] = {}
-    for share, rs in ((1.0 - secondary_share if primary else 0.0, primary), (secondary_share if primary else 1.0, secondary)):
-        for r in rs:
-            k = reading_identity(r)
-            mass[k] += share * r.weight
-            proto.setdefault(k, r)
-    total = sum(mass.values()) or 1.0
-    out = [proto[k].model_copy(update={"weight": m / total}) for k, m in mass.items()]
-    return sorted(out, key=lambda r: -r.weight)[:MAX_READINGS]
+    """Mix two normalised reading sets (§5.3: the provider's ITN as one more candidate).
+
+    A secondary reading that matches a primary one adds its mass there (the primary keeps its own scale
+    source and currency); the rest are added as new readings.
+    """
+    if not primary:
+        secondary_share = 1.0
+    merged = [r.model_copy(update={"weight": r.weight * (1.0 - secondary_share)}) for r in primary]
+    for r in secondary:
+        match = next((m for m in merged if _same_reading(m, r)), None)
+        if match is not None:
+            match.weight += r.weight * secondary_share
+        else:
+            merged.append(r.model_copy(update={"weight": r.weight * secondary_share}))
+    total = sum(r.weight for r in merged) or 1.0
+    for r in merged:
+        r.weight /= total
+    return sorted(merged, key=lambda r: -r.weight)[:MAX_READINGS]
 
 
 def reading_identity(r: Reading) -> tuple:

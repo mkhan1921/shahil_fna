@@ -100,31 +100,46 @@ def _numberish(v: str) -> bool:
     return v in NUMBER_WORDS or bool(_DIGITS.match(v))
 
 
+WEAK_ANCHORS = frozenset({"oh"})  # "oh" is a digit only inside a number ("one oh five"), an interjection on its own
+
+
 def _strong_token(v: str) -> bool:
-    return _numberish(v) or v in STRONG_SCALES or v in STRONG_AGE_MARKERS
+    return (_numberish(v) or v in STRONG_SCALES or v in STRONG_AGE_MARKERS) and v not in WEAK_ANCHORS
+
+
+def _supported(t: Tok) -> set[str]:
+    """Normalised tokens of the 1-best, the ITN form and the alternatives scored within ``ALT_ANCHOR`` of the 1-best."""
+    out = set(t.norm.split())
+    if t.itn:
+        out.update(normalize_token(t.itn).split())
+    best = t.arcs[0][1] if t.arcs else 1.0
+    for a, s in t.arcs[1:]:
+        if s >= ALT_ANCHOR * best:
+            out.update(normalize_token(a).split())
+    return out
 
 
 def _strong(t: Tok) -> bool:
     """A word that can anchor a numeric span: its 1-best or ITN form is a number, or an alternative with real support is."""
-    if any(_strong_token(v) for v in t.norm.split()) or (t.itn and any(_strong_token(v) for v in normalize_token(t.itn).split())):
-        return True
-    best = t.arcs[0][1] if t.arcs else 1.0
-    return any(s >= ALT_ANCHOR * best and any(_strong_token(v) for v in normalize_token(a).split()) for a, s in t.arcs[1:])
+    return any(_strong_token(v) for v in _supported(t))
+
+
+def _member_token(v: str) -> bool:
+    return _numberish(v) or v in SCALE_WORDS or v in PERIOD_WORDS or v in GLUE_WORDS or v in AGE_WORDS or v in ("per", "of", "us", "'n", "n")
 
 
 def _numeric_member(t: Tok) -> bool:
-    return t.filler or any(
-        _numberish(v) or v in SCALE_WORDS or v in PERIOD_WORDS or v in GLUE_WORDS or v in AGE_WORDS or v in ("per", "of", "us", "'n", "n")
-        for v in t.variants
-    )
+    """A word that can sit inside a numeric span (any alternative counts: the lattice weighs it)."""
+    return t.filler or any(_member_token(v) for v in t.variants)
 
 
 def _can_start(t: Tok) -> bool:
-    return not t.filler and any(v not in NEVER_START for v in t.variants)
+    """Span edges need real support: a weak homophone alternative ("for" / "four") must not stretch a span."""
+    return not t.filler and any(_member_token(v) and v not in NEVER_START for v in _supported(t))
 
 
 def _can_end(t: Tok) -> bool:
-    return not t.filler and any(v not in NEVER_END for v in t.variants)
+    return not t.filler and any(_member_token(v) and v not in NEVER_END for v in _supported(t))
 
 
 def _positions(toks: Sequence[Tok]) -> list[list[Arc]]:
@@ -192,6 +207,16 @@ def _context(toks: Sequence[Tok], i: int, n: int) -> list[str]:
     return [t.norm for t in toks[max(0, i - n) : i] if not t.filler]
 
 
+AGE_ADVERBS = frozenset({"only", "just", "about", "almost", "nearly", "around", "roughly", "already", "now", "still", "barely", "net", "omtrent"})
+NOT_NAMES = frozenset({"that", "this", "there", "what", "which", "it", "the", "and", "so", "but", "then", "now", "here", "who"})
+
+
+def _is_name(tok: Tok) -> bool:
+    """A Titlecase word that is not a sentence starter or a product: 'Kagiso is seven'."""
+    raw = tok.arcs[0][0].strip(",.?!\"'")
+    return len(raw) >= 3 and raw[0].isupper() and raw[1:].islower() and tok.norm not in NOT_NAMES and tok.norm not in product_vocabulary()
+
+
 def _is_age_context(toks: Sequence[Tok], i: int, j: int) -> bool:
     prev = _context(toks, i, 3)
     if prev and prev[-1] in AGE_PREV_1:
@@ -200,7 +225,12 @@ def _is_age_context(toks: Sequence[Tok], i: int, j: int) -> bool:
         return True
     if prev and prev[-1] in AGE_PRONOUNS:
         return True
-    if len(prev) >= 2 and prev[-1] in ("is", "turns", "was") and prev[-2] in PERSON_WORDS:
+    if len(prev) >= 2 and prev[-2] in AGE_PRONOUNS and prev[-1] in AGE_ADVERBS:  # "I'm only thirty seven"
+        return True
+    if len(prev) >= 2 and prev[-1] in ("is", "turns", "was", "turned") and prev[-2] in PERSON_WORDS:
+        return True
+    before = [t for t in toks[max(0, i - 3) : i] if not t.filler]
+    if len(before) >= 2 and before[-1].norm in ("is", "turns", "was", "turned") and _is_name(before[-2]):
         return True
     return False
 
@@ -246,6 +276,8 @@ def _skip_amount(toks: Sequence[Tok], i: int, j: int, res: GrammarResult) -> boo
             return True
     if nxt in COUNT_NOUNS or nxt.split(" ")[0] in COUNT_NOUNS:
         return True
+    if j - i == 1 and literal and float(literal[0].value) < 10:  # "one more thing", "two of them": counts and pronouns
+        return True
     return False
 
 
@@ -280,7 +312,7 @@ def spoken_year_positions(toks: Sequence[Tok]) -> set[int]:
     return out
 
 
-AGE_CHAIN = frozenset({"or", "maybe", "to", "and", "probably", "perhaps", "even", "say", "like", "of", "-", "nee", "of", "dalk"})
+AGE_CHAIN = frozenset({"or", "maybe", "to", "and", "probably", "perhaps", "even", "say", "like", "-", "of", "nee", "dalk"})  # "of" is Afrikaans "or"
 
 
 def _chained_age(toks: Sequence[Tok], i: int, found: list[Found]) -> bool:
@@ -290,33 +322,69 @@ def _chained_age(toks: Sequence[Tok], i: int, found: list[Found]) -> bool:
     return all(t.filler or t.norm in AGE_CHAIN for t in toks[found[-1].end : i])
 
 
+MAX_AGE_WINDOW = 5  # age phrases are short ("in her late fifties", "forty two years old")
+
+
+def _cover_run(toks: Sequence[Tok], a: int, b: int) -> list[tuple[int, int, bool, bool]]:
+    """Cut a run into grammar-accepted windows: cover the most number words, then use the fewest windows.
+
+    A small dynamic programme over the run, so "a hundred thousand and fifty five thousand" is two amounts
+    rather than 100,055 and an orphaned "thousand". Returns (start, end, amount_ok, age_ok) per window.
+    """
+    n = b - a
+    strong = [_strong(toks[k]) for k in range(a, b)]
+    has_number = [any(_numberish(v) and v not in WEAK_ANCHORS and v not in STRONG_SCALES for v in _supported(toks[k])) for k in range(a, b)]
+    cache: dict[tuple[int, int], tuple[bool, bool]] = {}
+
+    def window_has_age_marker(i: int, j: int) -> bool:
+        return any(v in STRONG_AGE_MARKERS for t in toks[a + i : a + j] for v in t.variants)
+
+    def splits_compound(i: int) -> bool:
+        """A window starting at a unit right after a decade would split "fifty | five" (alternatives count)."""
+        return i > 0 and toks[a + i].norm in _UNITS and any(v in _DECADES for v in _supported(toks[a + i - 1]))
+
+    def ok(i: int, j: int) -> tuple[bool, bool]:
+        if (i, j) not in cache:
+            pos = _positions(toks[a + i : a + j])
+            amount = bool(pos) and accepts(pos, "amount")
+            age = bool(pos) and j - i <= MAX_AGE_WINDOW and accepts(pos, "age")
+            cache[(i, j)] = (amount, age)
+        return cache[(i, j)]
+
+    best: list[tuple[float, tuple]] = [(0.0, ())] * (n + 1)
+    for i in range(n - 1, -1, -1):
+        choice: tuple[float, tuple] = (best[i + 1][0], ("skip",))
+        if _can_start(toks[a + i]) and not splits_compound(i):
+            for j in range(min(n, i + MAX_WINDOW), i, -1):
+                if not _can_end(toks[a + j - 1]):
+                    continue
+                amount_ok, age_ok = ok(i, j)
+                if not (amount_ok or age_ok):
+                    continue
+                if i > 0 and has_number[i - 1] and not any(has_number[i:j]) and not window_has_age_marker(i, j):
+                    continue  # a scale word straight after a number belongs to it ("… fifty five thousand"), never alone
+                score = 2 * sum(strong[i:j]) - 1 + 0.01 * (j - i) + best[j][0]  # ties go to the longer window ("grade nine")
+                if score > choice[0]:
+                    choice = (score, ("window", j, amount_ok, age_ok))
+        best[i] = choice
+    out, i = [], 0
+    while i < n:
+        step = best[i][1]
+        if step[0] == "skip":
+            i += 1
+        else:
+            out.append((a + i, a + step[1], step[2], step[3]))
+            i = step[1]
+    return out
+
+
 def find_numbers(toks: Sequence[Tok], taken: set[int] | None = None) -> list[Found]:
     """Amount and age spans (and unaccepted numeric stretches) outside ``taken`` positions."""
     taken = taken or set()
     found: list[Found] = []
     for a, b in _runs(toks, _numeric_member, _strong, taken):
         covered: set[int] = set()
-        i = a
-        while i < b:
-            if not _can_start(toks[i]):
-                i += 1
-                continue
-            hit = None
-            for j in range(min(b, i + MAX_WINDOW), i, -1):
-                if not _can_end(toks[j - 1]):
-                    continue
-                pos = _positions(toks[i:j])
-                if not pos:
-                    continue
-                age_ok = accepts(pos, "age")
-                amount_ok = accepts(pos, "amount")
-                if age_ok or amount_ok:
-                    hit = (j, amount_ok, age_ok)
-                    break
-            if not hit:
-                i += 1
-                continue
-            j, amount_ok, age_ok = hit
+        for i, j, amount_ok, age_ok in _cover_run(toks, a, b):
             window_words = {v for t in toks[i:j] for v in t.variants}
             is_age = age_ok and (
                 not amount_ok or bool(window_words & STRONG_AGE_MARKERS) or _is_age_context(toks, i, j) or _chained_age(toks, i, found)
@@ -325,10 +393,8 @@ def find_numbers(toks: Sequence[Tok], taken: set[int] | None = None) -> list[Fou
             res = lattice_readings(_positions(toks[i:j]), kind)
             covered.update(range(i, j))
             if kind == "amount" and _skip_amount(toks, i, j, res):
-                i = j
                 continue
             found.append(Found(i, j, kind, res))
-            i = j
         # Strong number words no accepted window covers: an unaccepted span for the second pass.
         k = a
         while k < b:

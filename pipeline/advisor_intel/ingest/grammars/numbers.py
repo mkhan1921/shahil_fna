@@ -9,8 +9,9 @@ and age grammars can build on them:
   "two and a half" → "2.5".
 - ``fraction`` and ``count_a``: mantissas that only make sense before a scale word ("half a" bar → "0.5",
   "a" million → "1").
-- ``compressed_*``: the spoken shorthand "two fifty" (one digit then a two-digit number), whose literal
-  reading is 250 and whose million reading is 2.50; "twelve fifty" → 1250; "two five" → 2.5.
+- ``compressed_*``: the spoken shorthand "two fifty" (one digit then a two-digit number, or three digits
+  one by one: "one eight four"), whose literal reading is 250 and whose million reading is 2.50;
+  "twelve fifty" → 1250; "two five" → 2.5.
 - ``digits_*``: written forms from ITN or numeric ASR output: "250", "250,000", "250 000", "1.2", "1,2".
 
 The tables are also the vocabulary the span finder uses to spot numeric tokens.
@@ -198,8 +199,9 @@ def number_fsts() -> NumberFsts:
 
     oh_unit = pynini.cross("oh", "0") + sp + units
     teens = _sm([(w, str(v)) for w, v in all99.items() if 11 <= v <= 19])
-    compressed_abc = (units + sp + (ten99 | oh_unit)).optimize()
-    compressed_abc_million = (units + sp + insert(".") + (ten99 | oh_unit)).optimize()
+    digit_pair = digit_word + sp + digit_word  # "one eight four": three digits read one by one
+    compressed_abc = (units + sp + (ten99 | oh_unit | digit_pair)).optimize()
+    compressed_abc_million = (units + sp + insert(".") + (ten99 | oh_unit | digit_pair)).optimize()
     compressed_pair = (teens + sp + (ten99 | oh_unit)).optimize()
     compressed_ab_decimal = (units + sp + insert(".") + units).optimize()
 

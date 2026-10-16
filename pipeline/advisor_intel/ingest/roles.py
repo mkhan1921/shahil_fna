@@ -124,51 +124,83 @@ class SpeakerFeatures:
         return "; ".join(bits + [x for x in (names, intro, said) if x])
 
 
-def _name_patterns(crm: CrmNames | None) -> dict[str, list[re.Pattern]]:
+def _name_forms(crm: CrmNames | None) -> dict[str, list[str]]:
+    """Lowercase full names and first names per role, longest first."""
     if crm is None:
         return {}
-    out: dict[str, list[re.Pattern]] = {}
+    out: dict[str, list[str]] = {}
     for role, names in (("advisor", crm.advisor), ("client_primary", crm.client_primary), ("client_secondary", crm.client_secondary)):
-        forms: set[str] = set()
-        for n in names:
-            n = n.strip().lower()
-            if not n:
-                continue
-            forms.add(n)
-            forms.add(n.split()[0])
-        out[role] = [re.compile(rf"\b{re.escape(f)}\b") for f in sorted(forms, key=len, reverse=True) if len(f) >= 2]
+        cleaned = [n.strip().lower() for n in names if n.strip()]
+        forms = {f for n in cleaned for f in (n, n.split()[0]) if len(f) >= 2}
+        out[role] = sorted(forms, key=len, reverse=True)
     return out
 
 
+def _mentions(text: str, forms: Sequence[str]) -> bool:
+    return any(re.search(rf"\b{re.escape(f)}\b", text) for f in forms)
+
+
+_THANKS = r"(?:thanks|thank you|cheers|dankie)"
+_GREET = r"(?:good (?:morning|afternoon|evening)|morning|afternoon|hi|hello|hey|welcome|goeie môre|more)"
+
+
+def _vocatives(sentence: str, name: str) -> str | None:
+    """How a sentence uses a name: 'previous' (thanks NAME), 'next' (NAME, … / and NAME, … / … NAME? / hi NAME), or None
+    (a third-person mention)."""
+    n = re.escape(name)
+    if re.search(rf"\b{_THANKS},? {n}\b", sentence):
+        return "previous"
+    if re.match(rf"^(?:(?:and|so|okay|ok|right|now|but)\s+)?{n}\s*[,?]", sentence) or re.search(rf",\s*{n}\s*\?$", sentence):
+        return "next"
+    if re.search(rf"\b{_GREET},? {n}\b", sentence):
+        return "next"
+    return None
+
+
 def speaker_features(segments: Sequence[Segment], crm: CrmNames | None = None) -> dict[str, SpeakerFeatures]:
+    """Per-speaker behaviour and name evidence.
+
+    A name used as a vocative identifies the person addressed: "thanks Thabo" the previous other speaker,
+    "Lerato, what about…", "and Lerato, …" or "hi Thabo" the next one. A greeting naming several people,
+    or a name in the third person ("two million on Thabo"), identifies nobody.
+    """
     feats: dict[str, SpeakerFeatures] = {}
-    patterns = _name_patterns(crm)
+    names = _name_forms(crm)
     ordered = sorted(segments, key=lambda s: s.t_start)
+
+    def neighbour(i: int, direction: str) -> Segment | None:
+        rng = range(i - 1, -1, -1) if direction == "previous" else range(i + 1, len(ordered))
+        return next((ordered[k] for k in rng if ordered[k].speaker_label != ordered[i].speaker_label), None)
+
     for i, s in enumerate(ordered):
         f = feats.setdefault(s.speaker_label, SpeakerFeatures(label=s.speaker_label))
         text = s.text.lower()
         f.speech_s += max(0.0, s.t_end - s.t_start)
         f.n_segments += 1
         f.first_t = min(f.first_t, s.t_start)
-        for sentence in re.split(r"(?<=[.?!])\s+", text):
-            q = sentence.strip().endswith("?") or bool(_QUESTION_START.match(sentence.strip()))
-            if q:
+        sentences = [x.strip() for x in re.split(r"(?<=[.?!])\s+", text) if x.strip()]
+        for sentence in sentences:
+            if sentence.endswith("?") or _QUESTION_START.match(sentence):
                 f.questions += 1
                 if _PROFILE.search(sentence):
                     f.profile_questions += 1
         f.greeting_agenda += len(_GREETING.findall(text))
         f.first_person_money += len(_FIRST_PERSON_MONEY.findall(text))
         intros = [m.group(2) for m in _SELF_INTRO.finditer(text)]
-        for role, pats in patterns.items():
-            if any(p.search(text) for p in pats):
-                if any(any(p.fullmatch(name) or p.match(name) for p in pats) for name in intros):
-                    f.introduced_as[role] = f.introduced_as.get(role, 0) + 1
-                    continue
-                f.says_names[role] = f.says_names.get(role, 0) + 1
-                neighbour = next((o for o in (ordered[i - 1] if i else None, ordered[i + 1] if i + 1 < len(ordered) else None)
-                                  if o is not None and o.speaker_label != s.speaker_label), None)
-                if neighbour is not None:
-                    nf = feats.setdefault(neighbour.speaker_label, SpeakerFeatures(label=neighbour.speaker_label))
+        for role, forms in names.items():
+            if not _mentions(text, forms):
+                continue
+            if any(name in forms for name in intros):
+                f.introduced_as[role] = f.introduced_as.get(role, 0) + 1
+                continue
+            f.says_names[role] = f.says_names.get(role, 0) + 1
+            for sentence in sentences:
+                if sum(1 for fs in names.values() if _mentions(sentence, fs)) > 1 and re.search(rf"\b{_GREET}\b", sentence):
+                    continue  # "good morning Thabo, good morning Lerato": addresses everyone
+                direction = next((d for form in forms if (d := _vocatives(sentence, form))), None)
+                other = neighbour(i, direction) if direction else None
+                if other is not None:
+                    nf = feats.setdefault(other.speaker_label, SpeakerFeatures(label=other.speaker_label))
                     nf.addressed_as[role] = nf.addressed_as.get(role, 0) + 1
     return feats
 

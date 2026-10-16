@@ -109,4 +109,5 @@ def age_marker_vocabulary() -> frozenset[str]:
     return frozenset(words)
 
 
-STRONG_AGE_MARKERS = frozenset(set(EN_DECADE_PLURALS) | set(AF_DECADE_PLURALS) | set(GRADE_WORDS) | set(MATRIC_WORDS) | {"teens", "old", "oud"})
+# Words that make a phrase an age on their own ("late fifties", "matric", "teens"); "old" and "grade" need a number with them.
+STRONG_AGE_MARKERS = frozenset(set(EN_DECADE_PLURALS) | set(AF_DECADE_PLURALS) | set(MATRIC_WORDS) | {"teens"})

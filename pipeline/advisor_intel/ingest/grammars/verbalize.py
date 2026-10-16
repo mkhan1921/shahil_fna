@@ -87,13 +87,16 @@ def amount_spoken_forms(value: float, *, max_forms: int = 8) -> list[str]:
     forms.append(int_to_words(n))
     if n >= 1_000_000:
         m = (Decimal(n) / Decimal(1_000_000)).normalize()
+        tail: list[str] = []
         if m == m.to_integral_value() or len(str(m).split(".")[1]) <= 2:
             words, comma = number_to_words(m), number_to_words(m, point="comma")
-            forms += [f"{words} million", f"{words} mil", f"{comma} mil", f"{comma} million"]
+            forms += [f"{words} million", f"{words} mil", f"{comma} mil"]
+            tail.append(f"{comma} million")
             if m * 2 == (m * 2).to_integral_value() and m != m.to_integral_value():
-                forms.append(f"{int_to_words(int(m))} and a half million")
+                tail.append(f"{int_to_words(int(m))} and a half million")
         if n % 100_000 == 0 and 1_100_000 <= n <= 9_900_000 and (n // 100_000) % 10:
             forms.append(f"{int_to_words(n // 100_000)} hundred thousand")
+        forms += tail
     elif n >= 1000:
         k, r = divmod(n, 1000)
         if r == 0:
