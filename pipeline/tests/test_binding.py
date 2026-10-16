@@ -109,6 +109,16 @@ def test_median_and_draw_modes():
     assert np.std(draws) > 1.0
 
 
+def test_text_slot_with_two_readings_keeps_the_likelier():
+    prof = _load(F.FnaDocument())
+    hyps = [Hypothesis(value=Quantity(dist=Point(value="teacher"), unit="none"), weight=0.7, rationale=""),
+            Hypothesis(value=Quantity(dist=Point(value="lecturer"), unit="none"), weight=0.3, rationale="")]
+    payload = {"slot_id": "{p}.occupation", "instance_key": "client", "fna_path": "client.occupation", "hypotheses": hyps, "evidence": [_ev()], "provenance": PROV}
+    prof = apply_state_ops(prof, make_ops(prof, [("ADD", "{p}.occupation#client", "s0001", payload, "extractor")])).profile
+    assert binding.materialise(prof, "median").client.occupation == "teacher"
+    assert check_profile(prof) == []
+
+
 def test_probabilistic_event_and_new_rows():
     prof = _load(F.FnaDocument())
     prof = prof.model_copy(update={"entities": {**prof.entities, "person.thandi_1": binding.Entity(entity_id="person.thandi_1", type="person", canonical_name="Thandi", attributes={"relation": "child"})}})

@@ -45,6 +45,14 @@ def test_sampling_matches_mean():
         assert math.isclose(xs.mean(), stats.mean(d), rel_tol=0.02, abs_tol=0.01)
 
 
+def test_sampling_tolerates_rounding_noise_in_weights():
+    # The models accept weights off by the validation tolerance; sampling must not raise on a -5e-7.
+    rng = np.random.default_rng(0)
+    assert set(stats.sample(Categorical(probs={"a": 1.0000005, "b": -5e-7}), rng, 50)) == {"a"}
+    assert set(stats.sample(Discrete(support=[1, 2], weights=[1.0000005, -5e-7]), rng, 50)) == {1.0}
+    assert set(stats.sample(Mixture(components=[(1.0000005, Point(value=1)), (-5e-7, Point(value=2))]), rng, 50)) == {1.0}
+
+
 def test_mixture_quantile_is_bimodal():
     m = Mixture(components=[(0.5, Point(value=60)), (0.5, Point(value=65))])
     assert stats.quantile(m, 0.25) == pytest.approx(60)

@@ -12,6 +12,7 @@ confidence ≥ 0.8; otherwise both are kept and a possible duplicate goes to rev
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal
@@ -23,7 +24,7 @@ from rapidfuzz import fuzz
 from .. import llm
 from ..embeddings import Embedder, cosine, get_embedder
 from ..models.crm import CrmRecord
-from ..models.entities import Entity, EntityType, Mention
+from ..models.entities import Entity, Mention
 from ..models.runs import VersionPins
 from ..models.transcript import Segment, Transcript
 from ..prompts import pinned
@@ -91,7 +92,9 @@ merge_agent: Agent[None, MergeDecisions] = Agent(None, output_type=NativeOutput(
 
 # --------------------------------------------------------------------------- deterministic rules
 
-_SPOUSE_WORDS = re.compile(r"\b(my|our)\s+(wife|husband|partner|spouse|hubby|vrou|man)\b", re.I)
+_SPOUSE_WORDS = re.compile(r"\b(my|our)\s+(wife|husband|partner|spouse|hubby|vrou|man)\b", re.IGNORECASE)
+# The words that put a spouse in the household for certain ("my partner" may be a business partner).
+_SPOUSE_SURE = re.compile(r"\bmy\s+(wife|husband|spouse|hubby|vrou)\b", re.IGNORECASE)
 
 
 def speaker_relative_mentions(seg: Segment, entities: dict[str, Entity]) -> list[Mention]:
@@ -110,6 +113,20 @@ def speaker_relative_mentions(seg: Segment, entities: dict[str, Entity]) -> list
 
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")[:24] or "item"
+
+
+# Surface forms that are aliases in the spec's sense ("she", "that policy") but never identify an entity:
+# two people both called "she" are not the same person, and the model gains nothing from seeing them.
+_NON_NAMES = frozenset(
+    {"he", "she", "they", "him", "her", "them", "his", "hers", "their", "theirs", "it", "its", "that", "this", "those", "these",
+     "there", "the", "my", "our", "your", "mine", "ours", "yours", "one", "who", "which", "what", "we", "you", "i", "me", "us"}
+)
+
+
+def name_like(alias: str) -> bool:
+    """An alias that could identify an entity: more than two letters and not a bare pronoun or determiner."""
+    a = alias.strip().lower()
+    return len(a) > 2 and a not in _NON_NAMES and not all(w in _NON_NAMES for w in a.split())
 
 
 def new_entity_id(entities: dict[str, Entity], etype: str, name: str) -> str:
@@ -145,7 +162,8 @@ class Registry:
         lines = []
         for e in list(self.entities.values())[:limit]:
             attrs = ", ".join(f"{k}={v}" for k, v in e.attributes.items() if v not in ("", None))
-            aliases = f" aka {', '.join(e.aliases[:4])}" if e.aliases else ""
+            names = [a for a in e.aliases if name_like(a) and a.lower() != e.canonical_name.lower()]
+            aliases = f" aka {', '.join(names[:4])}" if names else ""
             lines.append(f"- {e.entity_id} ({e.type}): {e.canonical_name}{aliases}{' [' + attrs + ']' if attrs else ''}")
         return "\n".join(lines)
 
@@ -185,6 +203,9 @@ class Registry:
         self.entities[keep] = merged
         del self.entities[drop]
         self.mentions = [m.model_copy(update={"entity_id": keep}) if m.entity_id == drop else m for m in self.mentions]
+        # A duplicate question about the dropped id now concerns the kept one; a pair that became one entity is settled.
+        repointed = [(keep if a == drop else a, keep if b == drop else b) for a, b in self.possible_duplicates]
+        self.possible_duplicates = [(a, b) for a, b in repointed if a != b]
 
 
 def seed_registry(prior_entities: dict[str, Entity] | None, crm: CrmRecord | None, *, secondary_speaker: bool = False) -> Registry:
@@ -254,8 +275,12 @@ def apply_window(reg: Registry, window: list[Segment], out: WindowOut) -> None:
                                 entity_id=target, resolution_conf=conf))
     for mg in out.merges:
         keep, drop = refs.get(mg.keep_id, mg.keep_id), refs.get(mg.merge_id, mg.merge_id)
+        if keep == drop or keep not in reg.entities or drop not in reg.entities:
+            continue
         if mg.confidence >= MERGE_MIN:
             reg.merge(keep, drop)
+        elif (keep, drop) not in reg.possible_duplicates and (drop, keep) not in reg.possible_duplicates:
+            reg.possible_duplicates.append((keep, drop))  # §6.1: below the bar both are kept and review decides
 
 
 def _window_prompt(reg: Registry, window: list[Segment], rewrites: dict[str, str]) -> str:
@@ -266,6 +291,10 @@ def _window_prompt(reg: Registry, window: list[Segment], rewrites: dict[str, str
 async def discover(reg: Registry, transcript: Transcript, pins: VersionPins, *, use_llm: bool) -> Registry:
     """Run the discovery windows (§6.1 step 2) and the speaker-relative rules (§6.2)."""
     for seg in transcript.segments:
+        if seg.speaker_role == "client_primary" and "person.spouse" not in reg.entities and _SPOUSE_SURE.search(seg.text):
+            # The client has a spouse the prior file and CRM did not know about: "my wife" is not an ambiguous reference.
+            reg.entities["person.spouse"] = Entity(entity_id="person.spouse", type="person", canonical_name="Spouse",
+                                                   attributes={"person_key": "spouse"}, first_mention=seg.segment_id)
         for m in speaker_relative_mentions(seg, reg.entities):
             reg.add_mention(m)
     if not use_llm:
@@ -287,8 +316,8 @@ def merge_candidates(reg: Registry) -> list[tuple[str, str]]:
         for b in ents[i + 1 :]:
             if a.type != b.type or (a.fna_id and b.fna_id and a.fna_id != b.fna_id):
                 continue
-            names_a = {x.lower() for x in [a.canonical_name, *a.aliases] if len(x) > 2}
-            names_b = {x.lower() for x in [b.canonical_name, *b.aliases] if len(x) > 2}
+            names_a = {x.lower() for x in [a.canonical_name, *a.aliases] if name_like(x)}
+            names_b = {x.lower() for x in [b.canonical_name, *b.aliases] if name_like(x)}
             alias_overlap = bool(names_a & names_b) or fuzz.token_set_ratio(a.canonical_name, b.canonical_name) >= 90
             rel_a, rel_b = a.attributes.get("relation"), b.attributes.get("relation")
             age_match = False
@@ -324,7 +353,7 @@ async def merge_pass(reg: Registry, pins: VersionPins, *, use_llm: bool) -> Regi
         if d is not None and d.same and d.confidence >= MERGE_MIN:
             keep, drop = (a, b) if (reg.entities.get(a) and reg.entities[a].fna_id) or not (reg.entities.get(b) and reg.entities[b].fna_id) else (b, a)
             reg.merge(keep, drop)
-        elif a in reg.entities and b in reg.entities:
+        elif a in reg.entities and b in reg.entities and (a, b) not in reg.possible_duplicates and (b, a) not in reg.possible_duplicates:
             reg.possible_duplicates.append((a, b))
     return reg
 
@@ -360,7 +389,7 @@ def link_crm(reg: Registry, crm: CrmRecord | None, transcript: Transcript, embed
             amount_score = 0.0
             try:
                 amt = float(e.attributes.get("amount", "nan"))
-                if p.last_value and amt == amt:
+                if p.last_value and not math.isnan(amt):
                     amount_score = max(0.0, 1.0 - abs(amt - p.last_value) / max(p.last_value, 1.0))
             except (TypeError, ValueError):
                 pass

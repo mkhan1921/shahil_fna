@@ -20,9 +20,10 @@ from __future__ import annotations
 import math
 import re
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Iterable, Literal
+from typing import Any, Literal
 
 import numpy as np
 from numpy.random import Generator
@@ -42,7 +43,7 @@ from .schema.slots import Catalog, SlotDef, fact_id_for, load_catalog
 _TOKEN = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(?:\[([^\]]*)\])?")
 DICT_CONTAINERS = {"expenses.items", "riskProfile.answers"}
 LIST_CONTAINERS = {"dependants", "retirementFunds", "assets", "liabilities", "policies", "goals", "expenses.custom"}
-LIST_ROW_MODEL: dict[str, type[F._FnaModel]] = {  # noqa: SLF001
+LIST_ROW_MODEL: dict[str, type[F._FnaModel]] = {
     "dependants": F.Dependant,
     "retirementFunds": F.RetirementFund,
     "assets": F.Asset,
@@ -153,14 +154,12 @@ def is_empty(slot: SlotDef, raw: Any) -> bool:
     """Prior fields that carry no information: empty text, missing values, zero amounts."""
     if raw is None or raw == "":
         return True
-    if slot.value_type == "amount" and isinstance(raw, (int, float)) and raw == 0:
-        return True
-    return False
+    return bool(slot.value_type == "amount" and isinstance(raw, (int, float)) and raw == 0)
 
 
 def _round(slot: SlotDef, x: float) -> float | int:
     if slot.value_type in ("age", "years", "months", "count", "year"):
-        return int(round(x))
+        return round(x)
     if slot.value_type == "amount":
         return round(x, 2)
     if slot.value_type == "rate":
@@ -173,7 +172,10 @@ def to_fna_value(slot: SlotDef, dist: Dist, mode: Literal["median", "draw"], rng
     if mode == "draw" and rng is None:
         raise ValueError("draw needs an rng")
     if slot.value_type == "text":
-        return str(dist.value) if isinstance(dist, Point) else ""
+        if isinstance(dist, Point):
+            return str(dist.value)
+        # Two readings of a text field ("teacher" / "lecturer"): the likelier one, never an empty string.
+        return str(stats.mode_label(dist)) if stats.is_categorical(dist) else ""
     if slot.value_type in ("boolean", "probability") or stats.is_boolean(dist):
         p = stats.p_true(dist)
         return bool(rng.random() < p) if mode == "draw" else p >= 0.5  # type: ignore[union-attr]
@@ -545,7 +547,7 @@ def describe_value(q: Quantity | None, *, money: bool | None = None) -> str:
 
     def fmt(x: float) -> str:
         if q.unit == "date":
-            return stats.year_to_iso(x)[:7] if abs(x - round(x)) > 1e-9 else str(int(round(x)))
+            return stats.year_to_iso(x)[:7] if abs(x - round(x)) > 1e-9 else str(round(x))
         if q.unit == "pct":
             return f"{x * 100:.1f}%"
         if money:
@@ -638,7 +640,7 @@ def sidecar(profile: Profile, *, catalog: Catalog | None = None) -> dict[str, An
 def export_bundle(profile: Profile, *, base: F.FnaDocument | None = None) -> tuple[F.ExportFile, dict[str, Any]]:
     """The reviewed median document as a ``shahil-fna`` file, plus its sidecar (§3.6, §11.5)."""
     doc = materialise(profile, "median", base=base)
-    doc = doc.model_copy(update={"updatedAt": F._now_iso()})  # noqa: SLF001
+    doc = doc.model_copy(update={"updatedAt": F._now_iso()})
     return F.ExportFile(document=doc), sidecar(profile)
 
 
