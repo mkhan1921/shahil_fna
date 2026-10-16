@@ -1,0 +1,208 @@
+"""Dataset sync offline, the §11.4 error and gold-candidate syncs, and the Stage 1–2 cache (§15.1)."""
+
+from __future__ import annotations
+
+from datetime import date, datetime, timezone
+
+import pytest
+
+from advisor_intel.evals import datasets as D
+from advisor_intel.evals.synthetic import generate_call
+from advisor_intel.extract.reducer import apply_state_ops, make_ops
+from advisor_intel.models.dists import Point, Quantity
+from advisor_intel.models.entities import DiscourseOutput
+from advisor_intel.models.facts import Evidence, Hypothesis, Provenance
+from advisor_intel.models.profile import FollowUp, Profile
+from advisor_intel.models.review import FollowupEdit, ReviewResult
+from advisor_intel.models.runs import VersionPins
+
+AT = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+PROV = Provenance(run_id="wf-1")
+
+
+def ev(quote="I want to retire at sixty"):
+    return Evidence(segment_id="s0010", char_start=0, char_end=len(quote), quote=quote, speaker_role="client_primary", t_start=1, t_end=2,
+                    asr_mean_conf=0.9, role="supports")
+
+
+def profile_with_facts():
+    p = Profile(call_id="c1", run_id="wf-1", schema_version="profile_v1", anchor_date=date(2026, 10, 15))
+    add = lambda slot, inst, path, v, unit="age": (  # noqa: E731
+        "ADD", f"{slot}#{inst}", "s0010",
+        {"slot_id": slot, "instance_key": inst, "fna_path": path, "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=v), unit=unit), weight=1, rationale="")],
+         "evidence": [ev()], "provenance": PROV, "said": "retire at sixty", "interpretation": "retirement age 60"}, "extractor")
+    p = apply_state_ops(p, make_ops(p, [add("retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", 60),
+                                        add("income.{p}.grossMonthly", "client", "income.client.grossMonthly", 45_000, "ZAR")])).profile
+    return p.model_copy(update={"open_questions": [FollowUp(followup_id="q1", fact_ids=[], question="When do you want to retire?", why="", expected_pos_change=0.1,
+                                                            answer_type="AGE")]})
+
+
+def review_result(profile):
+    ops = make_ops(profile, [
+        ("CONFIRM", "income.{p}.grossMonthly#client", None, {"review": {"status": "accepted", "reviewer_id": "adv-1"}}, "reviewer"),
+        ("RETRACT", "retirement.{p}.retirementAge#client", None, {"reason": "advisor_said_it", "note": "that was my suggestion"}, "reviewer"),
+        ("ADD", "{p}.smoker#client", None, {"slot_id": "{p}.smoker", "instance_key": "client", "fna_path": "client.smoker", "source": "reviewer",
+                                            "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=True), unit="none"), weight=1, rationale="")],
+                                            "provenance": PROV}, "reviewer"),
+    ])
+    return ReviewResult(call_id="c1", run_id="wf-1", base_profile_version=profile.version, reviewer_id="adv-1", ops=ops, submitted=True, submitted_at=AT,
+                        followup_edits=[FollowupEdit(followup_id="q1", action="reword", question="Would 60, 63 or 65 be most realistic?", reviewer_id="adv-1", at=AT)])
+
+
+def test_local_store_upserts_by_id(tmp_path):
+    s = D.LocalStore(tmp_path)
+    s.insert("x", [D.DatasetRecord(id="a", input=1), D.DatasetRecord(id="b", input=2)])
+    s.insert("x", [D.DatasetRecord(id="a", input=3, tags=["t"])])
+    rows = {r.id: r for r in s.fetch("x")}
+    assert rows["a"].input == 3 and rows["a"].tags == ["t"] and rows["b"].input == 2
+    assert s.fetch("missing") == []
+
+
+def test_braintrust_store_uses_init_dataset():
+    calls = []
+
+    class FakeDataset:
+        def __init__(self, name):
+            self.name, self.rows = name, []
+
+        def insert(self, **kw):
+            self.rows.append(kw)
+            return kw["id"]
+
+        def flush(self):
+            calls.append(("flush", self.name))
+
+        def fetch(self):
+            return iter([{"id": r["id"], "input": r["input"], "expected": r["expected"], "metadata": r["metadata"], "tags": r["tags"]} for r in self.rows])
+
+    opened = {}
+
+    def init_dataset(project, name):
+        calls.append(("init", project, name))
+        return opened.setdefault(name, FakeDataset(name))
+
+    s = D.BraintrustStore("proj", init_dataset=init_dataset)
+    s.insert("production-errors", [D.DatasetRecord(id="r1", input={"a": date(2026, 1, 1)}, tags=["slot:x"])])
+    assert opened["production-errors"].rows[0] == {"input": {"a": "2026-01-01"}, "expected": None, "metadata": {}, "tags": ["slot:x"], "id": "r1"}
+    assert ("init", "proj", "production-errors") in calls and ("flush", "production-errors") in calls
+    assert [r.id for r in s.fetch("production-errors")] == ["r1"]
+
+
+def test_store_choice_follows_the_key(monkeypatch, tmp_path):
+    monkeypatch.delenv("BRAINTRUST_API_KEY", raising=False)
+    assert isinstance(D.get_store(root=tmp_path), D.LocalStore)
+    monkeypatch.setenv("BRAINTRUST_API_KEY", "placeholder")
+    assert isinstance(D.get_store(), D.BraintrustStore)  # nothing is contacted until a dataset is used
+
+
+def test_review_events_follow_the_action_table():
+    p = profile_with_facts()
+    events = D.events_from_review(review_result(p))
+    assert [(e.action, e.reason) for e in events] == [("accept", None), ("reject", "advisor_said_it"), ("add", None)]
+    assert events[1].note == "that was my suggestion" and events[0].reviewer_id == "adv-1"
+
+
+def test_sync_error_dataset_tags_rejections_and_missed_slots(tmp_path):
+    p = profile_with_facts()
+    store = D.LocalStore(tmp_path)
+    events = D.events_from_review(review_result(p))
+    ids = D.sync_error_dataset(events, profiles={"c1": p}, pins=VersionPins(), store=store)
+    assert len(ids) == 2
+    rows = {r.metadata["kind"]: r for r in store.fetch("production-errors")}
+    rej, miss = rows["rejected"], rows["missed"]
+    assert set(rej.tags) == {"slot:retirement.{p}.retirementAge", "reason:advisor_said_it", "group:retirement", "tier:A", "rejected"}
+    assert rej.input["quotes"] == ["I want to retire at sixty"] and rej.input["extracted"] == "60"
+    assert miss.metadata["reason"] == "missed_slot" and "slot:{p}.smoker" in miss.tags
+    # idempotent: the nightly run can repeat
+    assert D.sync_error_dataset(events, profiles={"c1": p}, store=store) == ids
+    assert len(store.fetch("production-errors")) == 2
+
+
+def test_sync_gold_candidates(tmp_path):
+    p = profile_with_facts()
+    store = D.LocalStore(tmp_path)
+    r = review_result(p)
+    reviewed = apply_state_ops(p, r.ops).profile
+    out = D.sync_gold_candidates([r], profiles={"c1": reviewed}, store=store)
+    assert out["gold-candidates"] == ["c1:wf-1"] and len(out["followup-edits"]) == 1
+    cand = store.fetch("gold-candidates")[0]
+    assert cand.metadata["corrections"] == {"reject": 1, "add": 1}
+    assert cand.expected["facts"]["retirement.{p}.retirementAge#client"]["review"] == "rejected"
+    fu = store.fetch("followup-edits")[0]
+    assert fu.input["original"] == "When do you want to retire?" and fu.expected["action"] == "reword"
+
+
+def test_stage12_key_ignores_extraction_changes():
+    base = VersionPins(prompt_versions={"extract_slot_group/income": "v1", "discourse/rewrite": "v1"})
+    same = base.model_copy(update={"reasoning_model": "anthropic:other", "verifier_model": "openai:x", "calibrator_version": "v9",
+                                   "prompt_versions": {"extract_slot_group/income": "v2", "discourse/rewrite": "v1"}})
+    assert D.stage12_key(base) == D.stage12_key(same)
+    assert D.stage12_key(base) != D.stage12_key(base.model_copy(update={"asr_model_version": "nova-3"}))
+    assert D.stage12_key(base) != D.stage12_key(base.model_copy(update={"prompt_versions": {"discourse/rewrite": "v2"}}))
+    # human transcripts do not depend on the ASR pins
+    assert D.stage12_key(base, "human") == D.stage12_key(base.model_copy(update={"asr_model_version": "nova-3"}), "human")
+
+
+def test_stage12_cache_builds_once_then_hits(tmp_path):
+    call = generate_call(0, seed=2)
+    rec = D.synthetic_record(call)
+    rec_no_script = rec.model_copy(update={"input": {k: v for k, v in rec.input.items() if k != "script"}})
+    cache = D.Stage12Cache(D.LocalBlobStore(tmp_path))
+    built = []
+
+    def build(record, pins):
+        built.append(record.id)
+        return call.transcript(), DiscourseOutput(entities={})
+
+    pins = VersionPins()
+    a = cache.load_call(rec_no_script, pins, build=build)
+    b = cache.load_call(rec_no_script, pins.model_copy(update={"reasoning_model": "anthropic:x"}), build=build)
+    assert built == [rec.id] and a.transcript == b.transcript and b.discourse is not None
+    assert a.prior_document == call.prior_document and a.anchor_date == call.anchor_date and a.call_minutes > 0
+    with pytest.raises(KeyError):
+        D.Stage12Cache(D.LocalBlobStore(tmp_path / "empty")).load_call(rec_no_script, pins)
+    # a synthetic record carries its script, so Stage 1 can be rebuilt from it offline
+    c = D.Stage12Cache(D.LocalBlobStore(tmp_path / "other")).load_call(rec, pins)
+    assert [s.text for s in c.transcript.segments] == [t.text for t in call.script]
+
+
+def test_s3_blob_store_with_a_fake_client():
+    class NoSuchKey(Exception):
+        pass
+
+    class Body:
+        def __init__(self, b):
+            self.b = b
+
+        def read(self):
+            return self.b
+
+    class Client:
+        def __init__(self):
+            self.objects = {}
+
+        def put_object(self, Bucket, Key, Body):  # noqa: N803 - boto3 argument names
+            self.objects[(Bucket, Key)] = Body
+
+        def get_object(self, Bucket, Key):  # noqa: N803
+            if (Bucket, Key) not in self.objects:
+                raise NoSuchKey(Key)
+            return {"Body": Body(self.objects[(Bucket, Key)])}
+
+    client = Client()
+    s = D.S3BlobStore("bucket", "evals/", client=client)
+    assert s.read("a/b.json") is None
+    s.write("a/b.json", b"{}")
+    assert client.objects[("bucket", "evals/a/b.json")] == b"{}" and s.read("a/b.json") == b"{}"
+
+
+def test_gold_records_one_per_transcript_kind(tmp_path):
+    call = generate_call(1, seed=2)
+    gold = call.gold.model_copy(update={"source": "real", "tags": ["gold"], "call_id": "real-1"})
+    store = D.LocalStore(tmp_path)
+    D.sync_gold([gold], store=store)
+    rows = store.fetch("gold-calls")
+    assert sorted(r.id for r in rows) == ["real-1:asr", "real-1:human"]
+    assert all(r.metadata["dataset"] == "gold-calls" and "split:dev" in r.tags for r in rows)
+    D.sync_transcripts([call.transcript()], store=store)
+    assert store.fetch("gold-transcripts")[0].metadata["segments"] == len(call.script)
