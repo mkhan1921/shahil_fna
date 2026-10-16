@@ -92,8 +92,17 @@ class EditPair(BaseModel):
 
     @classmethod
     def from_fact(cls, fact: Fact, edited: Quantity | Dist) -> list["EditPair"]:
-        """Pairs from a reviewed fact: one per exact lexicon lookup recorded in its normalization."""
+        """Pairs from a reviewed fact: one per exact lexicon lookup recorded in its normalization.
+
+        A fact with several hypotheses records one normalization per hypothesis; when more than one
+        of them used the lexicon, the edit cannot be tied to a phrase, so the fact gives no pairs.
+        """
         norm = fact.normalization or {}
+        if "hypotheses" in norm:
+            subs = [h for h in norm["hypotheses"] if any(r.get("match") == "exact" for r in h.get("lexicon", []))]
+            if len(subs) != 1:
+                return []
+            norm = subs[0]
         if "form" not in norm:
             return []
         form = _FORM.validate_python(norm["form"])

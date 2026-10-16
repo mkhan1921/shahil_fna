@@ -79,12 +79,14 @@ def apply_bounds(n: Normalized, slot: SlotDef, *, fact_id: str | None = None) ->
 class BoundsResult(BaseModel):
     values: list[Normalized | None]  # aligned with the input; None where a value was dropped
     dropped: list[str] = []  # one log line per dropped value, for ExtractionResult.dropped
+    rejected: list[Normalized] = []  # the dropped values themselves, flagged out_of_bounds, for the audit log
 
 
 def filter_bounds(values: Sequence[Normalized | None], slot: SlotDef, *, fact_id: str | None = None) -> BoundsResult:
     """Apply the bounds check to every hypothesis of one fact (§7.3 step 6)."""
     out: list[Normalized | None] = []
     dropped: list[str] = []
+    rejected: list[Normalized] = []
     for i, n in enumerate(values):
         if n is None:
             out.append(None)
@@ -93,8 +95,9 @@ def filter_bounds(values: Sequence[Normalized | None], slot: SlotDef, *, fact_id
         if kept is None:
             chk = check_bounds(n.quantity, slot)
             dropped.append(f"{fact_id or slot.slot_id} hypothesis {i}: out of bounds ({chk.reason})")
+            rejected.append(n.with_flag("out_of_bounds", bounds={"low": chk.low, "high": chk.high, "reason": chk.reason}))
         out.append(kept)
-    return BoundsResult(values=out, dropped=dropped)
+    return BoundsResult(values=out, dropped=dropped, rejected=rejected)
 
 
 __all__ = ["BoundsCheck", "BoundsResult", "apply_bounds", "check_bounds", "filter_bounds"]

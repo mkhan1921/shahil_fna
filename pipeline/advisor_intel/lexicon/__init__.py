@@ -5,6 +5,7 @@ deterministic code here turns that form into a distribution using a versioned le
 
 - ``load_lexicon(version)`` — the pinned lexicon and its lookups (``loader``);
 - ``normalize_value(form, slot, profile, lex, ...)`` — §8.3 (``normalize``);
+- ``normalize_field(field_value, slot, profile, lex, spans=...)`` — §7.3 steps 4–7 in one call (``field``);
 - ``lookup_hedges`` / ``hedge_strength_max`` — §7.3 step 5 (``hedges``);
 - ``check_bounds`` / ``filter_bounds`` — §7.3 step 6 (``bounds``);
 - ``assign_weights`` / ``build_hypotheses`` — §7.3 step 7 (``weighting``);
@@ -15,6 +16,7 @@ Scale resolution for spoken amounts (§7.4) lives in ``advisor_intel.extract.sca
 """
 
 from .bounds import BoundsCheck, BoundsResult, apply_bounds, check_bounds, filter_bounds
+from .field import NormalizedField, normalize_field
 from .fit import EditPair, LexiconDiff, propose_lexicon_fit
 from .glossary import (
     GlossaryEntry,
@@ -54,6 +56,7 @@ __all__ = [
     "MissLog",
     "MissRecord",
     "Normalized",
+    "NormalizedField",
     "ProductCatalogue",
     "RecencyWeights",
     "TermCandidate",
@@ -74,6 +77,7 @@ __all__ = [
     "load_lexicon",
     "lookup_hedges",
     "lookup_term",
+    "normalize_field",
     "normalize_value",
     "propose_lexicon_fit",
     "quantity_unit",

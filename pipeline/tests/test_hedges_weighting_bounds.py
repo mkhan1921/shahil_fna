@@ -111,6 +111,9 @@ def test_filter_bounds_reports_each_drop():
     res = filter_bounds([*ns, None], GROSS, fact_id="income.client.grossMonthly")
     assert res.values[0] is ns[0] and res.values[1] is None and res.values[2] is None
     assert len(res.dropped) == 1 and "hypothesis 1" in res.dropped[0] and "out of bounds" in res.dropped[0]
+    (rejected,) = res.rejected
+    assert rejected.has("out_of_bounds") and rejected.normalization["bounds"]["high"] == 2_000_000
+    assert rejected.quantity.dist == Point(value=45_000_000)
 
 
 def test_wide_normal_rates_are_truncated_not_dropped():
