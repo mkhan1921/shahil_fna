@@ -7,6 +7,7 @@ import {
   FileText,
   FolderOpen,
   Plus,
+  Presentation,
   Search,
   Sparkles,
   Trash2,
@@ -236,6 +237,13 @@ export default function ClientsPage() {
                       title="Open report"
                     >
                       <FileText size={15} /> <span className="hidden lg:inline">Report</span>
+                    </Link>
+                    <Link
+                      href={`/present?id=${doc.id}`}
+                      className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-ink-2 hover:bg-wash hover:text-ink"
+                      title="Planning session: present the needs and try trade-offs with the client"
+                    >
+                      <Presentation size={15} /> <span className="hidden lg:inline">Present</span>
                     </Link>
                     <Button variant="ghost" size="sm" onClick={() => setExporting(doc)} title="Export" aria-label="Export">
                       <Download size={15} />

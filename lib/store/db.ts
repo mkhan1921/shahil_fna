@@ -5,8 +5,9 @@
  * them. This keeps the app POPIA-friendly by design: no server stores special
  * personal information (health, ID numbers) on anyone's behalf.
  */
+import { asReportStyle } from '../fna/catalog';
 import { defaultPractice, normaliseDocument } from '../fna/defaults';
-import type { FnaDocument, PracticeProfile } from '../fna/types';
+import type { FnaDocument, PlanLevers, PracticeProfile } from '../fna/types';
 
 const DB_NAME = 'shahil-fna';
 const DB_VERSION = 1;
@@ -60,18 +61,38 @@ export const saveDocument = async (doc: FnaDocument): Promise<void> => {
 
 export const deleteDocument = async (id: string): Promise<void> => {
   await run(DOCS, 'readwrite', (s) => s.delete(id));
+  await run(SETTINGS, 'readwrite', (s) => s.delete(`plan:${id}`));
   notify();
 };
 
 export const getPractice = async (): Promise<PracticeProfile> => {
   const stored = await run<PracticeProfile | undefined>(SETTINGS, 'readonly', (s) => s.get('practice') as IDBRequest<PracticeProfile | undefined>);
   const base = defaultPractice();
-  return stored ? { ...base, ...stored, defaultAssumptions: { ...base.defaultAssumptions, ...stored.defaultAssumptions } } : base;
+  return stored
+    ? { ...base, ...stored, reportStyle: asReportStyle(stored.reportStyle), defaultAssumptions: { ...base.defaultAssumptions, ...stored.defaultAssumptions } }
+    : base;
 };
 
 export const savePractice = async (practice: PracticeProfile): Promise<void> => {
   await run(SETTINGS, 'readwrite', (s) => s.put(practice, 'practice'));
   notify();
+};
+
+/*
+ * Planning-session levers are kept beside the client file (in the settings
+ * store, keyed by file id), not inside it: a plan is working state, and the
+ * client file only changes when the adviser adds an agreed plan to the advice.
+ */
+const planKey = (docId: string) => `plan:${docId}`;
+
+export const getPlan = async (docId: string): Promise<unknown> => run<unknown>(SETTINGS, 'readonly', (s) => s.get(planKey(docId)));
+
+export const savePlan = async (docId: string, plan: PlanLevers): Promise<void> => {
+  await run(SETTINGS, 'readwrite', (s) => s.put(plan, planKey(docId)));
+};
+
+export const deletePlan = async (docId: string): Promise<void> => {
+  await run(SETTINGS, 'readwrite', (s) => s.delete(planKey(docId)));
 };
 
 /* Cross-tab change notifications so lists stay fresh. */

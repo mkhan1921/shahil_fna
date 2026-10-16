@@ -332,6 +332,7 @@ export const defaultPractice = (): PracticeProfile => ({
   supervisor: '',
   logoDataUrl: '',
   brandColor: '#0f3d5e',
+  reportStyle: 'standard',
   defaultAssumptions: { ...DEFAULT_ASSUMPTIONS },
 });
 

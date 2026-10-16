@@ -493,6 +493,52 @@ export interface FnaDocument {
   notes: string;
 }
 
+export interface CoverLever {
+  /** Extra cover: a lump sum, or a monthly benefit for income protection. */
+  amount: number;
+  /** Monthly premium as quoted; 0 while no quote has been obtained. */
+  premium: number;
+}
+
+export interface PersonPlan {
+  /** Retirement age to plan for; null keeps the age in the client's file. */
+  retirementAge: number | null;
+  /** Monthly income wanted in retirement, in today's money; null keeps the file's target. */
+  incomeWanted: number | null;
+  /** Extra monthly saving into a retirement annuity (debit order). */
+  extraRetirement: number;
+  /** Life cover paid to the family. */
+  lifeCover: CoverLever;
+  /** Life cover paid to the estate, for the executor's cash needs. */
+  estateCover: CoverLever;
+  /** Income protection: monthly benefit. */
+  incomeProtection: CoverLever;
+  disability: CoverLever;
+  severeIllness: CoverLever;
+}
+
+/** Trade-offs explored in presentation mode. Stored beside the client file, never inside it. */
+export interface PlanLevers {
+  version: 1;
+  people: Partial<Record<PersonKey, PersonPlan>>;
+  /** Monthly reduction in discretionary living expenses. */
+  spendingCut: number;
+  /** Debts settled from the annual bonus (liability ids). */
+  settleDebts: string[];
+  /** Extra monthly education saving, by dependant id. */
+  education: Record<string, number>;
+  /** Years a goal is postponed, by goal id. */
+  goalDelay: Record<string, number>;
+  /** Extra monthly saving towards a goal, by goal id. */
+  goalSaving: Record<string, number>;
+  /** Once-off amount from the annual bonus put into emergency savings. */
+  emergencyTopUp: number;
+  /** Stress test: change to every investment-return assumption (−0.03 … +0.03). */
+  returnShift: number;
+}
+
+export type ReportStyle = 'standard' | 'vintage';
+
 export interface PracticeProfile {
   practiceName: string;
   fspName: string;
@@ -517,5 +563,7 @@ export interface PracticeProfile {
   supervisor: string;
   logoDataUrl: string;
   brandColor: string;
+  /** How client reports are set out; any report can still be switched before printing. */
+  reportStyle: ReportStyle;
   defaultAssumptions: Assumptions;
 }
