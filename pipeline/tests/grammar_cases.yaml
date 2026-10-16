@@ -1,0 +1,474 @@
+# Golden cases for the §5.3 grammars (amount, age, product). Run by tests/test_grammars.py in CI.
+#
+# Each case: text (as the ASR would write it) and kind, then what must hold:
+#   values:   reading values that must all be present (amounts and ages as numbers, products as types)
+#   exact:    true → the set of reading values equals `values` exactly
+#   top:      the value of the highest-weight reading
+#   currency, period, scale, rate, key, provider: attributes of the top reading
+#   accepted: false → the grammar must reject the text
+# A grammar change that breaks a case must update the case in the same pull request (new GRAMMAR_VERSION).
+grammar_version: "1"
+cases:
+  # ---------------------------------------------------------------- amounts: plain English cardinals (implied scales)
+  - {text: "one", kind: amount, values: [1, 1000], exact: true, top: 1, scale: literal}
+  - {text: "five", kind: amount, values: [5, 5000], exact: true, top: 5}
+  - {text: "twelve", kind: amount, values: [12, 12000], exact: true}
+  - {text: "nineteen", kind: amount, values: [19, 19000], exact: true}
+  - {text: "twenty", kind: amount, values: [20, 20000], exact: true}
+  - {text: "forty two", kind: amount, values: [42, 42000], exact: true, top: 42}
+  - {text: "forty-two", kind: amount, values: [42, 42000], exact: true, top: 42}
+  - {text: "fourty two", kind: amount, values: [42, 42000], exact: true}
+  - {text: "sixty five", kind: amount, values: [65, 65000], exact: true}
+  - {text: "ninety nine", kind: amount, values: [99, 99000], exact: true}
+  - {text: "a hundred", kind: amount, values: [100, 100000], exact: true}
+  - {text: "one hundred", kind: amount, values: [100, 100000], exact: true}
+  - {text: "hundred and fifty", kind: amount, values: [150, 150000], exact: true}
+  - {text: "a hundred and fifty", kind: amount, values: [150, 150000], exact: true}
+  - {text: "two hundred", kind: amount, values: [200, 200000], exact: true, top: 200}
+  - {text: "two hundred and fifty", kind: amount, values: [250, 250000], exact: true, top: 250}
+  - {text: "two hundred fifty", kind: amount, values: [250, 250000], exact: true}
+  - {text: "three hundred and five", kind: amount, values: [305, 305000], exact: true}
+  - {text: "four hundred and ten", kind: amount, values: [410, 410000], exact: true}
+  - {text: "seven hundred and seventy seven", kind: amount, values: [777, 777000], exact: true}
+  - {text: "nine hundred and ninety nine", kind: amount, values: [999, 999000], exact: true}
+  # ---------------------------------------------------------------- amounts: explicit scale words
+  - {text: "one thousand", kind: amount, values: [1000], exact: true, scale: thousand}
+  - {text: "a thousand", kind: amount, values: [1000], exact: true}
+  - {text: "thousand", kind: amount, values: [1000], exact: true}
+  - {text: "two thousand", kind: amount, values: [2000], exact: true}
+  - {text: "two thousand five hundred", kind: amount, values: [2500], exact: true}
+  - {text: "two thousand and fifty", kind: amount, values: [2050], exact: true}
+  - {text: "two thousand and five", kind: amount, values: [2005], exact: true}
+  - {text: "twenty five thousand", kind: amount, values: [25000], exact: true}
+  - {text: "forty two thousand", kind: amount, values: [42000], exact: true}
+  - {text: "a hundred thousand", kind: amount, values: [100000], exact: true}
+  - {text: "two hundred thousand", kind: amount, values: [200000], exact: true, scale: thousand}
+  - {text: "two hundred and fifty thousand", kind: amount, values: [250000], exact: true}
+  - {text: "three hundred and fifty thousand five hundred", kind: amount, values: [350500], exact: true}
+  - {text: "nine hundred and ninety nine thousand nine hundred and ninety nine", kind: amount, values: [999999], exact: true}
+  - {text: "one million", kind: amount, values: [1000000], exact: true, scale: million}
+  - {text: "a million", kind: amount, values: [1000000], exact: true}
+  - {text: "two million", kind: amount, values: [2000000], exact: true}
+  - {text: "two million five hundred thousand", kind: amount, values: [2500000], exact: true, scale: million}
+  - {text: "one million two hundred thousand", kind: amount, values: [1200000], exact: true}
+  - {text: "one million two hundred and fifty thousand", kind: amount, values: [1250000], exact: true}
+  - {text: "three million and fifty thousand", kind: amount, values: [3050000], exact: true}
+  - {text: "one million two hundred thousand and five hundred", kind: amount, values: [1200500], exact: true}
+  - {text: "twelve million", kind: amount, values: [12000000], exact: true}
+  - {text: "one hundred and twenty million", kind: amount, values: [120000000], exact: true}
+  - {text: "one billion", kind: amount, values: [1000000000], exact: true, scale: billion}
+  - {text: "two billion five hundred million", kind: amount, values: [2500000000], exact: true}
+  # ---------------------------------------------------------------- amounts: hundred-counts
+  - {text: "fifteen hundred", kind: amount, values: [1500, 1500000], exact: true, top: 1500}
+  - {text: "twelve hundred", kind: amount, values: [1200, 1200000], exact: true, top: 1200}
+  - {text: "eleven hundred", kind: amount, values: [1100, 1100000], exact: true}
+  - {text: "twenty five hundred", kind: amount, values: [2500, 2500000], exact: true, top: 2500}
+  - {text: "twelve hundred and fifty", kind: amount, values: [1250, 1250000], exact: true}
+  - {text: "nineteen hundred and ninety", kind: amount, values: [1990, 1990000], exact: true}
+  - {text: "twelve hundred thousand", kind: amount, values: [1200000], exact: true, scale: thousand}
+  - {text: "fifteen hundred thousand", kind: amount, values: [1500000], exact: true}
+  - {text: "twenty five hundred thousand", kind: amount, values: [2500000], exact: true}
+  # ---------------------------------------------------------------- amounts: decimals and halves
+  - {text: "one point two million", kind: amount, values: [1200000], exact: true, scale: million}
+  - {text: "one point two mil", kind: amount, values: [1200000], exact: true, scale: mil}
+  - {text: "one comma two mil", kind: amount, values: [1200000], exact: true}
+  - {text: "one comma two million", kind: amount, values: [1200000], exact: true}
+  - {text: "two point five mil", kind: amount, values: [2500000], exact: true}
+  - {text: "two point five million", kind: amount, values: [2500000], exact: true}
+  - {text: "one point two five million", kind: amount, values: [1250000], exact: true}
+  - {text: "one point twenty five million", kind: amount, values: [1250000], exact: true}
+  - {text: "three point seven five million", kind: amount, values: [3750000], exact: true}
+  - {text: "point five mil", kind: amount, values: [500000], exact: true}
+  - {text: "nought point five million", kind: amount, values: [500000], exact: true}
+  - {text: "zero point five million", kind: amount, values: [500000], exact: true}
+  - {text: "one point two billion", kind: amount, values: [1200000000], exact: true}
+  - {text: "two point five k", kind: amount, values: [2500], exact: true}
+  - {text: "one point five bar", kind: amount, values: [1500], exact: true, currency: ZAR}
+  - {text: "one point two", kind: amount, values: [1200000, 1200, 1.2], exact: true, top: 1200000, scale: implied_million}
+  - {text: "two point five", kind: amount, values: [2500000, 2500, 2.5], exact: true, top: 2500000}
+  - {text: "three point seven five", kind: amount, values: [3750000, 3750, 3.75], exact: true}
+  - {text: "nought point five", kind: amount, values: [500000, 500, 0.5], exact: true}
+  - {text: "two and a half million", kind: amount, values: [2500000], exact: true}
+  - {text: "two and a half thousand", kind: amount, values: [2500], exact: true}
+  - {text: "one and a half million", kind: amount, values: [1500000], exact: true}
+  - {text: "four and a quarter million", kind: amount, values: [4250000], exact: true}
+  - {text: "three and three quarters million", kind: amount, values: [3750000], exact: true}
+  - {text: "two and a half", kind: amount, values: [2500000, 2500, 2.5], exact: true, top: 2500000}
+  - {text: "eleven and a half", kind: amount, values: [11500000, 11500, 11.5], exact: true}
+  # ---------------------------------------------------------------- amounts: slang scales and fractions
+  - {text: "a bar", kind: amount, values: [1000], exact: true, currency: ZAR, scale: bar}
+  - {text: "half a bar", kind: amount, values: [500], exact: true, currency: ZAR, scale: bar}
+  - {text: "two bar", kind: amount, values: [2000], exact: true, currency: ZAR}
+  - {text: "five bar a month", kind: amount, values: [5000], exact: true, currency: ZAR, period: monthly}
+  - {text: "ten bar", kind: amount, values: [10000], exact: true}
+  - {text: "fifteen bars", kind: amount, values: [15000], exact: true}
+  - {text: "half a bar a month", kind: amount, values: [500], exact: true, period: monthly}
+  - {text: "a grand", kind: amount, values: [1000], exact: true, scale: grand}
+  - {text: "five grand", kind: amount, values: [5000], exact: true}
+  - {text: "fifty grand", kind: amount, values: [50000], exact: true}
+  - {text: "a hundred grand", kind: amount, values: [100000], exact: true}
+  - {text: "half a mil", kind: amount, values: [500000], exact: true, scale: mil}
+  - {text: "half a million", kind: amount, values: [500000], exact: true}
+  - {text: "half a million rand", kind: amount, values: [500000], exact: true, currency: ZAR}
+  - {text: "a half million", kind: amount, values: [500000], exact: true}
+  - {text: "a quarter of a million", kind: amount, values: [250000], exact: true}
+  - {text: "quarter of a million", kind: amount, values: [250000], exact: true}
+  - {text: "quarter mil", kind: amount, values: [250000], exact: true}
+  - {text: "three quarters of a million", kind: amount, values: [750000], exact: true}
+  - {text: "a mil", kind: amount, values: [1000000], exact: true}
+  - {text: "two mil", kind: amount, values: [2000000], exact: true}
+  - {text: "two mill", kind: amount, values: [2000000], exact: true}
+  - {text: "fifty k", kind: amount, values: [50000], exact: true, scale: k}
+  - {text: "twelve k", kind: amount, values: [12000], exact: true}
+  - {text: "two hundred k", kind: amount, values: [200000], exact: true}
+  - {text: "five hundred k", kind: amount, values: [500000], exact: true}
+  - {text: "a hundred k", kind: amount, values: [100000], exact: true}
+  - {text: "two fifty k", kind: amount, values: [250000], exact: true}
+  - {text: "one fifty k a month", kind: amount, values: [150000], exact: true, period: monthly}
+  - {text: "two fifty thousand", kind: amount, values: [250000], exact: true}
+  - {text: "one twenty five thousand", kind: amount, values: [125000], exact: true}
+  - {text: "a million rand", kind: amount, values: [1000000], exact: true, currency: ZAR}
+  # ---------------------------------------------------------------- amounts: compressed shorthand ("two fifty")
+  - {text: "two fifty", kind: amount, values: [250, 250000, 2500000], exact: true}
+  - {text: "two-fifty", kind: amount, values: [250, 250000, 2500000], exact: true}
+  - {text: "one twenty", kind: amount, values: [120, 120000, 1200000], exact: true}
+  - {text: "one twenty five", kind: amount, values: [125, 125000, 1250000], exact: true}
+  - {text: "three seventy five", kind: amount, values: [375, 375000, 3750000], exact: true}
+  - {text: "four fifty", kind: amount, values: [450, 450000, 4500000], exact: true}
+  - {text: "one oh five", kind: amount, values: [105, 105000, 1050000], exact: true}
+  - {text: "nine ninety nine", kind: amount, values: [999, 999000, 9990000], exact: true}
+  - {text: "two fifteen", kind: amount, values: [215, 215000, 2150000], exact: true}
+  - {text: "twelve fifty", kind: amount, values: [1250, 1250000], exact: true}
+  - {text: "fifteen fifty", kind: amount, values: [1550, 1550000], exact: true}
+  - {text: "two five", kind: amount, values: [2500, 2500000], exact: true, top: 2500000}
+  - {text: "one eight", kind: amount, values: [1800, 1800000], exact: true}
+  # ---------------------------------------------------------------- amounts: digits and mixed written forms
+  - {text: "250", kind: amount, values: [250, 250000], exact: true, top: 250}
+  - {text: "R250", kind: amount, values: [250, 250000], exact: true, top: 250, currency: ZAR}
+  - {text: "250000", kind: amount, values: [250000], exact: true, scale: digits}
+  - {text: "250,000", kind: amount, values: [250000], exact: true}
+  - {text: "250 000", kind: amount, values: [250000], exact: true}
+  - {text: "R250 000", kind: amount, values: [250000], exact: true, currency: ZAR}
+  - {text: "R250,000", kind: amount, values: [250000], exact: true, currency: ZAR}
+  - {text: "R 250 000", kind: amount, values: [250000], exact: true, currency: ZAR}
+  - {text: "R1,250,000", kind: amount, values: [1250000], exact: true}
+  - {text: "R1 250 000", kind: amount, values: [1250000], exact: true}
+  - {text: "1 000 000", kind: amount, values: [1000000], exact: true}
+  - {text: "1,200", kind: amount, values: [1200], exact: true}
+  - {text: "1.2 million", kind: amount, values: [1200000], exact: true, scale: million}
+  - {text: "R1.2 million", kind: amount, values: [1200000], exact: true, currency: ZAR}
+  - {text: "R1,2 miljoen", kind: amount, values: [1200000], exact: true, currency: ZAR}
+  - {text: "R1.2m", kind: amount, values: [1200000], exact: true, scale: m}
+  - {text: "R1,2m", kind: amount, values: [1200000], exact: true, currency: ZAR}
+  - {text: "1.25m", kind: amount, values: [1250000], exact: true}
+  - {text: "R1,250m", kind: amount, values: [1250000], exact: true}
+  - {text: "R3.75 million", kind: amount, values: [3750000], exact: true}
+  - {text: "R1.2 mil", kind: amount, values: [1200000], exact: true}
+  - {text: "R250k", kind: amount, values: [250000], exact: true, currency: ZAR, scale: k}
+  - {text: "250k", kind: amount, values: [250000], exact: true}
+  - {text: "250 k", kind: amount, values: [250000], exact: true}
+  - {text: "R2.5bn", kind: amount, values: [2500000000], exact: true}
+  - {text: "5 bar", kind: amount, values: [5000], exact: true, currency: ZAR}
+  - {text: "250 thousand", kind: amount, values: [250000], exact: true}
+  - {text: "2 million", kind: amount, values: [2000000], exact: true}
+  - {text: "2.5", kind: amount, values: [2500000, 2500, 2.5], exact: true}
+  - {text: "R2,5", kind: amount, values: [2500000, 2500, 2.5], exact: true, currency: ZAR}
+  - {text: "R5 000 a month", kind: amount, values: [5000], exact: true, currency: ZAR, period: monthly}
+  - {text: "R42 000 pm", kind: amount, values: [42000], exact: true, period: monthly}
+  - {text: "R12 000 p.m.", kind: amount, values: [12000], exact: true, period: monthly}
+  - {text: "R12 000 p/m", kind: amount, values: [12000], exact: true, period: monthly}
+  - {text: "R85 000 per annum", kind: amount, values: [85000], exact: true, period: annual}
+  - {text: "R85 000 p.a.", kind: amount, values: [85000], exact: true, period: annual}
+  - {text: "R1 500 a month", kind: amount, values: [1500], exact: true, period: monthly}
+  - {text: "$5 000", kind: amount, values: [5000], exact: true, currency: USD}
+  - {text: "$5,000", kind: amount, values: [5000], exact: true, currency: USD}
+  - {text: "£300", kind: amount, values: [300, 300000], exact: true, currency: GBP, top: 300}
+  - {text: "€20 000", kind: amount, values: [20000], exact: true, currency: EUR}
+  - {text: "US$1.5 million", kind: amount, values: [1500000], exact: true, currency: USD}
+  - {text: "ZAR 250 000", kind: amount, values: [250000], exact: true, currency: ZAR}
+  # ---------------------------------------------------------------- amounts: currency words
+  - {text: "two thousand rand", kind: amount, values: [2000], exact: true, currency: ZAR}
+  - {text: "fifty thousand rands", kind: amount, values: [50000], exact: true, currency: ZAR}
+  - {text: "fifty thousand dollars", kind: amount, values: [50000], exact: true, currency: USD}
+  - {text: "fifty thousand US dollars", kind: amount, values: [50000], exact: true, currency: USD}
+  - {text: "two hundred pounds", kind: amount, values: [200, 200000], exact: true, currency: GBP, top: 200}
+  - {text: "a thousand pounds sterling", kind: amount, values: [1000], exact: true, currency: GBP}
+  - {text: "ten thousand euros", kind: amount, values: [10000], exact: true, currency: EUR}
+  - {text: "a million euro", kind: amount, values: [1000000], exact: true, currency: EUR}
+  - {text: "a hundred thousand us dollars", kind: amount, values: [100000], exact: true, currency: USD}
+  - {text: "five hundred bucks", kind: amount, values: [500, 500000], exact: true, currency: ZAR}
+  - {text: "twenty quid", kind: amount, values: [20, 20000], exact: true, currency: GBP}
+  # ---------------------------------------------------------------- amounts: periods
+  - {text: "two thousand a month", kind: amount, values: [2000], exact: true, period: monthly}
+  - {text: "two thousand per month", kind: amount, values: [2000], exact: true, period: monthly}
+  - {text: "two thousand pm", kind: amount, values: [2000], exact: true, period: monthly}
+  - {text: "two thousand monthly", kind: amount, values: [2000], exact: true, period: monthly}
+  - {text: "two thousand every month", kind: amount, values: [2000], exact: true, period: monthly}
+  - {text: "two thousand each month", kind: amount, values: [2000], exact: true, period: monthly}
+  - {text: "a hundred thousand a year", kind: amount, values: [100000], exact: true, period: annual}
+  - {text: "a hundred thousand per year", kind: amount, values: [100000], exact: true, period: annual}
+  - {text: "a hundred thousand per annum", kind: amount, values: [100000], exact: true, period: annual}
+  - {text: "a hundred thousand pa", kind: amount, values: [100000], exact: true, period: annual}
+  - {text: "a hundred thousand annually", kind: amount, values: [100000], exact: true, period: annual}
+  - {text: "a hundred thousand yearly", kind: amount, values: [100000], exact: true, period: annual}
+  - {text: "fifty thousand once off", kind: amount, values: [50000], exact: true, period: once}
+  - {text: "fifty thousand once-off", kind: amount, values: [50000], exact: true, period: once}
+  - {text: "forty two thousand rand a month", kind: amount, values: [42000], exact: true, currency: ZAR, period: monthly}
+  - {text: "two hundred and fifty thousand rand a month", kind: amount, values: [250000], exact: true, currency: ZAR, period: monthly}
+  - {text: "forty two a month", kind: amount, values: [42, 42000], exact: true, period: monthly}
+  - {text: "two fifty a month", kind: amount, values: [250, 250000, 2500000], exact: true, period: monthly}
+  - {text: "a bar a month", kind: amount, values: [1000], exact: true, period: monthly}
+  # ---------------------------------------------------------------- amounts: rates
+  - {text: "eleven and a half percent", kind: amount, values: [11.5], exact: true, rate: true, scale: percent}
+  - {text: "eleven point five percent", kind: amount, values: [11.5], exact: true, rate: true}
+  - {text: "ten percent", kind: amount, values: [10], exact: true, rate: true}
+  - {text: "ten per cent", kind: amount, values: [10], exact: true, rate: true}
+  - {text: "fifteen percent", kind: amount, values: [15], exact: true, rate: true}
+  - {text: "two and a half percent", kind: amount, values: [2.5], exact: true, rate: true}
+  - {text: "point five percent", kind: amount, values: [0.5], exact: true, rate: true}
+  - {text: "a hundred percent", kind: amount, values: [100], exact: true, rate: true}
+  - {text: "nine comma seven five percent", kind: amount, values: [9.75], exact: true, rate: true}
+  - {text: "seven percent a year", kind: amount, values: [7], exact: true, rate: true, period: annual}
+  - {text: "11.5%", kind: amount, values: [11.5], exact: true, rate: true}
+  - {text: "11,5%", kind: amount, values: [11.5], exact: true, rate: true}
+  - {text: "4.5 percent", kind: amount, values: [4.5], exact: true, rate: true}
+  - {text: "20 %", kind: amount, values: [20], exact: true, rate: true}
+  - {text: "sewe persent", kind: amount, values: [7], exact: true, rate: true}
+  - {text: "vyf persent", kind: amount, values: [5], exact: true, rate: true}
+  # ---------------------------------------------------------------- amounts: Afrikaans
+  - {text: "twee-honderd duisend", kind: amount, values: [200000], exact: true, scale: duisend}
+  - {text: "tweehonderd duisend", kind: amount, values: [200000], exact: true}
+  - {text: "twee honderd duisend", kind: amount, values: [200000], exact: true}
+  - {text: "honderd duisend", kind: amount, values: [100000], exact: true}
+  - {text: "honderdduisend", kind: amount, values: [100000], exact: true}
+  - {text: "vyf-en-twintig duisend", kind: amount, values: [25000], exact: true}
+  - {text: "vyfentwintig duisend", kind: amount, values: [25000], exact: true}
+  - {text: "vyf en twintig duisend", kind: amount, values: [25000], exact: true}
+  - {text: "sewe-en-veertig duisend", kind: amount, values: [47000], exact: true}
+  - {text: "tweeëntwintig", kind: amount, values: [22, 22000], exact: true}
+  - {text: "drieëntwintig duisend", kind: amount, values: [23000], exact: true}
+  - {text: "nege-en-negentig", kind: amount, values: [99, 99000], exact: true}
+  - {text: "sestig duisend", kind: amount, values: [60000], exact: true}
+  - {text: "vyfduisend", kind: amount, values: [5000], exact: true}
+  - {text: "tweeduisend vyfhonderd", kind: amount, values: [2500], exact: true}
+  - {text: "duisend rand", kind: amount, values: [1000], exact: true, currency: ZAR}
+  - {text: "honderd en vyftig", kind: amount, values: [150, 150000], exact: true}
+  - {text: "tweehonderd en vyftig duisend", kind: amount, values: [250000], exact: true}
+  - {text: "twaalfhonderd", kind: amount, values: [1200, 1200000], exact: true}
+  - {text: "een miljoen", kind: amount, values: [1000000], exact: true, scale: miljoen}
+  - {text: "'n miljoen", kind: amount, values: [1000000], exact: true}
+  - {text: "twee miljoen", kind: amount, values: [2000000], exact: true}
+  - {text: "een miljoen tweehonderdduisend", kind: amount, values: [1200000], exact: true}
+  - {text: "een komma twee miljoen", kind: amount, values: [1200000], exact: true}
+  - {text: "twee komma vyf miljoen", kind: amount, values: [2500000], exact: true}
+  - {text: "twee punt vyf miljoen", kind: amount, values: [2500000], exact: true}
+  - {text: "twee en 'n half miljoen", kind: amount, values: [2500000], exact: true}
+  - {text: "'n halwe miljoen", kind: amount, values: [500000], exact: true}
+  - {text: "'n kwart miljoen", kind: amount, values: [250000], exact: true}
+  - {text: "drie miljard", kind: amount, values: [3000000000], exact: true}
+  - {text: "drie duisend rand per maand", kind: amount, values: [3000], exact: true, currency: ZAR, period: monthly}
+  - {text: "vyftig duisend rand 'n maand", kind: amount, values: [50000], exact: true, period: monthly}
+  - {text: "tien duisend rand per jaar", kind: amount, values: [10000], exact: true, period: annual}
+  - {text: "twee bar", kind: amount, values: [2000], exact: true, currency: ZAR}
+  - {text: "two hundred duisend", kind: amount, values: [200000], exact: true}
+  - {text: "vyftig thousand", kind: amount, values: [50000], exact: true}
+  # ---------------------------------------------------------------- amounts: rejected
+  - {text: "hello", kind: amount, accepted: false}
+  - {text: "the house", kind: amount, accepted: false}
+  - {text: "two kids", kind: amount, accepted: false}
+  - {text: "rand", kind: amount, accepted: false}
+  - {text: "a month", kind: amount, accepted: false}
+  - {text: "percent", kind: amount, accepted: false}
+  - {text: "point", kind: amount, accepted: false}
+  - {text: "and", kind: amount, accepted: false}
+  - {text: "two two two", kind: amount, accepted: false}
+  - {text: "thousand million", kind: amount, accepted: false}
+  - {text: "million thousand", kind: amount, accepted: false}
+  - {text: "two thousand three thousand", kind: amount, accepted: false}
+  - {text: "fifty fifty", kind: amount, accepted: false}
+  - {text: "R", kind: amount, accepted: false}
+  - {text: "retirement annuity", kind: amount, accepted: false}
+  - {text: "late fifties", kind: amount, accepted: false}
+  # ---------------------------------------------------------------- ages
+  - {text: "forty two", kind: age, values: [42], exact: true}
+  - {text: "42", kind: age, values: [42], exact: true}
+  - {text: "forty two years old", kind: age, values: [42], exact: true}
+  - {text: "42 years old", kind: age, values: [42], exact: true}
+  - {text: "forty-two-year-old", kind: age, values: [42], exact: true}
+  - {text: "aged sixty", kind: age, values: [60], exact: true}
+  - {text: "age sixty five", kind: age, values: [65], exact: true}
+  - {text: "sixty five", kind: age, values: [65], exact: true}
+  - {text: "seventy five", kind: age, values: [75], exact: true}
+  - {text: "eighteen", kind: age, values: [18], exact: true}
+  - {text: "three", kind: age, values: [3], exact: true}
+  - {text: "twenty-one", kind: age, values: [21], exact: true}
+  - {text: "a hundred", kind: age, values: [100], exact: true}
+  - {text: "one hundred and two", kind: age, values: [102], exact: true}
+  - {text: "turning sixty", kind: age, values: [60], exact: true, key: turning}
+  - {text: "turns forty", kind: age, values: [40], exact: true, key: turning}
+  - {text: "turned fifty", kind: age, values: [50], exact: true, key: turned}
+  - {text: "sixty-ish", kind: age, values: [60], exact: true, key: approx}
+  - {text: "sixtyish", kind: age, values: [60], exact: true, key: approx}
+  - {text: "late fifties", kind: age, values: [58.5], exact: true, key: late fifties}
+  - {text: "early sixties", kind: age, values: [61.5], exact: true, key: early sixties}
+  - {text: "mid sixties", kind: age, values: [65], exact: true, key: mid sixties}
+  - {text: "mid-sixties", kind: age, values: [65], exact: true, key: mid sixties}
+  - {text: "middle sixties", kind: age, values: [65], exact: true, key: mid sixties}
+  - {text: "late forties", kind: age, values: [48.5], exact: true, key: late forties}
+  - {text: "early thirties", kind: age, values: [31.5], exact: true, key: early thirties}
+  - {text: "late twenties", kind: age, values: [28.5], exact: true}
+  - {text: "early seventies", kind: age, values: [71.5], exact: true}
+  - {text: "mid eighties", kind: age, values: [85], exact: true}
+  - {text: "fifties", kind: age, values: [54.5], exact: true, key: fifties}
+  - {text: "sixties", kind: age, values: [64.5], exact: true, key: sixties}
+  - {text: "late teens", kind: age, values: [18], exact: true, key: late teens}
+  - {text: "early teens", kind: age, values: [14], exact: true}
+  - {text: "teens", kind: age, values: [16], exact: true}
+  - {text: "grade nine", kind: age, values: [15], exact: true, key: grade}
+  - {text: "grade 9", kind: age, values: [15], exact: true, key: grade}
+  - {text: "grade one", kind: age, values: [7], exact: true}
+  - {text: "grade R", kind: age, values: [6], exact: true}
+  - {text: "grade twelve", kind: age, values: [18], exact: true}
+  - {text: "grade 12", kind: age, values: [18], exact: true}
+  - {text: "grade seven", kind: age, values: [13], exact: true}
+  - {text: "matric", kind: age, values: [18], exact: true, key: matric}
+  - {text: "in matric", kind: age, values: [18], exact: true, key: matric}
+  - {text: "matriek", kind: age, values: [18], exact: true}
+  - {text: "graad nege", kind: age, values: [15], exact: true, key: grade}
+  - {text: "graad 7", kind: age, values: [13], exact: true}
+  - {text: "standard eight", kind: age, values: [16], exact: true, key: standard}
+  - {text: "standard ten", kind: age, values: [18], exact: true}
+  - {text: "laat vyftigs", kind: age, values: [58.5], exact: true, key: late fifties}
+  - {text: "vroeë sestigs", kind: age, values: [61.5], exact: true, key: early sixties}
+  - {text: "middel veertigs", kind: age, values: [45], exact: true, key: mid forties}
+  - {text: "vyftigs", kind: age, values: [54.5], exact: true}
+  - {text: "veertig jaar oud", kind: age, values: [40], exact: true}
+  - {text: "sestig jaar", kind: age, values: [60], exact: true}
+  - {text: "vyf-en-sestig", kind: age, values: [65], exact: true}
+  - {text: "two hundred", kind: age, accepted: false}
+  - {text: "grade thirteen", kind: age, accepted: false}
+  - {text: "late hundreds", kind: age, accepted: false}
+  - {text: "hello", kind: age, accepted: false}
+  - {text: "two fifty", kind: age, accepted: false}
+  - {text: "R65", kind: age, accepted: false}
+  # ---------------------------------------------------------------- products: catalogue
+  - {text: "RA", kind: product, values: [retirement-annuity], exact: true, key: ra}
+  - {text: "R.A.", kind: product, values: [retirement-annuity], exact: true}
+  - {text: "retirement annuity", kind: product, values: [retirement-annuity], exact: true}
+  - {text: "retirement annuities", kind: product, values: [retirement-annuity], exact: true}
+  - {text: "uittree-annuïteit", kind: product, values: [retirement-annuity], exact: true}
+  - {text: "pension fund", kind: product, values: [pension], exact: true}
+  - {text: "pension", kind: product, values: [pension], exact: true}
+  - {text: "provident fund", kind: product, values: [provident], exact: true}
+  - {text: "preservation fund", kind: product, values: [preservation-pension, preservation-provident], exact: true}
+  - {text: "pension preservation fund", kind: product, values: [preservation-pension], exact: true}
+  - {text: "provident preservation fund", kind: product, values: [preservation-provident], exact: true}
+  - {text: "living annuity", kind: product, values: [living-annuity], exact: true, key: living_annuity}
+  - {text: "life annuity", kind: product, values: [life-annuity], exact: true}
+  - {text: "annuity", kind: product, values: [retirement-annuity, living-annuity, life-annuity], exact: true, top: retirement-annuity}
+  - {text: "two-pot", kind: product, values: [two-pot], exact: true}
+  - {text: "two pot system", kind: product, values: [two-pot], exact: true}
+  - {text: "savings pot", kind: product, values: [savings-pot], exact: true}
+  - {text: "savings component", kind: product, values: [savings-pot], exact: true}
+  - {text: "retirement pot", kind: product, values: [retirement-pot], exact: true}
+  - {text: "vested pot", kind: product, values: [vested-pot], exact: true}
+  - {text: "TFSA", kind: product, values: [tfsa], exact: true}
+  - {text: "tax-free savings", kind: product, values: [tfsa], exact: true}
+  - {text: "tax free savings account", kind: product, values: [tfsa], exact: true}
+  - {text: "tax-free investment", kind: product, values: [tfsa], exact: true}
+  - {text: "endowment", kind: product, values: [endowment], exact: true}
+  - {text: "endowment policy", kind: product, values: [endowment], exact: true}
+  - {text: "sinking fund", kind: product, values: [endowment], exact: true}
+  - {text: "unit trust", kind: product, values: [unit-trust], exact: true}
+  - {text: "unit trusts", kind: product, values: [unit-trust], exact: true}
+  - {text: "collective investment scheme", kind: product, values: [unit-trust], exact: true}
+  - {text: "ETF", kind: product, values: [etf], exact: true}
+  - {text: "ETFs", kind: product, values: [etf], exact: true}
+  - {text: "exchange traded fund", kind: product, values: [etf], exact: true}
+  - {text: "money market", kind: product, values: [money-market], exact: true}
+  - {text: "money market account", kind: product, values: [money-market], exact: true}
+  - {text: "offshore allowance", kind: product, values: [offshore-allowance], exact: true}
+  - {text: "discretionary investment", kind: product, values: [discretionary-investment], exact: true}
+  - {text: "regulation 28", kind: product, values: [regulation-28], exact: true}
+  - {text: "reg 28", kind: product, values: [regulation-28], exact: true}
+  - {text: "life cover", kind: product, values: [life], exact: true}
+  - {text: "life insurance", kind: product, values: [life], exact: true}
+  - {text: "disability cover", kind: product, values: [disability-lump], exact: true}
+  - {text: "income protection", kind: product, values: [income-protection], exact: true}
+  - {text: "dread disease", kind: product, values: [severe-illness], exact: true}
+  - {text: "severe illness cover", kind: product, values: [severe-illness], exact: true}
+  - {text: "funeral cover", kind: product, values: [funeral], exact: true}
+  - {text: "funeral policy", kind: product, values: [funeral], exact: true}
+  - {text: "medical aid", kind: product, values: [medical-aid], exact: true}
+  - {text: "gap cover", kind: product, values: [gap-cover], exact: true}
+  - {text: "bond", kind: product, values: [home-loan], exact: true}
+  - {text: "home loan", kind: product, values: [home-loan], exact: true}
+  - {text: "car finance", kind: product, values: [vehicle-finance], exact: true}
+  - {text: "credit card", kind: product, values: [credit-card], exact: true}
+  - {text: "overdraft", kind: product, values: [overdraft], exact: true}
+  - {text: "student loan", kind: product, values: [student-loan], exact: true}
+  - {text: "lewende annuïteit", kind: product, values: [living-annuity], exact: true}
+  - {text: "pensioenfonds", kind: product, values: [pension], exact: true}
+  - {text: "verband", kind: product, values: [home-loan], exact: true}
+  # ---------------------------------------------------------------- products: providers
+  - {text: "Allan Gray", kind: product, values: [institution], exact: true, provider: Allan Gray}
+  - {text: "alan gray", kind: product, values: [institution], exact: true, provider: Allan Gray}
+  - {text: "Coronation", kind: product, values: [institution], exact: true, provider: Coronation}
+  - {text: "Ninety One", kind: product, values: [institution], exact: true, provider: Ninety One}
+  - {text: "Old Mutual", kind: product, values: [institution], exact: true, provider: Old Mutual}
+  - {text: "Sanlam", kind: product, values: [institution], exact: true, provider: Sanlam}
+  - {text: "Glacier", kind: product, values: [institution], exact: true, provider: Glacier}
+  - {text: "Discovery", kind: product, values: [institution], exact: true, provider: Discovery}
+  - {text: "Liberty", kind: product, values: [institution], exact: true, provider: Liberty}
+  - {text: "Momentum", kind: product, values: [institution], exact: true, provider: Momentum}
+  - {text: "PSG", kind: product, values: [institution], exact: true, provider: PSG}
+  - {text: "Stanlib", kind: product, values: [institution], exact: true, provider: Stanlib}
+  - {text: "10X", kind: product, values: [institution], exact: true, provider: 10X}
+  - {text: "ten x", kind: product, values: [institution], exact: true, provider: 10X}
+  - {text: "Sygnia", kind: product, values: [institution], exact: true, provider: Sygnia}
+  - {text: "Satrix", kind: product, values: [institution], exact: true, provider: Satrix}
+  - {text: "Nedgroup Investments", kind: product, values: [institution], exact: true, provider: Nedgroup Investments}
+  - {text: "Prudential", kind: product, values: [institution], exact: true, provider: M&G}
+  - {text: "PPS", kind: product, values: [institution], exact: true, provider: PPS}
+  - {text: "Hollard", kind: product, values: [institution], exact: true, provider: Hollard}
+  - {text: "BrightRock", kind: product, values: [institution], exact: true, provider: BrightRock}
+  - {text: "bright rock", kind: product, values: [institution], exact: true, provider: BrightRock}
+  - {text: "Assupol", kind: product, values: [institution], exact: true, provider: Assupol}
+  - {text: "OUTsurance", kind: product, values: [institution], exact: true, provider: OUTsurance}
+  - {text: "Absa", kind: product, values: [institution], exact: true, provider: Absa}
+  - {text: "FNB", kind: product, values: [institution], exact: true, provider: FNB}
+  - {text: "first national bank", kind: product, values: [institution], exact: true, provider: FNB}
+  - {text: "Standard Bank", kind: product, values: [institution], exact: true, provider: Standard Bank}
+  - {text: "Nedbank", kind: product, values: [institution], exact: true, provider: Nedbank}
+  - {text: "Capitec", kind: product, values: [institution], exact: true, provider: Capitec}
+  - {text: "Easy Equities", kind: product, values: [institution], exact: true, provider: EasyEquities}
+  - {text: "Alexander Forbes", kind: product, values: [institution], exact: true, provider: Alexander Forbes}
+  - {text: "SARS", kind: product, values: [institution], exact: true, provider: SARS}
+  - {text: "JSE", kind: product, values: [institution], exact: true, provider: JSE}
+  - {text: "GEPF", kind: product, values: [institution], exact: true, provider: GEPF}
+  # ---------------------------------------------------------------- products: provider and product together
+  - {text: "Allan Gray RA", kind: product, values: [retirement-annuity], exact: true, provider: Allan Gray}
+  - {text: "Allan Gray living annuity", kind: product, values: [living-annuity], exact: true, provider: Allan Gray}
+  - {text: "Discovery life cover", kind: product, values: [life], exact: true, provider: Discovery}
+  - {text: "Old Mutual pension fund", kind: product, values: [pension], exact: true, provider: Old Mutual}
+  - {text: "Sanlam endowment", kind: product, values: [endowment], exact: true, provider: Sanlam}
+  - {text: "Coronation unit trust", kind: product, values: [unit-trust], exact: true, provider: Coronation}
+  - {text: "Liberty income protection", kind: product, values: [income-protection], exact: true, provider: Liberty}
+  - {text: "Satrix ETF", kind: product, values: [etf], exact: true, provider: Satrix}
+  - {text: "RA with Allan Gray", kind: product, values: [retirement-annuity], exact: true, provider: Allan Gray}
+  - {text: "living annuity with Sanlam", kind: product, values: [living-annuity], exact: true, provider: Sanlam}
+  - {text: "life cover from Discovery", kind: product, values: [life], exact: true, provider: Discovery}
+  - {text: "TFSA at Easy Equities", kind: product, values: [tfsa], exact: true, provider: EasyEquities}
+  - {text: "unit trust with Coronation", kind: product, values: [unit-trust], exact: true, provider: Coronation}
+  - {text: "income protection through Liberty", kind: product, values: [income-protection], exact: true, provider: Liberty}
+  - {text: "pension fund at Old Mutual", kind: product, values: [pension], exact: true, provider: Old Mutual}
+  - {text: "endowment van Sanlam", kind: product, values: [endowment], exact: true, provider: Sanlam}
+  - {text: "preservation fund with Momentum", kind: product, values: [preservation-pension, preservation-provident], exact: true, provider: Momentum}
+  - {text: "bond with Absa", kind: product, values: [home-loan], exact: true, provider: Absa}
+  - {text: "funeral policy with Old Mutual", kind: product, values: [funeral], exact: true, provider: Old Mutual}
+  - {text: "hello", kind: product, accepted: false}
+  - {text: "fund", kind: product, accepted: false}
+  - {text: "life", kind: product, accepted: false}
+  - {text: "my car", kind: product, accepted: false}
+  - {text: "two", kind: product, accepted: false}
+  - {text: "RA with", kind: product, accepted: false}
