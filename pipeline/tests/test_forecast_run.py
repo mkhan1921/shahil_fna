@@ -75,19 +75,24 @@ def test_every_result_field_is_filled(household):
     assert set(r.market_attribution) == {"za_equity", "za_bonds", "za_cash", "global_equity", "global_bonds", "fx", "inflation"}
     assert sum(r.market_attribution.values()) == pytest.approx(r.variance_attribution["market"], abs=2e-3)
     assert r.top_drivers and r.top_drivers[0][0] in prof.facts and r.top_drivers == sorted(r.top_drivers, key=lambda kv: -kv[1])
-    assert r.deterministic == {} and r.need_bands == {}  # no FNA hooks injected
+    off = run_forecast(prof, base_document=doc, mode="final", config=CFG, tax_model=TAX, seed=3, fna_analyse=False, fna_bands=False)
+    assert off.deterministic == {} and off.need_bands == {}  # the FNA side switched off
+    assert off.model_copy(update={"deterministic": r.deterministic, "need_bands": r.need_bands}) == r  # and nothing else changes
 
 
-def test_fna_side_by_side_from_injected_hooks(household):
+def test_fna_side_by_side_defaults_to_the_ported_engine(household):
+    """§12.8 "report both": the pipeline passes no hooks, so the engine's own view must be there by default."""
     pytest.importorskip("advisor_intel.fna_engine", reason="the deterministic projection and need bands come from the ported FNA engine")
     prof, doc = household
-    r = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=fna_engine_analyse, fna_bands=fna_engine_bands)
+    r = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3)
     assert r.deterministic["client.retirementAge"] == 63  # the median document: retirement age at the fact's median
     assert r.deterministic["client.projectedCapital"] > 0 and "spouse.depletionAge" in r.deterministic
     assert {"client.life", "client.retirement", "education"} <= set(r.need_bands)
     assert all(b["p10"] <= b["p50"] <= b["p90"] for b in r.need_bands.values())
+    injected = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=fna_engine_analyse, fna_bands=fna_engine_bands)
+    assert injected == r
     called = {}
-    run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=lambda d: called.setdefault("doc", d) and {})
+    run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=lambda d: called.setdefault("doc", d) and {}, fna_bands=False)
     assert called["doc"].retirement["client"].retirementAge == 63  # one-argument hooks are called without today
 
 

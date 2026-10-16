@@ -46,7 +46,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .config import CMA, ForecastConfig, allocation_vector, glide_weights
+from .config import CMA, DrawdownBand, ForecastConfig, allocation_vector, glide_weights
 from .mapper import ForecastInput, PersonIn, _js_round
 from .returns import MarketPaths
 from .tax import TaxModel, marginal_rate
@@ -255,7 +255,10 @@ class _Simulation:
         a = inp.assumptions
         self.g_salary = a.real(a.salary_escalation)
         self.g_edu = a.real(a.education_inflation)
-        self.band = config.drawdown_band
+        # The living annuity band is a SARS value: the shared table file (through the FNA engine's tax model) is its
+        # source; the config's band only stands in for tax models that carry no table (§12.7).
+        table_band = getattr(tax_model, "living_annuity_band", None)
+        self.band = DrawdownBand(min=float(table_band[0]), max=float(table_band[1])) if table_band else config.drawdown_band
         self.people = [self._person(p) for p in inp.persons]
         self.loans = [_amortise(l.balance, l.rate, l.repayment, T) for l in inp.liabilities]
         nominal = 1 + self.infl
@@ -520,10 +523,12 @@ class _Simulation:
                     share = np.where(ret_voluntary > 0, rv / np.where(ret_voluntary > 0, ret_voluntary, 1.0), 0.0)
                     pp.balance = np.maximum(pp.balance - cut * share * pm, 0.0)  # contributions not made after all
                 unmet = unmet - cut
+            # Unmet essential spend within the tolerance counts as met (rounding), so it is not a shortfall either:
+            # a successful path reports no shortfall and P(any shortfall) = 1 − PoS.
             short = in_horizon & (unmet > tol * np.maximum(essential, 1.0))
             first_fail = np.where(short & ~failed, primary.age0 + t, first_fail)
             failed |= short
-            unmet_total += np.where(in_horizon, unmet, 0.0)
+            unmet_total += np.where(short, unmet, 0.0)
 
             # Funded ratio flows, discounted at the path's own returns (mid-year).
             ess_y = spend_ess + need_gross_total + payroll_spend + school + support_dep + tertiary + debt + premiums + ev_ess

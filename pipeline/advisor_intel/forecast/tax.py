@@ -67,6 +67,9 @@ class TaxModel(Protocol):
         """The gross monthly salary whose take-home pay is ``net_monthly`` (§7.6, §12.2 basis unknown)."""
         ...
 
+    # Optional: ``living_annuity_band`` → (min, max) drawdown share from the SARS table the model reads. The engine
+    # uses it when present, else the config's ``drawdown_band`` (§12.3 step 7, §12.7 one table per tax year).
+
 
 class TaxModelUnavailable(RuntimeError):
     """The default tax model needs the ported FNA engine (``advisor_intel.fna_engine``)."""
@@ -138,6 +141,12 @@ class FnaEngineTaxModel:
         self._tax = fna_tax
         self.table = fna_tables.table_for(tax_year)
         self.version = f"fna_engine:{self.table.taxYear}"
+
+    @property
+    def living_annuity_band(self) -> tuple[float, float]:
+        """The living annuity drawdown band (2.5%–17.5%) from the shared table file, for the engine's step 7."""
+        la = self.table.livingAnnuity
+        return (float(la.minDrawdown), float(la.maxDrawdown))
 
     def person_tax(
         self,
