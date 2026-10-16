@@ -79,9 +79,17 @@ def quality_report(
         )
     if not asr_alternatives:
         banners.append("The ASR provider returned no word alternatives: amount readings rest on the 1-best transcript only.")
-    unaccepted = sum(1 for n in numeric_spans if not n.accepted)
+    unaccepted = [n for n in numeric_spans if not n.accepted]
     if unaccepted:
-        banners.append(f"{unaccepted} number(s) could not be read cleanly and were re-checked against the audio.")
+        rechecked = sum(1 for n in unaccepted if n.second_pass_method is not None)
+        tail = (
+            "were re-checked against the audio"
+            if rechecked == len(unaccepted)
+            else f"{rechecked} of them re-checked against the audio"
+            if rechecked
+            else "were not re-checked (no second pass configured)"
+        )
+        banners.append(f"{len(unaccepted)} number(s) could not be read cleanly; {tail}.")
     return QualityReport(
         mean_word_conf=round(mean_conf, 4),
         low_asr_share=round(low_share, 4),

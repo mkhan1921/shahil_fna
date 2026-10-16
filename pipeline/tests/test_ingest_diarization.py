@@ -156,3 +156,19 @@ def test_relabel_and_overlap_seconds():
     over = [SpeakerTurn(speaker="A", start=0, end=5), SpeakerTurn(speaker="B", start=4, end=8), SpeakerTurn(speaker="A", start=7.5, end=9)]
     assert overlap_seconds(over, 0, 10) == pytest.approx(1.5)
     assert overlap_seconds(over, 4.5, 7.6) == pytest.approx(0.6)
+
+
+def test_flat_frame_scores_are_the_assigned_speakers_confidence():
+    # pyannoteAI's documented shape: one 0–100 score per resolution frame, for whichever speaker holds the frame.
+    out = {
+        "diarization": [{"speaker": "SPEAKER_00", "start": 0.0, "end": 1.0}, {"speaker": "SPEAKER_01", "start": 1.0, "end": 2.0}],
+        "confidence": {"resolution": 0.25, "score": [90, 80, 70, 60, 20, 30, 40, 50]},
+    }
+    turns = parse_pyannote_output(out)
+    assert turns[0].confidence == pytest.approx(0.75) and turns[1].confidence == pytest.approx(0.35)
+    # the same shape on a 0..1 scale is not rescaled
+    out["confidence"]["score"] = [0.9, 0.8, 0.7, 0.6, 0.2, 0.3, 0.4, 0.5]
+    assert parse_pyannote_output(out)[0].confidence == pytest.approx(0.75)
+    # a percent-scaled per-speaker dict is rescaled too
+    out["confidence"]["score"] = {"SPEAKER_00": [90] * 8, "SPEAKER_01": [40] * 8}
+    assert [t.confidence for t in parse_pyannote_output(out)] == [pytest.approx(0.9), pytest.approx(0.4)]

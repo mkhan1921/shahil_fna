@@ -85,3 +85,15 @@ def test_segments_sorted_by_start_with_stable_ids():
     lw = words("spk_1", 5.0, ["later"]) + words("spk_0", 0.0, ["first"]) + words("spk_2", 2.0, ["middle"])
     segs = segment_words(lw)
     assert [(s.segment_id, s.text) for s in segs] == [("s0001", "first"), ("s0002", "middle"), ("s0003", "later")]
+
+
+def test_interrupted_flag_marks_a_turn_cut_off_by_another_speaker():
+    lw = words("spk_0", 0.0, ["so", "the", "bond", "repayment", "is", "about"], step=0.4)  # ends at 2.3 s, mid-sentence
+    lw += words("spk_1", 1.9, ["eighteen", "thousand", "eight", "hundred."], step=0.4)  # starts over the last words
+    lw += words("spk_0", 6.0, ["right,", "and", "the", "car", "repayment?"], step=0.4)  # a finished question
+    lw += words("spk_1", 7.8, ["seven", "nine."], step=0.4)  # starts over its tail, but the question was complete
+    segs = {s.text: s for s in segment_words(lw)}
+    assert "interrupted" in segs["so the bond repayment is about"].flags  # 0.2 s of overlap: cut off, though not crosstalk
+    assert "interrupted" not in segs["eighteen thousand eight hundred."].flags  # the interrupter is not interrupted
+    assert "interrupted" not in segs["right, and the car repayment?"].flags
+    assert "interrupted" not in segs["seven nine."].flags

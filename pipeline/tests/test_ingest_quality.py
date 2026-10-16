@@ -99,3 +99,15 @@ def test_crosstalk_share():
     b = seg("s0002", "spk_1", 9, 11)
     q = quality_report([a, b], role_conf={"spk_0": 0.9, "spk_1": 0.9})
     assert 0 < q.crosstalk_share < 0.15
+
+
+def test_unreadable_numbers_banner_says_whether_a_second_pass_ran():
+    span = NumericSpan(span_id="n0001", segment_id="s0002", kind="amount", word_start=0, word_end=1, surface="million", accepted=False)
+    conf = {"spk_0": 0.9, "spk_1": 0.9}
+    without = quality_report(good_call(), [span], role_conf=conf)
+    assert any("not re-checked (no second pass configured)" in b for b in without.banners)
+    checked = span.model_copy(update={"second_pass_method": "audio_model"})
+    with_pass = quality_report(good_call(), [checked], role_conf=conf)
+    assert any(b.endswith("were re-checked against the audio.") for b in with_pass.banners)
+    partial = quality_report(good_call(), [span, checked], role_conf=conf)
+    assert any("2 number(s)" in b and "1 of them re-checked" in b for b in partial.banners)

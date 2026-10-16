@@ -16,7 +16,7 @@ from advisor_intel.ingest.biasing import (
     prior_names,
     product_names_for_call,
 )
-from advisor_intel.ingest.types import CrmNames
+from advisor_intel.ingest.types import CrmNames, ProductHint
 from advisor_intel.models.fna import FnaDocument
 
 ANCHOR = date(2026, 10, 16)
@@ -114,3 +114,24 @@ def test_product_names_for_the_per_call_grammar(sample_fna_json):
     res = grammars.parse("highveld logistics pension fund", "product", extra_products=names)
     assert res.accepted and res.readings[0].value == "pension"
     assert product_names_for_call(None) == ()
+
+
+def test_crm_product_holdings_bias_the_asr_and_extend_the_product_grammar():
+    crm = CrmNames(
+        client_primary=["Thabo Mokoena"],
+        products=[
+            ProductHint(name="Highveld Logistics Pension Fund", provider="Employer umbrella fund", fna_type="pension"),
+            ProductHint(name="", provider="Brightwater", fna_type="provident"),
+            ProductHint(name="Retirement annuity", provider="Allan Gray", fna_type="retirement-annuity"),  # already in the catalogue
+        ],
+    )
+    phrases = call_phrases(None, anchor=ANCHOR, crm=crm)
+    products = {p.text for p in phrases if p.kind == "product"}
+    assert {"Highveld Logistics Pension Fund", "Employer umbrella fund", "Brightwater", "Allan Gray"} <= products
+    names = product_names_for_call(None, crm)
+    by_surface = {n.surface: n for n in names}
+    assert by_surface["Highveld Logistics Pension Fund"].product_type == "pension"
+    assert by_surface["Brightwater"].provider == "Brightwater" and by_surface["Brightwater"].product_type is None
+    assert "Retirement annuity" not in by_surface and "Allan Gray" not in by_surface  # the catalogue already knows them
+    res = grammars.parse("brightwater provident fund", "product", extra_products=names)
+    assert res.accepted and res.readings[0].value == "provident" and res.readings[0].provider == "Brightwater"

@@ -43,7 +43,7 @@ class VersionPins(BaseModel):
 
     schema_version: str = "profile_v1"
     lexicon_version: str = "1.3"
-    grammar_version: str = "1"
+    grammar_version: str = "2"
     calibrator_version: str = "cold-start"
     asr_provider: str = "fake"
     asr_model_version: str = "fake-1"

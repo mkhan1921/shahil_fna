@@ -43,11 +43,24 @@ def build_asr(pins: VersionPins, settings: Settings | None = None) -> ASRProvide
         raise ProviderConfigError(str(e)) from e
 
 
+class UnconfiguredDiarizer(ChannelDiarizer):
+    """Stands in when no pyannoteAI key is configured: stereo calls with one speaker per channel never need it, and a
+    mono call or a shared client channel fails with the reason instead of quietly becoming one speaker."""
+
+    name = "unconfigured"
+    model_version = "none"
+
+    async def diarize(self, samples, sample_rate, *, min_speakers: int = 1, max_speakers: int = 1, key: str = ""):
+        raise ProviderConfigError(
+            "diarization needed (mono call or two clients on one channel) but settings.pyannote_api_key is not set (environment PYANNOTEAI_API_KEY)"
+        )
+
+
 def build_diarizer(pins: VersionPins, settings: Settings | None = None) -> Diarizer:
-    """pyannoteAI at the pinned model; stereo calls with one speaker per channel never call it."""
+    """pyannoteAI at the pinned model; without a key, a diarizer that only serves stereo calls with one speaker per channel."""
     s = settings or get_settings()
     if not s.pyannote_api_key:
-        return ChannelDiarizer()  # stereo split only: a mono call or a shared client channel then has one speaker
+        return UnconfiguredDiarizer()
     return PyannoteAIDiarizer(api_key=s.pyannote_api_key, model=pins.diarization_model)
 
 

@@ -14,11 +14,12 @@ pyannoteAI request/response mapping (assumed from the public API docs; validate 
                               "confidence": true, "turnLevelConfidence": true}     → {"jobId": "…", "status": "created"}
     GET  {base}/jobs/{jobId}   → {"status": "pending|created|running|succeeded|failed|canceled",
          "output": {"diarization": [{"speaker": "SPEAKER_00", "start": 0.52, "end": 3.1, "confidence": 0.93?}, …],
-                    "confidence": {"resolution": 0.02, "score": {"SPEAKER_00": [0.97, …], …}}?}}
+                    "confidence": {"resolution": 0.02, "score": [97, 93, …]}?}}   (or a dict per speaker, see below)
 
-Per-turn ``confidence`` is used when present; otherwise the frame posteriors (a dict per speaker, or a
-frame-major matrix with a ``speakers`` list) are averaged over the turn; scores above 1 are read as
-percentages. Labels are renamed ``spk_0``, ``spk_1``… in order of first speech.
+Per-turn ``confidence`` is used when present; otherwise the frame scores are averaged over the turn: the
+documented flat list (one 0–100 score per ``resolution`` frame), or a dict per speaker, or a frame-major
+matrix with a ``speakers`` list. A block whose scores run above 1 is in percent. Labels are renamed
+``spk_0``, ``spk_1``… in order of first speech.
 """
 
 from __future__ import annotations
@@ -136,19 +137,26 @@ class PyannoteAIDiarizer(HttpProvider):
 
 
 def _posterior(conf: dict, speaker: str, start: float, end: float) -> float | None:
-    """Mean posterior of ``speaker`` over [start, end] from a frame-level confidence block."""
+    """Mean posterior of ``speaker`` over [start, end] from a frame-level confidence block.
+
+    Three shapes are read: a series per speaker (``score: {SPEAKER_00: [...]}``), a frame-major matrix with a
+    ``speakers`` list, and pyannoteAI's documented flat list (one score 0–100 per frame for the speaker the
+    diarization assigned there), which is averaged over the turn as the assigned speaker's confidence.
+    """
     res = float(conf.get("resolution") or 0.0)
     score = conf.get("score")
     if res <= 0 or score is None:
         return None
     if isinstance(score, dict):
         series = score.get(speaker)
-    else:
+    elif score and isinstance(score[0], (list, tuple)):
         speakers = conf.get("speakers") or []
         if speaker not in speakers:
             return None
         k = speakers.index(speaker)
         series = [row[k] for row in score]
+    else:
+        series = score  # flat: the confidence of whichever speaker holds each frame
     if not series:
         return None
     a, b = int(start / res), max(int(start / res) + 1, int(np.ceil(end / res)))
@@ -162,19 +170,34 @@ def _unit(x: float) -> float:
     return x / 100.0 if x > 1.0 else x
 
 
+def _percent_scale(conf: dict) -> bool:
+    """A frame block whose scores run above 1 is in percent (pyannoteAI's 0–100 integers)."""
+    score = conf.get("score")
+    series = list(score.values()) if isinstance(score, dict) else [score] if score else []
+    try:
+        return any(float(np.max(np.asarray(s, dtype=float))) > 1.0 for s in series if len(s))
+    except (TypeError, ValueError):
+        return False
+
+
 def parse_pyannote_output(output: dict) -> list[SpeakerTurn]:
     turns = []
     frames = output.get("confidence") if isinstance(output.get("confidence"), dict) else None
+    percent = _percent_scale(frames) if frames else False
     for t in output.get("diarization") or []:
         c = t.get("confidence")
-        if c is None and frames:
+        if c is not None:
+            c = _unit(float(c))
+        elif frames:
             c = _posterior(frames, t["speaker"], float(t["start"]), float(t["end"]))
+            if c is not None and percent:
+                c /= 100.0
         turns.append(
             SpeakerTurn(
                 speaker=str(t["speaker"]),
                 start=float(t["start"]),
                 end=float(t["end"]),
-                confidence=round(min(1.0, max(0.0, _unit(float(c)))), 4) if c is not None else 1.0,
+                confidence=round(min(1.0, max(0.0, c)), 4) if c is not None else 1.0,
             )
         )
     return turns

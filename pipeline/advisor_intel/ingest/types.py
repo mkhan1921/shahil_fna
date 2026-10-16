@@ -117,6 +117,14 @@ class CallMeta(BaseModel):
         return self.shared_client_channel if self.shared_client_channel is not None else len(self.client_ids) >= 2
 
 
+class ProductHint(BaseModel):
+    """A product the CRM says the client holds (§5.4: institutions and the client's own policies and funds)."""
+
+    name: str = ""  # product or plan name as the CRM has it ("Highveld Logistics Pension Fund")
+    provider: str = ""  # insurer, fund administrator, bank or asset manager
+    fna_type: str = ""  # the FnaDocument type when known ("retirement-annuity", "life", "home-loan")
+
+
 class CrmNames(BaseModel):
     """Names from the CRM used as role hints (§5.2 step 6) and vocabulary (§5.4)."""
 
@@ -124,6 +132,7 @@ class CrmNames(BaseModel):
     client_primary: list[str] = []
     client_secondary: list[str] = []
     others: list[str] = []  # dependants, businesses, properties: vocabulary only
+    products: list[ProductHint] = []  # the client's holdings: vocabulary and the per-call product grammar
 
     def all_names(self) -> list[str]:
         return [*self.advisor, *self.client_primary, *self.client_secondary, *self.others]

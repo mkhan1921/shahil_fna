@@ -7,7 +7,7 @@
 #   currency, period, scale, rate, key, provider: attributes of the top reading
 #   accepted: false → the grammar must reject the text
 # A grammar change that breaks a case must update the case in the same pull request (new GRAMMAR_VERSION).
-grammar_version: "1"
+grammar_version: "2"
 cases:
   # ---------------------------------------------------------------- amounts: plain English cardinals (implied scales)
   - {text: "one", kind: amount, values: [1, 1000], exact: true, top: 1, scale: literal}

@@ -11,8 +11,12 @@ and age grammars can build on them:
   "a" million → "1").
 - ``compressed_*``: the spoken shorthand "two fifty" (one digit then a two-digit number, or three digits
   one by one: "one eight four"), whose literal reading is 250 and whose million reading is 2.50;
-  "twelve fifty" → 1250; "two five" → 2.5.
+  "twelve fifty" → 1250, "twenty two fifty" → 2250; "two five" → 2.5.
+- ``zero``: "zero", "nought", "nul" → "0" (never "oh", which is a digit only inside a number).
 - ``digits_*``: written forms from ITN or numeric ASR output: "250", "250,000", "250 000", "1.2", "1,2".
+  ``digits_decimal_short`` ("2.5", "12.75") is the written form of a spoken decimal and gets implied scale
+  readings; ``digits_decimal_long`` ("0.50", "1234.56", "1,234.56", "1 234,56", "12.345") is cents or a
+  written figure and is read literally.
 
 The tables are also the vocabulary the span finder uses to spot numeric tokens.
 """
@@ -87,6 +91,8 @@ FRACTIONS = {  # mantissas that need a following scale word: "half a bar", "a qu
     "kwart": "0.25",
 }
 COUNT_A = {"a": "1", "an": "1", "'n": "1", "n": "1"}
+ZERO_WORDS = {"zero": 0, "nought": 0, "naught": 0, "nul": 0}  # "oh" left out: on its own it is an interjection
+SCALE_AND_A_HALF = {" and a half": ".5", " en 'n half": ".5", " en n half": ".5"}  # "a million and a half"
 
 
 def en_words_1_99() -> dict[str, int]:
@@ -135,6 +141,7 @@ class NumberFsts:
     units: pynini.Fst  # 1–9 → "1".."9"
     ten99: pynini.Fst  # 10–99 → "10".."99"
     digit_word: pynini.Fst  # 0–9 including "oh", "nought", "nul" → one digit
+    zero: pynini.Fst  # "zero", "nought", "nul" → "0"
     m999: pynini.Fst
     hcount: pynini.Fst
     decimal: pynini.Fst
@@ -143,11 +150,13 @@ class NumberFsts:
     count_a: pynini.Fst
     compressed_abc: pynini.Fst  # "two fifty" → "250", "one oh five" → "105"
     compressed_abc_million: pynini.Fst  # "two fifty" → "2.50"
-    compressed_pair: pynini.Fst  # "twelve fifty" → "1250"
+    compressed_pair: pynini.Fst  # "twelve fifty" → "1250", "twenty two fifty" → "2250"
     compressed_ab_decimal: pynini.Fst  # "two five" → "2.5"
     digits_small: pynini.Fst  # "1".."999"
     digits_big: pynini.Fst  # "1000"+, "250,000", "250 000" (weighted: dot grouping is unusual)
-    digits_decimal: pynini.Fst  # "1.2", "1,2", "1,25"
+    digits_decimal: pynini.Fst  # every written decimal: "1.2", "1,2", "1,25", "0.50", "1234.56", "1,234.56"
+    digits_decimal_short: pynini.Fst  # "1.2", "1,2", "12.75": the written form of a spoken decimal
+    digits_decimal_long: pynini.Fst  # "0.50", "1234.56", "1,234.56", "1 234,56", "12.345": cents or a written figure
     digits_decimal_scaled: pynini.Fst  # also "1,250" as a decimal comma, only before a scale suffix ("R1,250m")
 
 
@@ -166,6 +175,7 @@ def number_fsts() -> NumberFsts:
     pad2 = _sm([(w, f"{v:02d}") for w, v in all99.items()])
     ten99 = _sm([(w, str(v)) for w, v in all99.items() if v >= 10])
     digit_word = _sm([(w, str(v)) for w, v in {**EN_UNITS, **AF_UNITS, **EN_ZERO, **AF_ZERO}.items()])
+    zero = _sm([(w, "0") for w in ZERO_WORDS])
 
     # Hundreds: "[a|one|two…] hundred [and] [1–99]"; Afrikaans "[twee]honderd [en] [1–99]", solid or spaced.
     en_count = _sm([(w, str(v)) for w, v in EN_UNITS.items()] + [("a", "1")])
@@ -198,11 +208,12 @@ def number_fsts() -> NumberFsts:
     count_a = _sm(COUNT_A.items())
 
     oh_unit = pynini.cross("oh", "0") + sp + units
-    teens = _sm([(w, str(v)) for w, v in all99.items() if 11 <= v <= 19])
+    # Heads of "twelve fifty" / "twenty two fifty": 11–99, not a round decade ("twenty fifty" is a list, not 2050).
+    pair_head = _sm([(w, str(v)) for w, v in all99.items() if 11 <= v <= 99 and v % 10])
     digit_pair = digit_word + sp + digit_word  # "one eight four": three digits read one by one
     compressed_abc = (units + sp + (ten99 | oh_unit | digit_pair)).optimize()
     compressed_abc_million = (units + sp + insert(".") + (ten99 | oh_unit | digit_pair)).optimize()
-    compressed_pair = (teens + sp + (ten99 | oh_unit)).optimize()
+    compressed_pair = (pair_head + sp + (ten99 | oh_unit)).optimize()
     compressed_ab_decimal = (units + sp + insert(".") + units).optimize()
 
     d = pynini.union(*"0123456789")
@@ -215,13 +226,26 @@ def number_fsts() -> NumberFsts:
     dec_point = int_any + "." + _closure(d, 1, 3)
     dec_comma = int_any + pynini.cross(",", ".") + _closure(d, 1, 2)
     dec_comma3 = pynutil.add_weight(int_any + pynini.cross(",", ".") + _closure(d, 3, 3), 1.0)
-    digits_decimal = (dec_point | dec_comma).optimize()
+    # The written form of a spoken decimal ("2.5", "12,75"): up to three integer digits, no leading zero, one or
+    # two decimals. Anything else written with a decimal is cents or a figure copied from a statement.
+    short = nz + _closure(d, 0, 2) + ("." | pynini.cross(",", ".")) + _closure(d, 1, 2)
+    long_forms = pynini.union(
+        "0" + ("." | pynini.cross(",", ".")) + _closure(d, 1, 3),  # "0.50"
+        nz + _closure(d, 3, 11) + ("." | pynini.cross(",", ".")) + _closure(d, 1, 3),  # "1234.56"
+        nz + _closure(d, 0, 2) + "." + _closure(d, 3, 3),  # "12.345"
+        grouped + "." + _closure(d, 1, 2),  # "1,234.56", "1 234.56"
+        nz + _closure(d, 0, 2) + _closure(delete(" ") + _closure(d, 3, 3), 1, 4) + pynini.cross(",", ".") + _closure(d, 1, 2),  # "1 234,56"
+    )
+    digits_decimal_short = short.optimize()
+    digits_decimal_long = long_forms.optimize()
+    digits_decimal = (dec_point | dec_comma | digits_decimal_long).optimize()
     digits_decimal_scaled = (dec_point | dec_comma | dec_comma3).optimize()
 
     return NumberFsts(
         units=units,
         ten99=ten99,
         digit_word=digit_word,
+        zero=zero,
         m999=m999,
         hcount=hcount,
         decimal=decimal,
@@ -235,5 +259,7 @@ def number_fsts() -> NumberFsts:
         digits_small=digits_small,
         digits_big=digits_big,
         digits_decimal=digits_decimal,
+        digits_decimal_short=digits_decimal_short,
+        digits_decimal_long=digits_decimal_long,
         digits_decimal_scaled=digits_decimal_scaled,
     )

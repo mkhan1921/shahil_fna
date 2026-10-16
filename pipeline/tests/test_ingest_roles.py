@@ -164,6 +164,27 @@ async def test_context_is_first_five_minutes_plus_a_sample_and_roles_apply():
     assert all(s.speaker_role != "unknown" for s in applied)
 
 
+async def test_scripted_calls_take_the_same_role_road_as_audio(monkeypatch):
+    """``roles="auto"`` leaves the choice to the pin, as ``ingest_call`` does: a test pin never calls a model."""
+    seen: list[bool | None] = []
+    real = R.assign_roles
+
+    async def spy(segments, *, pins=None, crm=None, use_agent=None):
+        seen.append(use_agent)
+        return await real(segments, pins=pins, crm=crm, use_agent=use_agent)
+
+    monkeypatch.setattr("advisor_intel.ingest.run.assign_roles", spy)
+
+    def boom(messages, info):  # pragma: no cover - must not be called on a test pin
+        raise AssertionError("the role agent ran on a test pin")
+
+    with R.role_agent.override(model=FunctionModel(boom)):
+        auto = await transcript_from_script_async(SCRIPT, date(2026, 10, 16), roles="auto", role_agent_pins=VersionPins(), crm_names=CRM)
+        heur = await transcript_from_script_async(SCRIPT, date(2026, 10, 16), roles="heuristic", role_agent_pins=VersionPins(), crm_names=CRM)
+    assert seen == [None, False]
+    assert [(s.speaker_role, s.role_conf) for s in auto.segments] == [(s.speaker_role, s.role_conf) for s in heur.segments]
+
+
 def test_output_schema_is_strict_friendly():
     schema = R.RoleAssignmentOutput.model_json_schema()
     item = schema["$defs"]["SpeakerRoleItem"]

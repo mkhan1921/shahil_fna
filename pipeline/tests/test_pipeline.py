@@ -21,6 +21,32 @@ SCRIPT = "\n".join(f"{role}: {text}" for role, text in SAMPLE_CALL)
 ROLES = {"advisor": "advisor", "client_primary": "client_primary", "client_secondary": "client_secondary"}
 
 
+def test_crm_names_carry_the_household_and_the_product_holdings_into_stage_1():
+    from advisor_intel.models.crm import CrmPerson, CrmProduct, CrmRecord
+
+    crm = CrmRecord(
+        client_id="c1",
+        adviser_name="Sipho Dlamini",
+        household=[
+            CrmPerson(crm_id="p1", role="client_primary", name="Thabo Mokoena"),
+            CrmPerson(crm_id="p2", role="spouse", name="Lerato Mokoena"),
+            CrmPerson(crm_id="p3", role="child", name="Neo Mokoena"),
+        ],
+        products=[
+            CrmProduct(crm_id="x1", kind="fund", provider="Brightwater", product="Brightwater Provident Fund", fna_type="provident"),
+            CrmProduct(crm_id="x2", kind="policy", provider="Discovery", product="", fna_type="life"),
+            CrmProduct(crm_id="x3", kind="property", provider="", product=""),  # nothing to say
+        ],
+    )
+    names = P.crm_names(crm)
+    assert names.advisor == ["Sipho Dlamini"] and names.client_primary == ["Thabo Mokoena"]
+    assert names.client_secondary == ["Lerato Mokoena"] and names.others == ["Neo Mokoena"]
+    assert [(h.name, h.provider, h.fna_type) for h in names.products] == [
+        ("Brightwater Provident Fund", "Brightwater", "provident"),
+        ("", "Discovery", "life"),
+    ]
+
+
 @pytest.fixture(scope="module")
 def run():
     """One call through every stage, shared by the tests below (the forecast and VOI make it the slow part)."""

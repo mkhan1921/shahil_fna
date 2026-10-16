@@ -6,6 +6,7 @@ form the age came from, so Stage 4 can look it up in the vagueness lexicon (§8.
 - "forty two", "42 years old", "aged sixty" → 42, 60 (no key);
 - "turning sixty" → 60, key ``turning``; "sixty-ish" → 60, key ``approx``;
 - "late fifties" → 58.5, key ``late fifties``; "early sixties" → 61.5; "mid sixties" → 65; "fifties" → 54.5;
+  the written decades an ITN emits ("early 60s", "50's") read the same way;
 - "grade nine" → 15 (grade + 6, §7.6), key ``grade``; "grade R" → 6; "standard eight" (the old system) → 16,
   key ``standard``; "matric" → 18, key ``matric``. Afrikaans forms ("graad nege", "laat vyftigs", "matriek") too.
 """
@@ -33,6 +34,7 @@ EN_DECADE_PLURALS = {
     "nineties": 90,
 }
 AF_DECADE_PLURALS = {f"{w}s": v for w, v in AF_DECADES.items()}  # "vyftigs"
+DIGIT_DECADE_PLURALS = {f"{d}{s}": d for d in range(20, 100, 10) for s in ("s", "'s")}  # "60s", "60's" (written by ITN)
 BAND_WORDS = {
     "early": "early",
     "mid": "mid",
@@ -83,7 +85,7 @@ def age_grammar() -> pynini.Fst:
     cardinal = prefix.ques + value + (suffix | ish).ques
 
     bands = []
-    for plural_table in (EN_DECADE_PLURALS, AF_DECADE_PLURALS):
+    for plural_table in (EN_DECADE_PLURALS, AF_DECADE_PLURALS, DIGIT_DECADE_PLURALS):
         for plural, decade in plural_table.items():
             canon_plural = next(k for k, d in EN_DECADE_PLURALS.items() if d == decade and k != "fourties")
             bands.append(pynini.cross(plural, f"v={_fmt(decade + BAND_OFFSETS[''])};k={canon_plural};"))
@@ -113,10 +115,10 @@ def age_grammar() -> pynini.Fst:
 
 def age_marker_vocabulary() -> frozenset[str]:
     """Tokens that make a number an age (for the span finder)."""
-    words: set[str] = set(EN_DECADE_PLURALS) | set(AF_DECADE_PLURALS) | set(BAND_WORDS) | set(AGE_PREFIXES)
+    words: set[str] = set(EN_DECADE_PLURALS) | set(AF_DECADE_PLURALS) | set(DIGIT_DECADE_PLURALS) | set(BAND_WORDS) | set(AGE_PREFIXES)
     words |= set(GRADE_WORDS) | set(MATRIC_WORDS) | {"standard", "standerd", "teens", "old", "ish", "jaar", "oud", "years", "yrs", "year"}
     return frozenset(words)
 
 
 # Words that make a phrase an age on their own ("late fifties", "matric", "teens"); "old" and "grade" need a number with them.
-STRONG_AGE_MARKERS = frozenset(set(EN_DECADE_PLURALS) | set(AF_DECADE_PLURALS) | set(MATRIC_WORDS) | {"teens"})
+STRONG_AGE_MARKERS = frozenset(set(EN_DECADE_PLURALS) | set(AF_DECADE_PLURALS) | set(DIGIT_DECADE_PLURALS) | set(MATRIC_WORDS) | {"teens"})
