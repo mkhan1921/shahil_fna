@@ -298,6 +298,12 @@ def test_stage12_key_ignores_extraction_changes():
     assert D.stage12_key(base) == D.stage12_key(same)
     assert D.stage12_key(base) != D.stage12_key(base.model_copy(update={"asr_model_version": "nova-3"}))
     assert D.stage12_key(base) != D.stage12_key(base.model_copy(update={"prompt_versions": {"discourse/rewrite": "v2"}}))
+    # the pipeline's own stage 2 prompt names ("discourse_entities", …) count too; extraction and verifier prompts do not
+    flat = VersionPins(prompt_versions={"discourse_entities": "v1", "extract_slot_group/income": "v1", "entailment": "v1"})
+    assert D.stage12_key(flat) != D.stage12_key(
+        flat.model_copy(update={"prompt_versions": {**flat.prompt_versions, "discourse_entities": "v2"}})
+    )
+    assert D.stage12_key(flat) == D.stage12_key(flat.model_copy(update={"prompt_versions": {**flat.prompt_versions, "entailment": "v3"}}))
     # human transcripts do not depend on the ASR pins
     assert D.stage12_key(base, "human") == D.stage12_key(base.model_copy(update={"asr_model_version": "nova-3"}), "human")
 
@@ -365,3 +371,59 @@ def test_gold_records_one_per_transcript_kind(tmp_path):
     assert all(r.metadata["dataset"] == "gold-calls" and "split:dev" in r.tags for r in rows)
     D.sync_transcripts([call.transcript()], store=store)
     assert store.fetch("gold-transcripts")[0].metadata["segments"] == len(call.transcript().segments)
+
+
+def test_the_stage12_builder_runs_stage_one_and_two(tmp_path):
+    """On a cache miss: the transcript from the script, the row or gold-transcripts, then the real discourse stage."""
+    pytest.importorskip("advisor_intel.discourse.run")
+    call = generate_call(3, seed=2)
+    store = D.LocalStore(tmp_path)
+    build = D.stage12_builder(store=store)
+    t, d = build(D.synthetic_record(call), VersionPins())
+    assert t == call.transcript() and d is not None and d.entities  # the household's people are in the registry
+    gold = call.gold.model_copy(update={"source": "real", "call_id": "real-3"})
+    D.sync_gold([gold], store=store, transcript_kinds=("asr",))
+    rec = store.fetch("gold-calls")[0]
+    with pytest.raises(KeyError, match="sync_transcripts"):
+        D.stage12_builder(store=store, discourse=False)(rec, VersionPins())
+    asr = call.transcript().model_copy(update={"call_id": "real-3"})
+    D.sync_transcripts([asr], store=store, kind="asr")
+    t2, d2 = D.stage12_builder(store=store, discourse=False)(rec, VersionPins())
+    assert t2 == asr and d2 is None
+    cached = D.Stage12Cache(D.LocalBlobStore(tmp_path / "cache")).load_call(rec, VersionPins(), build=D.stage12_builder(store=store))
+    assert cached.transcript == asr and cached.discourse is not None
+
+
+def test_the_dataset_cli(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("BRAINTRUST_API_KEY", raising=False)
+    monkeypatch.setenv("ADVISOR_INTEL_DATA_DIR", str(tmp_path))
+    assert D.main(["sync-synthetic", "--n", "2", "--seed", "4"]) == 0
+    assert "2 synthetic calls synced" in capsys.readouterr().out
+    assert len(D.LocalStore().fetch("synthetic-calls")) == 2
+    t = generate_call(0, seed=4).transcript()
+    (tmp_path / "t.json").write_text(t.model_dump_json())
+    assert D.main(["sync-transcripts", str(tmp_path / "t.json"), "--kind", "asr"]) == 0
+    assert D.LocalStore().fetch("gold-transcripts")[0].id == f"{t.call_id}:asr"
+
+
+def test_the_braintrust_eval_file_registers_the_experiment(tmp_path):
+    """``braintrust eval --list`` imports eval_extraction.py the way CI does and finds the Eval."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    pipeline_dir = Path(__file__).resolve().parents[1]
+    env = {k: v for k, v in os.environ.items() if k != "BRAINTRUST_API_KEY"}
+    env.update(ADVISOR_INTEL_DATA_DIR=str(tmp_path), PYDANTIC_AI_NO_BANNER="1", PYTHONPATH=str(pipeline_dir))
+    cli = Path(sys.executable).with_name("braintrust")
+    proc = subprocess.run(
+        [str(cli), "eval", "--list", "--no-send-logs", "advisor_intel/evals/eval_extraction.py"],
+        cwd=pipeline_dir,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert proc.returncode == 0, proc.stderr[-2000:]
+    assert "advisor-extraction" in proc.stdout

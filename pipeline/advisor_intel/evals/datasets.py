@@ -202,9 +202,11 @@ def sync_gold(
     return store.insert(GOLD_CALLS, [gold_call_record(g, transcript_kind=k) for g in golds for k in transcript_kinds])
 
 
-def sync_transcripts(transcripts: Iterable[Transcript], *, store: DatasetStore | None = None) -> list[str]:
+def sync_transcripts(transcripts: Iterable[Transcript], *, store: DatasetStore | None = None, kind: str = "human") -> list[str]:
+    """Gold-call transcripts to ``gold-transcripts``: the professional ``human`` transcripts, or ``asr`` ones produced
+    by the pinned ASR for the gold suite's ASR run."""
     store = store or get_store()
-    return store.insert(GOLD_TRANSCRIPTS, [transcript_record(t) for t in transcripts])
+    return store.insert(GOLD_TRANSCRIPTS, [transcript_record(t, kind=kind) for t in transcripts])
 
 
 def sync_synthetic(calls: Iterable[SyntheticCall], *, store: DatasetStore | None = None) -> list[str]:
@@ -559,6 +561,7 @@ def _followup_record(call_id: str, fe: FollowupEdit, questions: Mapping[str, str
 # --------------------------------------------------------------------------- the Stage 1–2 cache (§15.1)
 
 
+# Prompt components Stage 1 and Stage 2 run on, by name prefix ("discourse_entities", "discourse/rewrite", …).
 STAGE12_PROMPT_PREFIXES = ("ingest", "role_assignment", "discourse", "entities", "coreference", "rewrite", "revisions", "topic_index")
 
 
@@ -573,7 +576,7 @@ def stage12_key(pins: VersionPins, transcript_kind: str = "asr") -> str:
         "small": pins.small_model,
         "embedding": pins.embedding_model,
         "lexicon": pins.lexicon_version,
-        "prompts": {k: v for k, v in sorted(pins.prompt_versions.items()) if k.split("/", 1)[0] in STAGE12_PROMPT_PREFIXES},
+        "prompts": {k: v for k, v in sorted(pins.prompt_versions.items()) if k.startswith(STAGE12_PROMPT_PREFIXES)},
     }
     return stable_hash(relevant)
 
@@ -713,3 +716,106 @@ class Stage12Cache:
             stage12_key=key,
             metadata=dict(record.metadata),
         )
+
+
+class DatasetStage12Builder:
+    """Stage 1–2 for a dataset call the cache does not hold yet (§15.1): the transcript embedded in the row, built
+    from a synthetic call's script (stage 1's back half), or the call's transcript of that kind from
+    ``gold-transcripts``; then stage 2 (``advisor_intel.discourse.run.run_discourse``) seeded with the client's prior
+    file, so the cache holds both and an experiment that changes only extraction starts from it."""
+
+    def __init__(self, *, store: DatasetStore | None = None, discourse: bool = True) -> None:
+        self.store = store
+        self.discourse = discourse
+        self._transcripts: dict[str, DatasetRecord] | None = None
+
+    def transcript(self, record: DatasetRecord) -> Transcript:
+        inp = record.input or {}
+        call_id, kind = inp["call_id"], inp.get("transcript_kind", "asr")
+        if inp.get("transcript"):
+            return Transcript.model_validate(inp["transcript"])
+        if inp.get("script"):
+            return script_transcript([tuple(t) for t in inp["script"]], date.fromisoformat(inp["anchor_date"]), call_id)  # type: ignore[misc]
+        if self._transcripts is None:
+            self._transcripts = {r.id: r for r in (self.store or get_store()).fetch(GOLD_TRANSCRIPTS)}
+        row = self._transcripts.get(f"{call_id}:{kind}")
+        if row is None:
+            raise KeyError(f"no {kind} transcript for {call_id} in {GOLD_TRANSCRIPTS}; sync it with sync_transcripts(kind={kind!r})")
+        return Transcript.model_validate(row.expected)
+
+    def stage2(self, transcript: Transcript, record: DatasetRecord, pins: VersionPins) -> DiscourseOutput | None:
+        """Stage 2 as the pipeline runs it: the discourse stage on the transcript, seeded with the prior file."""
+        from ..binding import load_prior
+        from ..models.facts import Provenance
+        from ._runtime import lazy_attr, run_sync
+
+        run = lazy_attr("advisor_intel.discourse.run", "run_discourse")
+        if run is None or not self.discourse:
+            return None
+        inp = record.input or {}
+        catalog = load_catalog(pins.schema_version)
+        doc = FnaDocument.model_validate(inp["prior_document"]) if inp.get("prior_document") else None
+        crm = CrmRecord.model_validate(inp["crm"]) if inp.get("crm") else None
+        run_id = f"stage12-{transcript.call_id}-{stage12_key(pins, inp.get('transcript_kind', 'asr'))}"
+        prov = Provenance(run_id=run_id, schema_version=catalog.version, lexicon_version=pins.lexicon_version)
+        prior = load_prior(
+            doc, crm, call_id=transcript.call_id, run_id=run_id, anchor_date=transcript.anchor_date, catalog=catalog, provenance=prov
+        )
+        return run_sync(run(transcript, prior=prior, crm=crm, pins=pins, catalog=catalog))
+
+    def __call__(self, record: DatasetRecord, pins: VersionPins) -> tuple[Transcript, DiscourseOutput | None]:
+        t = self.transcript(record)
+        return t, self.stage2(t, record, pins)
+
+
+def stage12_builder(*, store: DatasetStore | None = None, discourse: bool = True) -> Stage12Builder:
+    """The Stage 1–2 builder experiments use (``DatasetStage12Builder``)."""
+    return DatasetStage12Builder(store=store, discourse=discourse)
+
+
+# --------------------------------------------------------------------------- CLI
+
+
+def main(argv: list[str] | None = None) -> int:
+    """``python -m advisor_intel.evals.datasets``: sync synthetic calls, gold calls and transcripts (§15.1)."""
+    import argparse
+
+    from .gold import AnnotationFile, adjudicate
+
+    ap = argparse.ArgumentParser(description="Sync the evaluation datasets (Braintrust with BRAINTRUST_API_KEY, else local JSONL).")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    syn = sub.add_parser("sync-synthetic", help="generate synthetic calls and sync them to synthetic-calls")
+    syn.add_argument("--n", type=int, default=300)
+    syn.add_argument("--seed", type=int, default=0)
+    syn.add_argument("--start", type=int, default=0)
+    gold = sub.add_parser("sync-gold", help="adjudicate two annotators' files per call and sync the gold call")
+    gold.add_argument("pairs", nargs="+", help="each call's annotation files as A.json,B.json[,ADJUDICATOR.json] (the app's annotate mode)")
+    gold.add_argument("--heldout", action="store_true", help="the held-out test calls GEPA and fine-tuning never see")
+    tr = sub.add_parser("sync-transcripts", help="sync Transcript JSON files to gold-transcripts")
+    tr.add_argument("files", nargs="+", type=Path)
+    tr.add_argument("--kind", choices=["human", "asr"], default="human")
+    args = ap.parse_args(argv)
+    if args.cmd == "sync-synthetic":
+        from .synthetic import generate_calls
+
+        ids = sync_synthetic(generate_calls(args.n, seed=args.seed, start=args.start))
+        print(f"{len(ids)} synthetic calls synced to {SYNTHETIC_DATASET}")
+    elif args.cmd == "sync-gold":
+        golds = []
+        for pair in args.pairs:
+            files = [AnnotationFile.model_validate_json(Path(f).read_text()) for f in pair.split(",") if f]
+            if len(files) < 2:
+                ap.error(f"{pair}: two annotators' files are needed")
+            golds.append(
+                adjudicate(files[0], files[1], adjudicator=files[2] if len(files) > 2 else None, split="heldout" if args.heldout else "dev")
+            )
+        ids = sync_gold(golds)
+        print(f"{len(golds)} gold calls synced to {GOLD_CALLS} ({len(ids)} rows)")
+    else:
+        ids = sync_transcripts([Transcript.model_validate_json(f.read_text()) for f in args.files], kind=args.kind)
+        print(f"{len(ids)} {args.kind} transcripts synced to {GOLD_TRANSCRIPTS}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
