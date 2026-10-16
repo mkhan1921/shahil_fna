@@ -7,14 +7,14 @@
  * reading and the normalised value). Below that, what the fact does to the needs analysis, and
  * the reviewer's actions (§11.2).
  */
-import { AlertTriangle, ArrowRightLeft, Check, CircleSlash, HelpCircle, Lightbulb, Pause, Pencil, Play, Trash2, UserRound, X } from 'lucide-react';
+import { AlertTriangle, ArrowRightLeft, Calculator, Check, CircleSlash, HelpCircle, Lightbulb, Pause, Pencil, Play, Trash2, UserRound, X } from 'lucide-react';
 import { useMemo, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 import { analyse } from '@/lib/fna/analysis';
 import { money, moneyCompact } from '@/lib/format';
 import { slotById, type SlotDef } from '@/lib/review/catalog';
 import { explain, pyPercent } from '@/lib/review/dist';
 import { compareNeeds, movedNeeds, type NeedDelta } from '@/lib/review/impact';
-import { factSubject, instanceChoices } from '@/lib/review/labels';
+import { derivationText, factSubject, instanceChoices } from '@/lib/review/labels';
 import { REJECT_REASONS, type RejectReason } from '@/lib/review/ops';
 import { IDENTITY_FIELD, isListContainer, parsePath } from '@/lib/review/paths';
 import { pBand } from '@/lib/review/queue';
@@ -202,6 +202,11 @@ export default function FieldPopover({
               </div>
               {fact.priorText && fact.change !== 'confirmed' && <div className="text-[11.5px] text-muted">Before the call: {fact.priorText}</div>}
               {fact.change === 'confirmed' && <div className="text-[11.5px] text-good-ink">Confirms the file: {fact.priorText}</div>}
+              {fact.derivation && (
+                <div className="flex items-center gap-1 text-[11.5px] font-medium text-brand-2">
+                  <Calculator size={12} aria-hidden /> {derivationText(fact.derivation)}
+                </div>
+              )}
             </div>
             {fact.quantity && <Sparkline value={fact.quantity} prior={priorNumber} label={fact.label} />}
           </div>
@@ -295,7 +300,12 @@ export default function FieldPopover({
               ))}
             </ul>
           )}
-          {fact.derivation && <p className="mt-1 text-[11px] text-muted">Derived by rule {fact.derivation.replace(/_/g, ' ')}.</p>}
+          {fact.derivation && (
+            <p className="mt-1 text-[11.5px] text-ink-2">
+              {derivationText(fact.derivation)}
+              {valued.length === 1 && valued[0].rationale && !valued[0].rationale.startsWith('derived:') ? `: ${valued[0].rationale}` : ''}.
+            </p>
+          )}
           {fact.termResolution && (
             <div className="mt-1.5 rounded-md bg-wash px-2 py-1.5 text-[11.5px] text-ink-2">
               <div className="flex items-center gap-1 font-medium text-ink">

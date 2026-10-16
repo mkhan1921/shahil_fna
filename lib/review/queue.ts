@@ -8,6 +8,7 @@
  * on without deciding, Shift goes back.
  */
 import { formatIn } from './dist';
+import { derivationText } from './labels';
 import { isDecided, isReviewItem, openFlags, type ReviewFact, type ReviewSession } from './session';
 import type { BlockingFlag, FlagKind } from './types';
 
@@ -222,11 +223,12 @@ export const badgeOf = (s: ReviewSession, f: ReviewFact): FieldBadge | null => {
     removed: `Removed in the call (was ${prior ?? 'blank'})`,
   };
   const confidence = f.origin === 'pipeline' && f.source !== 'fna_default' ? ` · ${pBand(f.pCorrect)} confidence` : '';
+  const derived = f.derivation ? ` · ${derivationText(f.derivation).replace(/^\w/, (c) => c.toLowerCase())}` : '';
   const decision = f.review.status === 'accepted' || f.review.status === 'edited' || f.review.status === 'rejected' ? f.review.status : f.autoAccepted ? 'auto' : null;
   return {
     kind,
     label,
-    title: `${what[kind]}${confidence}`,
+    title: `${what[kind]}${derived}${confidence}`,
     prior: kind === 'changed' || kind === 'removed' ? prior : null,
     decision,
     flagged: s.flags.some((x) => !x.cleared && x.fact_id === f.factId),

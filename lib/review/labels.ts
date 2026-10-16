@@ -60,6 +60,20 @@ export const factSubject = (session: ReviewSession, f: Pick<ReviewFact, 'slotId'
 /** "Thabo · Gross monthly". */
 export const factTitle = (session: ReviewSession, f: ReviewFact): string => [factSubject(session, f), f.label].filter(Boolean).join(' · ');
 
+/** What each derivation rule did (pipeline schema/derivations.py), as the adviser reads it. */
+const DERIVATION: Record<string, string> = {
+  gross_from_net: 'Grossed up from take-home pay',
+  dob_from_id_number: 'Worked out from the ID number',
+  tertiary_after_matric: 'Tertiary study starts after matric, give or take a year',
+  horizon_from_retirement: 'Answered from the years to retirement',
+  emergency_from_cash_flow: 'Answered from the cash flow and savings',
+  income_stability_from_employment: 'Answered from the type of employment',
+  linked_asset_from_registry: 'Linked to the asset it finances',
+};
+
+/** "Grossed up from take-home pay" for the sidecar's `derivation` (a rule name). */
+export const derivationText = (rule: string): string => DERIVATION[rule] ?? `Worked out by the rule ${rule.replace(/_/g, ' ')}`;
+
 export interface InstanceChoice {
   /** null for a new row. */
   instance: string | null;
