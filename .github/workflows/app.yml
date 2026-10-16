@@ -1,0 +1,54 @@
+# The Shahil FNA app (Next.js): type check, unit tests and the production build.
+name: App
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - "pipeline/**"
+      - "docs/**"
+      - "**/*.md"
+      - ".github/workflows/pipeline.yml"
+      - ".github/workflows/eval-gate.yml"
+      - ".github/workflows/nightly-gold.yml"
+      - ".github/workflows/redteam.yml"
+  pull_request:
+    paths-ignore:
+      - "pipeline/**"
+      - "docs/**"
+      - "**/*.md"
+      - ".github/workflows/pipeline.yml"
+      - ".github/workflows/eval-gate.yml"
+      - ".github/workflows/nightly-gold.yml"
+      - ".github/workflows/redteam.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  checks:
+    name: Type check, tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build

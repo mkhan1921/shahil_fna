@@ -1,0 +1,123 @@
+# The advisor call intelligence pipeline (pipeline/): lint, the slot-catalog check, schema limits, the test suite
+# (PostgreSQL tests against a service container), Temporal workflow replay tests and the workflow tests on the
+# Temporal dev server (spec §4, §13.9, §15).
+name: Pipeline
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "pipeline/**"
+      - "lib/fna/**"
+      - "fna_tables/**"
+      - ".github/workflows/pipeline.yml"
+  pull_request:
+    paths:
+      - "pipeline/**"
+      - "lib/fna/**"
+      - "fna_tables/**"
+      - ".github/workflows/pipeline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYDANTIC_AI_NO_BANNER: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  # tests/infra/conftest.py clones a migrated template database per test on this server.
+  ADVISOR_INTEL_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+defaults:
+  run:
+    working-directory: pipeline
+
+jobs:
+  test:
+    name: Lint, catalog, schema limits and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Lint the evaluation code
+        run: ruff check --select F,E advisor_intel/evals redteam tests/test_evals_*.py tests/test_redteam_scenarios.py
+      - name: The slot catalog matches the FNA app (spec §4)
+        run: python -m advisor_intel.schema.generate --check
+      - name: Every slot group compiles within the provider schema limits (spec §4.4)
+        run: python -m pytest -q tests/test_schema_limits.py
+      - name: Tests
+        # slow: performance targets and the 2,000-document parity run (fna-parity.yml); temporal: the job below.
+        run: >-
+          python -m pytest -q -m "not slow and not temporal" --ignore=tests/infra/test_replay.py
+          --junitxml=test-reports/pytest.xml
+      - name: Workflow replay tests (recorded histories against this worker code, spec §13.1)
+        run: python -m pytest -q -m "not temporal" tests/infra/test_replay.py --junitxml=test-reports/replay.xml
+      - name: Keep the test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-test-reports
+          path: pipeline/test-reports/
+          if-no-files-found: ignore
+
+  temporal:
+    name: Temporal workflow tests (dev server)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Install the Temporal CLI
+        run: |
+          curl -sSf https://temporal.download/cli.sh | sh
+          echo "TEMPORAL_CLI_PATH=$HOME/.temporalio/bin/temporal" >> "$GITHUB_ENV"
+      - name: Workflow tests, fresh replayable histories and the scripted call end to end
+        run: python -m pytest -q -m temporal --junitxml=test-reports/temporal.xml
+      - name: Keep the test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: temporal-test-reports
+          path: pipeline/test-reports/
+          if-no-files-found: ignore

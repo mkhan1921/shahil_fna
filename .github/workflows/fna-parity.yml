@@ -1,0 +1,63 @@
+# FNA engine parity (spec §12.7, §15.3 "FNA engine port"): the Python port and the TypeScript engine on 2,000
+# generated documents must agree within R1 / 1e-6. Runs whenever either engine, the shared tables or the harness
+# changes.
+name: FNA engine parity
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "lib/fna/**"
+      - "fna_tables/**"
+      - "pipeline/advisor_intel/fna_engine/**"
+      - "pipeline/advisor_intel/fna_parity/**"
+      - "pipeline/tests/test_fna_parity.py"
+      - ".github/workflows/fna-parity.yml"
+  pull_request:
+    paths:
+      - "lib/fna/**"
+      - "fna_tables/**"
+      - "pipeline/advisor_intel/fna_engine/**"
+      - "pipeline/advisor_intel/fna_parity/**"
+      - "pipeline/tests/test_fna_parity.py"
+      - ".github/workflows/fna-parity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fna-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: Python vs TypeScript on 2,000 documents
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install the app (the TypeScript engine runs under vitest)
+        run: npm ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/pyproject.toml
+      - name: Install the pipeline
+        working-directory: pipeline
+        run: python -m pip install -e ".[dev]"
+      - name: Parity on the committed subset and on 2,000 generated documents
+        working-directory: pipeline
+        run: python -m pytest -q -rs tests/test_fna_parity.py --junitxml=test-reports/parity.xml
+      - name: Keep the parity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fna-parity-report
+          path: pipeline/test-reports/
+          if-no-files-found: ignore
