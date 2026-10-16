@@ -1488,6 +1488,20 @@
           "title": "Mean Conf",
           "type": "number"
         },
+        "flags": {
+          "default": [],
+          "items": {
+            "enum": [
+              "low_asr",
+              "crosstalk",
+              "scale_ambiguous"
+            ],
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array",
+          "uniqueItems": true
+        },
         "second_pass_reading": {
           "anyOf": [
             {
@@ -1960,6 +1974,18 @@
           "default": false,
           "title": "Is Rate",
           "type": "boolean"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
         }
       },
       "required": [

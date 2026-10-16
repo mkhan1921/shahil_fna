@@ -4,7 +4,7 @@
  "bundle": {
   "call_id": "call-2026-10-15-mokoena",
   "run_id": "wf-call-2026-10-15-mokoena",
-  "profile_version": 2,
+  "profile_version": 5,
   "state": "AWAITING_REVIEW",
   "median_document": {
    "id": "35d88bbf-19af-4af3-9f07-12fca071b638",
@@ -137,7 +137,7 @@
      "uifApplies": true
     },
     "spouse": {
-     "grossMonthly": 55000.0,
+     "grossMonthly": 55219.29,
      "annualBonus": 27500.0,
      "otherTaxableMonthly": 0.0,
      "nonTaxableMonthly": 0.0,
@@ -680,7 +680,7 @@
     "answers": {
      "horizon": 4.0,
      "income-stability": 3.0,
-     "emergency": 2.0,
+     "emergency": 3.0,
      "proportion": 2.0,
      "knowledge": 2.0,
      "objective": 3.0,
@@ -1470,8 +1470,8 @@
    "version": 1,
    "call_id": "call-2026-10-15-mokoena",
    "run_id": "wf-call-2026-10-15-mokoena",
-   "profile_version": 2,
-   "last_seq": 418,
+   "profile_version": 5,
+   "last_seq": 421,
    "schema_version": "profile_v1",
    "anchor_date": "2026-10-15",
    "fields": {
@@ -2990,8 +2990,8 @@
        "char_end": 55,
        "quote": "They're in the safe at home",
        "speaker_role": "client_primary",
-       "t_start": 143.67,
-       "t_end": 145.85,
+       "t_start": 144.63,
+       "t_end": 146.81,
        "asr_mean_conf": 0.808,
        "role": "supports",
        "aligner_score": 0.96
@@ -4697,8 +4697,8 @@
        "char_end": 27,
        "quote": "I bought a few Krugerrands.",
        "speaker_role": "client_primary",
-       "t_start": 141.67,
-       "t_end": 143.63,
+       "t_start": 142.63,
+       "t_end": 144.59,
        "asr_mean_conf": 0.706,
        "role": "supports",
        "aligner_score": 0.96
@@ -5809,8 +5809,8 @@
        "char_end": 27,
        "quote": "I bought a few Krugerrands.",
        "speaker_role": "client_primary",
-       "t_start": 141.67,
-       "t_end": 143.63,
+       "t_start": 142.63,
+       "t_end": 144.59,
        "asr_mean_conf": 0.706,
        "role": "supports",
        "aligner_score": 0.96
@@ -6611,8 +6611,8 @@
        "char_end": 84,
        "quote": "maybe sixty thousand worth.",
        "speaker_role": "client_primary",
-       "t_start": 145.89,
-       "t_end": 147.33,
+       "t_start": 146.85,
+       "t_end": 148.29,
        "asr_mean_conf": 0.802,
        "role": "supports",
        "aligner_score": 0.96
@@ -7814,8 +7814,8 @@
        "char_end": 75,
        "quote": "three and a half thousand a month, same as before.",
        "speaker_role": "client_primary",
-       "t_start": 176.73,
-       "t_end": 180.39,
+       "t_start": 177.69,
+       "t_end": 181.35,
        "asr_mean_conf": 0.786,
        "role": "supports",
        "aligner_score": 0.96
@@ -8517,8 +8517,8 @@
        "char_end": 83,
        "quote": "It's about a hundred and five thousand for the year now.",
        "speaker_role": "client_secondary",
-       "t_start": 78.16,
-       "t_end": 82.19,
+       "t_start": 79.12,
+       "t_end": 83.15,
        "asr_mean_conf": 0.802,
        "role": "supports",
        "aligner_score": 0.96
@@ -8629,8 +8629,8 @@
        "char_end": 65,
        "quote": "we're thinking of moving Kagiso to the same school next year.",
        "speaker_role": "client_primary",
-       "t_start": 83.1,
-       "t_end": 87.13,
+       "t_start": 84.06,
+       "t_end": 88.09,
        "asr_mean_conf": 0.805,
        "role": "supports",
        "aligner_score": 0.96
@@ -8641,8 +8641,8 @@
        "char_end": 57,
        "quote": "Neo is still at the independent school?",
        "speaker_role": "advisor",
-       "t_start": 72.6,
-       "t_end": 75.3,
+       "t_start": 73.56,
+       "t_end": 76.26,
        "asr_mean_conf": 0.781,
        "role": "context",
        "aligner_score": 0.96
@@ -9729,8 +9729,8 @@
        "char_end": 100,
        "quote": "If she studies here it's about a hundred and fifty a year, but over there it's more like four-fifty.",
        "speaker_role": "client_primary",
-       "t_start": 94.05,
-       "t_end": 101.19,
+       "t_start": 95.01,
+       "t_end": 102.15,
        "asr_mean_conf": 0.769,
        "role": "supports",
        "aligner_score": 0.96
@@ -11096,8 +11096,8 @@
        "char_end": 22,
        "quote": "Yes, my sister Palesa.",
        "speaker_role": "client_secondary",
-       "t_start": 164.73,
-       "t_end": 166.17,
+       "t_start": 165.69,
+       "t_end": 167.13,
        "asr_mean_conf": 0.726,
        "role": "supports",
        "aligner_score": 0.96
@@ -11108,8 +11108,8 @@
        "char_end": 64,
        "quote": "Did you name a guardian for the children?",
        "speaker_role": "advisor",
-       "t_start": 161.12,
-       "t_end": 164.19,
+       "t_start": 162.08,
+       "t_end": 165.15,
        "asr_mean_conf": 0.746,
        "role": "context",
        "aligner_score": 0.96
@@ -11206,8 +11206,8 @@
        "char_end": 22,
        "quote": "Yes, my sister Palesa.",
        "speaker_role": "client_secondary",
-       "t_start": 164.73,
-       "t_end": 166.17,
+       "t_start": 165.69,
+       "t_end": 167.13,
        "asr_mean_conf": 0.726,
        "role": "supports",
        "aligner_score": 0.96
@@ -11218,8 +11218,8 @@
        "char_end": 64,
        "quote": "Did you name a guardian for the children?",
        "speaker_role": "advisor",
-       "t_start": 161.12,
-       "t_end": 164.19,
+       "t_start": 162.08,
+       "t_end": 165.15,
        "asr_mean_conf": 0.746,
        "role": "context",
        "aligner_score": 0.96
@@ -11486,8 +11486,8 @@
        "char_end": 59,
        "quote": "We signed new wills in June, both of us, with the attorney.",
        "speaker_role": "client_secondary",
-       "t_start": 153.88,
-       "t_end": 158.43,
+       "t_start": 154.84,
+       "t_end": 159.39,
        "asr_mean_conf": 0.725,
        "role": "supports",
        "aligner_score": 0.96
@@ -11584,8 +11584,8 @@
        "char_end": 59,
        "quote": "We signed new wills in June, both of us, with the attorney.",
        "speaker_role": "client_secondary",
-       "t_start": 153.88,
-       "t_end": 158.43,
+       "t_start": 154.84,
+       "t_end": 159.39,
        "asr_mean_conf": 0.725,
        "role": "supports",
        "aligner_score": 0.96
@@ -11690,8 +11690,8 @@
        "char_end": 27,
        "quote": "We signed new wills in June",
        "speaker_role": "client_secondary",
-       "t_start": 153.88,
-       "t_end": 156.06,
+       "t_start": 154.84,
+       "t_end": 157.02,
        "asr_mean_conf": 0.693,
        "role": "supports",
        "aligner_score": 0.96
@@ -11790,8 +11790,8 @@
        "char_end": 27,
        "quote": "We signed new wills in June",
        "speaker_role": "client_secondary",
-       "t_start": 153.88,
-       "t_end": 156.06,
+       "t_start": 154.84,
+       "t_end": 157.02,
        "asr_mean_conf": 0.693,
        "role": "supports",
        "aligner_score": 0.96
@@ -11975,8 +11975,8 @@
        "char_end": 100,
        "quote": "over there it's more like four-fifty.",
        "speaker_role": "client_primary",
-       "t_start": 98.86,
-       "t_end": 101.19,
+       "t_start": 99.82,
+       "t_end": 102.15,
        "asr_mean_conf": 0.767,
        "role": "supports",
        "aligner_score": 0.96
@@ -11994,7 +11994,7 @@
       "note": null,
       "reason": null
      },
-     "derivation": "event_cost_from_education_difference",
+     "derivation": null,
      "term_resolution": null
     },
     "event[goal.kagiso_overseas_study].description": {
@@ -12067,8 +12067,8 @@
        "char_end": 70,
        "quote": "She might study overseas one day. My sister's kids all went to the UK.",
        "speaker_role": "client_secondary",
-       "t_start": 88.07,
-       "t_end": 93.21,
+       "t_start": 89.03,
+       "t_end": 94.17,
        "asr_mean_conf": 0.799,
        "role": "supports",
        "aligner_score": 0.96
@@ -12159,8 +12159,8 @@
        "char_end": 33,
        "quote": "She might study overseas one day.",
        "speaker_role": "client_secondary",
-       "t_start": 88.07,
-       "t_end": 90.25,
+       "t_start": 89.03,
+       "t_end": 91.21,
        "asr_mean_conf": 0.806,
        "role": "supports",
        "aligner_score": 0.96
@@ -12253,8 +12253,8 @@
        "char_end": 33,
        "quote": "She might study overseas one day.",
        "speaker_role": "client_secondary",
-       "t_start": 88.07,
-       "t_end": 90.25,
+       "t_start": 89.03,
+       "t_end": 91.21,
        "asr_mean_conf": 0.806,
        "role": "supports",
        "aligner_score": 0.96
@@ -12367,8 +12367,8 @@
        "char_end": 33,
        "quote": "She might study overseas one day.",
        "speaker_role": "client_secondary",
-       "t_start": 88.07,
-       "t_end": 90.25,
+       "t_start": 89.03,
+       "t_end": 91.21,
        "asr_mean_conf": 0.806,
        "role": "supports",
        "aligner_score": 0.96
@@ -12386,7 +12386,7 @@
       "note": null,
       "reason": null
      },
-     "derivation": "event_year_from_tertiary_start_age",
+     "derivation": null,
      "term_resolution": null
     },
     "expenses.items[bank-fees]": {
@@ -13554,8 +13554,8 @@
        "char_end": 38,
        "quote": "More like eleven now, with the prices.",
        "speaker_role": "client_secondary",
-       "t_start": 171.02,
-       "t_end": 173.57,
+       "t_start": 171.98,
+       "t_end": 174.53,
        "asr_mean_conf": 0.74,
        "role": "supports",
        "aligner_score": 0.96
@@ -13566,8 +13566,8 @@
        "char_end": 49,
        "quote": "still about nine thousand a month?",
        "speaker_role": "advisor",
-       "t_start": 168.3,
-       "t_end": 170.48,
+       "t_start": 169.26,
+       "t_end": 171.44,
        "asr_mean_conf": 0.773,
        "role": "context",
        "aligner_score": 0.96
@@ -16520,8 +16520,8 @@
        "char_end": 86,
        "quote": "The bonus is about a hundred and twenty, give or take, depending on how the year goes.",
        "speaker_role": "client_primary",
-       "t_start": 38.08,
-       "t_end": 44.48,
+       "t_start": 39.04,
+       "t_end": 45.44,
        "asr_mean_conf": 0.781,
        "role": "supports",
        "aligner_score": 0.96
@@ -16744,27 +16744,380 @@
      "group": "income",
      "tier": "A",
      "exported": true,
-     "status": "stated",
+     "status": "implied",
      "change": "confirmed",
      "source": "call",
      "value": {
       "unit": "ZAR",
       "period": "monthly",
       "basis": "gross",
-      "kind": "point",
-      "point": 55000
+      "kind": "mixture",
+      "p10": 53716.756791,
+      "p50": 55219.292869,
+      "p90": 56447.464523
      },
      "quantity": {
       "dist": {
-       "kind": "point",
-       "value": 55000
+       "kind": "mixture",
+       "components": [
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53469.949597825886
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53540.35925772889
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53626.255917866954
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53672.790281443304
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53716.756791280175
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53800.192684593574
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53873.05900807169
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 53961.92589831892
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54020.63858770639
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54074.083028948975
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54179.72688469427
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54246.12078202472
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54375.97953031486
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54471.06580297832
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54534.76289330466
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54622.66140786653
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54707.629147022584
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54735.13364614957
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54801.8077506739
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54839.051869032635
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 54921.63472202919
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55011.37911240586
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55072.56548949838
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55136.90735075866
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55219.29286879357
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55286.62072843985
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55340.10944228312
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55370.65959143095
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55441.457318055356
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55529.360660434155
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55640.013649101056
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55692.44871144067
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55761.208002351326
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55801.39002311189
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55843.755061838885
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55919.044294401225
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 55998.399277127406
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56064.83678329522
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56117.88913934091
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56148.94415020697
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56198.674423854594
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56281.97289522734
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56327.12499346921
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56374.98686511933
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56447.46452329038
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56495.459591686624
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56548.70637632382
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56610.728464252024
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56663.12998240642
+         }
+        ],
+        [
+         0.02,
+         {
+          "kind": "point",
+          "value": 56715.1076917684
+         }
+        ]
+       ]
       },
       "unit": "ZAR",
       "period": "monthly",
       "basis": "gross",
       "real_or_nominal": "na"
      },
-     "value_text": "R55,000 a month",
+     "value_text": "R53,717–R56,447, most likely R55,219 a month",
      "prior_value": {
       "unit": "ZAR",
       "period": "monthly",
@@ -16779,43 +17132,396 @@
         "unit": "ZAR",
         "period": "monthly",
         "basis": "gross",
-        "kind": "point",
-        "point": 55000
+        "kind": "mixture",
+        "p10": 53716.756791,
+        "p50": 55219.292869,
+        "p90": 56447.464523
        },
        "quantity": {
         "dist": {
-         "kind": "point",
-         "value": 55000
+         "kind": "mixture",
+         "components": [
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53469.949597825886
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53540.35925772889
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53626.255917866954
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53672.790281443304
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53716.756791280175
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53800.192684593574
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53873.05900807169
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 53961.92589831892
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54020.63858770639
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54074.083028948975
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54179.72688469427
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54246.12078202472
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54375.97953031486
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54471.06580297832
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54534.76289330466
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54622.66140786653
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54707.629147022584
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54735.13364614957
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54801.8077506739
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54839.051869032635
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 54921.63472202919
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55011.37911240586
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55072.56548949838
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55136.90735075866
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55219.29286879357
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55286.62072843985
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55340.10944228312
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55370.65959143095
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55441.457318055356
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55529.360660434155
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55640.013649101056
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55692.44871144067
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55761.208002351326
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55801.39002311189
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55843.755061838885
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55919.044294401225
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 55998.399277127406
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56064.83678329522
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56117.88913934091
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56148.94415020697
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56198.674423854594
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56281.97289522734
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56327.12499346921
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56374.98686511933
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56447.46452329038
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56495.459591686624
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56548.70637632382
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56610.728464252024
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56663.12998240642
+           }
+          ],
+          [
+           0.02,
+           {
+            "kind": "point",
+            "value": 56715.1076917684
+           }
+          ]
+         ]
         },
         "unit": "ZAR",
         "period": "monthly",
         "basis": "gross",
         "real_or_nominal": "na"
        },
-       "text": "R55,000 a month",
+       "text": "R53,717–R56,447, most likely R55,219 a month",
        "weight": 1.0,
-       "rationale": "'still fifty-five a month'",
+       "rationale": "grossed up from a net take-home of 42,000",
        "revises": false
       }
      ],
-     "p_correct": 0.97,
+     "p_correct": 0.93,
      "auto_accepted": false,
      "review_priority": 0.004,
-     "why": "Confirms the salary on file.",
+     "why": "Confirms the salary on file once her take-home pay is grossed up.",
      "speaker_attribution": "client",
-     "said": "still fifty-five a month",
-     "interpretation": "Lerato's gross salary is unchanged at R55,000 a month.",
+     "said": "I take home forty-two thousand a month, same as last year.",
+     "interpretation": "Lerato gave her take-home pay, R42,000 a month, and said it has not changed. The field holds gross salary, so the figure is grossed up through the tax tables (the derivation runs after extraction).",
      "hedges": [],
      "evidence": [
       {
        "segment_id": "s0006",
-       "char_start": 17,
-       "char_end": 41,
-       "quote": "still fifty-five a month",
+       "char_start": 13,
+       "char_end": 71,
+       "quote": "I take home forty-two thousand a month, same as last year.",
        "speaker_role": "client_secondary",
-       "t_start": 32.31,
-       "t_end": 33.9,
-       "asr_mean_conf": 0.818,
+       "t_start": 31.94,
+       "t_end": 36.12,
+       "asr_mean_conf": 0.804,
        "role": "supports",
        "aligner_score": 0.96
       }
@@ -16828,11 +17534,11 @@
       "reviewer_id": null,
       "reviewed_at": null,
       "original_value": null,
-      "original_status": null,
+      "original_status": "stated",
       "note": null,
       "reason": null
      },
-     "derivation": null,
+     "derivation": "gross_from_net",
      "term_resolution": null
     },
     "income.client.medicalAidPayrollMonthly": {
@@ -17548,8 +18254,8 @@
        "char_end": 46,
        "quote": "We still owe about eighteen fifty on the bond.",
        "speaker_role": "client_primary",
-       "t_start": 122.73,
-       "t_end": 126.02,
+       "t_start": 123.69,
+       "t_end": 126.98,
        "asr_mean_conf": 0.708,
        "role": "supports",
        "aligner_score": 0.96
@@ -23630,8 +24336,8 @@
        "char_end": 88,
        "quote": "I don't know the amount yet.",
        "speaker_role": "client_primary",
-       "t_start": 131.58,
-       "t_end": 133.76,
+       "t_start": 132.54,
+       "t_end": 134.72,
        "asr_mean_conf": 0.759,
        "role": "supports",
        "aligner_score": 0.96
@@ -25839,8 +26545,8 @@
        "char_end": 48,
        "quote": "disability cover through work",
        "speaker_role": "client_primary",
-       "t_start": 129.21,
-       "t_end": 130.8,
+       "t_start": 130.17,
+       "t_end": 131.76,
        "asr_mean_conf": 0.722,
        "role": "supports",
        "aligner_score": 0.96
@@ -26526,8 +27232,8 @@
        "char_end": 48,
        "quote": "disability cover through work",
        "speaker_role": "client_primary",
-       "t_start": 129.21,
-       "t_end": 130.8,
+       "t_start": 130.17,
+       "t_end": 131.76,
        "asr_mean_conf": 0.722,
        "role": "supports",
        "aligner_score": 0.96
@@ -27213,8 +27919,8 @@
        "char_end": 59,
        "quote": "I took out disability cover through work in August.",
        "speaker_role": "client_primary",
-       "t_start": 128.1,
-       "t_end": 131.54,
+       "t_start": 129.06,
+       "t_end": 132.5,
        "asr_mean_conf": 0.774,
        "role": "supports",
        "aligner_score": 0.96
@@ -29175,8 +29881,8 @@
        "char_end": 59,
        "quote": "I took out disability cover through work in August.",
        "speaker_role": "client_primary",
-       "t_start": 128.1,
-       "t_end": 131.54,
+       "t_start": 129.06,
+       "t_end": 132.5,
        "asr_mean_conf": 0.774,
        "role": "supports",
        "aligner_score": 0.96
@@ -30303,8 +31009,8 @@
        "char_end": 94,
        "quote": "somewhere between sixty and sixty-five. Probably sixty-two, if the numbers allow it.",
        "speaker_role": "client_primary",
-       "t_start": 52.65,
-       "t_end": 57.49,
+       "t_start": 53.61,
+       "t_end": 58.45,
        "asr_mean_conf": 0.807,
        "role": "supports",
        "aligner_score": 0.96
@@ -30315,8 +31021,8 @@
        "char_end": 71,
        "quote": "Last time we planned on sixty-five for you",
        "speaker_role": "advisor",
-       "t_start": 47.55,
-       "t_end": 50.62,
+       "t_start": 48.51,
+       "t_end": 51.58,
        "asr_mean_conf": 0.806,
        "role": "context",
        "aligner_score": 0.96
@@ -30668,8 +31374,8 @@
        "char_end": 83,
        "quote": "Most people in your position plan on about seventy percent of salary in retirement.",
        "speaker_role": "advisor",
-       "t_start": 58.23,
-       "t_end": 63.52,
+       "t_start": 59.19,
+       "t_end": 64.48,
        "asr_mean_conf": 0.801,
        "role": "supports",
        "aligner_score": 0.96
@@ -30680,8 +31386,8 @@
        "char_end": 49,
        "quote": "If you say so. I haven't really thought about it.",
        "speaker_role": "client_primary",
-       "t_start": 66.64,
-       "t_end": 70.3,
+       "t_start": 67.6,
+       "t_end": 71.26,
        "asr_mean_conf": 0.769,
        "role": "context",
        "aligner_score": 0.96
@@ -33893,8 +34599,8 @@
        "char_end": 48,
        "quote": "The RA is sitting at about three-fifty, I think.",
        "speaker_role": "client_primary",
-       "t_start": 108.82,
-       "t_end": 112.26,
+       "t_start": 109.78,
+       "t_end": 113.22,
        "asr_mean_conf": 0.776,
        "role": "supports",
        "aligner_score": 0.96
@@ -33905,8 +34611,8 @@
        "char_end": 62,
        "quote": "No, it's more like two-eighty. I saw the statement last month.",
        "speaker_role": "client_secondary",
-       "t_start": 111.8,
-       "t_end": 116.13,
+       "t_start": 112.76,
+       "t_end": 117.09,
        "asr_mean_conf": 0.742,
        "role": "contradicts",
        "aligner_score": 0.96
@@ -34357,27 +35063,31 @@
      "group": "risk_profile",
      "tier": "B",
      "exported": true,
-     "status": "not_discussed",
-     "change": "unchanged_not_discussed",
-     "source": "prior_fna",
+     "status": "implied",
+     "change": "changed",
+     "source": "derived",
      "value": {
       "unit": "none",
       "period": "none",
       "basis": "na",
-      "kind": "point",
-      "point": "3 – 6 months"
+      "kind": "categorical",
+      "probs": {
+       "6 – 12 months": 1.0
+      }
      },
      "quantity": {
       "dist": {
-       "kind": "point",
-       "value": "3 – 6 months"
+       "kind": "categorical",
+       "probs": {
+        "6 – 12 months": 1.0
+       }
       },
       "unit": "none",
       "period": "none",
       "basis": "na",
       "real_or_nominal": "na"
      },
-     "value_text": "3 – 6 months",
+     "value_text": "6 – 12 months (100%)",
      "prior_value": {
       "unit": "none",
       "period": "none",
@@ -34392,35 +35102,90 @@
         "unit": "none",
         "period": "none",
         "basis": "na",
-        "kind": "point",
-        "point": "3 – 6 months"
+        "kind": "categorical",
+        "probs": {
+         "6 – 12 months": 1.0
+        }
        },
        "quantity": {
         "dist": {
-         "kind": "point",
-         "value": "3 – 6 months"
+         "kind": "categorical",
+         "probs": {
+          "6 – 12 months": 1.0
+         }
         },
         "unit": "none",
         "period": "none",
         "basis": "na",
         "real_or_nominal": "na"
        },
-       "text": "3 – 6 months",
+       "text": "6 – 12 months (100%)",
        "weight": 1.0,
-       "rationale": "from the client's existing FNA",
+       "rationale": "derived: emergency_from_cash_flow",
        "revises": false
       }
      ],
-     "p_correct": 0.5,
+     "p_correct": 0.71,
      "auto_accepted": false,
-     "review_priority": 0.0,
+     "review_priority": 0.001,
      "why": null,
      "speaker_attribution": "client",
      "said": "",
      "interpretation": "",
      "hedges": [],
-     "evidence": [],
-     "entity_refs": [],
+     "evidence": [
+      {
+       "segment_id": "s0031",
+       "char_start": 0,
+       "char_end": 38,
+       "quote": "More like eleven now, with the prices.",
+       "speaker_role": "client_secondary",
+       "t_start": 171.98,
+       "t_end": 174.53,
+       "asr_mean_conf": 0.74,
+       "role": "supports",
+       "aligner_score": 0.96
+      },
+      {
+       "segment_id": "s0025",
+       "char_start": 0,
+       "char_end": 27,
+       "quote": "I bought a few Krugerrands.",
+       "speaker_role": "client_primary",
+       "t_start": 142.63,
+       "t_end": 144.59,
+       "asr_mean_conf": 0.706,
+       "role": "supports",
+       "aligner_score": 0.96
+      },
+      {
+       "segment_id": "s0025",
+       "char_start": 28,
+       "char_end": 55,
+       "quote": "They're in the safe at home",
+       "speaker_role": "client_primary",
+       "t_start": 144.63,
+       "t_end": 146.81,
+       "asr_mean_conf": 0.808,
+       "role": "supports",
+       "aligner_score": 0.96
+      },
+      {
+       "segment_id": "s0025",
+       "char_start": 0,
+       "char_end": 27,
+       "quote": "I bought a few Krugerrands.",
+       "speaker_role": "client_primary",
+       "t_start": 142.63,
+       "t_end": 144.59,
+       "asr_mean_conf": 0.706,
+       "role": "supports",
+       "aligner_score": 0.96
+      }
+     ],
+     "entity_refs": [
+      "property.krugerrands_new"
+     ],
      "review": {
       "status": "pending",
       "reviewer_id": null,
@@ -34430,7 +35195,7 @@
       "note": null,
       "reason": null
      },
-     "derivation": null,
+     "derivation": "emergency_from_cash_flow",
      "term_resolution": null
     },
     "riskProfile.answers[horizon]": {
@@ -34440,27 +35205,31 @@
      "group": "risk_profile",
      "tier": "B",
      "exported": true,
-     "status": "not_discussed",
-     "change": "unchanged_not_discussed",
-     "source": "prior_fna",
+     "status": "implied",
+     "change": "confirmed",
+     "source": "derived",
      "value": {
       "unit": "none",
       "period": "none",
       "basis": "na",
-      "kind": "point",
-      "point": "More than 10 years"
+      "kind": "categorical",
+      "probs": {
+       "More than 10 years": 1.0
+      }
      },
      "quantity": {
       "dist": {
-       "kind": "point",
-       "value": "More than 10 years"
+       "kind": "categorical",
+       "probs": {
+        "More than 10 years": 1.0
+       }
       },
       "unit": "none",
       "period": "none",
       "basis": "na",
       "real_or_nominal": "na"
      },
-     "value_text": "More than 10 years",
+     "value_text": "More than 10 years (100%)",
      "prior_value": {
       "unit": "none",
       "period": "none",
@@ -34475,35 +35244,54 @@
         "unit": "none",
         "period": "none",
         "basis": "na",
-        "kind": "point",
-        "point": "More than 10 years"
+        "kind": "categorical",
+        "probs": {
+         "More than 10 years": 1.0
+        }
        },
        "quantity": {
         "dist": {
-         "kind": "point",
-         "value": "More than 10 years"
+         "kind": "categorical",
+         "probs": {
+          "More than 10 years": 1.0
+         }
         },
         "unit": "none",
         "period": "none",
         "basis": "na",
         "real_or_nominal": "na"
        },
-       "text": "More than 10 years",
+       "text": "More than 10 years (100%)",
        "weight": 1.0,
-       "rationale": "from the client's existing FNA",
+       "rationale": "derived: horizon_from_retirement",
        "revises": false
       }
      ],
-     "p_correct": 0.5,
-     "auto_accepted": false,
+     "p_correct": 0.83,
+     "auto_accepted": true,
      "review_priority": 0.0,
      "why": null,
      "speaker_attribution": "client",
      "said": "",
      "interpretation": "",
      "hedges": [],
-     "evidence": [],
-     "entity_refs": [],
+     "evidence": [
+      {
+       "segment_id": "s0010",
+       "char_start": 10,
+       "char_end": 94,
+       "quote": "somewhere between sixty and sixty-five. Probably sixty-two, if the numbers allow it.",
+       "speaker_role": "client_primary",
+       "t_start": 53.61,
+       "t_end": 58.45,
+       "asr_mean_conf": 0.807,
+       "role": "supports",
+       "aligner_score": 0.96
+      }
+     ],
+     "entity_refs": [
+      "person.client_primary"
+     ],
      "review": {
       "status": "pending",
       "reviewer_id": null,
@@ -34513,7 +35301,7 @@
       "note": null,
       "reason": null
      },
-     "derivation": null,
+     "derivation": "horizon_from_retirement",
      "term_resolution": null
     },
     "riskProfile.answers[income-stability]": {
@@ -35687,8 +36475,8 @@
        "char_end": 25,
        "quote": "neither of us smokes.",
        "speaker_role": "client_primary",
-       "t_start": 185.04,
-       "t_end": 186.48,
+       "t_start": 186.0,
+       "t_end": 187.44,
        "asr_mean_conf": 0.749,
        "role": "supports",
        "aligner_score": 0.96
@@ -35785,8 +36573,8 @@
        "char_end": 25,
        "quote": "neither of us smokes.",
        "speaker_role": "client_primary",
-       "t_start": 185.04,
-       "t_end": 186.48,
+       "t_start": 186.0,
+       "t_end": 187.44,
        "asr_mean_conf": 0.749,
        "role": "supports",
        "aligner_score": 0.96
@@ -36650,7 +37438,7 @@
      "role_conf": 0.91,
      "diarization_conf": 0.88,
      "t_start": 31.2,
-     "t_end": 35.2,
+     "t_end": 36.16,
      "words": [
       {
        "text": "Still",
@@ -36662,88 +37450,115 @@
        "numeric_candidates": []
       },
       {
-       "text": "there,",
+       "text": "there.",
        "t_start": 31.57,
        "t_end": 31.9,
-       "conf": 0.869,
+       "conf": 0.622,
        "alts": [],
        "raw_spoken": null,
        "numeric_candidates": []
       },
       {
-       "text": "and",
+       "text": "I",
        "t_start": 31.94,
        "t_end": 32.27,
-       "conf": 0.686,
+       "conf": 0.913,
        "alts": [],
        "raw_spoken": null,
        "numeric_candidates": []
       },
       {
-       "text": "still",
+       "text": "take",
        "t_start": 32.31,
        "t_end": 32.64,
-       "conf": 0.895,
+       "conf": 0.668,
        "alts": [],
        "raw_spoken": null,
        "numeric_candidates": []
       },
       {
-       "text": "fifty-five",
+       "text": "home",
        "t_start": 32.68,
-       "t_end": 33.16,
-       "conf": 0.894,
+       "t_end": 33.01,
+       "conf": 0.779,
+       "alts": [],
+       "raw_spoken": null,
+       "numeric_candidates": []
+      },
+      {
+       "text": "forty-two",
+       "t_start": 33.05,
+       "t_end": 33.53,
+       "conf": 0.806,
+       "alts": [],
+       "raw_spoken": null,
+       "numeric_candidates": []
+      },
+      {
+       "text": "thousand",
+       "t_start": 33.57,
+       "t_end": 33.9,
+       "conf": 0.853,
        "alts": [],
        "raw_spoken": null,
        "numeric_candidates": []
       },
       {
        "text": "a",
-       "t_start": 33.2,
-       "t_end": 33.53,
-       "conf": 0.797,
-       "alts": [],
-       "raw_spoken": null,
-       "numeric_candidates": []
-      },
-      {
-       "text": "month.",
-       "t_start": 33.57,
-       "t_end": 33.9,
-       "conf": 0.685,
-       "alts": [],
-       "raw_spoken": null,
-       "numeric_candidates": []
-      },
-      {
-       "text": "No",
        "t_start": 33.94,
        "t_end": 34.27,
-       "conf": 0.909,
+       "conf": 0.726,
        "alts": [],
        "raw_spoken": null,
        "numeric_candidates": []
       },
       {
-       "text": "change,",
+       "text": "month,",
        "t_start": 34.31,
        "t_end": 34.64,
-       "conf": 0.872,
+       "conf": 0.917,
        "alts": [],
        "raw_spoken": null,
        "numeric_candidates": []
       },
       {
-       "text": "unfortunately.",
+       "text": "same",
        "t_start": 34.68,
-       "t_end": 35.16,
-       "conf": 0.68,
+       "t_end": 35.01,
+       "conf": 0.803,
+       "alts": [],
+       "raw_spoken": null,
+       "numeric_candidates": []
+      },
+      {
+       "text": "as",
+       "t_start": 35.05,
+       "t_end": 35.38,
+       "conf": 0.701,
+       "alts": [],
+       "raw_spoken": null,
+       "numeric_candidates": []
+      },
+      {
+       "text": "last",
+       "t_start": 35.42,
+       "t_end": 35.75,
+       "conf": 0.851,
+       "alts": [],
+       "raw_spoken": null,
+       "numeric_candidates": []
+      },
+      {
+       "text": "year.",
+       "t_start": 35.79,
+       "t_end": 36.12,
+       "conf": 0.828,
        "alts": [],
        "raw_spoken": null,
        "numeric_candidates": []
       }
      ],
-     "text": "Still there, and still fifty-five a month. No change, unfortunately.",
+     "text": "Still there. I take home forty-two thousand a month, same as last year.",
      "rewritten_text": null,
      "flags": []
     },
@@ -36753,13 +37568,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 35.8,
-     "t_end": 37.28,
+     "t_start": 36.76,
+     "t_end": 38.24,
      "words": [
       {
        "text": "And",
-       "t_start": 35.8,
-       "t_end": 36.13,
+       "t_start": 36.76,
+       "t_end": 37.09,
        "conf": 0.654,
        "alts": [],
        "raw_spoken": null,
@@ -36767,8 +37582,8 @@
       },
       {
        "text": "the",
-       "t_start": 36.17,
-       "t_end": 36.5,
+       "t_start": 37.13,
+       "t_end": 37.46,
        "conf": 0.943,
        "alts": [],
        "raw_spoken": null,
@@ -36776,8 +37591,8 @@
       },
       {
        "text": "bonus,",
-       "t_start": 36.54,
-       "t_end": 36.87,
+       "t_start": 37.5,
+       "t_end": 37.83,
        "conf": 0.882,
        "alts": [],
        "raw_spoken": null,
@@ -36785,8 +37600,8 @@
       },
       {
        "text": "Thabo?",
-       "t_start": 36.91,
-       "t_end": 37.24,
+       "t_start": 37.87,
+       "t_end": 38.2,
        "conf": 0.873,
        "alts": [],
        "raw_spoken": null,
@@ -36803,13 +37618,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 38.08,
-     "t_end": 44.52,
+     "t_start": 39.04,
+     "t_end": 45.48,
      "words": [
       {
        "text": "The",
-       "t_start": 38.08,
-       "t_end": 38.41,
+       "t_start": 39.04,
+       "t_end": 39.37,
        "conf": 0.751,
        "alts": [],
        "raw_spoken": null,
@@ -36817,8 +37632,8 @@
       },
       {
        "text": "bonus",
-       "t_start": 38.45,
-       "t_end": 38.78,
+       "t_start": 39.41,
+       "t_end": 39.74,
        "conf": 0.775,
        "alts": [],
        "raw_spoken": null,
@@ -36826,8 +37641,8 @@
       },
       {
        "text": "is",
-       "t_start": 38.82,
-       "t_end": 39.15,
+       "t_start": 39.78,
+       "t_end": 40.11,
        "conf": 0.65,
        "alts": [],
        "raw_spoken": null,
@@ -36835,8 +37650,8 @@
       },
       {
        "text": "about",
-       "t_start": 39.19,
-       "t_end": 39.52,
+       "t_start": 40.15,
+       "t_end": 40.48,
        "conf": 0.873,
        "alts": [],
        "raw_spoken": null,
@@ -36844,8 +37659,8 @@
       },
       {
        "text": "a",
-       "t_start": 39.56,
-       "t_end": 39.89,
+       "t_start": 40.52,
+       "t_end": 40.85,
        "conf": 0.854,
        "alts": [],
        "raw_spoken": null,
@@ -36853,8 +37668,8 @@
       },
       {
        "text": "hundred",
-       "t_start": 39.93,
-       "t_end": 40.26,
+       "t_start": 40.89,
+       "t_end": 41.22,
        "conf": 0.686,
        "alts": [],
        "raw_spoken": null,
@@ -36862,8 +37677,8 @@
       },
       {
        "text": "and",
-       "t_start": 40.3,
-       "t_end": 40.63,
+       "t_start": 41.26,
+       "t_end": 41.59,
        "conf": 0.926,
        "alts": [],
        "raw_spoken": null,
@@ -36871,8 +37686,8 @@
       },
       {
        "text": "twenty,",
-       "t_start": 40.67,
-       "t_end": 41.0,
+       "t_start": 41.63,
+       "t_end": 41.96,
        "conf": 0.846,
        "alts": [],
        "raw_spoken": null,
@@ -36880,8 +37695,8 @@
       },
       {
        "text": "give",
-       "t_start": 41.04,
-       "t_end": 41.37,
+       "t_start": 42.0,
+       "t_end": 42.33,
        "conf": 0.817,
        "alts": [],
        "raw_spoken": null,
@@ -36889,8 +37704,8 @@
       },
       {
        "text": "or",
-       "t_start": 41.41,
-       "t_end": 41.74,
+       "t_start": 42.37,
+       "t_end": 42.7,
        "conf": 0.625,
        "alts": [],
        "raw_spoken": null,
@@ -36898,8 +37713,8 @@
       },
       {
        "text": "take,",
-       "t_start": 41.78,
-       "t_end": 42.11,
+       "t_start": 42.74,
+       "t_end": 43.07,
        "conf": 0.842,
        "alts": [],
        "raw_spoken": null,
@@ -36907,8 +37722,8 @@
       },
       {
        "text": "depending",
-       "t_start": 42.15,
-       "t_end": 42.63,
+       "t_start": 43.11,
+       "t_end": 43.59,
        "conf": 0.832,
        "alts": [],
        "raw_spoken": null,
@@ -36916,8 +37731,8 @@
       },
       {
        "text": "on",
-       "t_start": 42.67,
-       "t_end": 43.0,
+       "t_start": 43.63,
+       "t_end": 43.96,
        "conf": 0.906,
        "alts": [],
        "raw_spoken": null,
@@ -36925,8 +37740,8 @@
       },
       {
        "text": "how",
-       "t_start": 43.04,
-       "t_end": 43.37,
+       "t_start": 44.0,
+       "t_end": 44.33,
        "conf": 0.751,
        "alts": [],
        "raw_spoken": null,
@@ -36934,8 +37749,8 @@
       },
       {
        "text": "the",
-       "t_start": 43.41,
-       "t_end": 43.74,
+       "t_start": 44.37,
+       "t_end": 44.7,
        "conf": 0.799,
        "alts": [],
        "raw_spoken": null,
@@ -36943,8 +37758,8 @@
       },
       {
        "text": "year",
-       "t_start": 43.78,
-       "t_end": 44.11,
+       "t_start": 44.74,
+       "t_end": 45.07,
        "conf": 0.668,
        "alts": [],
        "raw_spoken": null,
@@ -36952,8 +37767,8 @@
       },
       {
        "text": "goes.",
-       "t_start": 44.15,
-       "t_end": 44.48,
+       "t_start": 45.11,
+       "t_end": 45.44,
        "conf": 0.68,
        "alts": [],
        "raw_spoken": null,
@@ -36970,13 +37785,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 45.92,
-     "t_end": 51.03,
+     "t_start": 46.88,
+     "t_end": 51.99,
      "words": [
       {
        "text": "Let's",
-       "t_start": 45.92,
-       "t_end": 46.25,
+       "t_start": 46.88,
+       "t_end": 47.21,
        "conf": 0.637,
        "alts": [],
        "raw_spoken": null,
@@ -36984,8 +37799,8 @@
       },
       {
        "text": "talk",
-       "t_start": 46.29,
-       "t_end": 46.62,
+       "t_start": 47.25,
+       "t_end": 47.58,
        "conf": 0.622,
        "alts": [],
        "raw_spoken": null,
@@ -36993,8 +37808,8 @@
       },
       {
        "text": "about",
-       "t_start": 46.66,
-       "t_end": 46.99,
+       "t_start": 47.62,
+       "t_end": 47.95,
        "conf": 0.842,
        "alts": [],
        "raw_spoken": null,
@@ -37002,8 +37817,8 @@
       },
       {
        "text": "retirement.",
-       "t_start": 47.03,
-       "t_end": 47.51,
+       "t_start": 47.99,
+       "t_end": 48.47,
        "conf": 0.659,
        "alts": [],
        "raw_spoken": null,
@@ -37011,8 +37826,8 @@
       },
       {
        "text": "Last",
-       "t_start": 47.55,
-       "t_end": 47.88,
+       "t_start": 48.51,
+       "t_end": 48.84,
        "conf": 0.926,
        "alts": [],
        "raw_spoken": null,
@@ -37020,8 +37835,8 @@
       },
       {
        "text": "time",
-       "t_start": 47.92,
-       "t_end": 48.25,
+       "t_start": 48.88,
+       "t_end": 49.21,
        "conf": 0.713,
        "alts": [],
        "raw_spoken": null,
@@ -37029,8 +37844,8 @@
       },
       {
        "text": "we",
-       "t_start": 48.29,
-       "t_end": 48.62,
+       "t_start": 49.25,
+       "t_end": 49.58,
        "conf": 0.901,
        "alts": [],
        "raw_spoken": null,
@@ -37038,8 +37853,8 @@
       },
       {
        "text": "planned",
-       "t_start": 48.66,
-       "t_end": 48.99,
+       "t_start": 49.62,
+       "t_end": 49.95,
        "conf": 0.718,
        "alts": [],
        "raw_spoken": null,
@@ -37047,8 +37862,8 @@
       },
       {
        "text": "on",
-       "t_start": 49.03,
-       "t_end": 49.36,
+       "t_start": 49.99,
+       "t_end": 50.32,
        "conf": 0.762,
        "alts": [],
        "raw_spoken": null,
@@ -37056,8 +37871,8 @@
       },
       {
        "text": "sixty-five",
-       "t_start": 49.4,
-       "t_end": 49.88,
+       "t_start": 50.36,
+       "t_end": 50.84,
        "conf": 0.702,
        "alts": [],
        "raw_spoken": null,
@@ -37065,8 +37880,8 @@
       },
       {
        "text": "for",
-       "t_start": 49.92,
-       "t_end": 50.25,
+       "t_start": 50.88,
+       "t_end": 51.21,
        "conf": 0.896,
        "alts": [],
        "raw_spoken": null,
@@ -37074,8 +37889,8 @@
       },
       {
        "text": "you,",
-       "t_start": 50.29,
-       "t_end": 50.62,
+       "t_start": 51.25,
+       "t_end": 51.58,
        "conf": 0.834,
        "alts": [],
        "raw_spoken": null,
@@ -37083,8 +37898,8 @@
       },
       {
        "text": "Thabo.",
-       "t_start": 50.66,
-       "t_end": 50.99,
+       "t_start": 51.62,
+       "t_end": 51.95,
        "conf": 0.734,
        "alts": [],
        "raw_spoken": null,
@@ -37101,13 +37916,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 52.13,
-     "t_end": 57.53,
+     "t_start": 53.09,
+     "t_end": 58.49,
      "words": [
       {
        "text": "Honestly,",
-       "t_start": 52.13,
-       "t_end": 52.61,
+       "t_start": 53.09,
+       "t_end": 53.57,
        "conf": 0.731,
        "alts": [],
        "raw_spoken": null,
@@ -37115,8 +37930,8 @@
       },
       {
        "text": "somewhere",
-       "t_start": 52.65,
-       "t_end": 53.13,
+       "t_start": 53.61,
+       "t_end": 54.09,
        "conf": 0.717,
        "alts": [],
        "raw_spoken": null,
@@ -37124,8 +37939,8 @@
       },
       {
        "text": "between",
-       "t_start": 53.17,
-       "t_end": 53.5,
+       "t_start": 54.13,
+       "t_end": 54.46,
        "conf": 0.877,
        "alts": [],
        "raw_spoken": null,
@@ -37133,8 +37948,8 @@
       },
       {
        "text": "sixty",
-       "t_start": 53.54,
-       "t_end": 53.87,
+       "t_start": 54.5,
+       "t_end": 54.83,
        "conf": 0.921,
        "alts": [],
        "raw_spoken": null,
@@ -37142,8 +37957,8 @@
       },
       {
        "text": "and",
-       "t_start": 53.91,
-       "t_end": 54.24,
+       "t_start": 54.87,
+       "t_end": 55.2,
        "conf": 0.743,
        "alts": [],
        "raw_spoken": null,
@@ -37151,8 +37966,8 @@
       },
       {
        "text": "sixty-five.",
-       "t_start": 54.28,
-       "t_end": 54.75,
+       "t_start": 55.24,
+       "t_end": 55.71,
        "conf": 0.703,
        "alts": [],
        "raw_spoken": null,
@@ -37160,8 +37975,8 @@
       },
       {
        "text": "Probably",
-       "t_start": 54.79,
-       "t_end": 55.12,
+       "t_start": 55.75,
+       "t_end": 56.08,
        "conf": 0.872,
        "alts": [],
        "raw_spoken": null,
@@ -37169,8 +37984,8 @@
       },
       {
        "text": "sixty-two,",
-       "t_start": 55.16,
-       "t_end": 55.64,
+       "t_start": 56.12,
+       "t_end": 56.6,
        "conf": 0.772,
        "alts": [],
        "raw_spoken": null,
@@ -37178,8 +37993,8 @@
       },
       {
        "text": "if",
-       "t_start": 55.68,
-       "t_end": 56.01,
+       "t_start": 56.64,
+       "t_end": 56.97,
        "conf": 0.948,
        "alts": [],
        "raw_spoken": null,
@@ -37187,8 +38002,8 @@
       },
       {
        "text": "the",
-       "t_start": 56.05,
-       "t_end": 56.38,
+       "t_start": 57.01,
+       "t_end": 57.34,
        "conf": 0.632,
        "alts": [],
        "raw_spoken": null,
@@ -37196,8 +38011,8 @@
       },
       {
        "text": "numbers",
-       "t_start": 56.42,
-       "t_end": 56.75,
+       "t_start": 57.38,
+       "t_end": 57.71,
        "conf": 0.843,
        "alts": [],
        "raw_spoken": null,
@@ -37205,8 +38020,8 @@
       },
       {
        "text": "allow",
-       "t_start": 56.79,
-       "t_end": 57.12,
+       "t_start": 57.75,
+       "t_end": 58.08,
        "conf": 0.924,
        "alts": [],
        "raw_spoken": null,
@@ -37214,8 +38029,8 @@
       },
       {
        "text": "it.",
-       "t_start": 57.16,
-       "t_end": 57.49,
+       "t_start": 58.12,
+       "t_end": 58.45,
        "conf": 0.738,
        "alts": [],
        "raw_spoken": null,
@@ -37232,13 +38047,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 58.23,
-     "t_end": 65.04,
+     "t_start": 59.19,
+     "t_end": 66.0,
      "words": [
       {
        "text": "Most",
-       "t_start": 58.23,
-       "t_end": 58.56,
+       "t_start": 59.19,
+       "t_end": 59.52,
        "conf": 0.912,
        "alts": [],
        "raw_spoken": null,
@@ -37246,8 +38061,8 @@
       },
       {
        "text": "people",
-       "t_start": 58.6,
-       "t_end": 58.93,
+       "t_start": 59.56,
+       "t_end": 59.89,
        "conf": 0.917,
        "alts": [],
        "raw_spoken": null,
@@ -37255,8 +38070,8 @@
       },
       {
        "text": "in",
-       "t_start": 58.97,
-       "t_end": 59.3,
+       "t_start": 59.93,
+       "t_end": 60.26,
        "conf": 0.665,
        "alts": [],
        "raw_spoken": null,
@@ -37264,8 +38079,8 @@
       },
       {
        "text": "your",
-       "t_start": 59.34,
-       "t_end": 59.67,
+       "t_start": 60.3,
+       "t_end": 60.63,
        "conf": 0.943,
        "alts": [],
        "raw_spoken": null,
@@ -37273,8 +38088,8 @@
       },
       {
        "text": "position",
-       "t_start": 59.71,
-       "t_end": 60.04,
+       "t_start": 60.67,
+       "t_end": 61.0,
        "conf": 0.815,
        "alts": [],
        "raw_spoken": null,
@@ -37282,8 +38097,8 @@
       },
       {
        "text": "plan",
-       "t_start": 60.08,
-       "t_end": 60.41,
+       "t_start": 61.04,
+       "t_end": 61.37,
        "conf": 0.707,
        "alts": [],
        "raw_spoken": null,
@@ -37291,8 +38106,8 @@
       },
       {
        "text": "on",
-       "t_start": 60.45,
-       "t_end": 60.78,
+       "t_start": 61.41,
+       "t_end": 61.74,
        "conf": 0.829,
        "alts": [],
        "raw_spoken": null,
@@ -37300,8 +38115,8 @@
       },
       {
        "text": "about",
-       "t_start": 60.82,
-       "t_end": 61.15,
+       "t_start": 61.78,
+       "t_end": 62.11,
        "conf": 0.935,
        "alts": [],
        "raw_spoken": null,
@@ -37309,8 +38124,8 @@
       },
       {
        "text": "seventy",
-       "t_start": 61.19,
-       "t_end": 61.52,
+       "t_start": 62.15,
+       "t_end": 62.48,
        "conf": 0.678,
        "alts": [],
        "raw_spoken": null,
@@ -37318,8 +38133,8 @@
       },
       {
        "text": "percent",
-       "t_start": 61.56,
-       "t_end": 61.89,
+       "t_start": 62.52,
+       "t_end": 62.85,
        "conf": 0.746,
        "alts": [],
        "raw_spoken": null,
@@ -37327,8 +38142,8 @@
       },
       {
        "text": "of",
-       "t_start": 61.93,
-       "t_end": 62.26,
+       "t_start": 62.89,
+       "t_end": 63.22,
        "conf": 0.84,
        "alts": [],
        "raw_spoken": null,
@@ -37336,8 +38151,8 @@
       },
       {
        "text": "salary",
-       "t_start": 62.3,
-       "t_end": 62.63,
+       "t_start": 63.26,
+       "t_end": 63.59,
        "conf": 0.677,
        "alts": [],
        "raw_spoken": null,
@@ -37345,8 +38160,8 @@
       },
       {
        "text": "in",
-       "t_start": 62.67,
-       "t_end": 63.0,
+       "t_start": 63.63,
+       "t_end": 63.96,
        "conf": 0.794,
        "alts": [],
        "raw_spoken": null,
@@ -37354,8 +38169,8 @@
       },
       {
        "text": "retirement.",
-       "t_start": 63.04,
-       "t_end": 63.52,
+       "t_start": 64.0,
+       "t_end": 64.48,
        "conf": 0.752,
        "alts": [],
        "raw_spoken": null,
@@ -37363,8 +38178,8 @@
       },
       {
        "text": "Shall",
-       "t_start": 63.56,
-       "t_end": 63.89,
+       "t_start": 64.52,
+       "t_end": 64.85,
        "conf": 0.672,
        "alts": [],
        "raw_spoken": null,
@@ -37372,8 +38187,8 @@
       },
       {
        "text": "we",
-       "t_start": 63.93,
-       "t_end": 64.26,
+       "t_start": 64.89,
+       "t_end": 65.22,
        "conf": 0.845,
        "alts": [],
        "raw_spoken": null,
@@ -37381,8 +38196,8 @@
       },
       {
        "text": "use",
-       "t_start": 64.3,
-       "t_end": 64.63,
+       "t_start": 65.26,
+       "t_end": 65.59,
        "conf": 0.87,
        "alts": [],
        "raw_spoken": null,
@@ -37390,8 +38205,8 @@
       },
       {
        "text": "that?",
-       "t_start": 64.67,
-       "t_end": 65.0,
+       "t_start": 65.63,
+       "t_end": 65.96,
        "conf": 0.848,
        "alts": [],
        "raw_spoken": null,
@@ -37408,13 +38223,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 66.64,
-     "t_end": 70.34,
+     "t_start": 67.6,
+     "t_end": 71.3,
      "words": [
       {
        "text": "If",
-       "t_start": 66.64,
-       "t_end": 66.97,
+       "t_start": 67.6,
+       "t_end": 67.93,
        "conf": 0.702,
        "alts": [],
        "raw_spoken": null,
@@ -37422,8 +38237,8 @@
       },
       {
        "text": "you",
-       "t_start": 67.01,
-       "t_end": 67.34,
+       "t_start": 67.97,
+       "t_end": 68.3,
        "conf": 0.815,
        "alts": [],
        "raw_spoken": null,
@@ -37431,8 +38246,8 @@
       },
       {
        "text": "say",
-       "t_start": 67.38,
-       "t_end": 67.71,
+       "t_start": 68.34,
+       "t_end": 68.67,
        "conf": 0.77,
        "alts": [],
        "raw_spoken": null,
@@ -37440,8 +38255,8 @@
       },
       {
        "text": "so.",
-       "t_start": 67.75,
-       "t_end": 68.08,
+       "t_start": 68.71,
+       "t_end": 69.04,
        "conf": 0.722,
        "alts": [],
        "raw_spoken": null,
@@ -37449,8 +38264,8 @@
       },
       {
        "text": "I",
-       "t_start": 68.12,
-       "t_end": 68.45,
+       "t_start": 69.08,
+       "t_end": 69.41,
        "conf": 0.822,
        "alts": [],
        "raw_spoken": null,
@@ -37458,8 +38273,8 @@
       },
       {
        "text": "haven't",
-       "t_start": 68.49,
-       "t_end": 68.82,
+       "t_start": 69.45,
+       "t_end": 69.78,
        "conf": 0.81,
        "alts": [],
        "raw_spoken": null,
@@ -37467,8 +38282,8 @@
       },
       {
        "text": "really",
-       "t_start": 68.86,
-       "t_end": 69.19,
+       "t_start": 69.82,
+       "t_end": 70.15,
        "conf": 0.853,
        "alts": [],
        "raw_spoken": null,
@@ -37476,8 +38291,8 @@
       },
       {
        "text": "thought",
-       "t_start": 69.23,
-       "t_end": 69.56,
+       "t_start": 70.19,
+       "t_end": 70.52,
        "conf": 0.812,
        "alts": [],
        "raw_spoken": null,
@@ -37485,8 +38300,8 @@
       },
       {
        "text": "about",
-       "t_start": 69.6,
-       "t_end": 69.93,
+       "t_start": 70.56,
+       "t_end": 70.89,
        "conf": 0.747,
        "alts": [],
        "raw_spoken": null,
@@ -37494,8 +38309,8 @@
       },
       {
        "text": "it.",
-       "t_start": 69.97,
-       "t_end": 70.3,
+       "t_start": 70.93,
+       "t_end": 71.26,
        "conf": 0.638,
        "alts": [],
        "raw_spoken": null,
@@ -37512,13 +38327,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 71.34,
-     "t_end": 75.34,
+     "t_start": 72.3,
+     "t_end": 76.3,
      "words": [
       {
        "text": "Now",
-       "t_start": 71.34,
-       "t_end": 71.67,
+       "t_start": 72.3,
+       "t_end": 72.63,
        "conf": 0.664,
        "alts": [],
        "raw_spoken": null,
@@ -37526,8 +38341,8 @@
       },
       {
        "text": "the",
-       "t_start": 71.71,
-       "t_end": 72.04,
+       "t_start": 72.67,
+       "t_end": 73.0,
        "conf": 0.768,
        "alts": [],
        "raw_spoken": null,
@@ -37535,8 +38350,8 @@
       },
       {
        "text": "children.",
-       "t_start": 72.08,
-       "t_end": 72.56,
+       "t_start": 73.04,
+       "t_end": 73.52,
        "conf": 0.832,
        "alts": [],
        "raw_spoken": null,
@@ -37544,8 +38359,8 @@
       },
       {
        "text": "Neo",
-       "t_start": 72.6,
-       "t_end": 72.93,
+       "t_start": 73.56,
+       "t_end": 73.89,
        "conf": 0.858,
        "alts": [],
        "raw_spoken": null,
@@ -37553,8 +38368,8 @@
       },
       {
        "text": "is",
-       "t_start": 72.97,
-       "t_end": 73.3,
+       "t_start": 73.93,
+       "t_end": 74.26,
        "conf": 0.705,
        "alts": [],
        "raw_spoken": null,
@@ -37562,8 +38377,8 @@
       },
       {
        "text": "still",
-       "t_start": 73.34,
-       "t_end": 73.67,
+       "t_start": 74.3,
+       "t_end": 74.63,
        "conf": 0.848,
        "alts": [],
        "raw_spoken": null,
@@ -37571,8 +38386,8 @@
       },
       {
        "text": "at",
-       "t_start": 73.71,
-       "t_end": 74.04,
+       "t_start": 74.67,
+       "t_end": 75.0,
        "conf": 0.756,
        "alts": [],
        "raw_spoken": null,
@@ -37580,8 +38395,8 @@
       },
       {
        "text": "the",
-       "t_start": 74.08,
-       "t_end": 74.41,
+       "t_start": 75.04,
+       "t_end": 75.37,
        "conf": 0.797,
        "alts": [],
        "raw_spoken": null,
@@ -37589,8 +38404,8 @@
       },
       {
        "text": "independent",
-       "t_start": 74.45,
-       "t_end": 74.93,
+       "t_start": 75.41,
+       "t_end": 75.89,
        "conf": 0.659,
        "alts": [],
        "raw_spoken": null,
@@ -37598,8 +38413,8 @@
       },
       {
        "text": "school?",
-       "t_start": 74.97,
-       "t_end": 75.3,
+       "t_start": 75.93,
+       "t_end": 76.26,
        "conf": 0.843,
        "alts": [],
        "raw_spoken": null,
@@ -37616,13 +38431,13 @@
      "speaker_role": "client_secondary",
      "role_conf": 0.91,
      "diarization_conf": 0.88,
-     "t_start": 75.94,
-     "t_end": 82.23,
+     "t_start": 76.9,
+     "t_end": 83.19,
      "words": [
       {
        "text": "Yes,",
-       "t_start": 75.94,
-       "t_end": 76.27,
+       "t_start": 76.9,
+       "t_end": 77.23,
        "conf": 0.716,
        "alts": [],
        "raw_spoken": null,
@@ -37630,8 +38445,8 @@
       },
       {
        "text": "and",
-       "t_start": 76.31,
-       "t_end": 76.64,
+       "t_start": 77.27,
+       "t_end": 77.6,
        "conf": 0.684,
        "alts": [],
        "raw_spoken": null,
@@ -37639,8 +38454,8 @@
       },
       {
        "text": "the",
-       "t_start": 76.68,
-       "t_end": 77.01,
+       "t_start": 77.64,
+       "t_end": 77.97,
        "conf": 0.684,
        "alts": [],
        "raw_spoken": null,
@@ -37648,8 +38463,8 @@
       },
       {
        "text": "fees",
-       "t_start": 77.05,
-       "t_end": 77.38,
+       "t_start": 78.01,
+       "t_end": 78.34,
        "conf": 0.701,
        "alts": [],
        "raw_spoken": null,
@@ -37657,8 +38472,8 @@
       },
       {
        "text": "went",
-       "t_start": 77.42,
-       "t_end": 77.75,
+       "t_start": 78.38,
+       "t_end": 78.71,
        "conf": 0.77,
        "alts": [],
        "raw_spoken": null,
@@ -37666,8 +38481,8 @@
       },
       {
        "text": "up.",
-       "t_start": 77.79,
-       "t_end": 78.12,
+       "t_start": 78.75,
+       "t_end": 79.08,
        "conf": 0.913,
        "alts": [],
        "raw_spoken": null,
@@ -37675,8 +38490,8 @@
       },
       {
        "text": "It's",
-       "t_start": 78.16,
-       "t_end": 78.49,
+       "t_start": 79.12,
+       "t_end": 79.45,
        "conf": 0.748,
        "alts": [],
        "raw_spoken": null,
@@ -37684,8 +38499,8 @@
       },
       {
        "text": "about",
-       "t_start": 78.53,
-       "t_end": 78.86,
+       "t_start": 79.49,
+       "t_end": 79.82,
        "conf": 0.801,
        "alts": [],
        "raw_spoken": null,
@@ -37693,8 +38508,8 @@
       },
       {
        "text": "a",
-       "t_start": 78.9,
-       "t_end": 79.23,
+       "t_start": 79.86,
+       "t_end": 80.19,
        "conf": 0.786,
        "alts": [],
        "raw_spoken": null,
@@ -37702,8 +38517,8 @@
       },
       {
        "text": "hundred",
-       "t_start": 79.27,
-       "t_end": 79.6,
+       "t_start": 80.23,
+       "t_end": 80.56,
        "conf": 0.72,
        "alts": [],
        "raw_spoken": null,
@@ -37711,8 +38526,8 @@
       },
       {
        "text": "and",
-       "t_start": 79.64,
-       "t_end": 79.97,
+       "t_start": 80.6,
+       "t_end": 80.93,
        "conf": 0.939,
        "alts": [],
        "raw_spoken": null,
@@ -37720,8 +38535,8 @@
       },
       {
        "text": "five",
-       "t_start": 80.01,
-       "t_end": 80.34,
+       "t_start": 80.97,
+       "t_end": 81.3,
        "conf": 0.839,
        "alts": [],
        "raw_spoken": null,
@@ -37729,8 +38544,8 @@
       },
       {
        "text": "thousand",
-       "t_start": 80.38,
-       "t_end": 80.71,
+       "t_start": 81.34,
+       "t_end": 81.67,
        "conf": 0.676,
        "alts": [],
        "raw_spoken": null,
@@ -37738,8 +38553,8 @@
       },
       {
        "text": "for",
-       "t_start": 80.75,
-       "t_end": 81.08,
+       "t_start": 81.71,
+       "t_end": 82.04,
        "conf": 0.791,
        "alts": [],
        "raw_spoken": null,
@@ -37747,8 +38562,8 @@
       },
       {
        "text": "the",
-       "t_start": 81.12,
-       "t_end": 81.45,
+       "t_start": 82.08,
+       "t_end": 82.41,
        "conf": 0.785,
        "alts": [],
        "raw_spoken": null,
@@ -37756,8 +38571,8 @@
       },
       {
        "text": "year",
-       "t_start": 81.49,
-       "t_end": 81.82,
+       "t_start": 82.45,
+       "t_end": 82.78,
        "conf": 0.859,
        "alts": [],
        "raw_spoken": null,
@@ -37765,8 +38580,8 @@
       },
       {
        "text": "now.",
-       "t_start": 81.86,
-       "t_end": 82.19,
+       "t_start": 82.82,
+       "t_end": 83.15,
        "conf": 0.883,
        "alts": [],
        "raw_spoken": null,
@@ -37783,13 +38598,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 82.73,
-     "t_end": 87.17,
+     "t_start": 83.69,
+     "t_end": 88.13,
      "words": [
       {
        "text": "And",
-       "t_start": 82.73,
-       "t_end": 83.06,
+       "t_start": 83.69,
+       "t_end": 84.02,
        "conf": 0.839,
        "alts": [],
        "raw_spoken": null,
@@ -37797,8 +38612,8 @@
       },
       {
        "text": "we're",
-       "t_start": 83.1,
-       "t_end": 83.43,
+       "t_start": 84.06,
+       "t_end": 84.39,
        "conf": 0.938,
        "alts": [],
        "raw_spoken": null,
@@ -37806,8 +38621,8 @@
       },
       {
        "text": "thinking",
-       "t_start": 83.47,
-       "t_end": 83.8,
+       "t_start": 84.43,
+       "t_end": 84.76,
        "conf": 0.714,
        "alts": [],
        "raw_spoken": null,
@@ -37815,8 +38630,8 @@
       },
       {
        "text": "of",
-       "t_start": 83.84,
-       "t_end": 84.17,
+       "t_start": 84.8,
+       "t_end": 85.13,
        "conf": 0.93,
        "alts": [],
        "raw_spoken": null,
@@ -37824,8 +38639,8 @@
       },
       {
        "text": "moving",
-       "t_start": 84.21,
-       "t_end": 84.54,
+       "t_start": 85.17,
+       "t_end": 85.5,
        "conf": 0.623,
        "alts": [],
        "raw_spoken": null,
@@ -37833,8 +38648,8 @@
       },
       {
        "text": "Kagiso",
-       "t_start": 84.58,
-       "t_end": 84.91,
+       "t_start": 85.54,
+       "t_end": 85.87,
        "conf": 0.909,
        "alts": [],
        "raw_spoken": null,
@@ -37842,8 +38657,8 @@
       },
       {
        "text": "to",
-       "t_start": 84.95,
-       "t_end": 85.28,
+       "t_start": 85.91,
+       "t_end": 86.24,
        "conf": 0.87,
        "alts": [],
        "raw_spoken": null,
@@ -37851,8 +38666,8 @@
       },
       {
        "text": "the",
-       "t_start": 85.32,
-       "t_end": 85.65,
+       "t_start": 86.28,
+       "t_end": 86.61,
        "conf": 0.78,
        "alts": [],
        "raw_spoken": null,
@@ -37860,8 +38675,8 @@
       },
       {
        "text": "same",
-       "t_start": 85.69,
-       "t_end": 86.02,
+       "t_start": 86.65,
+       "t_end": 86.98,
        "conf": 0.636,
        "alts": [],
        "raw_spoken": null,
@@ -37869,8 +38684,8 @@
       },
       {
        "text": "school",
-       "t_start": 86.06,
-       "t_end": 86.39,
+       "t_start": 87.02,
+       "t_end": 87.35,
        "conf": 0.846,
        "alts": [],
        "raw_spoken": null,
@@ -37878,8 +38693,8 @@
       },
       {
        "text": "next",
-       "t_start": 86.43,
-       "t_end": 86.76,
+       "t_start": 87.39,
+       "t_end": 87.72,
        "conf": 0.826,
        "alts": [],
        "raw_spoken": null,
@@ -37887,8 +38702,8 @@
       },
       {
        "text": "year.",
-       "t_start": 86.8,
-       "t_end": 87.13,
+       "t_start": 87.76,
+       "t_end": 88.09,
        "conf": 0.786,
        "alts": [],
        "raw_spoken": null,
@@ -37905,13 +38720,13 @@
      "speaker_role": "client_secondary",
      "role_conf": 0.91,
      "diarization_conf": 0.88,
-     "t_start": 88.07,
-     "t_end": 93.25,
+     "t_start": 89.03,
+     "t_end": 94.21,
      "words": [
       {
        "text": "She",
-       "t_start": 88.07,
-       "t_end": 88.4,
+       "t_start": 89.03,
+       "t_end": 89.36,
        "conf": 0.703,
        "alts": [],
        "raw_spoken": null,
@@ -37919,8 +38734,8 @@
       },
       {
        "text": "might",
-       "t_start": 88.44,
-       "t_end": 88.77,
+       "t_start": 89.4,
+       "t_end": 89.73,
        "conf": 0.793,
        "alts": [],
        "raw_spoken": null,
@@ -37928,8 +38743,8 @@
       },
       {
        "text": "study",
-       "t_start": 88.81,
-       "t_end": 89.14,
+       "t_start": 89.77,
+       "t_end": 90.1,
        "conf": 0.817,
        "alts": [],
        "raw_spoken": null,
@@ -37937,8 +38752,8 @@
       },
       {
        "text": "overseas",
-       "t_start": 89.18,
-       "t_end": 89.51,
+       "t_start": 90.14,
+       "t_end": 90.47,
        "conf": 0.89,
        "alts": [],
        "raw_spoken": null,
@@ -37946,8 +38761,8 @@
       },
       {
        "text": "one",
-       "t_start": 89.55,
-       "t_end": 89.88,
+       "t_start": 90.51,
+       "t_end": 90.84,
        "conf": 0.722,
        "alts": [],
        "raw_spoken": null,
@@ -37955,8 +38770,8 @@
       },
       {
        "text": "day.",
-       "t_start": 89.92,
-       "t_end": 90.25,
+       "t_start": 90.88,
+       "t_end": 91.21,
        "conf": 0.912,
        "alts": [],
        "raw_spoken": null,
@@ -37964,8 +38779,8 @@
       },
       {
        "text": "My",
-       "t_start": 90.29,
-       "t_end": 90.62,
+       "t_start": 91.25,
+       "t_end": 91.58,
        "conf": 0.62,
        "alts": [],
        "raw_spoken": null,
@@ -37973,8 +38788,8 @@
       },
       {
        "text": "sister's",
-       "t_start": 90.66,
-       "t_end": 90.99,
+       "t_start": 91.62,
+       "t_end": 91.95,
        "conf": 0.801,
        "alts": [],
        "raw_spoken": null,
@@ -37982,8 +38797,8 @@
       },
       {
        "text": "kids",
-       "t_start": 91.03,
-       "t_end": 91.36,
+       "t_start": 91.99,
+       "t_end": 92.32,
        "conf": 0.714,
        "alts": [],
        "raw_spoken": null,
@@ -37991,8 +38806,8 @@
       },
       {
        "text": "all",
-       "t_start": 91.4,
-       "t_end": 91.73,
+       "t_start": 92.36,
+       "t_end": 92.69,
        "conf": 0.842,
        "alts": [],
        "raw_spoken": null,
@@ -38000,8 +38815,8 @@
       },
       {
        "text": "went",
-       "t_start": 91.77,
-       "t_end": 92.1,
+       "t_start": 92.73,
+       "t_end": 93.06,
        "conf": 0.947,
        "alts": [],
        "raw_spoken": null,
@@ -38009,8 +38824,8 @@
       },
       {
        "text": "to",
-       "t_start": 92.14,
-       "t_end": 92.47,
+       "t_start": 93.1,
+       "t_end": 93.43,
        "conf": 0.827,
        "alts": [],
        "raw_spoken": null,
@@ -38018,8 +38833,8 @@
       },
       {
        "text": "the",
-       "t_start": 92.51,
-       "t_end": 92.84,
+       "t_start": 93.47,
+       "t_end": 93.8,
        "conf": 0.855,
        "alts": [],
        "raw_spoken": null,
@@ -38027,8 +38842,8 @@
       },
       {
        "text": "UK.",
-       "t_start": 92.88,
-       "t_end": 93.21,
+       "t_start": 93.84,
+       "t_end": 94.17,
        "conf": 0.74,
        "alts": [],
        "raw_spoken": null,
@@ -38045,13 +38860,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 94.05,
-     "t_end": 101.23,
+     "t_start": 95.01,
+     "t_end": 102.19,
      "words": [
       {
        "text": "If",
-       "t_start": 94.05,
-       "t_end": 94.38,
+       "t_start": 95.01,
+       "t_end": 95.34,
        "conf": 0.903,
        "alts": [],
        "raw_spoken": null,
@@ -38059,8 +38874,8 @@
       },
       {
        "text": "she",
-       "t_start": 94.42,
-       "t_end": 94.75,
+       "t_start": 95.38,
+       "t_end": 95.71,
        "conf": 0.86,
        "alts": [],
        "raw_spoken": null,
@@ -38068,8 +38883,8 @@
       },
       {
        "text": "studies",
-       "t_start": 94.79,
-       "t_end": 95.12,
+       "t_start": 95.75,
+       "t_end": 96.08,
        "conf": 0.696,
        "alts": [],
        "raw_spoken": null,
@@ -38077,8 +38892,8 @@
       },
       {
        "text": "here",
-       "t_start": 95.16,
-       "t_end": 95.49,
+       "t_start": 96.12,
+       "t_end": 96.45,
        "conf": 0.668,
        "alts": [],
        "raw_spoken": null,
@@ -38086,8 +38901,8 @@
       },
       {
        "text": "it's",
-       "t_start": 95.53,
-       "t_end": 95.86,
+       "t_start": 96.49,
+       "t_end": 96.82,
        "conf": 0.704,
        "alts": [],
        "raw_spoken": null,
@@ -38095,8 +38910,8 @@
       },
       {
        "text": "about",
-       "t_start": 95.9,
-       "t_end": 96.23,
+       "t_start": 96.86,
+       "t_end": 97.19,
        "conf": 0.841,
        "alts": [],
        "raw_spoken": null,
@@ -38104,8 +38919,8 @@
       },
       {
        "text": "a",
-       "t_start": 96.27,
-       "t_end": 96.6,
+       "t_start": 97.23,
+       "t_end": 97.56,
        "conf": 0.879,
        "alts": [],
        "raw_spoken": null,
@@ -38113,8 +38928,8 @@
       },
       {
        "text": "hundred",
-       "t_start": 96.64,
-       "t_end": 96.97,
+       "t_start": 97.6,
+       "t_end": 97.93,
        "conf": 0.731,
        "alts": [],
        "raw_spoken": null,
@@ -38122,8 +38937,8 @@
       },
       {
        "text": "and",
-       "t_start": 97.01,
-       "t_end": 97.34,
+       "t_start": 97.97,
+       "t_end": 98.3,
        "conf": 0.929,
        "alts": [],
        "raw_spoken": null,
@@ -38131,8 +38946,8 @@
       },
       {
        "text": "fifty",
-       "t_start": 97.38,
-       "t_end": 97.71,
+       "t_start": 98.34,
+       "t_end": 98.67,
        "conf": 0.66,
        "alts": [
         [
@@ -38145,8 +38960,8 @@
       },
       {
        "text": "a",
-       "t_start": 97.75,
-       "t_end": 98.08,
+       "t_start": 98.71,
+       "t_end": 99.04,
        "conf": 0.666,
        "alts": [],
        "raw_spoken": null,
@@ -38154,8 +38969,8 @@
       },
       {
        "text": "year,",
-       "t_start": 98.12,
-       "t_end": 98.45,
+       "t_start": 99.08,
+       "t_end": 99.41,
        "conf": 0.831,
        "alts": [],
        "raw_spoken": null,
@@ -38163,8 +38978,8 @@
       },
       {
        "text": "but",
-       "t_start": 98.49,
-       "t_end": 98.82,
+       "t_start": 99.45,
+       "t_end": 99.78,
        "conf": 0.643,
        "alts": [],
        "raw_spoken": null,
@@ -38172,8 +38987,8 @@
       },
       {
        "text": "over",
-       "t_start": 98.86,
-       "t_end": 99.19,
+       "t_start": 99.82,
+       "t_end": 100.15,
        "conf": 0.923,
        "alts": [],
        "raw_spoken": null,
@@ -38181,8 +38996,8 @@
       },
       {
        "text": "there",
-       "t_start": 99.23,
-       "t_end": 99.56,
+       "t_start": 100.19,
+       "t_end": 100.52,
        "conf": 0.832,
        "alts": [],
        "raw_spoken": null,
@@ -38190,8 +39005,8 @@
       },
       {
        "text": "it's",
-       "t_start": 99.6,
-       "t_end": 99.93,
+       "t_start": 100.56,
+       "t_end": 100.89,
        "conf": 0.835,
        "alts": [],
        "raw_spoken": null,
@@ -38199,8 +39014,8 @@
       },
       {
        "text": "more",
-       "t_start": 99.97,
-       "t_end": 100.3,
+       "t_start": 100.93,
+       "t_end": 101.26,
        "conf": 0.644,
        "alts": [],
        "raw_spoken": null,
@@ -38208,8 +39023,8 @@
       },
       {
        "text": "like",
-       "t_start": 100.34,
-       "t_end": 100.67,
+       "t_start": 101.3,
+       "t_end": 101.63,
        "conf": 0.679,
        "alts": [],
        "raw_spoken": null,
@@ -38217,8 +39032,8 @@
       },
       {
        "text": "four-fifty.",
-       "t_start": 100.71,
-       "t_end": 101.19,
+       "t_start": 101.67,
+       "t_end": 102.15,
        "conf": 0.69,
        "alts": [
         [
@@ -38240,13 +39055,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 102.43,
-     "t_end": 108.42,
+     "t_start": 103.39,
+     "t_end": 109.38,
      "words": [
       {
        "text": "Understood.",
-       "t_start": 102.43,
-       "t_end": 102.91,
+       "t_start": 103.39,
+       "t_end": 103.87,
        "conf": 0.91,
        "alts": [],
        "raw_spoken": null,
@@ -38254,8 +39069,8 @@
       },
       {
        "text": "Let's",
-       "t_start": 102.95,
-       "t_end": 103.28,
+       "t_start": 103.91,
+       "t_end": 104.24,
        "conf": 0.878,
        "alts": [],
        "raw_spoken": null,
@@ -38263,8 +39078,8 @@
       },
       {
        "text": "look",
-       "t_start": 103.32,
-       "t_end": 103.65,
+       "t_start": 104.28,
+       "t_end": 104.61,
        "conf": 0.931,
        "alts": [],
        "raw_spoken": null,
@@ -38272,8 +39087,8 @@
       },
       {
        "text": "at",
-       "t_start": 103.69,
-       "t_end": 104.02,
+       "t_start": 104.65,
+       "t_end": 104.98,
        "conf": 0.772,
        "alts": [],
        "raw_spoken": null,
@@ -38281,8 +39096,8 @@
       },
       {
        "text": "your",
-       "t_start": 104.06,
-       "t_end": 104.39,
+       "t_start": 105.02,
+       "t_end": 105.35,
        "conf": 0.703,
        "alts": [],
        "raw_spoken": null,
@@ -38290,8 +39105,8 @@
       },
       {
        "text": "retirement",
-       "t_start": 104.43,
-       "t_end": 104.91,
+       "t_start": 105.39,
+       "t_end": 105.87,
        "conf": 0.817,
        "alts": [],
        "raw_spoken": null,
@@ -38299,8 +39114,8 @@
       },
       {
        "text": "savings.",
-       "t_start": 104.95,
-       "t_end": 105.28,
+       "t_start": 105.91,
+       "t_end": 106.24,
        "conf": 0.94,
        "alts": [],
        "raw_spoken": null,
@@ -38308,8 +39123,8 @@
       },
       {
        "text": "Thabo,",
-       "t_start": 105.32,
-       "t_end": 105.65,
+       "t_start": 106.28,
+       "t_end": 106.61,
        "conf": 0.9,
        "alts": [],
        "raw_spoken": null,
@@ -38317,8 +39132,8 @@
       },
       {
        "text": "what",
-       "t_start": 105.69,
-       "t_end": 106.02,
+       "t_start": 106.65,
+       "t_end": 106.98,
        "conf": 0.709,
        "alts": [],
        "raw_spoken": null,
@@ -38326,8 +39141,8 @@
       },
       {
        "text": "is",
-       "t_start": 106.06,
-       "t_end": 106.39,
+       "t_start": 107.02,
+       "t_end": 107.35,
        "conf": 0.943,
        "alts": [],
        "raw_spoken": null,
@@ -38335,8 +39150,8 @@
       },
       {
        "text": "the",
-       "t_start": 106.43,
-       "t_end": 106.76,
+       "t_start": 107.39,
+       "t_end": 107.72,
        "conf": 0.934,
        "alts": [],
        "raw_spoken": null,
@@ -38344,8 +39159,8 @@
       },
       {
        "text": "retirement",
-       "t_start": 106.8,
-       "t_end": 107.27,
+       "t_start": 107.76,
+       "t_end": 108.23,
        "conf": 0.945,
        "alts": [],
        "raw_spoken": null,
@@ -38353,8 +39168,8 @@
       },
       {
        "text": "annuity",
-       "t_start": 107.31,
-       "t_end": 107.64,
+       "t_start": 108.27,
+       "t_end": 108.6,
        "conf": 0.872,
        "alts": [],
        "raw_spoken": null,
@@ -38362,8 +39177,8 @@
       },
       {
        "text": "on",
-       "t_start": 107.68,
-       "t_end": 108.01,
+       "t_start": 108.64,
+       "t_end": 108.97,
        "conf": 0.733,
        "alts": [],
        "raw_spoken": null,
@@ -38371,8 +39186,8 @@
       },
       {
        "text": "now?",
-       "t_start": 108.05,
-       "t_end": 108.38,
+       "t_start": 109.01,
+       "t_end": 109.34,
        "conf": 0.681,
        "alts": [],
        "raw_spoken": null,
@@ -38389,13 +39204,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 108.82,
-     "t_end": 112.3,
+     "t_start": 109.78,
+     "t_end": 113.26,
      "words": [
       {
        "text": "The",
-       "t_start": 108.82,
-       "t_end": 109.15,
+       "t_start": 109.78,
+       "t_end": 110.11,
        "conf": 0.926,
        "alts": [],
        "raw_spoken": null,
@@ -38403,8 +39218,8 @@
       },
       {
        "text": "RA",
-       "t_start": 109.19,
-       "t_end": 109.52,
+       "t_start": 110.15,
+       "t_end": 110.48,
        "conf": 0.645,
        "alts": [],
        "raw_spoken": null,
@@ -38412,8 +39227,8 @@
       },
       {
        "text": "is",
-       "t_start": 109.56,
-       "t_end": 109.89,
+       "t_start": 110.52,
+       "t_end": 110.85,
        "conf": 0.77,
        "alts": [],
        "raw_spoken": null,
@@ -38421,8 +39236,8 @@
       },
       {
        "text": "sitting",
-       "t_start": 109.93,
-       "t_end": 110.26,
+       "t_start": 110.89,
+       "t_end": 111.22,
        "conf": 0.723,
        "alts": [],
        "raw_spoken": null,
@@ -38430,8 +39245,8 @@
       },
       {
        "text": "at",
-       "t_start": 110.3,
-       "t_end": 110.63,
+       "t_start": 111.26,
+       "t_end": 111.59,
        "conf": 0.759,
        "alts": [],
        "raw_spoken": null,
@@ -38439,8 +39254,8 @@
       },
       {
        "text": "about",
-       "t_start": 110.67,
-       "t_end": 111.0,
+       "t_start": 111.63,
+       "t_end": 111.96,
        "conf": 0.944,
        "alts": [],
        "raw_spoken": null,
@@ -38448,8 +39263,8 @@
       },
       {
        "text": "three-fifty,",
-       "t_start": 111.04,
-       "t_end": 111.52,
+       "t_start": 112.0,
+       "t_end": 112.48,
        "conf": 0.74,
        "alts": [
         [
@@ -38462,8 +39277,8 @@
       },
       {
        "text": "I",
-       "t_start": 111.56,
-       "t_end": 111.89,
+       "t_start": 112.52,
+       "t_end": 112.85,
        "conf": 0.778,
        "alts": [],
        "raw_spoken": null,
@@ -38471,8 +39286,8 @@
       },
       {
        "text": "think.",
-       "t_start": 111.93,
-       "t_end": 112.26,
+       "t_start": 112.89,
+       "t_end": 113.22,
        "conf": 0.698,
        "alts": [],
        "raw_spoken": null,
@@ -38491,13 +39306,13 @@
      "speaker_role": "client_secondary",
      "role_conf": 0.91,
      "diarization_conf": 0.88,
-     "t_start": 111.8,
-     "t_end": 116.17,
+     "t_start": 112.76,
+     "t_end": 117.13,
      "words": [
       {
        "text": "No,",
-       "t_start": 111.8,
-       "t_end": 112.13,
+       "t_start": 112.76,
+       "t_end": 113.09,
        "conf": 0.763,
        "alts": [],
        "raw_spoken": null,
@@ -38505,8 +39320,8 @@
       },
       {
        "text": "it's",
-       "t_start": 112.17,
-       "t_end": 112.5,
+       "t_start": 113.13,
+       "t_end": 113.46,
        "conf": 0.838,
        "alts": [],
        "raw_spoken": null,
@@ -38514,8 +39329,8 @@
       },
       {
        "text": "more",
-       "t_start": 112.54,
-       "t_end": 112.87,
+       "t_start": 113.5,
+       "t_end": 113.83,
        "conf": 0.649,
        "alts": [],
        "raw_spoken": null,
@@ -38523,8 +39338,8 @@
       },
       {
        "text": "like",
-       "t_start": 112.91,
-       "t_end": 113.24,
+       "t_start": 113.87,
+       "t_end": 114.2,
        "conf": 0.695,
        "alts": [],
        "raw_spoken": null,
@@ -38532,8 +39347,8 @@
       },
       {
        "text": "two-eighty.",
-       "t_start": 113.28,
-       "t_end": 113.76,
+       "t_start": 114.24,
+       "t_end": 114.72,
        "conf": 0.71,
        "alts": [
         [
@@ -38546,8 +39361,8 @@
       },
       {
        "text": "I",
-       "t_start": 113.8,
-       "t_end": 114.13,
+       "t_start": 114.76,
+       "t_end": 115.09,
        "conf": 0.766,
        "alts": [],
        "raw_spoken": null,
@@ -38555,8 +39370,8 @@
       },
       {
        "text": "saw",
-       "t_start": 114.17,
-       "t_end": 114.5,
+       "t_start": 115.13,
+       "t_end": 115.46,
        "conf": 0.676,
        "alts": [],
        "raw_spoken": null,
@@ -38564,8 +39379,8 @@
       },
       {
        "text": "the",
-       "t_start": 114.54,
-       "t_end": 114.87,
+       "t_start": 115.5,
+       "t_end": 115.83,
        "conf": 0.717,
        "alts": [],
        "raw_spoken": null,
@@ -38573,8 +39388,8 @@
       },
       {
        "text": "statement",
-       "t_start": 114.91,
-       "t_end": 115.39,
+       "t_start": 115.87,
+       "t_end": 116.35,
        "conf": 0.73,
        "alts": [],
        "raw_spoken": null,
@@ -38582,8 +39397,8 @@
       },
       {
        "text": "last",
-       "t_start": 115.43,
-       "t_end": 115.76,
+       "t_start": 116.39,
+       "t_end": 116.72,
        "conf": 0.839,
        "alts": [],
        "raw_spoken": null,
@@ -38591,8 +39406,8 @@
       },
       {
        "text": "month.",
-       "t_start": 115.8,
-       "t_end": 116.13,
+       "t_start": 116.76,
+       "t_end": 117.09,
        "conf": 0.778,
        "alts": [],
        "raw_spoken": null,
@@ -38612,13 +39427,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 117.07,
-     "t_end": 122.03,
+     "t_start": 118.03,
+     "t_end": 122.99,
      "words": [
       {
        "text": "We'll",
-       "t_start": 117.07,
-       "t_end": 117.4,
+       "t_start": 118.03,
+       "t_end": 118.36,
        "conf": 0.667,
        "alts": [],
        "raw_spoken": null,
@@ -38626,8 +39441,8 @@
       },
       {
        "text": "check",
-       "t_start": 117.44,
-       "t_end": 117.77,
+       "t_start": 118.4,
+       "t_end": 118.73,
        "conf": 0.901,
        "alts": [],
        "raw_spoken": null,
@@ -38635,8 +39450,8 @@
       },
       {
        "text": "the",
-       "t_start": 117.81,
-       "t_end": 118.14,
+       "t_start": 118.77,
+       "t_end": 119.1,
        "conf": 0.825,
        "alts": [],
        "raw_spoken": null,
@@ -38644,8 +39459,8 @@
       },
       {
        "text": "statement.",
-       "t_start": 118.18,
-       "t_end": 118.66,
+       "t_start": 119.14,
+       "t_end": 119.62,
        "conf": 0.913,
        "alts": [],
        "raw_spoken": null,
@@ -38653,8 +39468,8 @@
       },
       {
        "text": "And",
-       "t_start": 118.7,
-       "t_end": 119.03,
+       "t_start": 119.66,
+       "t_end": 119.99,
        "conf": 0.912,
        "alts": [],
        "raw_spoken": null,
@@ -38662,8 +39477,8 @@
       },
       {
        "text": "how",
-       "t_start": 119.07,
-       "t_end": 119.4,
+       "t_start": 120.03,
+       "t_end": 120.36,
        "conf": 0.946,
        "alts": [],
        "raw_spoken": null,
@@ -38671,8 +39486,8 @@
       },
       {
        "text": "much",
-       "t_start": 119.44,
-       "t_end": 119.77,
+       "t_start": 120.4,
+       "t_end": 120.73,
        "conf": 0.743,
        "alts": [],
        "raw_spoken": null,
@@ -38680,8 +39495,8 @@
       },
       {
        "text": "is",
-       "t_start": 119.81,
-       "t_end": 120.14,
+       "t_start": 120.77,
+       "t_end": 121.1,
        "conf": 0.901,
        "alts": [],
        "raw_spoken": null,
@@ -38689,8 +39504,8 @@
       },
       {
        "text": "still",
-       "t_start": 120.18,
-       "t_end": 120.51,
+       "t_start": 121.14,
+       "t_end": 121.47,
        "conf": 0.646,
        "alts": [],
        "raw_spoken": null,
@@ -38698,8 +39513,8 @@
       },
       {
        "text": "owing",
-       "t_start": 120.55,
-       "t_end": 120.88,
+       "t_start": 121.51,
+       "t_end": 121.84,
        "conf": 0.663,
        "alts": [],
        "raw_spoken": null,
@@ -38707,8 +39522,8 @@
       },
       {
        "text": "on",
-       "t_start": 120.92,
-       "t_end": 121.25,
+       "t_start": 121.88,
+       "t_end": 122.21,
        "conf": 0.911,
        "alts": [],
        "raw_spoken": null,
@@ -38716,8 +39531,8 @@
       },
       {
        "text": "the",
-       "t_start": 121.29,
-       "t_end": 121.62,
+       "t_start": 122.25,
+       "t_end": 122.58,
        "conf": 0.819,
        "alts": [],
        "raw_spoken": null,
@@ -38725,8 +39540,8 @@
       },
       {
        "text": "bond?",
-       "t_start": 121.66,
-       "t_end": 121.99,
+       "t_start": 122.62,
+       "t_end": 122.95,
        "conf": 0.652,
        "alts": [],
        "raw_spoken": null,
@@ -38743,13 +39558,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 122.73,
-     "t_end": 126.06,
+     "t_start": 123.69,
+     "t_end": 127.02,
      "words": [
       {
        "text": "We",
-       "t_start": 122.73,
-       "t_end": 123.06,
+       "t_start": 123.69,
+       "t_end": 124.02,
        "conf": 0.684,
        "alts": [],
        "raw_spoken": null,
@@ -38757,8 +39572,8 @@
       },
       {
        "text": "still",
-       "t_start": 123.1,
-       "t_end": 123.43,
+       "t_start": 124.06,
+       "t_end": 124.39,
        "conf": 0.788,
        "alts": [],
        "raw_spoken": null,
@@ -38766,8 +39581,8 @@
       },
       {
        "text": "owe",
-       "t_start": 123.47,
-       "t_end": 123.8,
+       "t_start": 124.43,
+       "t_end": 124.76,
        "conf": 0.662,
        "alts": [],
        "raw_spoken": null,
@@ -38775,8 +39590,8 @@
       },
       {
        "text": "about",
-       "t_start": 123.84,
-       "t_end": 124.17,
+       "t_start": 124.8,
+       "t_end": 125.13,
        "conf": 0.644,
        "alts": [],
        "raw_spoken": null,
@@ -38784,8 +39599,8 @@
       },
       {
        "text": "eighteen",
-       "t_start": 124.21,
-       "t_end": 124.54,
+       "t_start": 125.17,
+       "t_end": 125.5,
        "conf": 0.61,
        "alts": [
         [
@@ -38798,8 +39613,8 @@
       },
       {
        "text": "fifty",
-       "t_start": 124.58,
-       "t_end": 124.91,
+       "t_start": 125.54,
+       "t_end": 125.87,
        "conf": 0.66,
        "alts": [
         [
@@ -38812,8 +39627,8 @@
       },
       {
        "text": "on",
-       "t_start": 124.95,
-       "t_end": 125.28,
+       "t_start": 125.91,
+       "t_end": 126.24,
        "conf": 0.922,
        "alts": [],
        "raw_spoken": null,
@@ -38821,8 +39636,8 @@
       },
       {
        "text": "the",
-       "t_start": 125.32,
-       "t_end": 125.65,
+       "t_start": 126.28,
+       "t_end": 126.61,
        "conf": 0.68,
        "alts": [],
        "raw_spoken": null,
@@ -38830,8 +39645,8 @@
       },
       {
        "text": "bond.",
-       "t_start": 125.69,
-       "t_end": 126.02,
+       "t_start": 126.65,
+       "t_end": 126.98,
        "conf": 0.726,
        "alts": [],
        "raw_spoken": null,
@@ -38848,13 +39663,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 127.36,
-     "t_end": 133.8,
+     "t_start": 128.32,
+     "t_end": 134.76,
      "words": [
       {
        "text": "Oh,",
-       "t_start": 127.36,
-       "t_end": 127.69,
+       "t_start": 128.32,
+       "t_end": 128.65,
        "conf": 0.679,
        "alts": [],
        "raw_spoken": null,
@@ -38862,8 +39677,8 @@
       },
       {
        "text": "and",
-       "t_start": 127.73,
-       "t_end": 128.06,
+       "t_start": 128.69,
+       "t_end": 129.02,
        "conf": 0.712,
        "alts": [],
        "raw_spoken": null,
@@ -38871,8 +39686,8 @@
       },
       {
        "text": "I",
-       "t_start": 128.1,
-       "t_end": 128.43,
+       "t_start": 129.06,
+       "t_end": 129.39,
        "conf": 0.725,
        "alts": [],
        "raw_spoken": null,
@@ -38880,8 +39695,8 @@
       },
       {
        "text": "took",
-       "t_start": 128.47,
-       "t_end": 128.8,
+       "t_start": 129.43,
+       "t_end": 129.76,
        "conf": 0.87,
        "alts": [],
        "raw_spoken": null,
@@ -38889,8 +39704,8 @@
       },
       {
        "text": "out",
-       "t_start": 128.84,
-       "t_end": 129.17,
+       "t_start": 129.8,
+       "t_end": 130.13,
        "conf": 0.827,
        "alts": [],
        "raw_spoken": null,
@@ -38898,8 +39713,8 @@
       },
       {
        "text": "disability",
-       "t_start": 129.21,
-       "t_end": 129.69,
+       "t_start": 130.17,
+       "t_end": 130.65,
        "conf": 0.665,
        "alts": [],
        "raw_spoken": null,
@@ -38907,8 +39722,8 @@
       },
       {
        "text": "cover",
-       "t_start": 129.73,
-       "t_end": 130.06,
+       "t_start": 130.69,
+       "t_end": 131.02,
        "conf": 0.672,
        "alts": [],
        "raw_spoken": null,
@@ -38916,8 +39731,8 @@
       },
       {
        "text": "through",
-       "t_start": 130.1,
-       "t_end": 130.43,
+       "t_start": 131.06,
+       "t_end": 131.39,
        "conf": 0.77,
        "alts": [],
        "raw_spoken": null,
@@ -38925,8 +39740,8 @@
       },
       {
        "text": "work",
-       "t_start": 130.47,
-       "t_end": 130.8,
+       "t_start": 131.43,
+       "t_end": 131.76,
        "conf": 0.78,
        "alts": [],
        "raw_spoken": null,
@@ -38934,8 +39749,8 @@
       },
       {
        "text": "in",
-       "t_start": 130.84,
-       "t_end": 131.17,
+       "t_start": 131.8,
+       "t_end": 132.13,
        "conf": 0.861,
        "alts": [],
        "raw_spoken": null,
@@ -38943,8 +39758,8 @@
       },
       {
        "text": "August.",
-       "t_start": 131.21,
-       "t_end": 131.54,
+       "t_start": 132.17,
+       "t_end": 132.5,
        "conf": 0.793,
        "alts": [],
        "raw_spoken": null,
@@ -38952,8 +39767,8 @@
       },
       {
        "text": "I",
-       "t_start": 131.58,
-       "t_end": 131.91,
+       "t_start": 132.54,
+       "t_end": 132.87,
        "conf": 0.807,
        "alts": [],
        "raw_spoken": null,
@@ -38961,8 +39776,8 @@
       },
       {
        "text": "don't",
-       "t_start": 131.95,
-       "t_end": 132.28,
+       "t_start": 132.91,
+       "t_end": 133.24,
        "conf": 0.807,
        "alts": [],
        "raw_spoken": null,
@@ -38970,8 +39785,8 @@
       },
       {
        "text": "know",
-       "t_start": 132.32,
-       "t_end": 132.65,
+       "t_start": 133.28,
+       "t_end": 133.61,
        "conf": 0.772,
        "alts": [],
        "raw_spoken": null,
@@ -38979,8 +39794,8 @@
       },
       {
        "text": "the",
-       "t_start": 132.69,
-       "t_end": 133.02,
+       "t_start": 133.65,
+       "t_end": 133.98,
        "conf": 0.766,
        "alts": [],
        "raw_spoken": null,
@@ -38988,8 +39803,8 @@
       },
       {
        "text": "amount",
-       "t_start": 133.06,
-       "t_end": 133.39,
+       "t_start": 134.02,
+       "t_end": 134.35,
        "conf": 0.718,
        "alts": [],
        "raw_spoken": null,
@@ -38997,8 +39812,8 @@
       },
       {
        "text": "yet.",
-       "t_start": 133.43,
-       "t_end": 133.76,
+       "t_start": 134.39,
+       "t_end": 134.72,
        "conf": 0.682,
        "alts": [],
        "raw_spoken": null,
@@ -39015,13 +39830,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 134.6,
-     "t_end": 140.67,
+     "t_start": 135.56,
+     "t_end": 141.63,
      "words": [
       {
        "text": "No",
-       "t_start": 134.6,
-       "t_end": 134.93,
+       "t_start": 135.56,
+       "t_end": 135.89,
        "conf": 0.86,
        "alts": [],
        "raw_spoken": null,
@@ -39029,8 +39844,8 @@
       },
       {
        "text": "problem,",
-       "t_start": 134.97,
-       "t_end": 135.3,
+       "t_start": 135.93,
+       "t_end": 136.26,
        "conf": 0.787,
        "alts": [],
        "raw_spoken": null,
@@ -39038,8 +39853,8 @@
       },
       {
        "text": "we'll",
-       "t_start": 135.34,
-       "t_end": 135.67,
+       "t_start": 136.3,
+       "t_end": 136.63,
        "conf": 0.732,
        "alts": [],
        "raw_spoken": null,
@@ -39047,8 +39862,8 @@
       },
       {
        "text": "get",
-       "t_start": 135.71,
-       "t_end": 136.04,
+       "t_start": 136.67,
+       "t_end": 137.0,
        "conf": 0.769,
        "alts": [],
        "raw_spoken": null,
@@ -39056,8 +39871,8 @@
       },
       {
        "text": "the",
-       "t_start": 136.08,
-       "t_end": 136.41,
+       "t_start": 137.04,
+       "t_end": 137.37,
        "conf": 0.75,
        "alts": [],
        "raw_spoken": null,
@@ -39065,8 +39880,8 @@
       },
       {
        "text": "benefit",
-       "t_start": 136.45,
-       "t_end": 136.78,
+       "t_start": 137.41,
+       "t_end": 137.74,
        "conf": 0.645,
        "alts": [],
        "raw_spoken": null,
@@ -39074,8 +39889,8 @@
       },
       {
        "text": "schedule",
-       "t_start": 136.82,
-       "t_end": 137.15,
+       "t_start": 137.78,
+       "t_end": 138.11,
        "conf": 0.711,
        "alts": [],
        "raw_spoken": null,
@@ -39083,8 +39898,8 @@
       },
       {
        "text": "from",
-       "t_start": 137.19,
-       "t_end": 137.52,
+       "t_start": 138.15,
+       "t_end": 138.48,
        "conf": 0.699,
        "alts": [],
        "raw_spoken": null,
@@ -39092,8 +39907,8 @@
       },
       {
        "text": "HR.",
-       "t_start": 137.56,
-       "t_end": 137.89,
+       "t_start": 138.52,
+       "t_end": 138.85,
        "conf": 0.743,
        "alts": [],
        "raw_spoken": null,
@@ -39101,8 +39916,8 @@
       },
       {
        "text": "Any",
-       "t_start": 137.93,
-       "t_end": 138.26,
+       "t_start": 138.89,
+       "t_end": 139.22,
        "conf": 0.766,
        "alts": [],
        "raw_spoken": null,
@@ -39110,8 +39925,8 @@
       },
       {
        "text": "other",
-       "t_start": 138.3,
-       "t_end": 138.63,
+       "t_start": 139.26,
+       "t_end": 139.59,
        "conf": 0.686,
        "alts": [],
        "raw_spoken": null,
@@ -39119,8 +39934,8 @@
       },
       {
        "text": "investments",
-       "t_start": 138.67,
-       "t_end": 139.15,
+       "t_start": 139.63,
+       "t_end": 140.11,
        "conf": 0.95,
        "alts": [],
        "raw_spoken": null,
@@ -39128,8 +39943,8 @@
       },
       {
        "text": "since",
-       "t_start": 139.19,
-       "t_end": 139.52,
+       "t_start": 140.15,
+       "t_end": 140.48,
        "conf": 0.626,
        "alts": [],
        "raw_spoken": null,
@@ -39137,8 +39952,8 @@
       },
       {
        "text": "we",
-       "t_start": 139.56,
-       "t_end": 139.89,
+       "t_start": 140.52,
+       "t_end": 140.85,
        "conf": 0.845,
        "alts": [],
        "raw_spoken": null,
@@ -39146,8 +39961,8 @@
       },
       {
        "text": "last",
-       "t_start": 139.93,
-       "t_end": 140.26,
+       "t_start": 140.89,
+       "t_end": 141.22,
        "conf": 0.694,
        "alts": [],
        "raw_spoken": null,
@@ -39155,8 +39970,8 @@
       },
       {
        "text": "met?",
-       "t_start": 140.3,
-       "t_end": 140.63,
+       "t_start": 141.26,
+       "t_end": 141.59,
        "conf": 0.904,
        "alts": [],
        "raw_spoken": null,
@@ -39173,13 +39988,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 141.67,
-     "t_end": 147.37,
+     "t_start": 142.63,
+     "t_end": 148.33,
      "words": [
       {
        "text": "I",
-       "t_start": 141.67,
-       "t_end": 142.0,
+       "t_start": 142.63,
+       "t_end": 142.96,
        "conf": 0.792,
        "alts": [],
        "raw_spoken": null,
@@ -39187,8 +40002,8 @@
       },
       {
        "text": "bought",
-       "t_start": 142.04,
-       "t_end": 142.37,
+       "t_start": 143.0,
+       "t_end": 143.33,
        "conf": 0.73,
        "alts": [],
        "raw_spoken": null,
@@ -39196,8 +40011,8 @@
       },
       {
        "text": "a",
-       "t_start": 142.41,
-       "t_end": 142.74,
+       "t_start": 143.37,
+       "t_end": 143.7,
        "conf": 0.78,
        "alts": [],
        "raw_spoken": null,
@@ -39205,8 +40020,8 @@
       },
       {
        "text": "few",
-       "t_start": 142.78,
-       "t_end": 143.11,
+       "t_start": 143.74,
+       "t_end": 144.07,
        "conf": 0.75,
        "alts": [],
        "raw_spoken": null,
@@ -39214,8 +40029,8 @@
       },
       {
        "text": "Krugerrands.",
-       "t_start": 143.15,
-       "t_end": 143.63,
+       "t_start": 144.11,
+       "t_end": 144.59,
        "conf": 0.48,
        "alts": [
         [
@@ -39232,8 +40047,8 @@
       },
       {
        "text": "They're",
-       "t_start": 143.67,
-       "t_end": 144.0,
+       "t_start": 144.63,
+       "t_end": 144.96,
        "conf": 0.945,
        "alts": [],
        "raw_spoken": null,
@@ -39241,8 +40056,8 @@
       },
       {
        "text": "in",
-       "t_start": 144.04,
-       "t_end": 144.37,
+       "t_start": 145.0,
+       "t_end": 145.33,
        "conf": 0.739,
        "alts": [],
        "raw_spoken": null,
@@ -39250,8 +40065,8 @@
       },
       {
        "text": "the",
-       "t_start": 144.41,
-       "t_end": 144.74,
+       "t_start": 145.37,
+       "t_end": 145.7,
        "conf": 0.925,
        "alts": [],
        "raw_spoken": null,
@@ -39259,8 +40074,8 @@
       },
       {
        "text": "safe",
-       "t_start": 144.78,
-       "t_end": 145.11,
+       "t_start": 145.74,
+       "t_end": 146.07,
        "conf": 0.911,
        "alts": [],
        "raw_spoken": null,
@@ -39268,8 +40083,8 @@
       },
       {
        "text": "at",
-       "t_start": 145.15,
-       "t_end": 145.48,
+       "t_start": 146.11,
+       "t_end": 146.44,
        "conf": 0.646,
        "alts": [],
        "raw_spoken": null,
@@ -39277,8 +40092,8 @@
       },
       {
        "text": "home,",
-       "t_start": 145.52,
-       "t_end": 145.85,
+       "t_start": 146.48,
+       "t_end": 146.81,
        "conf": 0.682,
        "alts": [],
        "raw_spoken": null,
@@ -39286,8 +40101,8 @@
       },
       {
        "text": "maybe",
-       "t_start": 145.89,
-       "t_end": 146.22,
+       "t_start": 146.85,
+       "t_end": 147.18,
        "conf": 0.92,
        "alts": [],
        "raw_spoken": null,
@@ -39295,8 +40110,8 @@
       },
       {
        "text": "sixty",
-       "t_start": 146.26,
-       "t_end": 146.59,
+       "t_start": 147.22,
+       "t_end": 147.55,
        "conf": 0.764,
        "alts": [],
        "raw_spoken": null,
@@ -39304,8 +40119,8 @@
       },
       {
        "text": "thousand",
-       "t_start": 146.63,
-       "t_end": 146.96,
+       "t_start": 147.59,
+       "t_end": 147.92,
        "conf": 0.828,
        "alts": [],
        "raw_spoken": null,
@@ -39313,8 +40128,8 @@
       },
       {
        "text": "worth.",
-       "t_start": 147.0,
-       "t_end": 147.33,
+       "t_start": 147.96,
+       "t_end": 148.29,
        "conf": 0.696,
        "alts": [],
        "raw_spoken": null,
@@ -39331,13 +40146,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 148.47,
-     "t_end": 153.28,
+     "t_start": 149.43,
+     "t_end": 154.24,
      "words": [
       {
        "text": "Good",
-       "t_start": 148.47,
-       "t_end": 148.8,
+       "t_start": 149.43,
+       "t_end": 149.76,
        "conf": 0.932,
        "alts": [],
        "raw_spoken": null,
@@ -39345,8 +40160,8 @@
       },
       {
        "text": "to",
-       "t_start": 148.84,
-       "t_end": 149.17,
+       "t_start": 149.8,
+       "t_end": 150.13,
        "conf": 0.646,
        "alts": [],
        "raw_spoken": null,
@@ -39354,8 +40169,8 @@
       },
       {
        "text": "know.",
-       "t_start": 149.21,
-       "t_end": 149.54,
+       "t_start": 150.17,
+       "t_end": 150.5,
        "conf": 0.737,
        "alts": [],
        "raw_spoken": null,
@@ -39363,8 +40178,8 @@
       },
       {
        "text": "Lerato,",
-       "t_start": 149.58,
-       "t_end": 149.91,
+       "t_start": 150.54,
+       "t_end": 150.87,
        "conf": 0.72,
        "alts": [],
        "raw_spoken": null,
@@ -39372,8 +40187,8 @@
       },
       {
        "text": "last",
-       "t_start": 149.95,
-       "t_end": 150.28,
+       "t_start": 150.91,
+       "t_end": 151.24,
        "conf": 0.867,
        "alts": [],
        "raw_spoken": null,
@@ -39381,8 +40196,8 @@
       },
       {
        "text": "time",
-       "t_start": 150.32,
-       "t_end": 150.65,
+       "t_start": 151.28,
+       "t_end": 151.61,
        "conf": 0.634,
        "alts": [],
        "raw_spoken": null,
@@ -39390,8 +40205,8 @@
       },
       {
        "text": "you",
-       "t_start": 150.69,
-       "t_end": 151.02,
+       "t_start": 151.65,
+       "t_end": 151.98,
        "conf": 0.696,
        "alts": [],
        "raw_spoken": null,
@@ -39399,8 +40214,8 @@
       },
       {
        "text": "said",
-       "t_start": 151.06,
-       "t_end": 151.39,
+       "t_start": 152.02,
+       "t_end": 152.35,
        "conf": 0.692,
        "alts": [],
        "raw_spoken": null,
@@ -39408,8 +40223,8 @@
       },
       {
        "text": "you",
-       "t_start": 151.43,
-       "t_end": 151.76,
+       "t_start": 152.39,
+       "t_end": 152.72,
        "conf": 0.68,
        "alts": [],
        "raw_spoken": null,
@@ -39417,8 +40232,8 @@
       },
       {
        "text": "don't",
-       "t_start": 151.8,
-       "t_end": 152.13,
+       "t_start": 152.76,
+       "t_end": 153.09,
        "conf": 0.663,
        "alts": [],
        "raw_spoken": null,
@@ -39426,8 +40241,8 @@
       },
       {
        "text": "have",
-       "t_start": 152.17,
-       "t_end": 152.5,
+       "t_start": 153.13,
+       "t_end": 153.46,
        "conf": 0.929,
        "alts": [],
        "raw_spoken": null,
@@ -39435,8 +40250,8 @@
       },
       {
        "text": "a",
-       "t_start": 152.54,
-       "t_end": 152.87,
+       "t_start": 153.5,
+       "t_end": 153.83,
        "conf": 0.863,
        "alts": [],
        "raw_spoken": null,
@@ -39444,8 +40259,8 @@
       },
       {
        "text": "will.",
-       "t_start": 152.91,
-       "t_end": 153.24,
+       "t_start": 153.87,
+       "t_end": 154.2,
        "conf": 0.663,
        "alts": [],
        "raw_spoken": null,
@@ -39462,13 +40277,13 @@
      "speaker_role": "client_secondary",
      "role_conf": 0.91,
      "diarization_conf": 0.88,
-     "t_start": 153.88,
-     "t_end": 158.47,
+     "t_start": 154.84,
+     "t_end": 159.43,
      "words": [
       {
        "text": "We",
-       "t_start": 153.88,
-       "t_end": 154.21,
+       "t_start": 154.84,
+       "t_end": 155.17,
        "conf": 0.678,
        "alts": [],
        "raw_spoken": null,
@@ -39476,8 +40291,8 @@
       },
       {
        "text": "signed",
-       "t_start": 154.25,
-       "t_end": 154.58,
+       "t_start": 155.21,
+       "t_end": 155.54,
        "conf": 0.63,
        "alts": [],
        "raw_spoken": null,
@@ -39485,8 +40300,8 @@
       },
       {
        "text": "new",
-       "t_start": 154.62,
-       "t_end": 154.95,
+       "t_start": 155.58,
+       "t_end": 155.91,
        "conf": 0.722,
        "alts": [],
        "raw_spoken": null,
@@ -39494,8 +40309,8 @@
       },
       {
        "text": "wills",
-       "t_start": 154.99,
-       "t_end": 155.32,
+       "t_start": 155.95,
+       "t_end": 156.28,
        "conf": 0.823,
        "alts": [],
        "raw_spoken": null,
@@ -39503,8 +40318,8 @@
       },
       {
        "text": "in",
-       "t_start": 155.36,
-       "t_end": 155.69,
+       "t_start": 156.32,
+       "t_end": 156.65,
        "conf": 0.624,
        "alts": [],
        "raw_spoken": null,
@@ -39512,8 +40327,8 @@
       },
       {
        "text": "June,",
-       "t_start": 155.73,
-       "t_end": 156.06,
+       "t_start": 156.69,
+       "t_end": 157.02,
        "conf": 0.68,
        "alts": [],
        "raw_spoken": null,
@@ -39521,8 +40336,8 @@
       },
       {
        "text": "both",
-       "t_start": 156.1,
-       "t_end": 156.43,
+       "t_start": 157.06,
+       "t_end": 157.39,
        "conf": 0.646,
        "alts": [],
        "raw_spoken": null,
@@ -39530,8 +40345,8 @@
       },
       {
        "text": "of",
-       "t_start": 156.47,
-       "t_end": 156.8,
+       "t_start": 157.43,
+       "t_end": 157.76,
        "conf": 0.941,
        "alts": [],
        "raw_spoken": null,
@@ -39539,8 +40354,8 @@
       },
       {
        "text": "us,",
-       "t_start": 156.84,
-       "t_end": 157.17,
+       "t_start": 157.8,
+       "t_end": 158.13,
        "conf": 0.883,
        "alts": [],
        "raw_spoken": null,
@@ -39548,8 +40363,8 @@
       },
       {
        "text": "with",
-       "t_start": 157.21,
-       "t_end": 157.54,
+       "t_start": 158.17,
+       "t_end": 158.5,
        "conf": 0.794,
        "alts": [],
        "raw_spoken": null,
@@ -39557,8 +40372,8 @@
       },
       {
        "text": "the",
-       "t_start": 157.58,
-       "t_end": 157.91,
+       "t_start": 158.54,
+       "t_end": 158.87,
        "conf": 0.627,
        "alts": [],
        "raw_spoken": null,
@@ -39566,8 +40381,8 @@
       },
       {
        "text": "attorney.",
-       "t_start": 157.95,
-       "t_end": 158.43,
+       "t_start": 158.91,
+       "t_end": 159.39,
        "conf": 0.65,
        "alts": [],
        "raw_spoken": null,
@@ -39584,13 +40399,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 159.27,
-     "t_end": 164.23,
+     "t_start": 160.23,
+     "t_end": 165.19,
      "words": [
       {
        "text": "That's",
-       "t_start": 159.27,
-       "t_end": 159.6,
+       "t_start": 160.23,
+       "t_end": 160.56,
        "conf": 0.805,
        "alts": [],
        "raw_spoken": null,
@@ -39598,8 +40413,8 @@
       },
       {
        "text": "a",
-       "t_start": 159.64,
-       "t_end": 159.97,
+       "t_start": 160.6,
+       "t_end": 160.93,
        "conf": 0.845,
        "alts": [],
        "raw_spoken": null,
@@ -39607,8 +40422,8 @@
       },
       {
        "text": "big",
-       "t_start": 160.01,
-       "t_end": 160.34,
+       "t_start": 160.97,
+       "t_end": 161.3,
        "conf": 0.943,
        "alts": [],
        "raw_spoken": null,
@@ -39616,8 +40431,8 @@
       },
       {
        "text": "one",
-       "t_start": 160.38,
-       "t_end": 160.71,
+       "t_start": 161.34,
+       "t_end": 161.67,
        "conf": 0.795,
        "alts": [],
        "raw_spoken": null,
@@ -39625,8 +40440,8 @@
       },
       {
        "text": "done.",
-       "t_start": 160.75,
-       "t_end": 161.08,
+       "t_start": 161.71,
+       "t_end": 162.04,
        "conf": 0.86,
        "alts": [],
        "raw_spoken": null,
@@ -39634,8 +40449,8 @@
       },
       {
        "text": "Did",
-       "t_start": 161.12,
-       "t_end": 161.45,
+       "t_start": 162.08,
+       "t_end": 162.41,
        "conf": 0.762,
        "alts": [],
        "raw_spoken": null,
@@ -39643,8 +40458,8 @@
       },
       {
        "text": "you",
-       "t_start": 161.49,
-       "t_end": 161.82,
+       "t_start": 162.45,
+       "t_end": 162.78,
        "conf": 0.708,
        "alts": [],
        "raw_spoken": null,
@@ -39652,8 +40467,8 @@
       },
       {
        "text": "name",
-       "t_start": 161.86,
-       "t_end": 162.19,
+       "t_start": 162.82,
+       "t_end": 163.15,
        "conf": 0.717,
        "alts": [],
        "raw_spoken": null,
@@ -39661,8 +40476,8 @@
       },
       {
        "text": "a",
-       "t_start": 162.23,
-       "t_end": 162.56,
+       "t_start": 163.19,
+       "t_end": 163.52,
        "conf": 0.678,
        "alts": [],
        "raw_spoken": null,
@@ -39670,8 +40485,8 @@
       },
       {
        "text": "guardian",
-       "t_start": 162.6,
-       "t_end": 162.93,
+       "t_start": 163.56,
+       "t_end": 163.89,
        "conf": 0.742,
        "alts": [],
        "raw_spoken": null,
@@ -39679,8 +40494,8 @@
       },
       {
        "text": "for",
-       "t_start": 162.97,
-       "t_end": 163.3,
+       "t_start": 163.93,
+       "t_end": 164.26,
        "conf": 0.87,
        "alts": [],
        "raw_spoken": null,
@@ -39688,8 +40503,8 @@
       },
       {
        "text": "the",
-       "t_start": 163.34,
-       "t_end": 163.67,
+       "t_start": 164.3,
+       "t_end": 164.63,
        "conf": 0.639,
        "alts": [],
        "raw_spoken": null,
@@ -39697,8 +40512,8 @@
       },
       {
        "text": "children?",
-       "t_start": 163.71,
-       "t_end": 164.19,
+       "t_start": 164.67,
+       "t_end": 165.15,
        "conf": 0.855,
        "alts": [],
        "raw_spoken": null,
@@ -39715,13 +40530,13 @@
      "speaker_role": "client_secondary",
      "role_conf": 0.91,
      "diarization_conf": 0.88,
-     "t_start": 164.73,
-     "t_end": 166.21,
+     "t_start": 165.69,
+     "t_end": 167.17,
      "words": [
       {
        "text": "Yes,",
-       "t_start": 164.73,
-       "t_end": 165.06,
+       "t_start": 165.69,
+       "t_end": 166.02,
        "conf": 0.78,
        "alts": [],
        "raw_spoken": null,
@@ -39729,8 +40544,8 @@
       },
       {
        "text": "my",
-       "t_start": 165.1,
-       "t_end": 165.43,
+       "t_start": 166.06,
+       "t_end": 166.39,
        "conf": 0.82,
        "alts": [],
        "raw_spoken": null,
@@ -39738,8 +40553,8 @@
       },
       {
        "text": "sister",
-       "t_start": 165.47,
-       "t_end": 165.8,
+       "t_start": 166.43,
+       "t_end": 166.76,
        "conf": 0.785,
        "alts": [],
        "raw_spoken": null,
@@ -39747,8 +40562,8 @@
       },
       {
        "text": "Palesa.",
-       "t_start": 165.84,
-       "t_end": 166.17,
+       "t_start": 166.8,
+       "t_end": 167.13,
        "conf": 0.52,
        "alts": [
         [
@@ -39770,13 +40585,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 167.41,
-     "t_end": 170.52,
+     "t_start": 168.37,
+     "t_end": 171.48,
      "words": [
       {
        "text": "And",
-       "t_start": 167.41,
-       "t_end": 167.74,
+       "t_start": 168.37,
+       "t_end": 168.7,
        "conf": 0.925,
        "alts": [],
        "raw_spoken": null,
@@ -39784,8 +40599,8 @@
       },
       {
        "text": "groceries,",
-       "t_start": 167.78,
-       "t_end": 168.26,
+       "t_start": 168.74,
+       "t_end": 169.22,
        "conf": 0.93,
        "alts": [],
        "raw_spoken": null,
@@ -39793,8 +40608,8 @@
       },
       {
        "text": "still",
-       "t_start": 168.3,
-       "t_end": 168.63,
+       "t_start": 169.26,
+       "t_end": 169.59,
        "conf": 0.677,
        "alts": [],
        "raw_spoken": null,
@@ -39802,8 +40617,8 @@
       },
       {
        "text": "about",
-       "t_start": 168.67,
-       "t_end": 169.0,
+       "t_start": 169.63,
+       "t_end": 169.96,
        "conf": 0.731,
        "alts": [],
        "raw_spoken": null,
@@ -39811,8 +40626,8 @@
       },
       {
        "text": "nine",
-       "t_start": 169.04,
-       "t_end": 169.37,
+       "t_start": 170.0,
+       "t_end": 170.33,
        "conf": 0.787,
        "alts": [],
        "raw_spoken": null,
@@ -39820,8 +40635,8 @@
       },
       {
        "text": "thousand",
-       "t_start": 169.41,
-       "t_end": 169.74,
+       "t_start": 170.37,
+       "t_end": 170.7,
        "conf": 0.923,
        "alts": [],
        "raw_spoken": null,
@@ -39829,8 +40644,8 @@
       },
       {
        "text": "a",
-       "t_start": 169.78,
-       "t_end": 170.11,
+       "t_start": 170.74,
+       "t_end": 171.07,
        "conf": 0.667,
        "alts": [],
        "raw_spoken": null,
@@ -39838,8 +40653,8 @@
       },
       {
        "text": "month?",
-       "t_start": 170.15,
-       "t_end": 170.48,
+       "t_start": 171.11,
+       "t_end": 171.44,
        "conf": 0.851,
        "alts": [],
        "raw_spoken": null,
@@ -39856,13 +40671,13 @@
      "speaker_role": "client_secondary",
      "role_conf": 0.91,
      "diarization_conf": 0.88,
-     "t_start": 171.02,
-     "t_end": 173.61,
+     "t_start": 171.98,
+     "t_end": 174.57,
      "words": [
       {
        "text": "More",
-       "t_start": 171.02,
-       "t_end": 171.35,
+       "t_start": 171.98,
+       "t_end": 172.31,
        "conf": 0.761,
        "alts": [],
        "raw_spoken": null,
@@ -39870,8 +40685,8 @@
       },
       {
        "text": "like",
-       "t_start": 171.39,
-       "t_end": 171.72,
+       "t_start": 172.35,
+       "t_end": 172.68,
        "conf": 0.906,
        "alts": [],
        "raw_spoken": null,
@@ -39879,8 +40694,8 @@
       },
       {
        "text": "eleven",
-       "t_start": 171.76,
-       "t_end": 172.09,
+       "t_start": 172.72,
+       "t_end": 173.05,
        "conf": 0.72,
        "alts": [
         [
@@ -39893,8 +40708,8 @@
       },
       {
        "text": "now,",
-       "t_start": 172.13,
-       "t_end": 172.46,
+       "t_start": 173.09,
+       "t_end": 173.42,
        "conf": 0.711,
        "alts": [],
        "raw_spoken": null,
@@ -39902,8 +40717,8 @@
       },
       {
        "text": "with",
-       "t_start": 172.5,
-       "t_end": 172.83,
+       "t_start": 173.46,
+       "t_end": 173.79,
        "conf": 0.811,
        "alts": [],
        "raw_spoken": null,
@@ -39911,8 +40726,8 @@
       },
       {
        "text": "the",
-       "t_start": 172.87,
-       "t_end": 173.2,
+       "t_start": 173.83,
+       "t_end": 174.16,
        "conf": 0.625,
        "alts": [],
        "raw_spoken": null,
@@ -39920,8 +40735,8 @@
       },
       {
        "text": "prices.",
-       "t_start": 173.24,
-       "t_end": 173.57,
+       "t_start": 174.2,
+       "t_end": 174.53,
        "conf": 0.644,
        "alts": [],
        "raw_spoken": null,
@@ -39938,13 +40753,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 174.51,
-     "t_end": 180.43,
+     "t_start": 175.47,
+     "t_end": 181.39,
      "words": [
       {
        "text": "And",
-       "t_start": 174.51,
-       "t_end": 174.84,
+       "t_start": 175.47,
+       "t_end": 175.8,
        "conf": 0.633,
        "alts": [],
        "raw_spoken": null,
@@ -39952,8 +40767,8 @@
       },
       {
        "text": "we",
-       "t_start": 174.88,
-       "t_end": 175.21,
+       "t_start": 175.84,
+       "t_end": 176.17,
        "conf": 0.681,
        "alts": [],
        "raw_spoken": null,
@@ -39961,8 +40776,8 @@
       },
       {
        "text": "still",
-       "t_start": 175.25,
-       "t_end": 175.58,
+       "t_start": 176.21,
+       "t_end": 176.54,
        "conf": 0.829,
        "alts": [],
        "raw_spoken": null,
@@ -39970,8 +40785,8 @@
       },
       {
        "text": "give",
-       "t_start": 175.62,
-       "t_end": 175.95,
+       "t_start": 176.58,
+       "t_end": 176.91,
        "conf": 0.785,
        "alts": [],
        "raw_spoken": null,
@@ -39979,8 +40794,8 @@
       },
       {
        "text": "my",
-       "t_start": 175.99,
-       "t_end": 176.32,
+       "t_start": 176.95,
+       "t_end": 177.28,
        "conf": 0.65,
        "alts": [],
        "raw_spoken": null,
@@ -39988,8 +40803,8 @@
       },
       {
        "text": "mom",
-       "t_start": 176.36,
-       "t_end": 176.69,
+       "t_start": 177.32,
+       "t_end": 177.65,
        "conf": 0.704,
        "alts": [],
        "raw_spoken": null,
@@ -39997,8 +40812,8 @@
       },
       {
        "text": "three",
-       "t_start": 176.73,
-       "t_end": 177.06,
+       "t_start": 177.69,
+       "t_end": 178.02,
        "conf": 0.894,
        "alts": [],
        "raw_spoken": null,
@@ -40006,8 +40821,8 @@
       },
       {
        "text": "and",
-       "t_start": 177.1,
-       "t_end": 177.43,
+       "t_start": 178.06,
+       "t_end": 178.39,
        "conf": 0.723,
        "alts": [],
        "raw_spoken": null,
@@ -40015,8 +40830,8 @@
       },
       {
        "text": "a",
-       "t_start": 177.47,
-       "t_end": 177.8,
+       "t_start": 178.43,
+       "t_end": 178.76,
        "conf": 0.675,
        "alts": [],
        "raw_spoken": null,
@@ -40024,8 +40839,8 @@
       },
       {
        "text": "half",
-       "t_start": 177.84,
-       "t_end": 178.17,
+       "t_start": 178.8,
+       "t_end": 179.13,
        "conf": 0.735,
        "alts": [],
        "raw_spoken": null,
@@ -40033,8 +40848,8 @@
       },
       {
        "text": "thousand",
-       "t_start": 178.21,
-       "t_end": 178.54,
+       "t_start": 179.17,
+       "t_end": 179.5,
        "conf": 0.931,
        "alts": [],
        "raw_spoken": null,
@@ -40042,8 +40857,8 @@
       },
       {
        "text": "a",
-       "t_start": 178.58,
-       "t_end": 178.91,
+       "t_start": 179.54,
+       "t_end": 179.87,
        "conf": 0.8,
        "alts": [],
        "raw_spoken": null,
@@ -40051,8 +40866,8 @@
       },
       {
        "text": "month,",
-       "t_start": 178.95,
-       "t_end": 179.28,
+       "t_start": 179.91,
+       "t_end": 180.24,
        "conf": 0.762,
        "alts": [],
        "raw_spoken": null,
@@ -40060,8 +40875,8 @@
       },
       {
        "text": "same",
-       "t_start": 179.32,
-       "t_end": 179.65,
+       "t_start": 180.28,
+       "t_end": 180.61,
        "conf": 0.792,
        "alts": [],
        "raw_spoken": null,
@@ -40069,8 +40884,8 @@
       },
       {
        "text": "as",
-       "t_start": 179.69,
-       "t_end": 180.02,
+       "t_start": 180.65,
+       "t_end": 180.98,
        "conf": 0.784,
        "alts": [],
        "raw_spoken": null,
@@ -40078,8 +40893,8 @@
       },
       {
        "text": "before.",
-       "t_start": 180.06,
-       "t_end": 180.39,
+       "t_start": 181.02,
+       "t_end": 181.35,
        "conf": 0.76,
        "alts": [],
        "raw_spoken": null,
@@ -40096,13 +40911,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 181.43,
-     "t_end": 184.17,
+     "t_start": 182.39,
+     "t_end": 185.13,
      "words": [
       {
        "text": "Last",
-       "t_start": 181.43,
-       "t_end": 181.76,
+       "t_start": 182.39,
+       "t_end": 182.72,
        "conf": 0.657,
        "alts": [],
        "raw_spoken": null,
@@ -40110,8 +40925,8 @@
       },
       {
        "text": "thing:",
-       "t_start": 181.8,
-       "t_end": 182.13,
+       "t_start": 182.76,
+       "t_end": 183.09,
        "conf": 0.931,
        "alts": [],
        "raw_spoken": null,
@@ -40119,8 +40934,8 @@
       },
       {
        "text": "are",
-       "t_start": 182.17,
-       "t_end": 182.5,
+       "t_start": 183.13,
+       "t_end": 183.46,
        "conf": 0.836,
        "alts": [],
        "raw_spoken": null,
@@ -40128,8 +40943,8 @@
       },
       {
        "text": "you",
-       "t_start": 182.54,
-       "t_end": 182.87,
+       "t_start": 183.5,
+       "t_end": 183.83,
        "conf": 0.825,
        "alts": [],
        "raw_spoken": null,
@@ -40137,8 +40952,8 @@
       },
       {
        "text": "both",
-       "t_start": 182.91,
-       "t_end": 183.24,
+       "t_start": 183.87,
+       "t_end": 184.2,
        "conf": 0.867,
        "alts": [],
        "raw_spoken": null,
@@ -40146,8 +40961,8 @@
       },
       {
        "text": "still",
-       "t_start": 183.28,
-       "t_end": 183.61,
+       "t_start": 184.24,
+       "t_end": 184.57,
        "conf": 0.848,
        "alts": [],
        "raw_spoken": null,
@@ -40155,8 +40970,8 @@
       },
       {
        "text": "non-smokers?",
-       "t_start": 183.65,
-       "t_end": 184.13,
+       "t_start": 184.61,
+       "t_end": 185.09,
        "conf": 0.752,
        "alts": [],
        "raw_spoken": null,
@@ -40173,13 +40988,13 @@
      "speaker_role": "client_primary",
      "role_conf": 0.95,
      "diarization_conf": 0.93,
-     "t_start": 184.67,
-     "t_end": 186.52,
+     "t_start": 185.63,
+     "t_end": 187.48,
      "words": [
       {
        "text": "Ja,",
-       "t_start": 184.67,
-       "t_end": 185.0,
+       "t_start": 185.63,
+       "t_end": 185.96,
        "conf": 0.649,
        "alts": [],
        "raw_spoken": null,
@@ -40187,8 +41002,8 @@
       },
       {
        "text": "neither",
-       "t_start": 185.04,
-       "t_end": 185.37,
+       "t_start": 186.0,
+       "t_end": 186.33,
        "conf": 0.742,
        "alts": [],
        "raw_spoken": null,
@@ -40196,8 +41011,8 @@
       },
       {
        "text": "of",
-       "t_start": 185.41,
-       "t_end": 185.74,
+       "t_start": 186.37,
+       "t_end": 186.7,
        "conf": 0.819,
        "alts": [],
        "raw_spoken": null,
@@ -40205,8 +41020,8 @@
       },
       {
        "text": "us",
-       "t_start": 185.78,
-       "t_end": 186.11,
+       "t_start": 186.74,
+       "t_end": 187.07,
        "conf": 0.696,
        "alts": [],
        "raw_spoken": null,
@@ -40214,8 +41029,8 @@
       },
       {
        "text": "smokes.",
-       "t_start": 186.15,
-       "t_end": 186.48,
+       "t_start": 187.11,
+       "t_end": 187.44,
        "conf": 0.74,
        "alts": [],
        "raw_spoken": null,
@@ -40232,13 +41047,13 @@
      "speaker_role": "advisor",
      "role_conf": 0.98,
      "diarization_conf": 0.93,
-     "t_start": 187.42,
-     "t_end": 192.38,
+     "t_start": 188.38,
+     "t_end": 193.34,
      "words": [
       {
        "text": "Great.",
-       "t_start": 187.42,
-       "t_end": 187.75,
+       "t_start": 188.38,
+       "t_end": 188.71,
        "conf": 0.876,
        "alts": [],
        "raw_spoken": null,
@@ -40246,8 +41061,8 @@
       },
       {
        "text": "I'll",
-       "t_start": 187.79,
-       "t_end": 188.12,
+       "t_start": 188.75,
+       "t_end": 189.08,
        "conf": 0.838,
        "alts": [],
        "raw_spoken": null,
@@ -40255,8 +41070,8 @@
       },
       {
        "text": "send",
-       "t_start": 188.16,
-       "t_end": 188.49,
+       "t_start": 189.12,
+       "t_end": 189.45,
        "conf": 0.754,
        "alts": [],
        "raw_spoken": null,
@@ -40264,8 +41079,8 @@
       },
       {
        "text": "a",
-       "t_start": 188.53,
-       "t_end": 188.86,
+       "t_start": 189.49,
+       "t_end": 189.82,
        "conf": 0.856,
        "alts": [],
        "raw_spoken": null,
@@ -40273,8 +41088,8 @@
       },
       {
        "text": "summary",
-       "t_start": 188.9,
-       "t_end": 189.23,
+       "t_start": 189.86,
+       "t_end": 190.19,
        "conf": 0.644,
        "alts": [],
        "raw_spoken": null,
@@ -40282,8 +41097,8 @@
       },
       {
        "text": "and",
-       "t_start": 189.27,
-       "t_end": 189.6,
+       "t_start": 190.23,
+       "t_end": 190.56,
        "conf": 0.912,
        "alts": [],
        "raw_spoken": null,
@@ -40291,8 +41106,8 @@
       },
       {
        "text": "a",
-       "t_start": 189.64,
-       "t_end": 189.97,
+       "t_start": 190.6,
+       "t_end": 190.93,
        "conf": 0.792,
        "alts": [],
        "raw_spoken": null,
@@ -40300,8 +41115,8 @@
       },
       {
        "text": "few",
-       "t_start": 190.01,
-       "t_end": 190.34,
+       "t_start": 190.97,
+       "t_end": 191.3,
        "conf": 0.945,
        "alts": [],
        "raw_spoken": null,
@@ -40309,8 +41124,8 @@
       },
       {
        "text": "questions",
-       "t_start": 190.38,
-       "t_end": 190.86,
+       "t_start": 191.34,
+       "t_end": 191.82,
        "conf": 0.87,
        "alts": [],
        "raw_spoken": null,
@@ -40318,8 +41133,8 @@
       },
       {
        "text": "to",
-       "t_start": 190.9,
-       "t_end": 191.23,
+       "t_start": 191.86,
+       "t_end": 192.19,
        "conf": 0.709,
        "alts": [],
        "raw_spoken": null,
@@ -40327,8 +41142,8 @@
       },
       {
        "text": "close",
-       "t_start": 191.27,
-       "t_end": 191.6,
+       "t_start": 192.23,
+       "t_end": 192.56,
        "conf": 0.851,
        "alts": [],
        "raw_spoken": null,
@@ -40336,8 +41151,8 @@
       },
       {
        "text": "the",
-       "t_start": 191.64,
-       "t_end": 191.97,
+       "t_start": 192.6,
+       "t_end": 192.93,
        "conf": 0.692,
        "alts": [],
        "raw_spoken": null,
@@ -40345,8 +41160,8 @@
       },
       {
        "text": "gaps.",
-       "t_start": 192.01,
-       "t_end": 192.34,
+       "t_start": 192.97,
+       "t_end": 193.3,
        "conf": 0.728,
        "alts": [],
        "raw_spoken": null,
@@ -40377,7 +41192,8 @@
        "scale_source": "scale word",
        "lexicon_key": null,
        "weight": 0.97,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       },
       {
        "value": 180000.0,
@@ -40386,12 +41202,14 @@
        "scale_source": "context",
        "lexicon_key": null,
        "weight": 0.03,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       }
      ],
      "provider_itn": "118 000",
      "accepted": true,
      "mean_conf": 0.763,
+     "flags": [],
      "second_pass_reading": null,
      "second_pass_agreement": null,
      "second_pass_method": null
@@ -40411,7 +41229,8 @@
        "scale_source": "scale word",
        "lexicon_key": null,
        "weight": 0.93,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       },
       {
        "value": 3500000.0,
@@ -40420,12 +41239,14 @@
        "scale_source": "context",
        "lexicon_key": null,
        "weight": 0.07,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       }
      ],
      "provider_itn": "350 000",
      "accepted": true,
      "mean_conf": 0.74,
+     "flags": [],
      "second_pass_reading": null,
      "second_pass_agreement": null,
      "second_pass_method": null
@@ -40445,7 +41266,8 @@
        "scale_source": "scale word",
        "lexicon_key": null,
        "weight": 0.95,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       },
       {
        "value": 2800000.0,
@@ -40454,12 +41276,14 @@
        "scale_source": "context",
        "lexicon_key": null,
        "weight": 0.05,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       }
      ],
      "provider_itn": "280 000",
      "accepted": true,
      "mean_conf": 0.71,
+     "flags": [],
      "second_pass_reading": null,
      "second_pass_agreement": null,
      "second_pass_method": null
@@ -40479,7 +41303,8 @@
        "scale_source": "context",
        "lexicon_key": null,
        "weight": 0.86,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       },
       {
        "value": 185000.0,
@@ -40488,12 +41313,14 @@
        "scale_source": "context",
        "lexicon_key": null,
        "weight": 0.14,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       }
      ],
      "provider_itn": "1 850 000",
      "accepted": true,
      "mean_conf": 0.635,
+     "flags": [],
      "second_pass_reading": {
       "value": 1850000.0,
       "currency": "ZAR",
@@ -40501,7 +41328,8 @@
       "scale_source": "second pass",
       "lexicon_key": null,
       "weight": 1.0,
-      "is_rate": false
+      "is_rate": false,
+      "provider": null
      },
      "second_pass_agreement": true,
      "second_pass_method": "grammar_constrained"
@@ -40521,12 +41349,14 @@
        "scale_source": "scale word",
        "lexicon_key": null,
        "weight": 0.98,
-       "is_rate": false
+       "is_rate": false,
+       "provider": null
       }
      ],
      "provider_itn": "60 000",
      "accepted": true,
      "mean_conf": 0.796,
+     "flags": [],
      "second_pass_reading": null,
      "second_pass_agreement": null,
      "second_pass_method": null
@@ -41224,7 +42054,7 @@
   ],
   "preview_forecast": {
    "run_id": "wf-call-2026-10-15-mokoena",
-   "profile_version": "2",
+   "profile_version": "5",
    "config_version": "config_v1",
    "cma_version": "2026Q4",
    "n_paths": 10000,
@@ -41666,9 +42496,9 @@
     "client.depletion_age": 75.83,
     "client.replacement_ratio": 0.405,
     "spouse.projected_capital": 23268086.0,
-    "spouse.required_capital": 33951827.0,
-    "spouse.depletion_age": 82.08,
-    "spouse.replacement_ratio": 0.514,
+    "spouse.required_capital": 34081781.0,
+    "spouse.depletion_age": 82.0,
+    "spouse.replacement_ratio": 0.512,
     "client.mc_zero_vol_capital": 30951000.0,
     "spouse.mc_zero_vol_capital": 23224000.0
    },
@@ -41679,9 +42509,9 @@
      "p90": 6940000.0
     },
     "life.spouse": {
-     "p10": 4610000.0,
-     "p50": 4951000.0,
-     "p90": 5330000.0
+     "p10": 4625000.0,
+     "p50": 4968000.0,
+     "p90": 5345000.0
     },
     "disability.client": {
      "p10": 2880000.0,
@@ -41699,9 +42529,9 @@
      "p90": 46000.0
     },
     "income-protection.spouse": {
-     "p10": 42500.0,
-     "p50": 44900.0,
-     "p90": 47300.0
+     "p10": 42600.0,
+     "p50": 45000.0,
+     "p90": 47400.0
     },
     "severe-illness.client": {
      "p10": 2400000.0,
@@ -41709,9 +42539,9 @@
      "p90": 2760000.0
     },
     "severe-illness.spouse": {
-     "p10": 1320000.0,
-     "p50": 1375000.0,
-     "p90": 1430000.0
+     "p10": 1325000.0,
+     "p50": 1380000.0,
+     "p90": 1436000.0
     },
     "estate.client": {
      "p10": 120000.0,
@@ -41729,9 +42559,9 @@
      "p90": 31800000.0
     },
     "retirement.spouse": {
-     "p10": 8900000.0,
-     "p50": 10680000.0,
-     "p90": 12700000.0
+     "p10": 9020000.0,
+     "p50": 10810000.0,
+     "p90": 12830000.0
     },
     "education.household": {
      "p10": 610000.0,

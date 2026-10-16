@@ -187,6 +187,8 @@ export interface UpdatePayload {
   normalization?: Record<string, unknown> | null;
   review?: ReviewState | null;
   reason?: string | null;
+  /** A follow-up answer re-sources the fact (§10.6). */
+  source?: FactSource | null;
 }
 
 export type RetractReason =
@@ -339,8 +341,13 @@ export interface Reading {
   scale_source: string | null;
   lexicon_key: string | null;
   weight: number;
+  /** The value is the spoken percentage ("eleven and a half percent" → 11.5). */
   is_rate: boolean;
+  /** Product readings: the canonical provider. */
+  provider?: string | null;
 }
+
+export type SpanFlag = 'low_asr' | 'crosstalk' | 'scale_ambiguous';
 
 /** An amount, age or product mention with its well-formed readings (§5.3, §5.6). */
 export interface NumericSpan {
@@ -354,6 +361,8 @@ export interface NumericSpan {
   provider_itn: string | null;
   accepted: boolean;
   mean_conf: number;
+  /** low_asr (no grammar path accepted), crosstalk over the span, scale_ambiguous. */
+  flags?: SpanFlag[];
   second_pass_reading: Reading | null;
   second_pass_agreement: boolean | null;
   second_pass_method: string | null;

@@ -320,6 +320,7 @@ const reduce = (f: ReviewFact | undefined, op: StateOp): ReviewFact => {
         if ((p.status === 'stated' || p.status === 'implied') && SEED_SOURCES.has(f.source)) next.source = 'reviewer';
       }
       if (p.speaker_attribution) next.attribution = p.speaker_attribution;
+      if (p.source) next.source = p.source;
       next.review = p.review ? keepOriginal(review, p.review) : review;
       return finalise(next);
     }

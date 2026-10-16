@@ -2,11 +2,14 @@
 
 The package is what the pipeline hands the adviser after a call: the Mokoena household's existing
 FNA (``tests/fixtures/sample_fna.json``) seeded with ``binding.load_prior``, then a short annual-review
-call between the adviser (Sipho) and both clients, entered as extractor, deriver and loader ops
-through the real reducer. It covers what the review overlay must handle:
+call between the adviser (Sipho) and both clients, entered as extractor, verifier and loader ops
+through the real reducer, then the real derivation rules (``schema.derivations.derive_all``). It
+covers what the review overlay must handle:
 
 - new, changed, confirmed and assumed fields, and two new list rows (a group disability policy and
   some Krugerrands);
+- derived values: Lerato's take-home pay grossed up through the tax tables (``gross_from_net``),
+  and the risk profile's horizon and emergency answers worked out from other facts;
 - a range ("between sixty and sixty-five, probably sixty-two"), a bimodal value (Kagiso's study
   costs here or in the UK) and a Bernoulli event ("she might study overseas");
 - an adviser-suggested tier A value, a contradicted fact (the RA value) and a scale-ambiguous one;
@@ -47,6 +50,7 @@ from advisor_intel.models.profile import BlockingFlag, FollowUp, Profile  # noqa
 from advisor_intel.models.review import ReviewBundle, ReviewPackage  # noqa: E402
 from advisor_intel.models.runs import RunState, VersionPins  # noqa: E402
 from advisor_intel.models.transcript import NumericSpan, QualityReport, Reading, Segment, Transcript, Word  # noqa: E402
+from advisor_intel.schema.derivations import derive_all  # noqa: E402
 from advisor_intel.schema.slots import fact_id_for, load_catalog  # noqa: E402
 
 # Test copies are indented so a regenerated fixture diffs line by line; the copy the app serves is compact.
@@ -92,7 +96,7 @@ DIALOGUE: list[tuple[str, str, float]] = [
     ("advisor", "Let's start with income. Thabo, last time you were on a hundred thousand a month gross.", 0.8),
     ("client_primary", "That was before the promotion. It's one eighteen now, one hundred and eighteen thousand gross a month, from September.", 0.5),
     ("advisor", "Congratulations. And Lerato, are you still at Brightwater?", 0.9),
-    ("client_secondary", "Still there, and still fifty-five a month. No change, unfortunately.", 0.7),
+    ("client_secondary", "Still there. I take home forty-two thousand a month, same as last year.", 0.7),
     ("advisor", "And the bonus, Thabo?", 0.6),
     ("client_primary", "The bonus is about a hundred and twenty, give or take, depending on how the year goes.", 0.8),
     ("advisor", "Let's talk about retirement. Last time we planned on sixty-five for you, Thabo.", 1.4),
@@ -439,12 +443,13 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
     )
     scores[fid] = (0.94, False, 0.034, "Moves Thabo's life cover and income protection from partial to shortfall.")
     fid = c.add(
-        "income.{p}.grossMonthly", "spouse", [(Point(value=55_000), 1.0, "'still fifty-five a month'")],
-        [E("s0006", "still fifty-five a month")],
-        interpretation="Lerato's gross salary is unchanged at R55,000 a month.",
-        basis="gross",
+        "income.{p}.grossMonthly", "spouse", [(Point(value=42_000), 1.0, "'I take home forty-two thousand a month'")],
+        [E("s0006", "I take home forty-two thousand a month, same as last year.")],
+        interpretation="Lerato gave her take-home pay, R42,000 a month, and said it has not changed. The field holds gross salary, "
+        "so the figure is grossed up through the tax tables (the derivation runs after extraction).",
+        basis="net",
     )
-    scores[fid] = (0.97, False, 0.004, "Confirms the salary on file.")
+    scores[fid] = (0.93, False, 0.004, "Confirms the salary on file once her take-home pay is grossed up.")
     fid = c.add(
         "income.{p}.annualBonus", "client", [(Triangular(low=108_000, mode=120_000, high=132_000), 1.0, "'about a hundred and twenty, give or take'")],
         [E("s0008", "The bonus is about a hundred and twenty, give or take, depending on how the year goes.")],
@@ -520,8 +525,6 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
         [E("s0016", "She might study overseas one day.")],
         interpretation="'One day' is placed at Kagiso's tertiary start: she turns 19 in 2038, give or take a year.",
         status="implied",
-        actor="deriver",
-        derivation="event_year_from_tertiary_start_age",
     )
     scores[fid] = (0.72, False, 0.009, None)
     fid = c.add(
@@ -529,8 +532,6 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
         [E("s0017", "over there it's more like four-fifty.")],
         interpretation="Studying in the UK would cost about R300,000 a year more than locally, for three years.",
         status="implied",
-        actor="deriver",
-        derivation="event_cost_from_education_difference",
     )
     scores[fid] = (0.64, False, 0.041, "The extra cost of studying overseas, about R900,000 in today's money.")
 
@@ -658,9 +659,14 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
         scores[fid] = (0.96, True, 0.0, None)
 
     profile = c.apply()
+    # The derivation rules run after extraction, as in the harness (§7.6): here they gross up Lerato's
+    # take-home pay and answer the risk profile's horizon and emergency questions from other facts.
+    profile = derive_all(profile, base=prior, run_id=RUN_ID)
     problems = check_profile(profile)
     if problems:
         raise ValueError("the fixture profile breaks the §3.5 invariants:\n" + "\n".join(problems))
+    scores[fact_id_for("riskProfile.answers[horizon]", None)] = (0.83, True, 0.0, None)
+    scores[fact_id_for("riskProfile.answers[emergency]", None)] = (0.71, False, 0.001, None)
     for fid, (p, auto, prio, why) in scores.items():
         voi: dict[str, Any] = {"priority": prio}
         if why:
@@ -759,9 +765,9 @@ DETERMINISTIC: dict[str, float | None] = {
     "client.depletion_age": 75.83,
     "client.replacement_ratio": 0.405,
     "spouse.projected_capital": 23_268_086.0,
-    "spouse.required_capital": 33_951_827.0,
-    "spouse.depletion_age": 82.08,
-    "spouse.replacement_ratio": 0.514,
+    "spouse.required_capital": 34_081_781.0,
+    "spouse.depletion_age": 82.0,
+    "spouse.replacement_ratio": 0.512,
     # §12.8 consistency run: zero volatility, every fact at its median; must agree within 0.5%.
     "client.mc_zero_vol_capital": 30_951_000.0,
     "spouse.mc_zero_vol_capital": 23_224_000.0,
@@ -769,17 +775,17 @@ DETERMINISTIC: dict[str, float | None] = {
 # Shortfall bands per need over 1,000 materialised draws (§12.7 use 2), in rand ("{need}.{person}").
 NEED_BANDS: dict[str, dict[str, float]] = {
     "life.client": {"p10": 5_120_000, "p50": 5_890_000, "p90": 6_940_000},
-    "life.spouse": {"p10": 4_610_000, "p50": 4_951_000, "p90": 5_330_000},
+    "life.spouse": {"p10": 4_625_000, "p50": 4_968_000, "p90": 5_345_000},
     "disability.client": {"p10": 2_880_000, "p50": 3_047_000, "p90": 3_240_000},
     "disability.spouse": {"p10": 2_230_000, "p50": 2_340_000, "p90": 2_460_000},
     "income-protection.client": {"p10": 36_000, "p50": 40_800, "p90": 46_000},
-    "income-protection.spouse": {"p10": 42_500, "p50": 44_900, "p90": 47_300},
+    "income-protection.spouse": {"p10": 42_600, "p50": 45_000, "p90": 47_400},
     "severe-illness.client": {"p10": 2_400_000, "p50": 2_572_000, "p90": 2_760_000},
-    "severe-illness.spouse": {"p10": 1_320_000, "p50": 1_375_000, "p90": 1_430_000},
+    "severe-illness.spouse": {"p10": 1_325_000, "p50": 1_380_000, "p90": 1_436_000},
     "estate.client": {"p10": 120_000, "p50": 925_000, "p90": 1_010_000},
     "estate.spouse": {"p10": 0, "p50": 17_000, "p90": 64_000},
     "retirement.client": {"p10": 14_100_000, "p50": 22_590_000, "p90": 31_800_000},
-    "retirement.spouse": {"p10": 8_900_000, "p50": 10_680_000, "p90": 12_700_000},
+    "retirement.spouse": {"p10": 9_020_000, "p50": 10_810_000, "p90": 12_830_000},
     "education.household": {"p10": 610_000, "p50": 810_000, "p90": 1_890_000},
     "emergency.household": {"p10": 128_000, "p50": 141_000, "p90": 156_000},
 }

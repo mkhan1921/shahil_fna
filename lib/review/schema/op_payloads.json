@@ -1173,6 +1173,27 @@
           ],
           "default": null,
           "title": "Reason"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "enum": [
+                "call",
+                "prior_fna",
+                "crm",
+                "derived",
+                "fna_default",
+                "followup",
+                "reviewer"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
         }
       },
       "title": "UpdatePayload",
