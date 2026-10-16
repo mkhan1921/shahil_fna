@@ -8,11 +8,15 @@
   feature vector, turns it into ``p_raw`` and ``p_correct`` with the calibrator and decides auto-accept with
   the conformal thresholds. Scores are annotations (``reducer.annotate``); values never change here.
 - ``verify_stage`` chains them for the activity: verify, omission check, verify what it reopened, score.
+  After the orchestrator it verifies only facts the checks have not seen in their current form: each
+  verified fact records a fingerprint of its status and hypotheses (``verification["checked_fingerprint"]``).
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from typing import Any, Sequence
 
 from pydantic import BaseModel
@@ -20,6 +24,7 @@ from pydantic import BaseModel
 from ..config import Settings, get_settings
 from ..extract.reducer import RejectedOp, annotate, apply_state_ops, make_ops
 from ..models.entities import DiscourseOutput
+from ..models.facts import Fact
 from ..models.profile import Profile, StateOp
 from ..models.runs import VersionPins
 from ..models.transcript import Transcript
@@ -37,7 +42,27 @@ EXTRACTED_SOURCES = frozenset({"call", "derived", "followup"})
 TRUSTED_SOURCES = frozenset({"prior_fna", "crm", "fna_default", "reviewer"})
 QUALITY_CAP = 0.9  # §5.5: a call failing the ASR quality checks caps p_correct (and so auto-accept)
 
-__all__ = ["VerifyResult", "Stage5Result", "check_coverage", "score_profile", "verify_facts", "verify_stage"]
+__all__ = [
+    "VerifyResult",
+    "Stage5Result",
+    "check_coverage",
+    "fingerprint",
+    "needs_verification",
+    "score_profile",
+    "verify_facts",
+    "verify_stage",
+]
+
+
+def fingerprint(fact: Fact) -> str:
+    """The status and hypotheses the checks saw: a later change to either makes the verification stale."""
+    hyps = [[h.value.model_dump(mode="json") if h.value is not None else None, round(h.weight, 6)] for h in fact.hypotheses]
+    return hashlib.sha1(json.dumps([fact.status, hyps], sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+def needs_verification(fact: Fact) -> bool:
+    """An extracted fact the checks have not seen in its current form (§9.1)."""
+    return fact.source in EXTRACTED_SOURCES and fact.verification.get("checked_fingerprint") != fingerprint(fact)
 
 
 class VerifyResult(BaseModel):
@@ -106,6 +131,8 @@ async def verify_facts(
         ver = dict(f.verification)
         if fid in ent.facts:
             ver.update(ent.facts[fid].verification())
+            if ent.facts[fid].status != "not_run":  # a check that did not run is retried later
+                ver["checked_fingerprint"] = fingerprint(f)
         if fid in cons:
             ver.update(cons[fid].verification())
         profile = annotate(profile, fid, verification=ver)
@@ -125,7 +152,7 @@ async def verify_facts(
                 continue
             f = profile.facts[fid]
             fe = _surviving(ent.facts[fid], gone, [h.weight for h in f.hypotheses])
-            ver = {**f.verification, **fe.verification(), "retracted_hypotheses": sorted(gone)}
+            ver = {**f.verification, **fe.verification(), "retracted_hypotheses": sorted(gone), "checked_fingerprint": fingerprint(f)}
             ver["contradicted"] = True  # a contradiction was found, even though the contradicted reading is gone
             profile = annotate(profile, fid, verification=ver)
     result.profile = profile
@@ -200,9 +227,13 @@ async def verify_stage(
     discourse: DiscourseOutput | None = None,
     fact_ids: Sequence[str] | None = None,
 ) -> Stage5Result:
-    """The whole of Stage 5 for one call: verify, omission check, verify what it reopened, then score."""
+    """The whole of Stage 5 for one call: verify, omission check, verify what it reopened, then score.
+
+    ``fact_ids`` defaults to every extracted fact the checks have not seen in its current form, so after
+    the orchestrator (which verifies each slot group as it goes) only new or changed facts are checked again.
+    """
     catalog = catalog or load_catalog(profile.schema_version)
-    ids = list(fact_ids) if fact_ids is not None else [fid for fid, f in profile.facts.items() if f.source in EXTRACTED_SOURCES]
+    ids = list(fact_ids) if fact_ids is not None else [fid for fid, f in profile.facts.items() if needs_verification(f)]
     v = await verify_facts(profile, ids, transcript=transcript, pins=pins, catalog=catalog, reextract=reextract, minicheck=minicheck)
     out = Stage5Result(profile=v.profile, verify=v)
     usage = dict(v.usage)

@@ -1,27 +1,56 @@
-"""Stage 5 behind the orchestrator's tools (spec §13.3): ``verify_facts`` and ``check_constraints``.
+"""Stage 5 behind the orchestrator's tools (spec §13.3), and after it (§9).
 
-Each factory returns a coroutine with the ``harness.HarnessServices`` signature, ready for
-``harness.services.default_services(verify=…, constraints=…)``. The tools read the run's transcript,
-pins and catalog from the harness deps; the consistency probes come from an injected ``reextract`` or,
-by default, from the extraction stage's ``make_reextract`` bound to the run (imported when first used).
+``verify_service`` and ``constraints_service`` return coroutines with the ``harness.HarnessServices``
+signature; ``harness.services.default_services`` wires them when this package is installed. The tools read
+the run's transcript, pins and catalog from the harness deps. The consistency probes come from an injected
+``reextract`` or, by default, from the extraction stage's ``make_reextract`` bound to the run (imported
+when first used, and skipped when the small role is a stub that would only return filler).
+
+``verify_after_agent`` is Stage 5 after the orchestrator, for the in-process runner and the activity:
+verify what the agent left unverified or changed since, the omission check with the extraction stage's
+``make_reopen``, verify what it reopened, then constraints, features, calibration and auto-accept.
 """
 
 from __future__ import annotations
 
 from typing import Any, Callable
 
+from .. import llm
+from ..config import Settings
+from ..models.entities import DiscourseOutput
 from ..models.profile import Profile
+from ..models.runs import VersionPins
+from ..models.transcript import Transcript
 from ..schema.constraints import annotate_constraints, check_constraints
+from ..schema.slots import Catalog
+from .calibrator import Calibrator
+from .conformal import ConformalThresholds
 from .consistency import Reextract
+from .coverage import Reopen
 from .minicheck import GroundingScorer
-from .run import verify_facts
+from .run import Stage5Result, verify_facts, verify_stage
+
+PROBE_ROLES = {"reextract": "small", "reopen": "reasoning"}  # the roles extract.probes runs its value stage on
 
 
-def probe_reextract(deps: Any) -> Reextract:
-    """The extraction stage's consistency-probe callable, bound to this run (§9.1b)."""
-    from ..extract.probes import ProbeContext, make_reextract
+def probes_run(pins: VersionPins | None, kind: str) -> bool:
+    """Whether a probe's model is real: a stub would answer with schema-valid filler (``llm.is_stub``)."""
+    return not llm.is_stub(llm.role_model_name(PROBE_ROLES[kind], pins))  # type: ignore[arg-type]
 
-    ctx = ProbeContext(
+
+def _probe_context(*, catalog: Catalog, transcript: Transcript, discourse: DiscourseOutput, pins: VersionPins, run_id: str) -> Any:
+    from ..extract.probes import ProbeContext
+
+    return ProbeContext(catalog=catalog, transcript=transcript, discourse=discourse, pins=pins, run_id=run_id)
+
+
+def probe_reextract(deps: Any) -> Reextract | None:
+    """The extraction stage's consistency-probe callable, bound to this run (§9.1b); None on a stub small model."""
+    if not probes_run(deps.pins, "reextract"):
+        return None
+    from ..extract.probes import make_reextract
+
+    ctx = _probe_context(
         catalog=deps.catalog, transcript=deps.transcript, discourse=deps.discourse, pins=deps.pins, run_id=deps.inputs.run_id
     )
     return make_reextract(ctx, lambda: deps.profile)
@@ -66,3 +95,47 @@ def constraints_service() -> Callable[..., Any]:
         return ServiceResult(profile=annotate_constraints(profile, violations), data=[v.model_dump(mode="json") for v in violations])
 
     return constraints
+
+
+async def verify_after_agent(
+    profile: Profile,
+    *,
+    transcript: Transcript,
+    discourse: DiscourseOutput,
+    pins: VersionPins,
+    catalog: Catalog,
+    run_id: str,
+    calibrator: Calibrator | None = None,
+    conformal: ConformalThresholds | None = None,
+    settings: Settings | None = None,
+    minicheck: GroundingScorer | None = None,
+    reextract: Reextract | None = None,
+    reopen: Reopen | None = None,
+) -> Stage5Result:
+    """Stage 5 after the orchestrator (§9): the remaining checks, the omission check, then scoring.
+
+    ``reextract`` and ``reopen`` default to the extraction stage's probes bound to this run (each skipped
+    when its role is a stub). ``calibrator`` defaults to the cold-start identity; without ``conformal``
+    thresholds nothing is auto-accepted.
+    """
+    if (reextract is None and probes_run(pins, "reextract")) or (reopen is None and probes_run(pins, "reopen")):
+        from ..extract.probes import make_reextract, make_reopen
+
+        ctx = _probe_context(catalog=catalog, transcript=transcript, discourse=discourse, pins=pins, run_id=run_id)
+        if reextract is None and probes_run(pins, "reextract"):
+            reextract = make_reextract(ctx, lambda: profile)
+        if reopen is None and probes_run(pins, "reopen"):
+            reopen = make_reopen(ctx, lambda: profile)
+    return await verify_stage(
+        profile,
+        transcript=transcript,
+        pins=pins,
+        catalog=catalog,
+        reextract=reextract,
+        reopen=reopen,
+        calibrator=calibrator,
+        conformal=conformal,
+        settings=settings,
+        minicheck=minicheck,
+        discourse=discourse,
+    )

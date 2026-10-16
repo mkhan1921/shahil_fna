@@ -23,7 +23,7 @@ from advisor_intel.models.facts import Hypothesis
 from advisor_intel.models.runs import VersionPins
 from advisor_intel.verify.consistency import ProbeResult
 from advisor_intel.verify.entailment import entailment_agent
-from advisor_intel.verify.services import constraints_service, verify_service
+from advisor_intel.verify.services import constraints_service, probe_reextract, probes_run, verify_service
 from advisor_intel.voi.followups import followup_agent
 from advisor_intel.voi.services import bind_today, followups_service, sensitivity_service
 
@@ -127,3 +127,14 @@ def test_services_plug_into_the_harness_and_today_is_bound():
     assert isinstance(bound, functools.partial) and bound.keywords == {"today": ANCHOR}
     plain = bind_today(lambda doc: doc, prof)
     assert not isinstance(plain, functools.partial)
+    caller = functools.partial(fna_analyse, today=date(2026, 1, 1))  # the caller's own date stays
+    assert bind_today(caller, prof) is caller
+
+
+def test_default_services_wire_stage_5_and_6_and_skip_probes_on_stub_models():
+    services = default_services()
+    assert services.verify and services.constraints and services.sensitivity and services.followups
+    deps = _deps()
+    assert not probes_run(deps.pins, "reextract") and probe_reextract(deps) is None  # "test" pins: filler, not probes
+    live = deps.pins.model_copy(update={"small_model": "openai:gpt-4.1-mini"})
+    assert probes_run(live, "reextract") and not probes_run(live, "reopen")

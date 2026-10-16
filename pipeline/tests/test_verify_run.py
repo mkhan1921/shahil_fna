@@ -10,7 +10,7 @@ from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from advisor_intel.config import Settings
-from advisor_intel.extract.reducer import check_profile
+from advisor_intel.extract.reducer import apply_state_ops, check_profile, make_ops
 from advisor_intel.models.facts import Hypothesis
 from advisor_intel.models.profile import StateOp
 from advisor_intel.models.runs import VersionPins
@@ -21,7 +21,7 @@ from advisor_intel.verify.consistency import ProbeResult
 from advisor_intel.verify.coverage import coverage_agent
 from advisor_intel.verify.entailment import entailment_agent
 from advisor_intel.verify.minicheck import FakeMiniCheck
-from advisor_intel.verify.run import score_profile, verify_facts, verify_stage
+from advisor_intel.verify.run import fingerprint, needs_verification, score_profile, verify_facts, verify_stage
 
 from .verify_factories import CATALOG, PROV, ProfileBuilder, ev, money, point, segment, transcript
 
@@ -201,3 +201,30 @@ async def test_verify_stage_reverifies_what_the_omission_check_reopened():
     assert res.reverify is not None and list(res.reverify.results) == ["{p}.employmentType#client"]
     assert all(f.p_correct != 0.5 for f in res.profile.facts.values())  # everything scored
     assert check_profile(res.profile) == []
+
+
+async def test_after_the_agent_only_new_or_changed_facts_are_verified_again():
+    p, ra, inc, bonus, rep, seed = _profile()
+    with entailment_agent.override(model=_verifier(lambda t: "entailed")):
+        first = await verify_facts(p, [ra, inc], transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=None)
+    p = first.profile
+    assert not needs_verification(p.facts[ra]) and not needs_verification(p.facts[inc])
+    assert needs_verification(p.facts[bonus]) and needs_verification(p.facts[rep])
+    assert not needs_verification(p.facts[seed])  # a prior value is not an extraction
+    # a later, revising statement adds a reading of the retirement age: what the checks saw is stale
+    revise = {"add_hypotheses": [Hypothesis(value=point(62, "age"), weight=0.5, rationale="r", revises=True)], "weights": [0.3, 0.2, 0.5]}
+    p = apply_state_ops(p, make_ops(p, [("UPDATE", ra, "s0002", revise, "extractor")])).profile
+    assert needs_verification(p.facts[ra]) and p.facts[ra].verification["checked_fingerprint"] != fingerprint(p.facts[ra])
+
+    seen: list[list[str]] = []
+
+    def fn(messages, info: AgentInfo):
+        seen.append(re.findall(r"^- (c\d+): (.*)$", str(messages[-1].parts[-1].content), flags=re.M))
+        return _verifier(lambda t: "entailed").function(messages, info)
+
+    with entailment_agent.override(model=FunctionModel(fn)):
+        res = await verify_stage(
+            p, transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=None, reopen=None, calibrator=None, conformal=None
+        )
+    assert len(seen) == 3 and set(res.verify.results) == {ra, bonus, rep}  # the income fact was not asked again
+    assert not any(needs_verification(f) for f in res.profile.facts.values())
