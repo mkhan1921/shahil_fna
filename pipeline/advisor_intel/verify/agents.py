@@ -1,12 +1,13 @@
 """Shared plumbing for the Stage 5–6 sub-agents: model resolution, guarded runs, usage, transcript excerpts.
 
 Every sub-agent here returns a strict-friendly ``NativeOutput`` model (§4.4): all fields required, no
-dict-valued fields, no recursion. Models come from ``llm.for_role``. A ``"test"`` pin resolves to a
-``TestModel``, which cannot produce native structured output, so it is replaced by an offline model that
-returns the output type's empty value; checks then report "not run" instead of failing, and unit tests
-inject their own ``FunctionModel`` with ``agent.override``. Provider failures and outputs that still fail
-validation after the retries degrade the same way: the stage carries on and the fact keeps NaN features
-(§13.7: the task is marked failed and the agent is told).
+dict-valued fields, no recursion. Models come from ``llm.for_role``. A stub pin (``"test"``, see
+``llm.is_stub``) would only answer schema-valid filler, so the pass is skipped: an offline stand-in
+returns the output type's empty value and the checks report "not run". ``"local:<name>"`` pins (registered
+in-process models) run for real, and unit tests can also inject a ``FunctionModel`` with
+``agent.override``. Provider failures and outputs that still fail validation after the retries degrade
+the same way: the stage carries on and the fact keeps NaN features (§13.7: the task is marked failed and
+the agent is told).
 """
 
 from __future__ import annotations
@@ -20,7 +21,6 @@ from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError, Unexpe
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models import Model
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from pydantic_ai.models.test import TestModel
 from pydantic_ai.settings import ModelSettings
 
 from .. import llm
@@ -78,7 +78,7 @@ OFFLINE = "offline"
 
 
 def offline_model(empty_json: str) -> FunctionModel:
-    """A model that always answers with ``empty_json`` (used in place of a test pin's ``TestModel``)."""
+    """A model that always answers with ``empty_json`` (used in place of a stub pin's filler model)."""
 
     def answer(messages: list[Any], info: AgentInfo) -> ModelResponse:
         return ModelResponse(parts=[TextPart(empty_json)])
@@ -98,7 +98,7 @@ def resolve(
     settings: dict[str, Any] = dict(rm.settings or {})
     if extra_settings:
         settings.update(extra_settings)
-    if isinstance(rm.model, TestModel):
+    if llm.is_stub(rm.name):
         return Resolved(name=rm.name, model=offline_model(empty_json), settings=ModelSettings(**settings), offline=True)  # type: ignore[typeddict-item]
     return Resolved(name=rm.name, model=rm.model, settings=ModelSettings(**settings))  # type: ignore[typeddict-item]
 

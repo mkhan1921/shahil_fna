@@ -299,3 +299,16 @@ async def test_minicheck_client_reads_yes_probability_from_vllm():
     )
     assert "Claim: The client's target retirement age is 60." in seen["body"]["messages"][1]["content"]
     assert yes_probability({"message": {"content": "No"}}) == 0.0
+
+
+async def test_a_local_pin_runs_the_registered_model_without_override():
+    from advisor_intel import llm
+
+    p, ra, _, _ = _profile()
+    model, prompts = _verdicts_from(lambda t: "entailed")
+    pin = llm.register_local_model("verify-entailment-test", model)
+    try:
+        res = await check_entailment(p, [ra], transcript=_transcript(), pins=VersionPins(verifier_model=pin))
+    finally:
+        llm.unregister_local_model("verify-entailment-test")
+    assert res.facts[ra].status == "entailed" and len(prompts) == 1 and res.facts[ra].model == pin
