@@ -42,6 +42,14 @@ async def test_scripted_call_runs_every_installed_stage(oracle_pins):
     assert gross["status"] == "implied" and gross["derivation"] == "gross_from_net"
     assert fields["income.client.annualBonus"]["derivation"] == "gross_from_net"
     assert res.run_id.startswith("run-call-pipe-")
+    assert "verify" not in res.skipped and "voi" not in res.skipped
+    assert {"verify_facts", "check_constraints", "run_sensitivity", "draft_followups"} <= set(res.tool_calls)
+    open_qs = [q for q in res.followups if q.status == "open"]
+    assert open_qs and all(q.question and q.fact_ids for q in open_qs)
+    missing = {f.fact_id for f in res.flags if f.kind == "tier_a_missing"}
+    assert "household.maritalStatus" in missing and "household.includeSpouse" not in missing  # the spouse spoke on the call
+    call_facts = [f for f in res.profile.facts.values() if f.source == "call"]
+    assert all(0.0 < f.p_correct < 1.0 and not f.auto_accepted for f in call_facts)  # cold start: nothing auto-accepted
 
 
 def test_cli_writes_the_files_the_app_imports(tmp_path, oracle_pins, monkeypatch):

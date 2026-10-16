@@ -187,6 +187,15 @@ async def process_call(
                          call_minutes=transcript.duration / 60.0)
     agent = await run_agent(inputs, services=services)
     profile = agent.profile
+
+    # Stage 5 after the agent (§9): the omission check, re-checks of facts changed since the agent's checks,
+    # then calibration and conformal auto-accept (cold-start calibrator, no auto-accept, until gold calls exist).
+    verify_after = _optional("advisor_intel.verify.services", "verify_after_agent")
+    if verify_after is not None:
+        profile = (await verify_after(profile, transcript=transcript, discourse=discourse, pins=pins, catalog=catalog, run_id=run_id,
+                                      settings=settings)).profile
+    else:
+        skipped.append("verify")
     followups, flags = list(agent.followups or profile.open_questions), list(profile.blocking_flags)
 
     engine = _optional("advisor_intel.fna_engine.analysis", "analyse")
