@@ -90,8 +90,14 @@ async def run_agent(
     if cp is not None:
         state = HarnessState.model_validate(cp.harness_state)
         history = load_messages(cp.messages)
-        if "profile" in cp.harness_state.get("_extra", {}):
-            profile = Profile.model_validate(cp.harness_state["_extra"]["profile"])
+        extra = cp.harness_state.get("_extra", {})
+        if "profile" in extra:
+            profile = Profile.model_validate(extra["profile"])
+        if state.finished and "outcome" in extra and "profile" in extra:
+            # The loop finished but the attempt died before its caller recorded the result: hand the same
+            # result back without another model call (the profile here is the final, derived one).
+            return AgentResult(outcome=AgentOutcome.model_validate(extra["outcome"]), profile=profile, plan=state.plan, notes=state.notes,
+                               followups=state.followups, sensitivity=state.sensitivity, summary=state.summary, state=cp.harness_state)
     loop = LoopDetector([e.args_hash for e in state.events[-10:]])
     # A resumed attempt continues the run's budgets: the orchestrator's usage so far seeds Pydantic AI's
     # limits and the wall clock already spent counts against the soft and hard limits (§13.6).
@@ -104,6 +110,7 @@ async def run_agent(
     outcome = AgentOutcome()
     finish: Finish | None = None
     last_usage: Any = prior_usage or RunUsage()
+    history_so_far: list[ModelMessage] = list(history or [])
     try:
         async with orchestrator.iter(prompt, deps=deps, message_history=history, usage_limits=usage_limits(budgets), usage=prior_usage, model=model,
                                      model_settings=rm.settings if model is rm.model else None, instructions=instructions) as run:
@@ -113,10 +120,11 @@ async def run_agent(
                 # The previous node has run: checkpoint first, so a crash from here on loses nothing done.
                 state.turn += 1
                 last_usage = run.usage
+                history_so_far = run.all_messages()
                 state.orchestrator_usage = usage_snapshot(run.usage)
                 state.elapsed_s = round(budget.elapsed(), 3)
                 extra = {"profile": deps.profile.model_dump(mode="json")} if checkpoint_profile else {}
-                await checkpoints.save(inputs.run_id, state.turn, dump_messages(run.all_messages()), {**state.model_dump(mode="json"), "_extra": extra})
+                await checkpoints.save(inputs.run_id, state.turn, dump_messages(history_so_far), {**state.model_dump(mode="json"), "_extra": extra})
                 if heartbeat is not None:
                     heartbeat({"turn": state.turn, "profile_version": deps.profile.version})
                 budget.check(run.usage, state.subagent_usage)
@@ -126,6 +134,7 @@ async def run_agent(
                     run.enqueue(SOFT_BUDGET_NOTE)
             finish = run.result.output if run.result else None
             last_usage = run.usage
+            history_so_far = run.all_messages()
     except (UsageLimitExceeded, BudgetExceeded) as e:
         outcome.partial = True
         outcome.reason = str(e)
@@ -146,5 +155,9 @@ async def run_agent(
     outcome.turns = state.turn
     state.finished = True
     state.summary = finish.summary if finish else (outcome.reason or "")
-    return AgentResult(outcome=outcome, profile=deps.profile, plan=plan, notes=state.notes, followups=state.followups, sensitivity=state.sensitivity,
-                       summary=state.summary, state=state.model_dump(mode="json"))
+    result = AgentResult(outcome=outcome, profile=deps.profile, plan=plan, notes=state.notes, followups=state.followups, sensitivity=state.sensitivity,
+                         summary=state.summary, state=state.model_dump(mode="json"))
+    if checkpoint_profile:  # a retry after this point returns the same result instead of running the agent again
+        final = {"profile": deps.profile.model_dump(mode="json"), "outcome": outcome.model_dump(mode="json")}
+        await checkpoints.save(inputs.run_id, state.turn, dump_messages(history_so_far), {**result.state, "_extra": final})
+    return result

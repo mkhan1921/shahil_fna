@@ -127,7 +127,7 @@ async def make_plan(ctx: RunContext[HarnessDeps]) -> dict[str, Any]:
     """Plan the extraction: one task per slot group and person, tier A first, dependencies respected. Call this first."""
     d = ctx.deps
     plan, usage = await planner.make_plan(d.catalog, d.discourse, d.transcript, d.profile, d.pins)
-    d.add_usage(usage)
+    d.add_usage(usage, role="frontier")
     if d.state.plan is not None:  # re-planning keeps the progress already made
         done = {t.task_id: t for t in d.state.plan.tasks}
         for t in plan.tasks:
@@ -369,7 +369,7 @@ async def verify_facts(ctx: RunContext[HarnessDeps], slot_group: str | None = No
     res = await d.services.verify(d.profile, ids, d)
     if res.profile is not None:
         await d.set_profile(res.profile)
-    d.add_usage(res.usage)
+    d.add_usage(res.usage, role="verifier")
     return res.data if isinstance(res.data, dict) else {"result": res.data}
 
 
@@ -436,6 +436,7 @@ async def draft_followups(ctx: RunContext[HarnessDeps]) -> list[dict[str, Any]]:
     res = await d.services.followups(d.profile, d)
     if res.profile is not None:
         await d.set_profile(res.profile)
+    d.add_usage(res.usage, role="frontier")
     d.state.followups = list(res.data or [])
     return [f.model_dump(mode="json") for f in d.state.followups]
 
@@ -448,6 +449,7 @@ async def lookup_term(ctx: RunContext[HarnessDeps], term: str, context: str = ""
     if d.services.lookup_term is None:
         return {"term": term, "resolved": False, "candidates": [], "note": "term lookup is not configured in this run"}
     res = await d.services.lookup_term(term, context, d)
+    d.add_usage(res.usage, role="small")
     return res.data if isinstance(res.data, dict) else {"result": res.data}
 
 

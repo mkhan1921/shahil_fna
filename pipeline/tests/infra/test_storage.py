@@ -152,6 +152,11 @@ async def test_profile_versions_freeze_and_old_versions_load(store: Store):
     assert [(r.version, r.frozen) for r in versions] == [(v, True), (v + 1, False)]
     with pytest.raises(StaleProfile):
         await store.save_profile(p.model_copy(update={"version": v - 1}))
+    # Freezing without a version freezes the latest one.
+    frozen = await store.freeze_profile(p.run_id, None, frozen_by="adv-1")
+    assert frozen.version == v + 1 and frozen.frozen and frozen.frozen_by == "adv-1"
+    with pytest.raises(LookupError):
+        await store.freeze_profile("no-such-run", None, frozen_by="adv-1")
 
 
 async def test_update_profile_serialises_concurrent_writers(store: Store):

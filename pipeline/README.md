@@ -99,7 +99,11 @@ as JSON (`{script, script_roles}`). The tests under `tests/infra` start a Tempor
 Every setting reads `ADVISOR_INTEL_<NAME>` or `<NAME>` from the environment. Model roles are Pydantic AI
 model strings: `ADVISOR_INTEL_MODEL_FRONTIER`, `_REASONING`, `_VERIFIER` (a different family from the
 extractor), `_SMALL` and `_SECONDARY` (the fallback provider), with the providers' own keys
-(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`).
+(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`). The agent's per-run budgets (spec §13.6) are
+`ADVISOR_INTEL_BUDGET_<FIELD>` for any field of `config.Budgets` (`BUDGET_USD_CAP`, `BUDGET_TOOL_CALLS`,
+`BUDGET_TOTAL_TOKENS`, `BUDGET_WALL_CLOCK_SOFT_S`, …; a call's `budget_usd` in `POST /calls` overrides the cap for
+that run); the review thresholds are `CONFORMAL_ALPHA`, `MIN_CONFORMAL_CALLS` and `SPOT_CHECK_RATE`, and the model
+options `EXTRACTION_EFFORT` (low / medium / high) and `REFUSAL_FALLBACKS`.
 
 | Needs | For |
 | --- | --- |

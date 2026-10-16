@@ -86,7 +86,7 @@ async def test_policy_run_follows_expected_behaviour():
     assert not todo
     assert calls.index("people:client") < calls.index("retirement:client")
     assert check_profile(res.profile) == []
-    assert store.saves == res.outcome.turns and res.state["subagent_usage"]["requests"] >= 2 * len(calls)
+    assert store.saves == res.outcome.turns + 1 and res.state["subagent_usage"]["requests"] >= 2 * len(calls)  # per turn, plus the finished one
     assert "Extracted" in res.summary
 
 
@@ -160,6 +160,47 @@ async def test_resume_continues_the_runs_budgets_and_wall_clock():
     res = await run_agent(inputs(budgets=Budgets(orchestrator_requests=limit)), services=fake_services([]), checkpoints=store)
     assert res.outcome.partial and "request_limit" in (res.outcome.reason or "")
     assert res.outcome.usage["orchestrator_requests"] >= limit
+
+
+async def test_usd_cap_counts_every_sub_agent_even_without_a_reported_cost():
+    """§13.6: the cost cap covers all models. A sub-agent that reports tokens but no cost is priced from its role's model."""
+    calls: list[str] = []
+    services = fake_services(calls)
+    verify_calls = {"n": 0}
+
+    async def verify(profile, ids, deps):
+        verify_calls["n"] += 1
+        return ServiceResult(data={"verified": len(ids)}, usage={"requests": 1, "input_tokens": 40_000, "output_tokens": 2_000})
+
+    async def followups(profile, deps):
+        return ServiceResult(data=[], usage={"requests": 1, "input_tokens": 10_000, "output_tokens": 500})
+
+    services.verify, services.followups = verify, followups
+    pins = VersionPins(verifier_model="openai:gpt-5", frontier_model="test")  # the orchestrator stays on the scripted policy
+    res = await run_agent(inputs(pins=pins), services=services)
+    assert not res.outcome.partial, res.outcome.reason
+    per_verify = llm.usage_cost_usd("openai:gpt-5", input_tokens=40_000, output_tokens=2_000)
+    assert per_verify > 0 and res.state["subagent_usage"]["cost_usd"] == pytest.approx(per_verify * verify_calls["n"], rel=1e-6)
+    assert res.outcome.usage["usd"] == pytest.approx(per_verify * verify_calls["n"], rel=1e-6)  # the frontier role is a free test model here
+    # The same run with a cap below that spend ends partial on the cost budget.
+    cap = per_verify * 3
+    res = await run_agent(inputs(pins=pins, budgets=Budgets(usd_cap=cap)), services=services)
+    assert res.outcome.partial and "cost budget" in (res.outcome.reason or "") and res.outcome.usage["usd"] > cap
+
+
+async def test_retry_after_the_loop_finished_returns_the_same_result_without_running_again():
+    """The attempt died after the loop ended but before its caller recorded the outcome: the retry hands back
+    the finished result from the checkpoint, with no model call and no re-derived profile."""
+    calls: list[str] = []
+    store = InMemoryCheckpointStore()
+    first = await run_agent(inputs(), services=fake_services(calls), checkpoints=store)
+    n_calls, n_saves = len(calls), store.saves
+    assert store.data["wf-h"].harness_state["finished"] is True
+    again = await run_agent(inputs(), services=fake_services(calls), checkpoints=store)
+    assert len(calls) == n_calls and store.saves == n_saves  # nothing ran, nothing was checkpointed
+    assert again.outcome == first.outcome and again.summary == first.summary
+    assert again.profile.facts.keys() == first.profile.facts.keys() and [o.seq for o in again.profile.ops_log] == [o.seq for o in first.profile.ops_log]
+    assert [t.status for t in again.plan.tasks] == [t.status for t in first.plan.tasks]
 
 
 class WorkerDied(BaseException):

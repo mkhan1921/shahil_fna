@@ -286,20 +286,22 @@ async def submit_review(
             await d.temporal.signal_review(run.workflow_id, review)
         except RPCError as e:
             raise HTTPException(409, f"run {run.workflow_id} could not take the review: {e.message}") from e
-    await d.store.freeze_profile(run.workflow_id, profile.version, frozen_by=reviewer_id)
+    # The latest version is frozen under the run's lock: a reviewer op that landed after the read above is
+    # part of the submitted review (apply_review works from the latest version too).
+    frozen = await d.store.freeze_profile(run.workflow_id, None, frozen_by=reviewer_id)
     await d.store.save_review_result(
         run.workflow_id,
         ReviewResult(
             call_id=call.call_id,
             run_id=run.workflow_id,
-            base_profile_version=profile.version,
+            base_profile_version=frozen.version,
             reviewer_id=reviewer_id,
             submitted=True,
             submitted_at=at,
             review_seconds=review_seconds,
         ),
     )
-    return Submitted(call_id=call.call_id, run_id=run.workflow_id, profile_version=profile.version, submitted_at=at)
+    return Submitted(call_id=call.call_id, run_id=run.workflow_id, profile_version=frozen.version, submitted_at=at)
 
 
 # --------------------------------------------------------------------------- routes
@@ -611,12 +613,18 @@ async def answer_followup(call_id: str, followup_id: str, body: AnswerRequest, d
     """An answer to a follow-up question (§10.6): a signal to a running call, else a ``FollowupIntakeWorkflow``."""
     call = await _call(d, call_id)
     run = await _run(d, call)
-    if await d.store.get_followup(run.workflow_id, followup_id) is None:
+    rec = await d.store.get_followup(run.workflow_id, followup_id)
+    if rec is None:
         raise HTTPException(404, f"run {run.workflow_id} has no follow-up {followup_id}")
+    info = await d.temporal.describe(run.workflow_id)
+    if rec.answer is not None and rec.answer.text == body.text and rec.answer.source == body.source:
+        # The same answer sent again (a lost reply, a double click): it was taken in once; taking it in again
+        # would add its hypotheses and evidence a second time.
+        routed = "signal" if info.status == "RUNNING" else "intake_workflow"
+        return AnswerRouted(call_id=call_id, run_id=run.workflow_id, followup_id=followup_id, routed=routed, workflow_id=run.workflow_id, duplicate=True)
     answer = FollowupAnswer(
         call_id=call_id, followup_id=followup_id, text=body.text, source=body.source, recorded_by=body.recorded_by, answered_at=_now()
     )
-    info = await d.temporal.describe(run.workflow_id)
     with run_context(call_id=call_id, workflow_id=run.workflow_id, stage="followup_intake", pins=run.versions):
         routed = None
         if info.status == "RUNNING":

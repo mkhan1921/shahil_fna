@@ -454,6 +454,36 @@ async def test_followup_answers_are_routed_by_run_status(api):
     wf, args = api.gw.intakes[0]
     assert r.json()["workflow_id"] == wf and args.run_id == "call-1-run-a" and args.answer.text == "Actually sixty-four"
     assert (await api.c.post("/calls/call-1/followups/fu.nope/answer", json={"text": "x"})).status_code == 404
+    # The same answer sent again (a lost reply) is not taken in twice; a different answer is.
+    n_intakes, n_signals = len(api.gw.intakes), len(api.gw.signals)
+    again = await api.c.post("/calls/call-1/followups/fu.retirement_age/answer", json={"text": "Actually sixty-four"})
+    assert again.status_code == 200 and again.json()["duplicate"] is True and again.json()["routed"] == "intake_workflow"
+    assert len(api.gw.intakes) == n_intakes and len(api.gw.signals) == n_signals
+    changed = await api.c.post("/calls/call-1/followups/fu.retirement_age/answer", json={"text": "Sixty-five after all"})
+    assert changed.json()["duplicate"] is False and len(api.gw.intakes) == n_intakes + 1
+
+
+async def test_submit_freezes_the_latest_version_even_when_an_op_lands_during_submission(api):
+    """§11.2: submit freezes the profile version. An op written between the API's read and its freeze belongs
+    to the frozen review, so the frozen version is the latest one, not one behind."""
+    profile = await seed_run(api)
+    await api.c.post("/calls/call-1/ops", json=_clear_flag_body())
+    store = api.store
+    real_describe = api.gw.describe
+
+    async def describe_and_race(workflow_id):
+        # A reviewer op slips in while the API is talking to Temporal.
+        ops = make_ops(await store.load_profile(workflow_id), [("CONFIRM", GROSS, None, {}, "reviewer")])
+        await api.c.post("/calls/call-1/ops", json={"reviewer_id": "adv-1", "ops": [o.model_dump(mode="json") for o in ops]})
+        return await real_describe(workflow_id)
+
+    api.gw.describe = describe_and_race
+    s = await api.c.post("/calls/call-1/submit", json={"reviewer_id": "adv-1"})
+    assert s.status_code == 200, s.text
+    versions = await store.profile_versions("call-1-run-a")
+    latest = versions[-1]
+    assert latest.frozen and s.json()["profile_version"] == latest.version > profile.version
+    assert (await store.load_profile("call-1-run-a")).facts[GROSS].review.status == "accepted"
 
 
 async def test_answer_falls_back_to_the_intake_workflow_when_the_run_completes_mid_signal(api):

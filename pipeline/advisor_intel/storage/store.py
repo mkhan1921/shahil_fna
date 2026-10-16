@@ -294,10 +294,20 @@ class Store:
             cur = await conn.execute("SELECT * FROM profiles WHERE workflow_id = %s ORDER BY version", (run_id,))
             return [ProfileVersionRecord.model_validate(r) for r in await cur.fetchall()]
 
-    async def freeze_profile(self, run_id: str, version: int, *, frozen_by: str) -> ProfileVersionRecord:
-        """Freeze a saved version (review submitted): later saves become new versions."""
+    async def freeze_profile(self, run_id: str, version: int | None = None, *, frozen_by: str) -> ProfileVersionRecord:
+        """Freeze a saved version (review submitted): later saves become new versions.
+
+        With ``version=None`` the latest version is frozen, under the run's lock, so a reviewer op that
+        landed between the caller's read and the freeze is part of the frozen review, not after it.
+        """
         async with self.db.transaction() as conn:
             await self._lock_run(conn, run_id)
+            if version is None:
+                cur = await conn.execute("SELECT version FROM profiles WHERE workflow_id = %s ORDER BY version DESC LIMIT 1", (run_id,))
+                latest = await cur.fetchone()
+                if latest is None:
+                    raise NotFound(f"run {run_id} has no profile")
+                version = latest["version"]
             cur = await conn.execute(
                 """
                 UPDATE profiles SET frozen = true, frozen_at = COALESCE(frozen_at, now()), frozen_by = COALESCE(frozen_by, %s)
