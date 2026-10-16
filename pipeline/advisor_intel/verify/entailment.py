@@ -38,6 +38,7 @@ from ..models.facts import Fact
 from ..models.profile import Profile
 from ..models.runs import VersionPins
 from ..models.transcript import Transcript
+from ..prompts import pinned
 from ..schema.slots import Catalog, load_catalog
 from .agents import Resolved, Usage, format_segment, is_offline, resolve, run_guarded
 from .claims import Claim, claims_for_fact
@@ -72,23 +73,14 @@ class EntailmentVerdicts(BaseModel):
     verdicts: list[ClaimVerdict]
 
 
-INSTRUCTIONS = """\
-You check claims about a financial-planning conversation between an adviser and a client against excerpts of its transcript.
-You see only the excerpts. Judge each claim on its own:
-- entailed: the excerpts state or clearly imply the claim. A range or rough figure that matches what was said counts.
-- neutral: the excerpts do not say enough to decide.
-- contradicted: the excerpts say something incompatible with the claim: a different value, person, object, period or meaning.
-Mind who is speaking: a figure the adviser proposed is not the client's statement unless the client agreed.
-Words marked {word?0.42} were transcribed with low confidence. A ⟨rewrite⟩ is a self-contained restatement of the segment.
-Return exactly one verdict per claim id, each with a one-line reason."""
+PROMPT = "entailment"  # prompts/entailment/<version>.md, pinned by VersionPins.prompt_versions["entailment"] (§13.8, §15.6)
 
 entailment_agent: Agent[frozenset[str], EntailmentVerdicts] = Agent(
     None,
     name="entailment_verifier",
     deps_type=frozenset,
     output_type=NativeOutput(EntailmentVerdicts, name="verdicts", strict=True),
-    instructions=INSTRUCTIONS,
-    retries={"output": 2},
+    retries={"output": 2},  # instructions come from the pinned prompt at run time
 )
 
 
@@ -253,6 +245,7 @@ class FactEntailment(BaseModel):
 class EntailmentResult(BaseModel):
     facts: dict[str, FactEntailment] = {}
     usage: dict[str, int] = {}
+    prompt_version: str = ""  # the pinned entailment prompt the verdicts came from
 
 
 # --------------------------------------------------------------------------- evidence context
@@ -313,20 +306,20 @@ def _weighted(checks: list[HypothesisCheck], attr: str) -> float | None:
 
 
 async def _verify_fact(
-    fact: Fact, claims: list[Claim], transcript: Transcript, resolved: Resolved, *, want_logprobs: bool, sem: asyncio.Semaphore
+    fact: Fact, claims: list[Claim], transcript: Transcript, resolved: Resolved, *, want_logprobs: bool, sem: asyncio.Semaphore, instructions: str
 ) -> tuple[dict[str, tuple[str, str, float | None]], str | None, Usage]:
     """Run the verifier on one fact's claims: claim id → (verdict, reason, P(entailed) from logprobs)."""
     prompt = verifier_prompt(fact, claims, transcript)
     deps = frozenset(c.claim_id for c in claims)
     async with sem:
-        outcome = await run_guarded(entailment_agent, prompt, resolved, deps=deps)
+        outcome = await run_guarded(entailment_agent, prompt, resolved, deps=deps, instructions=instructions)
         usage = outcome.usage
         if outcome.output is None and want_logprobs and (outcome.error or "").startswith(API_ERRORS):
             # Some deployments reject log-probabilities: retry once without them.
             plain = Resolved(
                 resolved.name, resolved.model, {k: v for k, v in (resolved.settings or {}).items() if "logprobs" not in k}, resolved.offline
             )  # type: ignore[arg-type]
-            outcome = await run_guarded(entailment_agent, prompt, plain, deps=deps)
+            outcome = await run_guarded(entailment_agent, prompt, plain, deps=deps, instructions=instructions)
             usage = usage.merge(outcome.usage)
     if outcome.output is None:
         return {}, outcome.error, usage
@@ -362,6 +355,7 @@ async def check_entailment(
     if logprobs is None or logprobs:
         extra = logprob_settings(verifier_name) if logprobs is None else {"openai_logprobs": True, "openai_top_logprobs": TOP_LOGPROBS}
     resolved = resolve("verifier", pins, empty_json='{"verdicts": []}', extra_settings=extra)
+    prompt = pinned(PROMPT, pins.prompt_versions if pins else None)
     extractor_name = llm.role_model_name("reasoning", pins)
     independent = (
         llm.is_test(verifier_name) or llm.is_test(extractor_name) or llm.provider_of(verifier_name) != llm.provider_of(extractor_name)
@@ -418,7 +412,7 @@ async def check_entailment(
             else:
                 to_verify.append(c)
         if to_verify:
-            jobs.append((fact, to_verify, _verify_fact(fact, to_verify, transcript, resolved, want_logprobs=bool(extra), sem=sem)))
+            jobs.append((fact, to_verify, _verify_fact(fact, to_verify, transcript, resolved, want_logprobs=bool(extra), sem=sem, instructions=prompt.text)))
     answers = await asyncio.gather(*(j[2] for j in jobs))
     for (fact, claims, _), (verdicts, error, used) in zip(jobs, answers):
         usage = usage.merge(used)
@@ -438,7 +432,7 @@ async def check_entailment(
         res.contradicted = [c.index for c in res.checks if c.verdict == "contradicted"]
         res.entail_score = _weighted(res.checks, "entail_score")
         res.minicheck_score = _weighted(res.checks, "minicheck_score")
-    return EntailmentResult(facts=results, usage=usage.as_dict())
+    return EntailmentResult(facts=results, usage=usage.as_dict(), prompt_version=prompt.version)
 
 
 def corrective_ops(profile: Profile, result: EntailmentResult) -> list[tuple[str, str, str | None, dict[str, Any], str]]:

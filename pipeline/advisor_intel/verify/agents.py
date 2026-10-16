@@ -111,11 +111,15 @@ class Outcome(Generic[T]):
     usage: Usage = field(default_factory=Usage)
 
 
-async def run_guarded(agent: Agent[Any, T], prompt: str, resolved: Resolved, *, deps: Any = None) -> Outcome[T]:
-    """Run a sub-agent; a provider failure or an output that never validates returns an empty outcome."""
+async def run_guarded(agent: Agent[Any, T], prompt: str, resolved: Resolved, *, deps: Any = None, instructions: str | None = None) -> Outcome[T]:
+    """Run a sub-agent; a provider failure or an output that never validates returns an empty outcome.
+
+    ``instructions`` are the run's pinned prompt (``prompts.pinned``), passed per run so a version pin or a GEPA
+    candidate reaches the model without rebuilding the agent.
+    """
     usage = Usage()
     try:
-        result = await agent.run(prompt, model=resolved.model, model_settings=resolved.settings, deps=deps)
+        result = await agent.run(prompt, model=resolved.model, model_settings=resolved.settings, deps=deps, instructions=instructions)
     except (UnexpectedModelBehavior, ModelAPIError, FallbackExceptionGroup) as e:
         usage.failures += 1
         log.warning("%s failed on %s: %s", agent.name, resolved.name, e)
