@@ -35,3 +35,12 @@ next-env.d.ts
 /data
 *.fna
 *.fna.json
+
+# python pipeline (advisor call intelligence)
+/pipeline/.venv
+/pipeline/.tools
+/pipeline/.data
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/

@@ -1,0 +1,2344 @@
+{
+  "table": {
+    "label": "2026/27",
+    "period": "1 March 2026 – 28 February 2027",
+    "endDate": "2027-02-28",
+    "status": "confirmed",
+    "brackets": [
+      {
+        "from": 0,
+        "base": 0,
+        "rate": 0.18
+      },
+      {
+        "from": 245100,
+        "base": 44118,
+        "rate": 0.26
+      },
+      {
+        "from": 383100,
+        "base": 79998,
+        "rate": 0.31
+      },
+      {
+        "from": 530200,
+        "base": 125599,
+        "rate": 0.36
+      },
+      {
+        "from": 695800,
+        "base": 185215,
+        "rate": 0.39
+      },
+      {
+        "from": 887000,
+        "base": 259783,
+        "rate": 0.41
+      },
+      {
+        "from": 1878600,
+        "base": 666339,
+        "rate": 0.45
+      }
+    ],
+    "rebates": {
+      "primary": 17820,
+      "secondary": 9765,
+      "tertiary": 3249
+    },
+    "thresholds": {
+      "under65": 99000,
+      "age65to74": 153250,
+      "age75plus": 171300
+    },
+    "medicalCredits": {
+      "main": 376,
+      "firstDependant": 376,
+      "additional": 254
+    },
+    "retirementDeduction": {
+      "rate": 0.275,
+      "cap": 430000
+    },
+    "cgt": {
+      "inclusionRate": 0.4,
+      "annualExclusion": 50000,
+      "deathExclusion": 440000,
+      "primaryResidence": 3000000
+    },
+    "tfsa": {
+      "annual": 46000,
+      "lifetime": 500000
+    },
+    "uif": {
+      "rate": 0.01,
+      "ceilingMonthly": 17712
+    },
+    "interestExemption": {
+      "under65": 23800,
+      "over65": 34500
+    },
+    "estateDuty": {
+      "abatement": 3500000,
+      "rateLow": 0.2,
+      "threshold": 30000000,
+      "rateHigh": 0.25
+    },
+    "retirementLumpSum": [
+      {
+        "from": 0,
+        "base": 0,
+        "rate": 0
+      },
+      {
+        "from": 550000,
+        "base": 0,
+        "rate": 0.18
+      },
+      {
+        "from": 770000,
+        "base": 39600,
+        "rate": 0.27
+      },
+      {
+        "from": 1155000,
+        "base": 143550,
+        "rate": 0.36
+      }
+    ],
+    "withdrawalLumpSum": [
+      {
+        "from": 0,
+        "base": 0,
+        "rate": 0
+      },
+      {
+        "from": 27500,
+        "base": 0,
+        "rate": 0.18
+      },
+      {
+        "from": 726000,
+        "base": 125730,
+        "rate": 0.27
+      },
+      {
+        "from": 1089000,
+        "base": 223740,
+        "rate": 0.36
+      }
+    ],
+    "sources": [
+      "SARS — Rates of Tax for Individuals: https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/",
+      "SARS — Budget 2026 Tax Guide: https://www.sars.gov.za/wp-content/uploads/Docs/Budget/Budget2026/Budget-tax-guide-2026-online-version-for-printing.pdf",
+      "National Treasury — 2026 Budget Review, Chapter 4: https://www.treasury.gov.za/documents/National%20Budget/2026/review/Chapter%204.pdf",
+      "SARS — Retirement lump sum benefits: https://www.sars.gov.za/tax-rates/income-tax/retirement-lump-sum-benefits/",
+      "SARS — Estate duty: https://www.sars.gov.za/types-of-tax/estate-duty/"
+    ]
+  },
+  "people": [
+    "client",
+    "spouse"
+  ],
+  "persons": {
+    "client": {
+      "key": "client",
+      "name": "Thabo Mokoena",
+      "income": {
+        "key": "client",
+        "name": "Thabo Mokoena",
+        "age": 40,
+        "taxAge": 40,
+        "ageKnown": true,
+        "exactAge": 40.514957598629934,
+        "tax": {
+          "grossAnnual": 1300000,
+          "remuneration": 1420000,
+          "retirementDeduction": 240000,
+          "taxable": 1180000,
+          "taxBeforeRebates": 379913,
+          "rebates": 17820,
+          "medicalCredit": 15120,
+          "annualTax": 346973,
+          "monthlyPaye": 28914.416666666668,
+          "monthlyUif": 177.12,
+          "marginalRate": 0.41,
+          "effectiveRate": 0.2669023076923077
+        },
+        "grossMonthly": 100000,
+        "grossMonthlyEquivalent": 108333.33333333333,
+        "earnedGrossMonthly": 108333.33333333333,
+        "earnedAfterTaxMonthly": 79241.79666666668,
+        "working": true,
+        "payeMonthly": 26522.75,
+        "uifMonthly": 177.12,
+        "retirementPayrollMonthly": 7500,
+        "retirementEmployerMonthly": 10000,
+        "retirementOwnMonthly": 2500,
+        "medicalPayrollMonthly": 9850,
+        "otherDeductionsMonthly": 0,
+        "nonTaxableMonthly": 0,
+        "takeHomeMonthly": 55950.130000000005,
+        "afterTaxMonthly": 79241.79666666668,
+        "bonusNet": 59000
+      },
+      "death": {
+        "area": "life",
+        "person": "client",
+        "title": "Life cover",
+        "need": 12363346.429240722,
+        "provision": 7947650,
+        "shortfall": 4415696.429240722,
+        "funded": 0.6428397073144293,
+        "status": "partial",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "Settle debts",
+            "amount": 957000
+          },
+          {
+            "label": "Estate costs, CGT & estate duty",
+            "amount": 165152.5
+          },
+          {
+            "label": "Funeral",
+            "amount": 50000
+          },
+          {
+            "label": "Adjustment fund (3 months' income)",
+            "amount": 237725.39
+          },
+          {
+            "label": "Tertiary education capital",
+            "amount": 912315.3084677908
+          },
+          {
+            "label": "Income for dependants (16 yrs)",
+            "amount": 9510225.440335475,
+            "note": "59431 p.m. today"
+          },
+          {
+            "label": "Support for parents & other dependants",
+            "amount": 530927.7904374561
+          }
+        ],
+        "provisionLines": [
+          {
+            "label": "Existing life cover",
+            "amount": 6100000
+          },
+          {
+            "label": "Retirement fund death benefits (net of tax)",
+            "amount": 1318650
+          },
+          {
+            "label": "Liquid assets & investments",
+            "amount": 529000
+          }
+        ],
+        "notes": [
+          "Income capital: 75% of after-tax income for 16 years, escalating at CPI and discounted at 7.0% p.a.",
+          "Retirement fund death benefits are allocated by the fund trustees under s37C of the Pension Funds Act (nominations are not binding) and can take up to 12 months; they are shown net of lump-sum tax and do not provide estate liquidity."
+        ]
+      },
+      "deathIncomeYears": 16,
+      "deathIncomeMonthly": 59431.3475,
+      "disability": {
+        "area": "disability",
+        "person": "client",
+        "title": "Disability — lump sum",
+        "need": 3236066.4375132495,
+        "provision": 0,
+        "shortfall": 3236066.4375132495,
+        "funded": 0,
+        "status": "shortfall",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "Settle debts",
+            "amount": 957000
+          },
+          {
+            "label": "Home, vehicle & medical adaptations",
+            "amount": 150000
+          },
+          {
+            "label": "Lost employer retirement contributions (to 65)",
+            "amount": 2129066.4375132495
+          }
+        ],
+        "provisionLines": [],
+        "notes": [
+          "Income replacement is addressed through income protection; the lump sum covers debt, lifestyle adaptations and lost employer retirement funding.",
+          "If income protection is not taken up, a further 6 532 157 lump sum would be needed to replace the income gap to age 65."
+        ]
+      },
+      "incomeProtection": {
+        "area": "income-protection",
+        "person": "client",
+        "title": "Income protection",
+        "need": 79241.79666666668,
+        "provision": 50000,
+        "shortfall": 29241.796666666676,
+        "funded": 0.6309801405731209,
+        "status": "partial",
+        "monthly": true,
+        "needLines": [
+          {
+            "label": "Monthly income to protect",
+            "amount": 79241.79666666668
+          }
+        ],
+        "provisionLines": [
+          {
+            "label": "Income protection to retirement",
+            "amount": 50000
+          }
+        ],
+        "notes": [
+          "Target: 100% of after-tax earned income. Insurers generally limit total income protection to about 100% of after-tax income.",
+          "Group income protection may be taxable if the employer owns the policy — confirm the tax treatment with the scheme."
+        ]
+      },
+      "severeIllness": {
+        "area": "severe-illness",
+        "person": "client",
+        "title": "Severe illness",
+        "need": 2600000,
+        "provision": 500000,
+        "shortfall": 2100000,
+        "funded": 0.19230769230769232,
+        "status": "shortfall",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "24 months of gross income",
+            "amount": 2600000
+          }
+        ],
+        "provisionLines": [
+          {
+            "label": "Existing severe illness cover",
+            "amount": 500000
+          }
+        ],
+        "notes": [
+          "Some severe illness cover is accelerated — a claim reduces the life cover by the same amount."
+        ]
+      },
+      "funeral": {
+        "area": "funeral",
+        "person": "client",
+        "title": "Funeral",
+        "need": 50000,
+        "provision": 50000,
+        "shortfall": 0,
+        "funded": 1,
+        "status": "covered",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "Funeral costs",
+            "amount": 50000
+          }
+        ],
+        "provisionLines": [
+          {
+            "label": "Life cover paying a nominee within days",
+            "amount": 50000
+          }
+        ],
+        "notes": [
+          "Bank accounts are frozen on death. Funeral policies and life cover with a nominated beneficiary pay quickly; group cover and estate proceeds can take weeks to months."
+        ]
+      },
+      "estate": {
+        "person": "client",
+        "grossEstate": 2649000,
+        "deemedProperty": 6100000,
+        "liabilities": 957000,
+        "executorFees": 106622.25000000001,
+        "mastersFees": 5000,
+        "conveyancing": 40030.25,
+        "bondCancellation": 6000,
+        "sundries": 7500,
+        "funeral": 50000,
+        "cgt": 0,
+        "capitalGains": 0,
+        "accrualPayable": 249000,
+        "accrualReceivable": 0,
+        "netEstate": 7327847.5,
+        "spouseDeduction": 7327847.5,
+        "abatement": 3500000,
+        "dutiable": 0,
+        "estateDuty": 0,
+        "totalCosts": 215152.5,
+        "cashRequired": 1421152.5,
+        "cashAvailable": 529000,
+        "liquidityShortfall": 892152.5,
+        "lines": [
+          {
+            "label": "Debts payable by the estate",
+            "amount": 957000
+          },
+          {
+            "label": "Executor's fees (3.5% + VAT)",
+            "amount": 106622.25000000001
+          },
+          {
+            "label": "Master's fees",
+            "amount": 5000
+          },
+          {
+            "label": "Conveyancing (transfer to heirs)",
+            "amount": 40030.25
+          },
+          {
+            "label": "Bond cancellation",
+            "amount": 6000
+          },
+          {
+            "label": "Advertising, tax returns & sundries",
+            "amount": 7500
+          },
+          {
+            "label": "Funeral costs",
+            "amount": 50000
+          },
+          {
+            "label": "Capital gains tax on death",
+            "amount": 0
+          },
+          {
+            "label": "Estate duty",
+            "amount": 0
+          },
+          {
+            "label": "Accrual claim payable to spouse",
+            "amount": 249000
+          },
+          {
+            "label": "Cash bequests",
+            "amount": 0
+          }
+        ],
+        "notes": [
+          "Accrual claim estimated from current net asset values less commencement values in the antenuptial contract."
+        ]
+      },
+      "retirement": {
+        "person": "client",
+        "retired": false,
+        "currentAge": 40.514957598629934,
+        "retirementAge": 65,
+        "planningAge": 90,
+        "yearsToRetirement": 24.485042401370066,
+        "yearsInRetirement": 25,
+        "currentCapital": 1635000,
+        "monthlyContributions": 20000,
+        "projectedCapital": 42532261.79834181,
+        "projectedCapitalReal": 14476224.055309663,
+        "targetMonthlyToday": 81250,
+        "otherIncomeToday": 0,
+        "targetMonthlyAtRetirement": 238718.76104651447,
+        "requiredCapital": 51391404.439075835,
+        "requiredCapitalReal": 17491510.061336584,
+        "shortfall": 8859142.640734024,
+        "shortfallReal": 3015286.006026921,
+        "additionalMonthly": 5815.616984516078,
+        "sustainableMonthlyToday": 67243.66280380674,
+        "replacementRatio": 0.6207107335736007,
+        "targetReplacementRatio": 0.75,
+        "initialDrawdown": 0.0673518174542473,
+        "depletionAge": 84.75,
+        "funded": 0.8276143114314676,
+        "status": "partial",
+        "timeline": [
+          {
+            "age": 40,
+            "year": 2026,
+            "capital": 1635000,
+            "capitalReal": 1635000,
+            "contribution": 0,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 41,
+            "year": 2027,
+            "capital": 2023187.29249927,
+            "capitalReal": 1936064.3947361438,
+            "contribution": 240000,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 42,
+            "year": 2028,
+            "capital": 2458077.180948438,
+            "capitalReal": 2250934.8970476305,
+            "contribution": 253200,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 43,
+            "year": 2029,
+            "capital": 2944393.253188056,
+            "capitalReal": 2580161.80877088,
+            "contribution": 267126,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 44,
+            "year": 2030,
+            "capital": 3487302.0647202884,
+            "capitalReal": 2924316.704907237,
+            "contribution": 281817.93,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 45,
+            "year": 2031,
+            "capital": 4092453.071408378,
+            "capitalReal": 3283993.2499065916,
+            "contribution": 297317.91615,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 46,
+            "year": 2032,
+            "capital": 4766022.081880233,
+            "capitalReal": 3659808.0452154665,
+            "contribution": 313670.40153825,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 47,
+            "year": 2033,
+            "capital": 5514758.535709318,
+            "capitalReal": 4052401.5092864386,
+            "contribution": 330922.2736228537,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 48,
+            "year": 2034,
+            "capital": 6346036.939841683,
+            "capitalReal": 4462438.791291634,
+            "contribution": 349122.9986721106,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 49,
+            "year": 2035,
+            "capital": 7267912.82439813,
+            "capitalReal": 4890610.719830611,
+            "contribution": 368324.7635990767,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 50,
+            "year": 2036,
+            "capital": 8289183.61009873,
+            "capitalReal": 5337634.787972298,
+            "contribution": 388582.6255970259,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 51,
+            "year": 2037,
+            "capital": 9419454.813343352,
+            "capitalReal": 5804256.176021929,
+            "contribution": 409954.6700048623,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 52,
+            "year": 2038,
+            "capital": 10669212.051665,
+            "capitalReal": 6291248.813457241,
+            "contribution": 432502.17685512966,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 53,
+            "year": 2039,
+            "capital": 12049899.3520993,
+            "capitalReal": 6799416.481533415,
+            "contribution": 456289.7965821618,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 54,
+            "year": 2040,
+            "capital": 13574004.308252873,
+            "capitalReal": 7329593.958113606,
+            "contribution": 481385.7353941807,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 55,
+            "year": 2041,
+            "capital": 15255150.678796886,
+            "capitalReal": 7882648.20634161,
+            "contribution": 507861.9508408606,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 56,
+            "year": 2042,
+            "capital": 17108199.071075972,
+            "capitalReal": 8459479.608835006,
+            "contribution": 535794.3581371079,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 57,
+            "year": 2043,
+            "capital": 19149356.408850767,
+            "capitalReal": 9061023.249141412,
+            "contribution": 565263.0478346489,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 58,
+            "year": 2044,
+            "capital": 21396294.943256736,
+            "capitalReal": 9688250.24226709,
+            "contribution": 596352.5154655545,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 59,
+            "year": 2045,
+            "capital": 23868281.631268166,
+            "capitalReal": 10342169.116156634,
+            "contribution": 629151.90381616,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 60,
+            "year": 2046,
+            "capital": 26586318.776741464,
+            "capitalReal": 11023827.246074034,
+            "contribution": 663755.2585260487,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 61,
+            "year": 2047,
+            "capital": 29573296.90595484,
+            "capitalReal": 11734312.343910411,
+            "contribution": 700261.7977449815,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 62,
+            "year": 2048,
+            "capital": 32854160.932976853,
+            "capitalReal": 12474754.004521023,
+            "contribution": 738776.1966209554,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 63,
+            "year": 2049,
+            "capital": 36456090.76074661,
+            "capitalReal": 13246325.311274663,
+            "contribution": 779408.887435108,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 64,
+            "year": 2050,
+            "capital": 40408697.56204244,
+            "capitalReal": 14050244.503082268,
+            "contribution": 822276.3762440388,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 65,
+            "year": 2051,
+            "capital": 42532261.79834181,
+            "capitalReal": 14466696.235797716,
+            "contribution": 867501.5769374608,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 66,
+            "year": 2051,
+            "capital": 42742466.622379765,
+            "capitalReal": 13921310.133621646,
+            "contribution": 0,
+            "withdrawal": 2864625.1325581735,
+            "phase": "retirement"
+          },
+          {
+            "age": 67,
+            "year": 2052,
+            "capital": 42834349.64173287,
+            "capitalReal": 13350465.668727275,
+            "contribution": 0,
+            "withdrawal": 2993533.2635232913,
+            "phase": "retirement"
+          },
+          {
+            "age": 68,
+            "year": 2053,
+            "capital": 42793002.79855785,
+            "capitalReal": 12763233.324457953,
+            "contribution": 0,
+            "withdrawal": 3128242.2603818392,
+            "phase": "retirement"
+          },
+          {
+            "age": 69,
+            "year": 2054,
+            "capital": 42602128.404160924,
+            "capitalReal": 12159142.635377059,
+            "contribution": 0,
+            "withdrawal": 3269013.1620990215,
+            "phase": "retirement"
+          },
+          {
+            "age": 70,
+            "year": 2055,
+            "capital": 42243922.69799127,
+            "capitalReal": 11537709.629863229,
+            "contribution": 0,
+            "withdrawal": 3416118.754393477,
+            "phase": "retirement"
+          },
+          {
+            "age": 71,
+            "year": 2056,
+            "capital": 41698950.12371715,
+            "capitalReal": 10898436.442372909,
+            "contribution": 0,
+            "withdrawal": 3569844.0983411833,
+            "phase": "retirement"
+          },
+          {
+            "age": 72,
+            "year": 2057,
+            "capital": 40946007.6014245,
+            "capitalReal": 10240810.914571883,
+            "contribution": 0,
+            "withdrawal": 3730487.0827665357,
+            "phase": "retirement"
+          },
+          {
+            "age": 73,
+            "year": 2058,
+            "capital": 39961978.01978913,
+            "capitalReal": 9564306.185015788,
+            "contribution": 0,
+            "withdrawal": 3898359.0014910297,
+            "phase": "retirement"
+          },
+          {
+            "age": 74,
+            "year": 2059,
+            "capital": 38721672.11270268,
+            "capitalReal": 8868380.267051382,
+            "contribution": 0,
+            "withdrawal": 4073785.1565581253,
+            "phase": "retirement"
+          },
+          {
+            "age": 75,
+            "year": 2060,
+            "capital": 37197657.82094909,
+            "capitalReal": 8152475.614599959,
+            "contribution": 0,
+            "withdrawal": 4257105.48860324,
+            "phase": "retirement"
+          },
+          {
+            "age": 76,
+            "year": 2061,
+            "capital": 35360076.170804754,
+            "capitalReal": 7416018.675475304,
+            "contribution": 0,
+            "withdrawal": 4448675.235590386,
+            "phase": "retirement"
+          },
+          {
+            "age": 77,
+            "year": 2062,
+            "capital": 33176442.627497375,
+            "capitalReal": 6658419.431878166,
+            "contribution": 0,
+            "withdrawal": 4648865.621191953,
+            "phase": "retirement"
+          },
+          {
+            "age": 78,
+            "year": 2063,
+            "capital": 30611432.801916655,
+            "capitalReal": 5879070.927699295,
+            "contribution": 0,
+            "withdrawal": 4858064.574145591,
+            "phase": "retirement"
+          },
+          {
+            "age": 79,
+            "year": 2064,
+            "capital": 27626651.303398445,
+            "capitalReal": 5077348.782252131,
+            "contribution": 0,
+            "withdrawal": 5076677.479982142,
+            "phase": "retirement"
+          },
+          {
+            "age": 80,
+            "year": 2065,
+            "capital": 24180382.439351574,
+            "capitalReal": 4252610.690045715,
+            "contribution": 0,
+            "withdrawal": 5305127.966581338,
+            "phase": "retirement"
+          },
+          {
+            "age": 81,
+            "year": 2066,
+            "capital": 20227321.363470085,
+            "capitalReal": 3404195.906197007,
+            "contribution": 0,
+            "withdrawal": 5543858.725077498,
+            "phase": "retirement"
+          },
+          {
+            "age": 82,
+            "year": 2067,
+            "capital": 15718284.167750034,
+            "capitalReal": 2531424.7170703495,
+            "contribution": 0,
+            "withdrawal": 5793332.367705985,
+            "phase": "retirement"
+          },
+          {
+            "age": 83,
+            "year": 2068,
+            "capital": 10599895.29894185,
+            "capitalReal": 1633597.8957199582,
+            "contribution": 0,
+            "withdrawal": 6054032.3242527535,
+            "phase": "retirement"
+          },
+          {
+            "age": 84,
+            "year": 2069,
+            "capital": 4814250.55681053,
+            "capitalReal": 709996.1416992205,
+            "contribution": 0,
+            "withdrawal": 6326463.778844127,
+            "phase": "retirement"
+          },
+          {
+            "age": 85,
+            "year": 2070,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 6611154.648892112,
+            "phase": "retirement"
+          },
+          {
+            "age": 86,
+            "year": 2071,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 6908656.608092258,
+            "phase": "retirement"
+          },
+          {
+            "age": 87,
+            "year": 2072,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 7219546.155456409,
+            "phase": "retirement"
+          },
+          {
+            "age": 88,
+            "year": 2073,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 7544425.732451947,
+            "phase": "retirement"
+          },
+          {
+            "age": 89,
+            "year": 2074,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 7883924.890412284,
+            "phase": "retirement"
+          },
+          {
+            "age": 90,
+            "year": 2075,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 8238701.510480836,
+            "phase": "retirement"
+          }
+        ],
+        "notes": [
+          "An initial drawdown of 6.7% exceeds the ~4–5% generally regarded as sustainable for a living annuity.",
+          "Projection: 8.5% p.a. before and 7.5% p.a. after retirement, CPI 4.5%, contributions escalating at 5.5% p.a. Returns are not guaranteed."
+        ]
+      }
+    },
+    "spouse": {
+      "key": "spouse",
+      "name": "Lerato Mokoena",
+      "income": {
+        "key": "spouse",
+        "name": "Lerato Mokoena",
+        "age": 37,
+        "taxAge": 37,
+        "ageKnown": true,
+        "exactAge": 37.119952909964184,
+        "tax": {
+          "grossAnnual": 687500,
+          "remuneration": 753500,
+          "retirementDeduction": 115500,
+          "taxable": 638000,
+          "taxBeforeRebates": 164407,
+          "rebates": 17820,
+          "medicalCredit": 0,
+          "annualTax": 146587,
+          "monthlyPaye": 12215.583333333334,
+          "monthlyUif": 177.12,
+          "marginalRate": 0.36,
+          "effectiveRate": 0.21321745454545454
+        },
+        "grossMonthly": 55000,
+        "grossMonthlyEquivalent": 57291.666666666664,
+        "earnedGrossMonthly": 57291.666666666664,
+        "earnedAfterTaxMonthly": 44898.96333333334,
+        "working": true,
+        "payeMonthly": 11390.583333333334,
+        "uifMonthly": 177.12,
+        "retirementPayrollMonthly": 4125,
+        "retirementEmployerMonthly": 5500,
+        "retirementOwnMonthly": 0,
+        "medicalPayrollMonthly": 0,
+        "otherDeductionsMonthly": 0,
+        "nonTaxableMonthly": 0,
+        "takeHomeMonthly": 39307.29666666666,
+        "afterTaxMonthly": 44898.96333333334,
+        "bonusNet": 17600
+      },
+      "death": {
+        "area": "life",
+        "person": "spouse",
+        "title": "Life cover",
+        "need": 8174550.968009732,
+        "provision": 3251080,
+        "shortfall": 4923470.968009732,
+        "funded": 0.3977074719728054,
+        "status": "shortfall",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "Settle debts",
+            "amount": 973000
+          },
+          {
+            "label": "Estate costs, CGT & estate duty",
+            "amount": 185049.875
+          },
+          {
+            "label": "Funeral",
+            "amount": 50000
+          },
+          {
+            "label": "Adjustment fund (3 months' income)",
+            "amount": 134696.89
+          },
+          {
+            "label": "Tertiary education capital",
+            "amount": 912315.3084677908
+          },
+          {
+            "label": "Income for dependants (16 yrs)",
+            "amount": 5388561.104104484,
+            "note": "33674 p.m. today"
+          },
+          {
+            "label": "Support for parents & other dependants",
+            "amount": 530927.7904374561
+          }
+        ],
+        "provisionLines": [
+          {
+            "label": "Existing life cover",
+            "amount": 2320000
+          },
+          {
+            "label": "Funeral cover",
+            "amount": 30000
+          },
+          {
+            "label": "Retirement fund death benefits (net of tax)",
+            "amount": 709080
+          },
+          {
+            "label": "Liquid assets & investments",
+            "amount": 192000
+          }
+        ],
+        "notes": [
+          "Income capital: 75% of after-tax income for 16 years, escalating at CPI and discounted at 7.0% p.a.",
+          "Retirement fund death benefits are allocated by the fund trustees under s37C of the Pension Funds Act (nominations are not binding) and can take up to 12 months; they are shown net of lump-sum tax and do not provide estate liquidity."
+        ]
+      },
+      "deathIncomeYears": 16,
+      "deathIncomeMonthly": 33674.2225,
+      "disability": {
+        "area": "disability",
+        "person": "spouse",
+        "title": "Disability — lump sum",
+        "need": 2340158.5264672795,
+        "provision": 0,
+        "shortfall": 2340158.5264672795,
+        "funded": 0,
+        "status": "shortfall",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "Settle debts",
+            "amount": 973000
+          },
+          {
+            "label": "Home, vehicle & medical adaptations",
+            "amount": 150000
+          },
+          {
+            "label": "Lost employer retirement contributions (to 63)",
+            "amount": 1217158.5264672798
+          }
+        ],
+        "provisionLines": [],
+        "notes": [
+          "Income replacement is addressed through income protection; the lump sum covers debt, lifestyle adaptations and lost employer retirement funding.",
+          "If income protection is not taken up, a further 10 450 745 lump sum would be needed to replace the income gap to age 63."
+        ]
+      },
+      "incomeProtection": {
+        "area": "income-protection",
+        "person": "spouse",
+        "title": "Income protection",
+        "need": 44898.96333333334,
+        "provision": 0,
+        "shortfall": 44898.96333333334,
+        "funded": 0,
+        "status": "shortfall",
+        "monthly": true,
+        "needLines": [
+          {
+            "label": "Monthly income to protect",
+            "amount": 44898.96333333334
+          }
+        ],
+        "provisionLines": [],
+        "notes": [
+          "Target: 100% of after-tax earned income. Insurers generally limit total income protection to about 100% of after-tax income."
+        ]
+      },
+      "severeIllness": {
+        "area": "severe-illness",
+        "person": "spouse",
+        "title": "Severe illness",
+        "need": 1375000,
+        "provision": 0,
+        "shortfall": 1375000,
+        "funded": 0,
+        "status": "shortfall",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "24 months of gross income",
+            "amount": 1375000
+          }
+        ],
+        "provisionLines": [],
+        "notes": []
+      },
+      "funeral": {
+        "area": "funeral",
+        "person": "spouse",
+        "title": "Funeral",
+        "need": 50000,
+        "provision": 30000,
+        "shortfall": 20000,
+        "funded": 0.6,
+        "status": "partial",
+        "monthly": false,
+        "needLines": [
+          {
+            "label": "Funeral costs",
+            "amount": 50000
+          }
+        ],
+        "provisionLines": [
+          {
+            "label": "Funeral cover",
+            "amount": 30000
+          }
+        ],
+        "notes": [
+          "Bank accounts are frozen on death. Funeral policies and life cover with a nominated beneficiary pay quickly; group cover and estate proceeds can take weeks to months."
+        ]
+      },
+      "estate": {
+        "person": "spouse",
+        "grossEstate": 3118500,
+        "deemedProperty": 1320000,
+        "liabilities": 973000,
+        "executorFees": 125519.625,
+        "mastersFees": 6000,
+        "conveyancing": 40030.25,
+        "bondCancellation": 6000,
+        "sundries": 7500,
+        "funeral": 50000,
+        "cgt": 0,
+        "capitalGains": 0,
+        "accrualPayable": 0,
+        "accrualReceivable": 81500,
+        "netEstate": 3230450.125,
+        "spouseDeduction": 3230450.125,
+        "abatement": 3500000,
+        "dutiable": 0,
+        "estateDuty": 0,
+        "totalCosts": 235049.875,
+        "cashRequired": 1208049.875,
+        "cashAvailable": 1192000,
+        "liquidityShortfall": 16049.875,
+        "lines": [
+          {
+            "label": "Debts payable by the estate",
+            "amount": 973000
+          },
+          {
+            "label": "Executor's fees (3.5% + VAT)",
+            "amount": 125519.625
+          },
+          {
+            "label": "Master's fees",
+            "amount": 6000
+          },
+          {
+            "label": "Conveyancing (transfer to heirs)",
+            "amount": 40030.25
+          },
+          {
+            "label": "Bond cancellation",
+            "amount": 6000
+          },
+          {
+            "label": "Advertising, tax returns & sundries",
+            "amount": 7500
+          },
+          {
+            "label": "Funeral costs",
+            "amount": 50000
+          },
+          {
+            "label": "Capital gains tax on death",
+            "amount": 0
+          },
+          {
+            "label": "Estate duty",
+            "amount": 0
+          },
+          {
+            "label": "Accrual claim payable to spouse",
+            "amount": 0
+          },
+          {
+            "label": "Cash bequests",
+            "amount": 0
+          }
+        ],
+        "notes": [
+          "Accrual claim estimated from current net asset values less commencement values in the antenuptial contract."
+        ]
+      },
+      "retirement": {
+        "person": "spouse",
+        "retired": false,
+        "currentAge": 37.119952909964184,
+        "retirementAge": 63,
+        "planningAge": 95,
+        "yearsToRetirement": 25.880047090035816,
+        "yearsInRetirement": 32,
+        "currentCapital": 744000,
+        "monthlyContributions": 9625,
+        "projectedCapital": 23268086.46856398,
+        "projectedCapitalReal": 7447837.150701594,
+        "targetMonthlyToday": 42968.75,
+        "otherIncomeToday": 0,
+        "targetMonthlyAtRetirement": 134240.39358217255,
+        "requiredCapital": 33946572.25763014,
+        "requiredCapitalReal": 10865893.176945781,
+        "shortfall": 10678485.789066158,
+        "shortfallReal": 3418056.0262441877,
+        "additionalMonthly": 6008.771269002404,
+        "sustainableMonthlyToday": 29452.18099955244,
+        "replacementRatio": 0.514074431992188,
+        "targetReplacementRatio": 0.75,
+        "initialDrawdown": 0.06923150836500601,
+        "depletionAge": 82.08333333333333,
+        "funded": 0.6854325759895842,
+        "status": "partial",
+        "timeline": [
+          {
+            "age": 37,
+            "year": 2026,
+            "capital": 744000,
+            "capitalReal": 744000,
+            "contribution": 0,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 38,
+            "year": 2027,
+            "capital": 927173.4157652739,
+            "capitalReal": 887247.2878136593,
+            "contribution": 115500,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 39,
+            "year": 2028,
+            "capital": 1132512.9097376862,
+            "capitalReal": 1037075.991609795,
+            "contribution": 121852.5,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 40,
+            "year": 2029,
+            "capital": 1362265.397147535,
+            "capitalReal": 1193748.5413418973,
+            "contribution": 128554.38749999998,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 41,
+            "year": 2030,
+            "capital": 1618888.7349417387,
+            "capitalReal": 1357537.512700664,
+            "contribution": 135624.87881249996,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 42,
+            "year": 2031,
+            "capital": 1905070.7492954659,
+            "capitalReal": 1528726.016429989,
+            "contribution": 143084.24714718745,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 43,
+            "year": 2032,
+            "capital": 2223749.940822862,
+            "capitalReal": 1707608.1025542011,
+            "contribution": 150953.88074028274,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 44,
+            "year": 2033,
+            "capital": 2578138.0134111354,
+            "capitalReal": 1894489.1800874162,
+            "contribution": 159256.34418099828,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 45,
+            "year": 2034,
+            "capital": 2971744.3851884226,
+            "capitalReal": 2089686.4528177103,
+            "contribution": 168015.4431109532,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 46,
+            "year": 2035,
+            "capital": 3408402.85380183,
+            "capitalReal": 2293529.37178149,
+            "contribution": 177256.2924820556,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 47,
+            "year": 2036,
+            "capital": 3892300.6030203626,
+            "capitalReal": 2506360.105067041,
+            "contribution": 187005.38856856865,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 48,
+            "year": 2037,
+            "capital": 4428009.753787967,
+            "capitalReal": 2728534.025610629,
+            "contribution": 197290.68493983994,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 49,
+            "year": 2038,
+            "capital": 5020521.68034391,
+            "capitalReal": 2960420.2176739825,
+            "contribution": 208141.6726115311,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 50,
+            "year": 2039,
+            "capital": 5675284.331018733,
+            "capitalReal": 3202402.0027183304,
+            "contribution": 219589.46460516533,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 51,
+            "year": 2040,
+            "capital": 6398242.813932419,
+            "capitalReal": 3454877.4854174894,
+            "contribution": 231666.8851584494,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 52,
+            "year": 2041,
+            "capital": 7195883.530206509,
+            "capitalReal": 3718260.120581055,
+            "contribution": 244408.56384216412,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 53,
+            "year": 2042,
+            "capital": 8075282.161603838,
+            "capitalReal": 3992979.3017880996,
+            "contribution": 257851.0348534831,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 54,
+            "year": 2043,
+            "capital": 9044155.84589308,
+            "capitalReal": 4279480.972562541,
+            "contribution": 272032.8417704246,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 55,
+            "year": 2044,
+            "capital": 10110919.901877321,
+            "capitalReal": 4578228.26095311,
+            "contribution": 286994.648067798,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 56,
+            "year": 2045,
+            "capital": 11284749.497119814,
+            "capitalReal": 4889702.138413878,
+            "contribution": 302779.3537115269,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 57,
+            "year": 2046,
+            "capital": 12575646.685154967,
+            "capitalReal": 5214402.103915616,
+            "contribution": 319432.21816566086,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 58,
+            "year": 2047,
+            "capital": 13994513.275616018,
+            "capitalReal": 5552846.894253878,
+            "contribution": 337000.9901647722,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 59,
+            "year": 2048,
+            "capital": 15553230.040488517,
+            "capitalReal": 5905575.221556595,
+            "contribution": 355536.04462383466,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 60,
+            "year": 2049,
+            "capital": 17264742.802879658,
+            "capitalReal": 6273146.539032487,
+            "contribution": 375090.52707814553,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 61,
+            "year": 2050,
+            "capital": 19143156.001566276,
+            "capitalReal": 6656141.836041353,
+            "contribution": 395720.50606744346,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 62,
+            "year": 2051,
+            "capital": 21203834.375465564,
+            "capitalReal": 7055164.463608678,
+            "contribution": 417485.1339011529,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 63,
+            "year": 2052,
+            "capital": 23268086.46856398,
+            "capitalReal": 7435841.8032513615,
+            "contribution": 440446.8162657162,
+            "withdrawal": 0,
+            "phase": "accumulation"
+          },
+          {
+            "age": 64,
+            "year": 2053,
+            "capital": 23337589.045509305,
+            "capitalReal": 7148405.834635245,
+            "contribution": 0,
+            "withdrawal": 1610884.7229860704,
+            "phase": "retirement"
+          },
+          {
+            "age": 65,
+            "year": 2054,
+            "capital": 23336902.139856678,
+            "capitalReal": 6840378.404232067,
+            "contribution": 0,
+            "withdrawal": 1683374.5355204435,
+            "phase": "retirement"
+          },
+          {
+            "age": 66,
+            "year": 2055,
+            "capital": 23257368.442497116,
+            "capitalReal": 6523508.081090035,
+            "contribution": 0,
+            "withdrawal": 1759126.3896188634,
+            "phase": "retirement"
+          },
+          {
+            "age": 67,
+            "year": 2056,
+            "capital": 23089528.656732395,
+            "capitalReal": 6197541.002259715,
+            "contribution": 0,
+            "withdrawal": 1838287.0771517123,
+            "phase": "retirement"
+          },
+          {
+            "age": 68,
+            "year": 2057,
+            "capital": 22823054.478182487,
+            "capitalReal": 5862216.016860107,
+            "contribution": 0,
+            "withdrawal": 1921009.9956235392,
+            "phase": "retirement"
+          },
+          {
+            "age": 69,
+            "year": 2058,
+            "capital": 22446676.238990117,
+            "capitalReal": 5517264.476855725,
+            "contribution": 0,
+            "withdrawal": 2007455.4454265987,
+            "phase": "retirement"
+          },
+          {
+            "age": 70,
+            "year": 2059,
+            "capital": 21948104.80223079,
+            "capitalReal": 5162410.021827291,
+            "contribution": 0,
+            "withdrawal": 2097790.940470795,
+            "phase": "retirement"
+          },
+          {
+            "age": 71,
+            "year": 2060,
+            "capital": 21313947.260753773,
+            "capitalReal": 4797368.357563595,
+            "contribution": 0,
+            "withdrawal": 2192191.532791981,
+            "phase": "retirement"
+          },
+          {
+            "age": 72,
+            "year": 2061,
+            "capital": 20529615.96059196,
+            "capitalReal": 4421847.0282971095,
+            "contribution": 0,
+            "withdrawal": 2290840.15176762,
+            "phase": "retirement"
+          },
+          {
+            "age": 73,
+            "year": 2062,
+            "capital": 19579230.332405705,
+            "capitalReal": 4035545.1824009675,
+            "contribution": 0,
+            "withdrawal": 2393927.9585971627,
+            "phase": "retirement"
+          },
+          {
+            "age": 74,
+            "year": 2063,
+            "capital": 18445510.974970076,
+            "capitalReal": 3638153.3313594772,
+            "contribution": 0,
+            "withdrawal": 2501654.716734035,
+            "phase": "retirement"
+          },
+          {
+            "age": 75,
+            "year": 2064,
+            "capital": 17109665.392270304,
+            "capitalReal": 3229353.101819188,
+            "contribution": 0,
+            "withdrawal": 2614229.1789870663,
+            "phase": "retirement"
+          },
+          {
+            "age": 76,
+            "year": 2065,
+            "capital": 15551264.740106065,
+            "capitalReal": 2808816.980521767,
+            "contribution": 0,
+            "withdrawal": 2731869.492041484,
+            "phase": "retirement"
+          },
+          {
+            "age": 77,
+            "year": 2066,
+            "capital": 13748110.888983198,
+            "capitalReal": 2376208.05191437,
+            "contribution": 0,
+            "withdrawal": 2854803.619183351,
+            "phase": "retirement"
+          },
+          {
+            "age": 78,
+            "year": 2067,
+            "capital": 11676093.057227714,
+            "capitalReal": 1931179.7282273332,
+            "contribution": 0,
+            "withdrawal": 2983269.782046601,
+            "phase": "retirement"
+          },
+          {
+            "age": 79,
+            "year": 2068,
+            "capital": 9309033.211411262,
+            "capitalReal": 1473375.4718028703,
+            "contribution": 0,
+            "withdrawal": 3117516.922238698,
+            "phase": "retirement"
+          },
+          {
+            "age": 80,
+            "year": 2069,
+            "capital": 6618519.370028694,
+            "capitalReal": 1002428.5094523462,
+            "contribution": 0,
+            "withdrawal": 3257805.1837394387,
+            "phase": "retirement"
+          },
+          {
+            "age": 81,
+            "year": 2070,
+            "capital": 3573725.8805917036,
+            "capitalReal": 517961.5386132905,
+            "contribution": 0,
+            "withdrawal": 3404406.4170077136,
+            "phase": "retirement"
+          },
+          {
+            "age": 82,
+            "year": 2071,
+            "capital": 141219.66954843025,
+            "capitalReal": 19586.42507072148,
+            "contribution": 0,
+            "withdrawal": 3557604.70577306,
+            "phase": "retirement"
+          },
+          {
+            "age": 83,
+            "year": 2072,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 3717696.917532848,
+            "phase": "retirement"
+          },
+          {
+            "age": 84,
+            "year": 2073,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 3884993.2788218264,
+            "phase": "retirement"
+          },
+          {
+            "age": 85,
+            "year": 2074,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 4059817.976368808,
+            "phase": "retirement"
+          },
+          {
+            "age": 86,
+            "year": 2075,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 4242509.785305405,
+            "phase": "retirement"
+          },
+          {
+            "age": 87,
+            "year": 2076,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 4433422.725644148,
+            "phase": "retirement"
+          },
+          {
+            "age": 88,
+            "year": 2077,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 4632926.748298134,
+            "phase": "retirement"
+          },
+          {
+            "age": 89,
+            "year": 2078,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 4841408.45197155,
+            "phase": "retirement"
+          },
+          {
+            "age": 90,
+            "year": 2079,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 5059271.832310269,
+            "phase": "retirement"
+          },
+          {
+            "age": 91,
+            "year": 2080,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 5286939.06476423,
+            "phase": "retirement"
+          },
+          {
+            "age": 92,
+            "year": 2081,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 5524851.32267862,
+            "phase": "retirement"
+          },
+          {
+            "age": 93,
+            "year": 2082,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 5773469.632199157,
+            "phase": "retirement"
+          },
+          {
+            "age": 94,
+            "year": 2083,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 6033275.765648119,
+            "phase": "retirement"
+          },
+          {
+            "age": 95,
+            "year": 2084,
+            "capital": 0,
+            "capitalReal": 0,
+            "contribution": 0,
+            "withdrawal": 6304773.175102284,
+            "phase": "retirement"
+          }
+        ],
+        "notes": [
+          "An initial drawdown of 6.9% exceeds the ~4–5% generally regarded as sustainable for a living annuity.",
+          "Projection: 8.5% p.a. before and 7.5% p.a. after retirement, CPI 4.5%, contributions escalating at 5.5% p.a. Returns are not guaranteed."
+        ]
+      }
+    }
+  },
+  "incomes": [
+    {
+      "key": "client",
+      "name": "Thabo Mokoena",
+      "age": 40,
+      "taxAge": 40,
+      "ageKnown": true,
+      "exactAge": 40.514957598629934,
+      "tax": {
+        "grossAnnual": 1300000,
+        "remuneration": 1420000,
+        "retirementDeduction": 240000,
+        "taxable": 1180000,
+        "taxBeforeRebates": 379913,
+        "rebates": 17820,
+        "medicalCredit": 15120,
+        "annualTax": 346973,
+        "monthlyPaye": 28914.416666666668,
+        "monthlyUif": 177.12,
+        "marginalRate": 0.41,
+        "effectiveRate": 0.2669023076923077
+      },
+      "grossMonthly": 100000,
+      "grossMonthlyEquivalent": 108333.33333333333,
+      "earnedGrossMonthly": 108333.33333333333,
+      "earnedAfterTaxMonthly": 79241.79666666668,
+      "working": true,
+      "payeMonthly": 26522.75,
+      "uifMonthly": 177.12,
+      "retirementPayrollMonthly": 7500,
+      "retirementEmployerMonthly": 10000,
+      "retirementOwnMonthly": 2500,
+      "medicalPayrollMonthly": 9850,
+      "otherDeductionsMonthly": 0,
+      "nonTaxableMonthly": 0,
+      "takeHomeMonthly": 55950.130000000005,
+      "afterTaxMonthly": 79241.79666666668,
+      "bonusNet": 59000
+    },
+    {
+      "key": "spouse",
+      "name": "Lerato Mokoena",
+      "age": 37,
+      "taxAge": 37,
+      "ageKnown": true,
+      "exactAge": 37.119952909964184,
+      "tax": {
+        "grossAnnual": 687500,
+        "remuneration": 753500,
+        "retirementDeduction": 115500,
+        "taxable": 638000,
+        "taxBeforeRebates": 164407,
+        "rebates": 17820,
+        "medicalCredit": 0,
+        "annualTax": 146587,
+        "monthlyPaye": 12215.583333333334,
+        "monthlyUif": 177.12,
+        "marginalRate": 0.36,
+        "effectiveRate": 0.21321745454545454
+      },
+      "grossMonthly": 55000,
+      "grossMonthlyEquivalent": 57291.666666666664,
+      "earnedGrossMonthly": 57291.666666666664,
+      "earnedAfterTaxMonthly": 44898.96333333334,
+      "working": true,
+      "payeMonthly": 11390.583333333334,
+      "uifMonthly": 177.12,
+      "retirementPayrollMonthly": 4125,
+      "retirementEmployerMonthly": 5500,
+      "retirementOwnMonthly": 0,
+      "medicalPayrollMonthly": 0,
+      "otherDeductionsMonthly": 0,
+      "nonTaxableMonthly": 0,
+      "takeHomeMonthly": 39307.29666666666,
+      "afterTaxMonthly": 44898.96333333334,
+      "bonusNet": 17600
+    }
+  ],
+  "cashflow": {
+    "takeHome": 95257.42666666667,
+    "livingExpenses": 53379,
+    "essentialExpenses": 44329,
+    "byCategory": [
+      {
+        "key": "housing",
+        "label": "Housing",
+        "amount": 8600
+      },
+      {
+        "key": "transport",
+        "label": "Transport",
+        "amount": 6150
+      },
+      {
+        "key": "household",
+        "label": "Groceries & household",
+        "amount": 9800
+      },
+      {
+        "key": "communication",
+        "label": "Connectivity & subscriptions",
+        "amount": 2799
+      },
+      {
+        "key": "insurance",
+        "label": "Short-term insurance",
+        "amount": 3350
+      },
+      {
+        "key": "medical",
+        "label": "Medical",
+        "amount": 1080
+      },
+      {
+        "key": "children",
+        "label": "Children & education",
+        "amount": 13650
+      },
+      {
+        "key": "personal",
+        "label": "Personal & lifestyle",
+        "amount": 3600
+      },
+      {
+        "key": "family",
+        "label": "Family support & giving",
+        "amount": 4000
+      },
+      {
+        "key": "other",
+        "label": "Other",
+        "amount": 350
+      }
+    ],
+    "debtRepayments": 30450,
+    "riskPremiums": 2045,
+    "savingsContributions": 7500,
+    "totalOutgoings": 93374,
+    "surplus": 1883.4266666666663,
+    "bonusNet": 76600
+  },
+  "ratios": {
+    "debtToIncome": 0.1838490566037736,
+    "unsecuredDebtToIncome": 0.022641509433962263,
+    "housingToIncome": 0.11350943396226415,
+    "savingsRate": 0.1828847481021394,
+    "premiumsToIncome": 0.012347169811320755,
+    "emergencyMonths": 1.2365927314380922
+  },
+  "netWorth": {
+    "assets": 4686000,
+    "retirement": 2379000,
+    "liabilities": 2265000,
+    "netWorth": 4800000,
+    "liquidAssets": 721000,
+    "byGroup": [
+      {
+        "key": "property",
+        "label": "Property",
+        "amount": 2850000
+      },
+      {
+        "key": "investment",
+        "label": "Investments",
+        "amount": 578000
+      },
+      {
+        "key": "retirement",
+        "label": "Retirement funds",
+        "amount": 2379000
+      },
+      {
+        "key": "liquid",
+        "label": "Cash & money market",
+        "amount": 143000
+      },
+      {
+        "key": "lifestyle",
+        "label": "Vehicles & personal",
+        "amount": 1115000
+      }
+    ]
+  },
+  "emergency": {
+    "area": "emergency",
+    "title": "Emergency fund",
+    "need": 230472,
+    "provision": 95000,
+    "shortfall": 135472,
+    "funded": 0.4121975771460308,
+    "status": "shortfall",
+    "monthly": false,
+    "needLines": [
+      {
+        "label": "3 months of essential outgoings",
+        "amount": 230472
+      }
+    ],
+    "provisionLines": [
+      {
+        "label": "Earmarked emergency savings",
+        "amount": 95000
+      }
+    ],
+    "notes": [
+      "Target: 3 months of essential expenses, debt repayments and risk premiums (76 824 p.m.)."
+    ]
+  },
+  "education": [
+    {
+      "dependantId": "a82e57cb-1f9a-4f5c-a128-fec7003ceaae",
+      "name": "Neo Mokoena",
+      "age": 11,
+      "yearsToTertiary": 8,
+      "tertiaryPV": 573895.1982670256,
+      "schoolPV": 771296.7085221722,
+      "capitalAtStart": 986058.7983343035,
+      "projectedSavings": 365983.4632796638,
+      "shortfallAtStart": 620075.3350546397,
+      "shortfallToday": 360889.4905180169,
+      "monthlyRequired": 4228.985138994449,
+      "lumpSumRequired": 0,
+      "funded": 0.37115784971230936,
+      "status": "shortfall",
+      "schedule": [
+        {
+          "year": 2034,
+          "age": 19,
+          "cost": 248249.35069356073
+        },
+        {
+          "year": 2035,
+          "age": 20,
+          "cost": 264385.55848864216
+        },
+        {
+          "year": 2036,
+          "age": 21,
+          "cost": 281570.61979040387
+        },
+        {
+          "year": 2037,
+          "age": 22,
+          "cost": 299872.7100767801
+        }
+      ]
+    },
+    {
+      "dependantId": "b4db1d21-aadf-4118-8b47-437035cf7952",
+      "name": "Kagiso Mokoena",
+      "age": 7,
+      "yearsToTertiary": 12,
+      "tertiaryPV": 423420.1102007652,
+      "schoolPV": 397675.64721692575,
+      "capitalAtStart": 953623.2107910289,
+      "projectedSavings": 0,
+      "shortfallAtStart": 953623.2107910289,
+      "shortfallToday": 423420.1102007652,
+      "monthlyRequired": 3461.5352981173814,
+      "lumpSumRequired": 0,
+      "funded": 0,
+      "status": "shortfall",
+      "schedule": [
+        {
+          "year": 2038,
+          "age": 19,
+          "cost": 319364.4362317708
+        },
+        {
+          "year": 2039,
+          "age": 20,
+          "cost": 340123.1245868359
+        },
+        {
+          "year": 2040,
+          "age": 21,
+          "cost": 362231.1276849802
+        }
+      ]
+    }
+  ],
+  "educationTotal": {
+    "area": "education",
+    "title": "Education funding",
+    "need": 997315.3084677908,
+    "provision": 213005.7077490087,
+    "shortfall": 784309.6007187822,
+    "funded": 0.21357910175494704,
+    "status": "shortfall",
+    "monthly": false,
+    "needLines": [
+      {
+        "label": "Tertiary education (present value)",
+        "amount": 997315.3084677908
+      }
+    ],
+    "provisionLines": [
+      {
+        "label": "Education savings (present value)",
+        "amount": 213005.7077490087
+      }
+    ],
+    "notes": []
+  },
+  "goals": [
+    {
+      "id": "e555381f-6566-483a-92fb-9d0632178e40",
+      "name": "Family holiday overseas",
+      "years": 2,
+      "futureCost": 131042.99999999997,
+      "projected": 55614.322636812896,
+      "shortfall": 75428.67736318707,
+      "monthlyRequired": 2943.3037142246035,
+      "funded": 0.4243975079692384,
+      "status": "shortfall"
+    },
+    {
+      "id": "6177b9a1-0fc3-4ec5-badc-53ae29ebc71f",
+      "name": "Replace Polo (cash deposit)",
+      "years": 3,
+      "futureCost": 171174.91874999998,
+      "projected": 24500.860000000008,
+      "shortfall": 146674.05874999997,
+      "monthlyRequired": 3685.146628570198,
+      "funded": 0.14313346942949848,
+      "status": "shortfall"
+    }
+  ],
+  "risk": {
+    "complete": true,
+    "answered": 8,
+    "total": 8,
+    "toleranceScore": 3.25,
+    "capacityScore": 3.75,
+    "tolerance": {
+      "key": "moderate",
+      "label": "Moderate",
+      "description": "Balanced growth and stability; accepts periodic negative returns.",
+      "equity": "40 – 60% growth assets",
+      "horizon": "5 years +",
+      "target": "CPI + 3% to 5%"
+    },
+    "capacity": {
+      "key": "moderately-aggressive",
+      "label": "Moderately aggressive",
+      "description": "Long-term growth focus; comfortable with meaningful volatility.",
+      "equity": "60 – 75% growth assets",
+      "horizon": "7 years +",
+      "target": "CPI + 5% to 6%"
+    },
+    "profile": {
+      "key": "moderate",
+      "label": "Moderate",
+      "description": "Balanced growth and stability; accepts periodic negative returns.",
+      "equity": "40 – 60% growth assets",
+      "horizon": "5 years +",
+      "target": "CPI + 3% to 5%"
+    },
+    "mismatch": false
+  },
+  "findings": [
+    {
+      "severity": "critical",
+      "area": "life",
+      "person": "spouse",
+      "title": "Life cover shortfall of R4 923 471 on Lerato Mokoena",
+      "detail": "Existing provision meets 40% of the capital your family would need."
+    },
+    {
+      "severity": "critical",
+      "area": "income-protection",
+      "person": "spouse",
+      "title": "Income protection gap of R44 899 p.m. for Lerato Mokoena",
+      "detail": "Loss of income through illness or injury is the largest financial risk for most working people."
+    },
+    {
+      "severity": "critical",
+      "area": "estate",
+      "person": "spouse",
+      "title": "Lerato Mokoena has no confirmed valid will",
+      "detail": "Without a will the estate devolves under the Intestate Succession Act, which may not reflect your wishes."
+    },
+    {
+      "severity": "warning",
+      "area": "life",
+      "person": "client",
+      "title": "Life cover shortfall of R4 415 696 on Thabo Mokoena",
+      "detail": "Existing provision meets 64% of the capital your family would need."
+    },
+    {
+      "severity": "warning",
+      "area": "income-protection",
+      "person": "client",
+      "title": "Income protection gap of R29 242 p.m. for Thabo Mokoena",
+      "detail": "Loss of income through illness or injury is the largest financial risk for most working people."
+    },
+    {
+      "severity": "warning",
+      "area": "disability",
+      "person": "client",
+      "title": "Disability lump-sum shortfall of R3 236 066 for Thabo Mokoena",
+      "detail": "Covers debt settlement, adaptations and lost retirement contributions if permanently disabled."
+    },
+    {
+      "severity": "warning",
+      "area": "severe-illness",
+      "person": "client",
+      "title": "Severe illness cover of R2 100 000 recommended for Thabo Mokoena",
+      "detail": "Provides a lump sum on diagnosis of cancer, heart attack, stroke and similar events."
+    },
+    {
+      "severity": "warning",
+      "area": "estate",
+      "person": "client",
+      "title": "Estate liquidity shortfall of R892 153 for Thabo Mokoena",
+      "detail": "The executor cannot access policies paid to a nominee. The surviving spouse could contribute from policy proceeds, but cover payable to the estate (or a spouse undertaking) avoids forced sales."
+    },
+    {
+      "severity": "warning",
+      "area": "estate",
+      "person": "client",
+      "title": "Thabo Mokoena's will is 10 years old",
+      "detail": "Wills should be reviewed every 3–5 years and after marriage, divorce or births."
+    },
+    {
+      "severity": "warning",
+      "area": "estate",
+      "person": "client",
+      "title": "No guardian nominated by Thabo Mokoena for minor children",
+      "detail": "Nominate a guardian in the will and consider a testamentary trust — minors cannot inherit directly (funds go to the Guardian’s Fund)."
+    },
+    {
+      "severity": "warning",
+      "area": "retirement",
+      "person": "client",
+      "title": "Retirement shortfall for Thabo Mokoena: save an extra R5 816 p.m.",
+      "detail": "Projected capital funds 83% of the target income (62% replacement vs 75% targeted)."
+    },
+    {
+      "severity": "warning",
+      "area": "disability",
+      "person": "spouse",
+      "title": "Disability lump-sum shortfall of R2 340 159 for Lerato Mokoena",
+      "detail": "Covers debt settlement, adaptations and lost retirement contributions if permanently disabled."
+    },
+    {
+      "severity": "warning",
+      "area": "severe-illness",
+      "person": "spouse",
+      "title": "Severe illness cover of R1 375 000 recommended for Lerato Mokoena",
+      "detail": "Provides a lump sum on diagnosis of cancer, heart attack, stroke and similar events."
+    },
+    {
+      "severity": "warning",
+      "area": "estate",
+      "person": "spouse",
+      "title": "Estate liquidity shortfall of R16 050 for Lerato Mokoena",
+      "detail": "The executor cannot access policies paid to a nominee. The surviving spouse could contribute from policy proceeds, but cover payable to the estate (or a spouse undertaking) avoids forced sales."
+    },
+    {
+      "severity": "warning",
+      "area": "estate",
+      "person": "spouse",
+      "title": "No guardian nominated by Lerato Mokoena for minor children",
+      "detail": "Nominate a guardian in the will and consider a testamentary trust — minors cannot inherit directly (funds go to the Guardian’s Fund)."
+    },
+    {
+      "severity": "warning",
+      "area": "retirement",
+      "person": "spouse",
+      "title": "Retirement shortfall for Lerato Mokoena: save an extra R6 009 p.m.",
+      "detail": "Projected capital funds 69% of the target income (51% replacement vs 75% targeted)."
+    },
+    {
+      "severity": "warning",
+      "area": "debt",
+      "title": "2 high-interest debt accounts (18%+)",
+      "detail": "Settling R80 000 of expensive debt is a guaranteed, tax-free return."
+    },
+    {
+      "severity": "warning",
+      "area": "emergency",
+      "title": "Emergency fund at 1.2 months",
+      "detail": "Build a further R135 472 in an accessible money-market account."
+    },
+    {
+      "severity": "warning",
+      "area": "education",
+      "title": "Education shortfall for Neo Mokoena: R4 229 p.m.",
+      "detail": "Tertiary costs of about R986 059 are needed from 2034."
+    },
+    {
+      "severity": "warning",
+      "area": "education",
+      "title": "Education shortfall for Kagiso Mokoena: R3 462 p.m.",
+      "detail": "Tertiary costs of about R953 623 are needed from 2038."
+    },
+    {
+      "severity": "info",
+      "area": "retirement",
+      "person": "client",
+      "title": "Nominate beneficiaries on all of Thabo Mokoena's retirement funds",
+      "detail": "Nominations guide the trustees under s37C and speed up payment to dependants."
+    },
+    {
+      "severity": "info",
+      "area": "retirement",
+      "person": "spouse",
+      "title": "Nominate beneficiaries on all of Lerato Mokoena's retirement funds",
+      "detail": "Nominations guide the trustees under s37C and speed up payment to dependants."
+    },
+    {
+      "severity": "positive",
+      "area": "cashflow",
+      "title": "Monthly surplus of R1 883",
+      "detail": "Available to fund recommendations, build the emergency fund or reduce debt."
+    }
+  ],
+  "completeness": [
+    {
+      "section": "Engagement",
+      "complete": true,
+      "detail": "Meeting details and POPIA consent"
+    },
+    {
+      "section": "Client profile",
+      "complete": true,
+      "detail": "Name, date of birth and gender"
+    },
+    {
+      "section": "Client income",
+      "complete": true,
+      "detail": "Gross income"
+    },
+    {
+      "section": "Spouse profile",
+      "complete": true,
+      "detail": "Name, date of birth and gender"
+    },
+    {
+      "section": "Spouse income",
+      "complete": true,
+      "detail": "Gross income"
+    },
+    {
+      "section": "Expenses",
+      "complete": true,
+      "detail": "Monthly living expenses"
+    },
+    {
+      "section": "Assets",
+      "complete": true,
+      "detail": "Assets and retirement funds"
+    },
+    {
+      "section": "Existing cover",
+      "complete": true,
+      "detail": "Existing policies (or confirmed none)"
+    },
+    {
+      "section": "Estate",
+      "complete": true,
+      "detail": "Will status"
+    },
+    {
+      "section": "Risk profile",
+      "complete": true,
+      "detail": "Risk questionnaire"
+    },
+    {
+      "section": "Advice",
+      "complete": false,
+      "detail": "Recommendations recorded"
+    }
+  ],
+  "completenessScore": 0.9090909090909091
+}
