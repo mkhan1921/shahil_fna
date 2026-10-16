@@ -310,8 +310,7 @@ def _arrays(table: TaxTable) -> dict[str, np.ndarray]:
 def apply_brackets_vec(amount: np.ndarray | float, froms: np.ndarray, bases: np.ndarray, rates: np.ndarray) -> np.ndarray:
     """``apply_brackets`` element by element; ``froms`` must be ascending."""
     amount = np.asarray(amount, dtype=float)
-    i = np.searchsorted(froms, amount, side="left") - 1
-    np.clip(i, 0, None, out=i)
+    i = np.maximum(np.searchsorted(froms, amount, side="left") - 1, 0)
     return np.where(amount <= 0, 0.0, bases[i] + (amount - froms[i]) * rates[i])
 
 

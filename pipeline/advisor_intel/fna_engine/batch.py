@@ -3,6 +3,7 @@ p10/p50/p90 band of every need's shortfall across them ("life cover shortfall R2
 
 from __future__ import annotations
 
+import gc
 from collections.abc import Iterable, Sequence
 from datetime import date, datetime
 
@@ -17,9 +18,19 @@ __all__ = ["analyse_batch", "need_bands", "need_shortfalls"]
 
 
 def analyse_batch(docs: Iterable[FnaDocument], *, today: date | datetime | None = None) -> list[Analysis]:
-    """``analyse`` each document against one shared "today" (the current instant if None)."""
+    """``analyse`` each document against one shared "today" (the current instant if None).
+
+    The cyclic garbage collector is paused while the batch runs: results are trees without reference
+    cycles, so it has nothing to collect, but as the batch grows it would rescan every result built so far
+    (for 1,000 documents that roughly doubles the time). The caller's setting is restored afterwards."""
     now = Now.of(today)
-    return [analyse(doc, today=now) for doc in docs]
+    enabled = gc.isenabled()
+    gc.disable()
+    try:
+        return [analyse(doc, today=now) for doc in docs]
+    finally:
+        if enabled:
+            gc.enable()
 
 
 def need_shortfalls(analysis: Analysis) -> dict[str, float]:
