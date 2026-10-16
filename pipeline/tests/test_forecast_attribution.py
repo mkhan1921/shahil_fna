@@ -84,7 +84,7 @@ def test_top_drivers_rank_a_wide_fact_above_a_narrow_one():
     _, design = sobol_groups(fc, 14, 1_000)
     drivers = dict(top_drivers(fc, design, limit=5))
     assert set(drivers) == {wide, narrow}
-    assert drivers[wide] > 0.5 > 0.05 > drivers[narrow]
+    assert drivers[wide] > 0.5 and drivers[narrow] < 0.05
 
 
 def test_attribution_sentence():

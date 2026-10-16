@@ -23,7 +23,6 @@ The real series (since 2000) must be supplied by the investment team; nothing he
 
 from __future__ import annotations
 
-import functools
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -49,7 +48,7 @@ class MarketShocks:
     def n_paths(self) -> int:
         return int(self.z.shape[1])
 
-    def take(self, rows: np.ndarray) -> "MarketShocks":
+    def take(self, rows: np.ndarray) -> MarketShocks:
         return MarketShocks(self.z[:, rows], self.chi2[rows], self.e[rows])
 
 
@@ -127,7 +126,7 @@ class MarketPaths:
             return float(reference_target + (w - reference) @ a)
         return reference_target + np.tensordot(a, w - reference.reshape((-1,) + (1,) * (w.ndim - 1)), axes=(0, 0))
 
-    def take(self, rows: np.ndarray) -> "MarketPaths":
+    def take(self, rows: np.ndarray) -> MarketPaths:
         return MarketPaths(self.class_log[:, rows], self.infl[rows], self.fx_log[rows], self.class_mean)
 
 
@@ -155,6 +154,7 @@ class MarketModel:
         self.class_mu, self.class_mean = self._means(self.fat)
         # The Gaussian version (unit multiplier, same covariance) for the Shapley split within M (§12.5).
         self.class_mu_normal, self.class_mean_normal = self._means(False)
+        self._conditional: dict[frozenset[int], tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = {}
 
     def _means(self, fat: bool) -> tuple[np.ndarray, np.ndarray]:
         """Log drifts giving E[exp(own-currency real log return)] = 1 + a, and the expected rand gross return."""
@@ -249,13 +249,17 @@ class MarketModel:
             infl[:, t] = prev
         return MarketPaths(class_log, infl, fx_log, (self.class_mean_normal if gaussian else self.class_mean).copy())
 
-    @functools.lru_cache(maxsize=128)
     def conditional(self, varied: frozenset[int]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Gaussian conditioning of the correlated block (players 0–5): varied | fixed.
 
         Returns (varied indices, fixed indices, regression matrix A, Cholesky L) so that
         x_varied = A @ x_fixed + L @ xi for independent normals xi (Shapley within M, §12.5).
         """
+        if varied not in self._conditional:
+            self._conditional[varied] = self._condition(varied)
+        return self._conditional[varied]
+
+    def _condition(self, varied: frozenset[int]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         v = np.array(sorted(i for i in varied if i < 6), dtype=int)
         f = np.array([i for i in range(6) if i not in varied], dtype=int)
         s = self.corr
@@ -331,7 +335,7 @@ class BootstrapShocks:
     def n_paths(self) -> int:
         return int(self.idx.shape[0])
 
-    def take(self, rows: np.ndarray) -> "BootstrapShocks":
+    def take(self, rows: np.ndarray) -> BootstrapShocks:
         return BootstrapShocks(self.idx[rows])
 
 

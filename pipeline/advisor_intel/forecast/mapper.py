@@ -39,11 +39,13 @@ from __future__ import annotations
 
 import dataclasses
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Callable, Iterable, Literal
+from typing import Any, Literal
 
 import numpy as np
+from pydantic import BaseModel
 
 from .. import binding, stats
 from ..models import fna as F
@@ -51,7 +53,7 @@ from ..models.dists import Dist, Point, Quantity
 from ..models.facts import Fact
 from ..models.profile import Profile
 from ..schema.slots import Catalog, SlotDef, generic_slot_id, load_catalog, person_of
-from .config import CMA, ForecastConfig, allocation_vector
+from .config import CMA, ForecastConfig
 from .sampling import FactUniforms, Uniforms, ValueKind, as_float, fact_uniforms, ppf, value_kind
 from .tax import TaxModel
 
@@ -66,7 +68,6 @@ CASH_TYPES = ("cash", "money-market")
 INVESTMENT_TYPES = ("unit-trust", "shares", "endowment", "crypto")
 PROPERTY_TYPES = ("primary-residence", "residential-property", "commercial-property")
 LIFESTYLE_TYPES = ("vehicle", "personal-effects", "other")
-EVENT_INFLOW_KINDS = ("inheritance", "property-sale", "business-sale")
 EVENT_DISCRETIONARY_KINDS = ("large-purchase",)
 
 Override = Any  # a value (fixed on every path), a Dist or Quantity (sampled with the fact's own draws), or "prior"
@@ -86,11 +87,11 @@ class Money:
         self.has_fx = bool(np.any(self.linked))
 
     @staticmethod
-    def zeros(n: int) -> "Money":
+    def zeros(n: int) -> Money:
         return Money(np.zeros(n), np.zeros(n))
 
     @staticmethod
-    def of(values: np.ndarray, fx: np.ndarray | None = None) -> "Money":
+    def of(values: np.ndarray, fx: np.ndarray | None = None) -> Money:
         v = np.asarray(values, dtype=float)
         if fx is None or not np.any(fx):
             return Money(v.copy(), np.zeros_like(v))
@@ -104,13 +105,13 @@ class Money:
         """The amount when the real USDZAR has moved by ``fx_index`` since today (read-only when no FX part)."""
         return self.fixed + self.linked * fx_index if self.has_fx else self.fixed
 
-    def __add__(self, other: "Money") -> "Money":
+    def __add__(self, other: Money) -> Money:
         return Money(self.fixed + other.fixed, self.linked + other.linked)
 
-    def scale(self, k: np.ndarray | float) -> "Money":
+    def scale(self, k: np.ndarray | float) -> Money:
         return Money(self.fixed * k, self.linked * k)
 
-    def where(self, mask: np.ndarray) -> "Money":
+    def where(self, mask: np.ndarray) -> Money:
         return Money(np.where(mask, self.fixed, 0.0), np.where(mask, self.linked, 0.0))
 
 
@@ -189,13 +190,13 @@ class FactSampler:
     def _signed(self, vals: np.ndarray) -> np.ndarray:
         return vals * self.sign if (self.sign != 1.0 and vals.dtype != object) else vals
 
-    def fixed(self, value: Any, rule: str = "override") -> "FactSampler":
+    def fixed(self, value: Any, rule: str = "override") -> FactSampler:
         return dataclasses.replace(self, content=Point(value=value), q=1.0, currency=None, scale=1.0, basis="na", rule=rule)
 
-    def with_content(self, dist: Dist, rule: str = "override") -> "FactSampler":
+    def with_content(self, dist: Dist, rule: str = "override") -> FactSampler:
         return dataclasses.replace(self, content=dist, q=1.0, currency=None, scale=1.0, basis="na", rule=rule)
 
-    def with_prior(self, rule: str = "override_prior") -> "FactSampler":
+    def with_prior(self, rule: str = "override_prior") -> FactSampler:
         return dataclasses.replace(self, content=None, q=1.0, rule=rule)
 
 
@@ -537,7 +538,7 @@ class ForecastPlan:
     def spot(self, currency: str | None) -> float:
         return self.cma.fx.spot(currency) if currency else 1.0
 
-    def with_overrides(self, overrides: dict[str, Override] | None) -> "ForecastPlan":
+    def with_overrides(self, overrides: dict[str, Override] | None) -> ForecastPlan:
         """A copy with facts (by fact id) or document fields (by concrete path) fixed, resampled or reset to the prior."""
         if not overrides:
             return self
@@ -553,7 +554,7 @@ class ForecastPlan:
             samplers[fid] = _override(samplers[fid], value)
         return dataclasses.replace(self, samplers=samplers)
 
-    def with_samplers(self, samplers: dict[str, FactSampler]) -> "ForecastPlan":
+    def with_samplers(self, samplers: dict[str, FactSampler]) -> ForecastPlan:
         """A copy with some samplers replaced (sensitivity runs move one fact at a time)."""
         return dataclasses.replace(self, samplers={**self.samplers, **samplers})
 
@@ -578,12 +579,15 @@ def _generic(path: str) -> str:
 
 
 def _override(s: FactSampler, value: Override) -> FactSampler:
+    """``"prior"`` resets to the population prior; a Quantity or Dist is sampled with the fact's own draws; any other
+    value is fixed on every path (in the slot's unit, rand)."""
     if isinstance(value, str) and value == "prior":
         return s.with_prior()
     if isinstance(value, Quantity):
-        return dataclasses.replace(s, content=value.dist, q=1.0, currency=_currency(value), scale=1.0, basis=value.basis, kind=value_kind(value.dist), rule="override")
-    if isinstance(value, (Point,)) or hasattr(value, "kind") and hasattr(value, "model_dump"):
-        return dataclasses.replace(s.with_content(value), kind=value_kind(value))
+        return dataclasses.replace(s, content=value.dist, q=1.0, currency=_currency(value), scale=1.0, basis=value.basis,
+                                   kind=value_kind(value.dist), rule="override")
+    if isinstance(value, BaseModel):  # a Dist
+        return dataclasses.replace(s.with_content(value), kind=value_kind(value))  # type: ignore[arg-type]
     return dataclasses.replace(s.fixed(value), kind=value_kind(Point(value=value)))
 
 
@@ -600,7 +604,7 @@ def _risk_category(answers: dict[str, float]) -> str | None:
     if not answers:
         return None
     try:
-        from ..fna_engine.risk_profile import score_risk_profile  # noqa: PLC0415 - optional until the engine is merged
+        from ..fna_engine.risk_profile import score_risk_profile
     except ImportError:
         return None
     result = score_risk_profile(answers)
@@ -838,7 +842,7 @@ class _Builder:
             assumptions=self.assumptions,
             accumulation_mix=self.plan.accumulation_mix,
             n_years=n_years,
-            primary_age_int=int(math.floor(primary_age)),
+            primary_age_int=math.floor(primary_age),
         )
 
     def _funds(self, persons: list[str]) -> dict[str, dict[str, np.ndarray]]:
@@ -863,7 +867,7 @@ class _Builder:
 
     def _assets(self, persons: list[str]) -> dict[str, Any]:
         n = self.n
-        z = lambda: np.zeros(n)  # noqa: E731
+        z = lambda: np.zeros(n)
         acc: dict[str, Any] = {
             "cash": z(), "discretionary": z(), "offshore": z(), "tfsa": z(), "education": z(), "property": z(), "business": z(),
             "loan": z(), "goal_pool": z(), "goal_pool_monthly": z(),
@@ -1195,14 +1199,3 @@ def concat_inputs(parts: list[ForecastInput]) -> ForecastInput:
         return v0
 
     return cat(list(parts))
-
-
-def allocation_for_policy(cma: CMA, name: str) -> np.ndarray:
-    """Weights of a named CMA allocation (cash, tfsa, offshore, capital, reference)."""
-    return allocation_vector(getattr(cma.policies, name))
-
-
-def iter_samplers(plan: ForecastPlan, fact_ids: Iterable[str]) -> Iterable[FactSampler]:
-    for fid in fact_ids:
-        if fid in plan.samplers:
-            yield plan.samplers[fid]

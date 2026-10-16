@@ -94,7 +94,7 @@ def test_fact_extremes():
     prof, fee = add_fact(prof, "dependants[].tertiaryCostAnnual", "dependants[x].tertiaryCostAnnual", LogNormal(median=10_000, p10=8_000, p90=12_000),
                          instance="person.neo_mokoena_1", unit="USD", period="annual", review="accepted")
     lo, hi = fact_extremes(prof.facts[fee], CATALOG.slot("dependants[].tertiaryCostAnnual"))
-    lo_r, hi_r = fact_extremes(prof.facts[fee], CATALOG.slot("dependants[].tertiaryCostAnnual"), spot=CMA_.fx.spot)
+    _, hi_r = fact_extremes(prof.facts[fee], CATALOG.slot("dependants[].tertiaryCostAnnual"), spot=CMA_.fx.spot)
     assert hi_r == pytest.approx(hi * 17.5, rel=1e-6) and lo < 10_000 < hi
     prof, tert = add_fact(prof, "dependants[].tertiary", "dependants[x].tertiary", Bernoulli(p=0.4), instance="person.neo_mokoena_1", unit="none",
                           review="accepted")

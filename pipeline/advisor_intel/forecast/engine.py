@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .config import CMA, ForecastConfig, allocation_vector, glide_weights
-from .mapper import ForecastInput, Money, PersonIn, _js_round
+from .mapper import ForecastInput, PersonIn, _js_round
 from .returns import MarketPaths
 from .tax import TaxModel, marginal_rate
 

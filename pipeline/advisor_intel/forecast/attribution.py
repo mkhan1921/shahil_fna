@@ -194,7 +194,7 @@ def _permutations(seed: int, d: int, n: int) -> np.ndarray:
     """``n`` permutations, position-balanced: the d cyclic shifts of each random base permutation, so every input
     appears in every position equally often (removes the position-sampling part of the estimator's noise)."""
     g = stream(seed, "shapley-permutations")
-    bases = max(1, int(round(n / d)))
+    bases = max(1, round(n / d))
     out = [np.roll(base, k) for base in (g.permutation(d) for _ in range(bases)) for k in range(d)]
     return np.stack(out)
 

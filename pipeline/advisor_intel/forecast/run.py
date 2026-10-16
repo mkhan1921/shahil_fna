@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import inspect
 import math
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Literal
 
 import numpy as np
 
@@ -51,14 +52,14 @@ def _call(fn: Callable[..., Any], arg: Any, today: date) -> Any:
 
 def fna_engine_analyse(doc: F.FnaDocument, *, today: date | None = None) -> Any:
     """The ported FNA ``analyse`` (§12.7), for ``run_forecast(fna_analyse=...)``."""
-    from ..fna_engine import analyse  # noqa: PLC0415 - optional dependency of this package
+    from ..fna_engine import analyse
 
     return analyse(doc, today=today)
 
 
 def fna_engine_bands(docs: list[F.FnaDocument], *, today: date | None = None) -> dict[str, dict[str, float]]:
     """p10/p50/p90 of every need's shortfall over materialised draws (§12.7), for ``run_forecast(fna_bands=...)``."""
-    from ..fna_engine import analyse_batch, need_bands  # noqa: PLC0415
+    from ..fna_engine import analyse_batch, need_bands
 
     return need_bands(analyse_batch(docs, today=today))
 
@@ -134,10 +135,6 @@ class Forecaster:
 
     def uniforms(self, seed: int, n: int, *, matrix: str = "") -> Uniforms:
         return self.plan.uniforms(seed, n, matrix=matrix)
-
-    def n_years(self, uniforms: Uniforms) -> int:
-        """Years the engine needs for these draws (ages and planning ages can vary by path)."""
-        return self.plan.realise(uniforms.take(np.arange(min(uniforms.n, 1))), self.tax).n_years if uniforms.n else 1
 
     def shocks(self, seed: int, n: int, n_years: int, *, matrix: str = "") -> MarketShocks | BootstrapShocks:
         return self.market_model.shocks(seed, n, n_years, matrix=matrix)
@@ -268,7 +265,7 @@ def run_forecast(
     it on every path, a ``Dist``/``Quantity`` resamples it with the fact's own draws, ``"prior"`` replaces it with
     the slot's population prior.
     """
-    from .attribution import attribute  # noqa: PLC0415 - attribution imports this module
+    from .attribution import attribute
 
     config = config or load_config()
     cma = cma or load_cma(config.cma_version)

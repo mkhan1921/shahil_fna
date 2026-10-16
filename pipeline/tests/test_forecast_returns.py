@@ -92,7 +92,7 @@ def test_class_means_inflation_and_fx_match_the_model():
 def test_fat_tails_keep_unit_variance_and_add_kurtosis():
     m = MarketModel(CFG, CMA_, 0.045)
     shocks = m.shocks(5, 20_000, 30)
-    w = m._w(shocks.chi2)  # noqa: SLF001
+    w = m._w(shocks.chi2)
     assert (w**2).mean() == pytest.approx(1.0, rel=0.02)
     assert w.max() <= CFG.fat_tails.max_multiplier / m.w_norm + 1e-12
     eq = m.realise(shocks).class_log[0].ravel()

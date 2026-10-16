@@ -16,8 +16,9 @@ as ``stats.sample`` does with a generator.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Literal
+from typing import Literal
 
 import numpy as np
 from scipy.special import ndtri
@@ -58,10 +59,10 @@ class FactUniforms:
     e1: np.ndarray
     e2: np.ndarray
 
-    def take(self, rows: np.ndarray) -> "FactUniforms":
+    def take(self, rows: np.ndarray) -> FactUniforms:
         return FactUniforms(self.c1[rows], self.c2[rows], self.e1[rows], self.e2[rows])
 
-    def mix(self, content_from: "FactUniforms", extraction_from: "FactUniforms") -> "FactUniforms":
+    def mix(self, content_from: FactUniforms, extraction_from: FactUniforms) -> FactUniforms:
         return FactUniforms(content_from.c1, content_from.c2, extraction_from.e1, extraction_from.e2)
 
 
@@ -72,10 +73,10 @@ class Uniforms:
     n: int
     facts: dict[str, FactUniforms]
 
-    def take(self, rows: np.ndarray) -> "Uniforms":
+    def take(self, rows: np.ndarray) -> Uniforms:
         return Uniforms(len(rows), {k: v.take(rows) for k, v in self.facts.items()})
 
-    def swap(self, other: "Uniforms", *, content: Iterable[str] = (), extraction: Iterable[str] = ()) -> "Uniforms":
+    def swap(self, other: Uniforms, *, content: Iterable[str] = (), extraction: Iterable[str] = ()) -> Uniforms:
         """These uniforms with the named facts' content (C) and/or extraction (E) draws taken from ``other``."""
         content, extraction = set(content), set(extraction)
         out = {}
@@ -117,7 +118,7 @@ def ppf(dist: Dist, u: np.ndarray) -> np.ndarray:
     u = np.clip(np.asarray(u, dtype=float), _EPS, 1 - _EPS)
     if isinstance(dist, Point):
         v = dist.value
-        if isinstance(v, str) and not stats._looks_like_date(v):  # noqa: SLF001
+        if isinstance(v, str) and not stats._looks_like_date(v):
             return np.full(u.shape, v, dtype=object)
         return np.full(u.shape, stats.as_number(v), dtype=float)
     if isinstance(dist, Bernoulli):
@@ -168,4 +169,4 @@ def as_float(values: np.ndarray) -> np.ndarray:
     """Values as floats: numeric labels ('3' for a count) and booleans convert; other labels raise."""
     if values.dtype != object:
         return values.astype(float)
-    return np.array([float(v) if not isinstance(v, bool) else float(v) for v in values], dtype=float)
+    return np.array([float(v) for v in values], dtype=float)

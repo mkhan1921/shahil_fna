@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from advisor_intel.forecast.config import load_cma, load_config
-from advisor_intel.forecast.engine import _Simulation  # noqa: PLC2701 - white-box check of the dependant cost schedule
+from advisor_intel.forecast.engine import _Simulation
 from advisor_intel.forecast.mapper import Money, build_plan, plan_from_document
 from advisor_intel.forecast.returns import MarketModel
 from advisor_intel.models.dists import Bernoulli, LogNormal, Mixture, Point, Triangular
@@ -126,8 +126,8 @@ def test_contradicted_and_multi_hypothesis_facts_stay_bimodal():
 
 def test_income_basis_unknown_is_gross_or_net_half_the_time():
     doc = sample_document()
-    prof, fid = add_fact(prior_profile(doc), "income.{p}.grossMonthly", "income.client.grossMonthly", point(60_000), instance="client",
-                         period="monthly", basis="unknown", review="accepted")
+    prof, _ = add_fact(prior_profile(doc), "income.{p}.grossMonthly", "income.client.grossMonthly", point(60_000), instance="client",
+                       period="monthly", basis="unknown", review="accepted")
     plan = plan_for(prof, doc)
     inp = plan.realise(plan.uniforms(5, 4_000), TAX)
     p = inp.persons[0]
@@ -150,16 +150,16 @@ def test_income_basis_unknown_is_gross_or_net_half_the_time():
 
 
 def test_foreign_amounts_convert_at_spot_and_move_with_the_rand():
-    prof, fid = add_fact(empty_profile(), "expenses.items[]", "expenses.items[groceries]", point(500), instance="groceries", unit="USD",
-                         period="monthly", review="accepted")
+    prof, _ = add_fact(empty_profile(), "expenses.items[]", "expenses.items[groceries]", point(500), instance="groceries", unit="USD",
+                       period="monthly", review="accepted")
     plan = plan_for(prof)
     d = draws(plan, n=100)["expenses.items[groceries]"]
     assert np.all(d.fx) and np.allclose(d.values, 500 * 17.5)
     living = plan.realise(plan.uniforms(1, 100), TAX).household.living_essential
     assert np.allclose(living.linked, 8_750) and np.allclose(living.at(1.2), 8_750 * 1.2)
     # A foreign amount replaced by the (rand) population prior on some paths is linked to the rand only where extracted.
-    prof, fid = add_fact(empty_profile(), "expenses.items[]", "expenses.items[groceries]", point(500), instance="groceries", unit="USD",
-                         period="monthly", p_correct=0.5)
+    prof, _ = add_fact(empty_profile(), "expenses.items[]", "expenses.items[groceries]", point(500), instance="groceries", unit="USD",
+                       period="monthly", p_correct=0.5)
     d = draws(plan_for(prof), n=4_000)["expenses.items[groceries]"]
     assert np.array_equal(d.fx, d.extracted) and d.fx.mean() == pytest.approx(0.5, abs=0.03)
     m = Money.of(np.array([10.0, 20.0]), np.array([True, False]))
@@ -171,8 +171,8 @@ def test_offshore_education_shares_one_occurrence_draw_for_location_cost_and_fx(
     prof = prior_profile(doc)
     neo = next(e for e in prof.entities.values() if e.canonical_name.startswith("Neo"))
     common = {"instance": "event.offshore_1", "entity_refs": [neo.entity_id], "review": "accepted"}
-    prof, occurs = add_fact(prof, "event[].occurs", "event[e1].occurs", Bernoulli(p=0.4), unit="none", **common)
-    prof, cost = add_fact(prof, "event[].cashImpact", "event[e1].cashImpact", point(-40_000), unit="USD", period="annual", **common)
+    prof, _ = add_fact(prof, "event[].occurs", "event[e1].occurs", Bernoulli(p=0.4), unit="none", **common)
+    prof, _ = add_fact(prof, "event[].cashImpact", "event[e1].cashImpact", point(-40_000), unit="USD", period="annual", **common)
     prof, _ = add_fact(prof, "event[].kind", "event[e1].kind", point("education-offshore"), unit="none", **common)
     prof, _ = add_fact(prof, "event[].year", "event[e1].year", point(2034), unit="date", **common)
     plan = plan_for(prof, doc)
@@ -189,7 +189,7 @@ def test_offshore_education_shares_one_occurrence_draw_for_location_cost_and_fx(
     mm = MarketModel(zero, CMA_, 0.045)
     sim = _Simulation(inp, mm.realise(mm.shocks(1, inp.n, inp.n_years)), zero, CMA_, TAX)
     t = 9
-    _, _, tertiary = sim._dependant_costs(t, sim.fx_mid[:, t])  # noqa: SLF001
+    _, _, tertiary = sim._dependant_costs(t, sim.fx_mid[:, t])
     esc = (1.065 / 1.045) ** t
     kagiso = next(d for d in inp.dependants if d.key != neo.fna_id and d.is_child)
     local_other = 150_000 * esc * (t >= 19 - kagiso.age0[0]) * (t < 19 - kagiso.age0[0] + 3)

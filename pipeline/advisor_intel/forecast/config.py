@@ -136,7 +136,7 @@ class ForecastConfig(_Frozen):
         except KeyError:
             raise KeyError(f"no forecast mode {name!r}; configured: {sorted(self.modes)}") from None
 
-    def with_(self, **updates: object) -> "ForecastConfig":
+    def with_(self, **updates: object) -> ForecastConfig:
         """A copy with top-level fields replaced (models are frozen so a pinned config never changes)."""
         return self.model_copy(update=updates)
 
@@ -199,7 +199,7 @@ class CMA(_Frozen):
     real_assets: RealAssets = RealAssets()
 
     @model_validator(mode="after")
-    def _check(self) -> "CMA":
+    def _check(self) -> CMA:
         names = tuple(a.name for a in self.asset_classes)
         if names != ASSET_CLASSES:
             raise ValueError(f"CMA asset classes must be {list(ASSET_CLASSES)} in that order, got {list(names)}")

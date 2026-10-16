@@ -128,8 +128,8 @@ class FnaEngineTaxModel:
 
     def __init__(self, tax_year: str = "2026/27") -> None:
         try:
-            from ..fna_engine import tables as fna_tables  # noqa: PLC0415 - lazy: the engine is optional at import time
-            from ..fna_engine import tax as fna_tax  # noqa: PLC0415
+            from ..fna_engine import tables as fna_tables
+            from ..fna_engine import tax as fna_tax
         except ImportError as e:  # pragma: no cover - exercised only without the engine
             raise TaxModelUnavailable(
                 "the forecast taxes income with the ported FNA engine (advisor_intel.fna_engine, spec §12.7), which is not "

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from advisor_intel.forecast.config import FxConfig, load_cma, load_config
-from advisor_intel.forecast.engine import EngineResult, _amortise, simulate  # noqa: PLC2701 - the loan schedule is checked directly
+from advisor_intel.forecast.engine import EngineResult, _amortise, simulate
 from advisor_intel.forecast.mapper import build_plan, plan_from_document
 from advisor_intel.forecast.returns import MarketModel
 from advisor_intel.forecast.run import Forecaster

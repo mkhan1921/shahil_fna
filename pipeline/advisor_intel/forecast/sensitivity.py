@@ -18,7 +18,8 @@ median document instead.
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Callable, Iterable, Literal
+from collections.abc import Callable, Iterable
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel
@@ -100,7 +101,7 @@ def _document_value(slot: SlotDef, x: Any) -> Any:
     if slot.value_type == "date":
         return stats.year_to_iso(float(x))
     if slot.value_type in ("age", "years", "months", "count", "year"):
-        return int(round(float(x)))
+        return round(float(x))
     if slot.value_type == "amount":
         return round(float(x), 2)
     if slot.value_type == "rate":
@@ -162,7 +163,7 @@ def sensitivity_runs(
     config: ForecastConfig | None = None,
     cma: CMA | None = None,
     tax_model: TaxModel | None = None,
-) -> dict[str, "SensitivityRow"]:
+) -> dict[str, SensitivityRow]:
     """PoS at each candidate fact's two ends and with its population prior, with common random numbers (§10.2)."""
     config = config or load_config()
     cma = cma or load_cma(config.cma_version)
