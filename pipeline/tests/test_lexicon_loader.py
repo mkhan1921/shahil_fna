@@ -133,6 +133,8 @@ def test_unknown_approx_word_keeps_the_stated_number(lex):
         ("relative", "bit less", "a bit less"),
         ("relative", "a bit less than now", "a bit less"),
         ("relative", "About the same as now.", "about the same"),
+        ("relative", "half of what we spend", "half"),
+        ("relative", "double what it is now", "double"),
         ("likelihood", "Definitely!", "definitely"),
         ("likelihood", "fifty-fifty", "fifty fifty"),
         ("likelihood", "50/50", "50 50"),

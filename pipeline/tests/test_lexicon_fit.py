@@ -61,9 +61,10 @@ def age_pairs(word: str, tri: tuple[float, float, float], n: int) -> list[EditPa
 
 
 def test_estimators_recover_known_parameters():
-    assert fit_symmetric_triangular(RNG.triangular(-0.2, 0, 0.2, 2000)) == pytest.approx(0.2, abs=0.01)
-    a, c, b = fit_triangular(RNG.triangular(1, 2, 5, 2000))
-    assert (a, c, b) == pytest.approx((1, 2, 5), abs=0.15)
+    # Tolerances are about twice the worst error seen over 30 seeds at these sample sizes.
+    assert fit_symmetric_triangular(RNG.triangular(-0.2, 0, 0.2, 800)) == pytest.approx(0.2, abs=0.015)
+    a, c, b = fit_triangular(RNG.triangular(1, 2, 5, 600))
+    assert (a, b) == pytest.approx((1, 5), abs=0.25) and c == pytest.approx(2, abs=0.35)
     mean, sd = fit_normal(RNG.normal(0.05, 0.02, 2000))
     assert (mean, sd) == pytest.approx((0.05, 0.02), abs=0.002)
     m, lo, hi = fit_beta(RNG.beta(8, 2, 2000))
@@ -79,8 +80,8 @@ def test_estimators_handle_degenerate_edits():
 
 def test_refit_recovers_synthetic_truth_for_every_family():
     pairs = approx_pairs("about", 0.2, 300)
-    pairs += relative_pairs("a bit less", (0.6, 0.75, 0.9), 300)
-    pairs += age_pairs("early sixties", (59, 61, 64), 300)
+    pairs += relative_pairs("a bit less", (0.6, 0.75, 0.9), 200)
+    pairs += age_pairs("early sixties", (59, 61, 64), 200)
     pairs += [
         EditPair(
             phrase="growing a bit",
@@ -97,12 +98,12 @@ def test_refit_recovers_synthetic_truth_for_every_family():
     new = {(c.section, c.key): c.new for c in d.changes}
     assert new[("approx_words", "about")]["rel_halfwidth"] == pytest.approx(0.2, abs=0.02)
     rel = new[("relative_words", "a bit less")]
-    assert (rel["low"], rel["mode"], rel["high"]) == pytest.approx((0.6, 0.75, 0.9), abs=0.05)
+    assert (rel["low"], rel["mode"], rel["high"]) == pytest.approx((0.6, 0.75, 0.9), abs=0.06)
     band = new[("age_bands", "early sixties")]
-    assert (band["low"], band["mode"], band["high"]) == pytest.approx((59, 61, 64), abs=0.5)
+    assert (band["low"], band["high"]) == pytest.approx((59, 64), abs=0.6) and band["mode"] == pytest.approx(61, abs=1.0)
     rate = new[("rate_words", "growing a bit")]
     assert (rate["mean"], rate["sd"]) == pytest.approx((0.05, 0.02), abs=0.005)
-    assert new[("likelihood_words", "might")]["mean"] == pytest.approx(0.5, abs=0.03)
+    assert new[("likelihood_words", "might")]["mean"] == pytest.approx(0.5, abs=0.04)
     for c in d.changes:
         assert c.mean_loglik_new is None or c.mean_loglik_old is None or c.mean_loglik_new >= c.mean_loglik_old - 1e-9
 

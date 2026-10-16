@@ -804,7 +804,7 @@ class Lexicon:
         """A multiplier on the reference slot (§8.3 AMOUNT_RELATIVE): 'a bit less' → Triangular(0.75, 0.88, 0.97)."""
         c = canon(word)
         cands = [c]
-        for sep in (" than ", " as ", " of "):
+        for sep in (" than ", " as ", " of ", " what "):  # 'a bit less than now', 'half of my salary', 'double what it is'
             if sep in f" {c} ":
                 head = f" {c} ".split(sep, 1)[0].strip()
                 if head:
