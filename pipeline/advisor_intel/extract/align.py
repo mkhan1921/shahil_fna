@@ -63,15 +63,17 @@ def canon(text: str) -> str:
     t = text.lower().replace("-", " ")
     t = re.sub(r"(?<=\d)[ ,](?=\d{3}\b)", "", t)
     t = re.sub(r"[^\w\s.%]", " ", t)
+    t = re.sub(r"(?<!\d)\.|\.(?!\d)", " ", t)  # sentence full stops go; decimal points stay
     words = t.split()
     out: list[str] = []
     i = 0
+    numeric = lambda w: w in _UNITS or w in _TENS  # noqa: E731
     while i < len(words):
         w = words[i]
-        if w in _UNITS or w in _TENS:
+        if numeric(w):
             total, current = 0.0, 0.0
             j = i
-            while j < len(words) and (words[j] in _UNITS or words[j] in _TENS or words[j] in _SCALES or (words[j] == "and" and j + 1 < len(words) and words[j + 1] in _UNITS | _TENS)):
+            while j < len(words):
                 x = words[j]
                 if x in _UNITS:
                     current += _UNITS[x]
@@ -79,12 +81,24 @@ def canon(text: str) -> str:
                     current += _TENS[x]
                 elif x == "hundred":
                     current = max(current, 1) * 100
+                elif x in ("point", "comma") and j + 1 < len(words) and words[j + 1] in _UNITS:
+                    # "one point two million", SA "one comma two mil": decimal digits follow
+                    frac, k, scale = "", j + 1, 1.0
+                    while k < len(words) and words[k] in _UNITS:
+                        frac += str(_UNITS[words[k]] % 10)
+                        k += 1
+                    current += float("0." + frac)
+                    j = k - 1
                 elif x in _SCALES:
                     total += max(current, 1) * _SCALES[x]
                     current = 0
+                elif x == "and" and j + 1 < len(words) and numeric(words[j + 1]):
+                    pass
+                else:
+                    break
                 j += 1
             v = total + current
-            out.append(str(int(v)) if v == int(v) else str(v))
+            out.append(str(int(v)) if v == int(v) else f"{v:g}")
             i = j
         else:
             out.append(w)
