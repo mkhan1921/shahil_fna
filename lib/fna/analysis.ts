@@ -20,6 +20,7 @@ import { scoreRiskProfile, type RiskProfileResult } from './riskProfile';
 import {
   estateDuty,
   getTaxTable,
+  getTaxTableFile,
   incrementalTax,
   personTax,
   retirementLumpSumTax,
@@ -1093,8 +1094,11 @@ export const computeRetirement = (doc: FnaDocument, key: PersonKey, income: Pers
   }
 
   const initialDrawdown = projectedCapital > 0 ? (targetMonthlyAtRetirement * 12) / projectedCapital : 0;
-  if (initialDrawdown > 0.175) {
-    notes.push('The required income exceeds the 17.5% maximum living annuity drawdown — the target is not achievable from this capital.');
+  const maxDrawdown = getTaxTableFile(a.taxYear).livingAnnuity.maxDrawdown;
+  if (initialDrawdown > maxDrawdown) {
+    notes.push(
+      `The required income exceeds the ${Math.round(maxDrawdown * 1000) / 10}% maximum living annuity drawdown — the target is not achievable from this capital.`,
+    );
   } else if (initialDrawdown > 0.05 && targetMonthlyAtRetirement > 0) {
     notes.push(`An initial drawdown of ${(initialDrawdown * 100).toFixed(1)}% exceeds the ~4–5% generally regarded as sustainable for a living annuity.`);
   }
