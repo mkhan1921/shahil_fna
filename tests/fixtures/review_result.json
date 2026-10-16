@@ -1,0 +1,881 @@
+{
+ "format": "advisor-intel-review-result",
+ "version": 1,
+ "call_id": "call-2026-10-15-mokoena",
+ "run_id": "wf-call-2026-10-15-mokoena",
+ "base_profile_version": 5,
+ "reviewer_id": "adviser-sipho",
+ "ops": [
+  {
+   "op": "CONFIRM",
+   "fact_id": "income.{p}.grossMonthly#client",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:30:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 422
+  },
+  {
+   "op": "UPDATE",
+   "fact_id": "retirement.{p}.retirementAge#client",
+   "segment_id": null,
+   "payload": {
+    "replace_hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "triangular",
+        "low": 60,
+        "mode": 63,
+        "high": 65
+       },
+       "unit": "age",
+       "period": "none",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "review": {
+     "status": "edited",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:31:00Z",
+     "note": "Thabo leans to 63"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 423
+  },
+  {
+   "op": "UPDATE",
+   "fact_id": "liabilities[].balance#liability.home_loan_1",
+   "segment_id": null,
+   "payload": {
+    "replace_hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "point",
+        "value": 1850000
+       },
+       "unit": "ZAR",
+       "period": "once",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "review": {
+     "status": "edited",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:32:00Z",
+     "note": "R1.85m, as on the statement"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 424
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "assets[].type#property.krugerrands_new",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:34:00Z",
+     "note": "Krugerrands confirmed as Krugerrand gold bullion coins"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 425
+  },
+  {
+   "op": "UPDATE",
+   "fact_id": "retirementFunds[].value#account.retirement_annuity_provi_2",
+   "segment_id": null,
+   "payload": {
+    "replace_hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "point",
+        "value": 280000
+       },
+       "unit": "ZAR",
+       "period": "once",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "status": "stated",
+    "review": {
+     "status": "edited",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:35:00Z",
+     "note": "Lerato read it from the statement"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 426
+  },
+  {
+   "op": "RETRACT",
+   "fact_id": "assets[].value#property.krugerrands_new",
+   "segment_id": null,
+   "payload": {
+    "reason": "misheard",
+    "note": "He said sixty thousand rand of coins, but meant the insured value",
+    "evidence": [],
+    "review": {
+     "status": "rejected",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:36:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 427
+  },
+  {
+   "op": "RETRACT",
+   "fact_id": "dependants[].schoolFeesAnnual#person.neo_mokoena_1",
+   "segment_id": null,
+   "payload": {
+    "reason": "wrong_entity",
+    "note": null,
+    "evidence": [],
+    "review": {
+     "status": "rejected",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:37:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 428
+  },
+  {
+   "op": "ADD",
+   "fact_id": "dependants[].schoolFeesAnnual#person.kagiso_mokoena_2",
+   "segment_id": "s0014",
+   "payload": {
+    "slot_id": "dependants[].schoolFeesAnnual",
+    "instance_key": "person.kagiso_mokoena_2",
+    "fna_path": "dependants[b4db1d21-aadf-4118-8b47-437035cf7952].schoolFeesAnnual",
+    "source": "reviewer",
+    "status": "stated",
+    "hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "triangular",
+        "low": 94500,
+        "mode": 105000,
+        "high": 115500
+       },
+       "unit": "ZAR",
+       "period": "annual",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "'about a hundred and five thousand for the year'",
+      "revises": false
+     }
+    ],
+    "evidence": [
+     {
+      "segment_id": "s0014",
+      "char_start": 27,
+      "char_end": 83,
+      "quote": "It's about a hundred and five thousand for the year now.",
+      "speaker_role": "client_secondary",
+      "t_start": 79.12,
+      "t_end": 83.15,
+      "asr_mean_conf": 0.802,
+      "role": "supports",
+      "aligner_score": 0.96
+     }
+    ],
+    "speaker_attribution": "client",
+    "interpretation": "Neo's independent-school fees have gone up to about R105,000 a year.",
+    "said": "It's about a hundred and five thousand for the year now.",
+    "entity_refs": [
+     "person.kagiso_mokoena_2"
+    ],
+    "provenance": {
+     "run_id": "wf-call-2026-10-15-mokoena",
+     "trace_id": "",
+     "extractor_model": "",
+     "extractor_prompt_version": "",
+     "calibrator_version": "cold-start-2026-10",
+     "lexicon_version": "1.3",
+     "schema_version": "profile_v1"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 429
+  },
+  {
+   "op": "UPDATE",
+   "fact_id": "retirement.{p}.targetPercent#client",
+   "segment_id": null,
+   "payload": {
+    "speaker_attribution": "advisor_confirmed_by_client",
+    "review": {
+     "status": "edited",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:38:00Z",
+     "reason": "wrong_speaker"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 430
+  },
+  {
+   "op": "UPDATE",
+   "fact_id": "dependants[].schoolType#person.kagiso_mokoena_2",
+   "segment_id": null,
+   "payload": {
+    "status": "implied",
+    "replace_hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "categorical",
+        "probs": {
+         "private": 0.7,
+         "public": 0.3
+        }
+       },
+       "unit": "none",
+       "period": "none",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "review": {
+     "status": "edited",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:39:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 431
+  },
+  {
+   "op": "RETRACT",
+   "fact_id": "liabilities[].type#liability.credit_card_3",
+   "segment_id": null,
+   "payload": {
+    "reason": "removed",
+    "note": "Paid off in August",
+    "evidence": [],
+    "review": {
+     "status": "rejected",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:40:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 432
+  },
+  {
+   "op": "ADD",
+   "fact_id": "expenses.items[]#fuel",
+   "segment_id": null,
+   "payload": {
+    "slot_id": "expenses.items[]",
+    "instance_key": "fuel",
+    "fna_path": "expenses.items[fuel]",
+    "source": "reviewer",
+    "status": "stated",
+    "hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "point",
+        "value": 4200
+       },
+       "unit": "ZAR",
+       "period": "monthly",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "evidence": [],
+    "speaker_attribution": "client",
+    "interpretation": "Added by the reviewer.",
+    "said": "",
+    "entity_refs": [],
+    "provenance": {
+     "run_id": "wf-call-2026-10-15-mokoena",
+     "trace_id": "",
+     "extractor_model": "",
+     "extractor_prompt_version": "",
+     "calibrator_version": "cold-start-2026-10",
+     "lexicon_version": "1.3",
+     "schema_version": "profile_v1"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 433
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "expenses.items[]#fuel",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:41:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 434
+  },
+  {
+   "op": "ADD",
+   "fact_id": "{p}.employer#spouse",
+   "segment_id": "s0005",
+   "payload": {
+    "slot_id": "{p}.employer",
+    "instance_key": "spouse",
+    "fna_path": "spouse.employer",
+    "source": "reviewer",
+    "status": "stated",
+    "hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "point",
+        "value": "Brightwater"
+       },
+       "unit": "none",
+       "period": "none",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "evidence": [
+     {
+      "segment_id": "s0005",
+      "char_start": 37,
+      "char_end": 58,
+      "quote": "still at Brightwater?",
+      "speaker_role": "advisor",
+      "t_start": 29.24,
+      "t_end": 30.46,
+      "asr_mean_conf": 0.752,
+      "role": "context",
+      "aligner_score": null
+     },
+     {
+      "segment_id": "s0006",
+      "char_start": 0,
+      "char_end": 12,
+      "quote": "Still there.",
+      "speaker_role": "client_secondary",
+      "t_start": 31.2,
+      "t_end": 31.9,
+      "asr_mean_conf": 0.73,
+      "role": "supports",
+      "aligner_score": null
+     }
+    ],
+    "speaker_attribution": "advisor_confirmed_by_client",
+    "interpretation": "Added by the reviewer.",
+    "said": "still at Brightwater?",
+    "entity_refs": [
+     "person.spouse"
+    ],
+    "provenance": {
+     "run_id": "wf-call-2026-10-15-mokoena",
+     "trace_id": "",
+     "extractor_model": "",
+     "extractor_prompt_version": "",
+     "calibrator_version": "cold-start-2026-10",
+     "lexicon_version": "1.3",
+     "schema_version": "profile_v1"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 435
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "{p}.employer#spouse",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:42:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 436
+  },
+  {
+   "op": "ADD",
+   "fact_id": "goals[].name#goal.reviewer_goals_1",
+   "segment_id": null,
+   "payload": {
+    "slot_id": "goals[].name",
+    "instance_key": "goal.reviewer_goals_1",
+    "fna_path": "goals[b871d8c6-3e88-5e85-a03f-8737b7bb809c].name",
+    "source": "reviewer",
+    "status": "stated",
+    "hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "point",
+        "value": "Kitchen renovation"
+       },
+       "unit": "none",
+       "period": "none",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "evidence": [],
+    "speaker_attribution": "client",
+    "interpretation": "Added by the reviewer.",
+    "said": "",
+    "entity_refs": [],
+    "provenance": {
+     "run_id": "wf-call-2026-10-15-mokoena",
+     "trace_id": "",
+     "extractor_model": "",
+     "extractor_prompt_version": "",
+     "calibrator_version": "cold-start-2026-10",
+     "lexicon_version": "1.3",
+     "schema_version": "profile_v1"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 437
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "goals[].name#goal.reviewer_goals_1",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:43:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 438
+  },
+  {
+   "op": "ADD",
+   "fact_id": "goals[].cost#goal.reviewer_goals_1",
+   "segment_id": null,
+   "payload": {
+    "slot_id": "goals[].cost",
+    "instance_key": "goal.reviewer_goals_1",
+    "fna_path": "goals[b871d8c6-3e88-5e85-a03f-8737b7bb809c].cost",
+    "source": "reviewer",
+    "status": "stated",
+    "hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "triangular",
+        "low": 150000,
+        "mode": 180000,
+        "high": 220000
+       },
+       "unit": "ZAR",
+       "period": "once",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "evidence": [],
+    "speaker_attribution": "client",
+    "interpretation": "Added by the reviewer.",
+    "said": "",
+    "entity_refs": [],
+    "provenance": {
+     "run_id": "wf-call-2026-10-15-mokoena",
+     "trace_id": "",
+     "extractor_model": "",
+     "extractor_prompt_version": "",
+     "calibrator_version": "cold-start-2026-10",
+     "lexicon_version": "1.3",
+     "schema_version": "profile_v1"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 439
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "goals[].cost#goal.reviewer_goals_1",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:47:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 440
+  },
+  {
+   "op": "UPDATE",
+   "fact_id": "expenses.items[]#groceries",
+   "segment_id": null,
+   "payload": {
+    "replace_hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "point",
+        "value": 11500
+       },
+       "unit": "ZAR",
+       "period": "monthly",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "review": {
+     "status": "edited",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:49:00Z",
+     "note": "edited in the sheet"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 441
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "event[].year#goal.kagiso_overseas_study",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 442
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "income.{p}.annualBonus#client",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 443
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "income.{p}.grossMonthly#spouse",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 444
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "policies[].lifeAssured#policy.group_disability_new",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 445
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "event[].kind#goal.kagiso_overseas_study",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 446
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "estate.{p}.guardianNominated#client",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 447
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "estate.{p}.guardianNominated#spouse",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 448
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "policies[].definition#policy.group_disability_new",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 449
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "estate.{p}.hasWill#client",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 450
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "policies[].accelerated#policy.group_disability_new",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 451
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "policies[].insurer#policy.group_disability_new",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 452
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "riskProfile.answers[emergency]",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 453
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "dependants[].schoolFeesAnnual#person.kagiso_mokoena_2",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:50:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 454
+  }
+ ],
+ "flag_clearances": [
+  {
+   "flag_id": "flag-income-flip",
+   "resolution": "accepted",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:30:00Z",
+   "note": ""
+  },
+  {
+   "flag_id": "flag-retirement-age",
+   "resolution": "edited",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:31:00Z",
+   "note": "Thabo leans to 63"
+  },
+  {
+   "flag_id": "flag-bond-scale",
+   "resolution": "edited",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:32:00Z",
+   "note": "R1.85m, as on the statement"
+  },
+  {
+   "flag_id": "flag-disability-cover",
+   "resolution": "dismissed",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:33:00Z",
+   "note": "Thabo will send the benefit schedule"
+  },
+  {
+   "flag_id": "flag-krugerrands",
+   "resolution": "accepted",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:34:00Z",
+   "note": "Krugerrands confirmed as Krugerrand gold bullion coins"
+  },
+  {
+   "flag_id": "flag-ra-contradicted",
+   "resolution": "edited",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:35:00Z",
+   "note": "Lerato read it from the statement"
+  }
+ ],
+ "followup_edits": [
+  {
+   "followup_id": "fu-ra-statement",
+   "action": "reword",
+   "question": "Please send Thabo’s latest retirement annuity statement.",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:44:00Z"
+  },
+  {
+   "followup_id": "fu-retirement-income",
+   "action": "drop",
+   "question": "How much of your current salary would you like to live on in retirement: about 60%, 70% or 80%?",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:45:00Z"
+  },
+  {
+   "followup_id": null,
+   "action": "add",
+   "question": "Has the new will been signed by both witnesses?",
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:46:00Z"
+  }
+ ],
+ "term_confirmations": [
+  {
+   "term": "Krugerrands",
+   "canonical_name": "Krugerrand gold bullion coins",
+   "product_type": "other",
+   "provider": "",
+   "confirmed": true,
+   "reviewer_id": "adviser-sipho",
+   "at": "2026-10-16T09:34:00Z"
+  }
+ ],
+ "submitted": true,
+ "submitted_at": "2026-10-16T10:05:00Z",
+ "review_seconds": 1260
+}

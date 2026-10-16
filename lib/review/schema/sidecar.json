@@ -1,0 +1,1167 @@
+{
+  "$defs": {
+    "Bernoulli": {
+      "properties": {
+        "kind": {
+          "const": "bernoulli",
+          "default": "bernoulli",
+          "title": "Kind",
+          "type": "string"
+        },
+        "p": {
+          "title": "P",
+          "type": "number"
+        }
+      },
+      "required": [
+        "p"
+      ],
+      "title": "Bernoulli",
+      "type": "object"
+    },
+    "BlockingFlag": {
+      "description": "One rule, one fact: any open flag blocks review submission and export (§10.3).",
+      "properties": {
+        "flag_id": {
+          "title": "Flag Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "tier_a_missing",
+            "tier_a_contradicted",
+            "status_flip",
+            "scale_ambiguous",
+            "second_pass_disagrees",
+            "hard_constraint",
+            "unresolved_term",
+            "role_review"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "fact_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fact Id"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "cleared": {
+          "default": false,
+          "title": "Cleared",
+          "type": "boolean"
+        },
+        "cleared_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cleared By"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "enum": [
+                "accepted",
+                "edited",
+                "marked_unknown",
+                "dismissed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolution"
+        }
+      },
+      "required": [
+        "flag_id",
+        "kind",
+        "fact_id",
+        "message"
+      ],
+      "title": "BlockingFlag",
+      "type": "object"
+    },
+    "Categorical": {
+      "properties": {
+        "kind": {
+          "const": "categorical",
+          "default": "categorical",
+          "title": "Kind",
+          "type": "string"
+        },
+        "probs": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Probs",
+          "type": "object"
+        }
+      },
+      "required": [
+        "probs"
+      ],
+      "title": "Categorical",
+      "type": "object"
+    },
+    "Discrete": {
+      "properties": {
+        "kind": {
+          "const": "discrete",
+          "default": "discrete",
+          "title": "Kind",
+          "type": "string"
+        },
+        "support": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Support",
+          "type": "array"
+        },
+        "weights": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Weights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "support",
+        "weights"
+      ],
+      "title": "Discrete",
+      "type": "object"
+    },
+    "Evidence": {
+      "properties": {
+        "segment_id": {
+          "title": "Segment Id",
+          "type": "string"
+        },
+        "char_start": {
+          "title": "Char Start",
+          "type": "integer"
+        },
+        "char_end": {
+          "title": "Char End",
+          "type": "integer"
+        },
+        "quote": {
+          "title": "Quote",
+          "type": "string"
+        },
+        "speaker_role": {
+          "title": "Speaker Role",
+          "type": "string"
+        },
+        "t_start": {
+          "title": "T Start",
+          "type": "number"
+        },
+        "t_end": {
+          "title": "T End",
+          "type": "number"
+        },
+        "asr_mean_conf": {
+          "title": "Asr Mean Conf",
+          "type": "number"
+        },
+        "role": {
+          "enum": [
+            "supports",
+            "revises",
+            "contradicts",
+            "context"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "aligner_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aligner Score"
+        }
+      },
+      "required": [
+        "segment_id",
+        "char_start",
+        "char_end",
+        "quote",
+        "speaker_role",
+        "t_start",
+        "t_end",
+        "asr_mean_conf",
+        "role"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "FollowUp": {
+      "properties": {
+        "followup_id": {
+          "title": "Followup Id",
+          "type": "string"
+        },
+        "fact_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fact Ids",
+          "type": "array"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "why": {
+          "title": "Why",
+          "type": "string"
+        },
+        "expected_pos_change": {
+          "title": "Expected Pos Change",
+          "type": "number"
+        },
+        "answer_type": {
+          "title": "Answer Type",
+          "type": "string"
+        },
+        "status": {
+          "default": "open",
+          "enum": [
+            "open",
+            "asked",
+            "answered",
+            "dropped"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "followup_id",
+        "fact_ids",
+        "question",
+        "why",
+        "expected_pos_change",
+        "answer_type"
+      ],
+      "title": "FollowUp",
+      "type": "object"
+    },
+    "LogNormal": {
+      "description": "Stored as quantiles; the (mu, sigma) of the log are fitted at sample time.",
+      "properties": {
+        "kind": {
+          "const": "lognormal",
+          "default": "lognormal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "median": {
+          "title": "Median",
+          "type": "number"
+        },
+        "p10": {
+          "title": "P10",
+          "type": "number"
+        },
+        "p90": {
+          "title": "P90",
+          "type": "number"
+        }
+      },
+      "required": [
+        "median",
+        "p10",
+        "p90"
+      ],
+      "title": "LogNormal",
+      "type": "object"
+    },
+    "Mixture": {
+      "properties": {
+        "kind": {
+          "const": "mixture",
+          "default": "mixture",
+          "title": "Kind",
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "discriminator": {
+                  "mapping": {
+                    "bernoulli": "#/$defs/Bernoulli",
+                    "categorical": "#/$defs/Categorical",
+                    "discrete": "#/$defs/Discrete",
+                    "lognormal": "#/$defs/LogNormal",
+                    "mixture": "#/$defs/Mixture",
+                    "normal": "#/$defs/Normal",
+                    "point": "#/$defs/Point",
+                    "triangular": "#/$defs/Triangular"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/Point"
+                  },
+                  {
+                    "$ref": "#/$defs/Categorical"
+                  },
+                  {
+                    "$ref": "#/$defs/Discrete"
+                  },
+                  {
+                    "$ref": "#/$defs/Triangular"
+                  },
+                  {
+                    "$ref": "#/$defs/LogNormal"
+                  },
+                  {
+                    "$ref": "#/$defs/Normal"
+                  },
+                  {
+                    "$ref": "#/$defs/Bernoulli"
+                  },
+                  {
+                    "$ref": "#/$defs/Mixture"
+                  }
+                ]
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Components",
+          "type": "array"
+        }
+      },
+      "required": [
+        "components"
+      ],
+      "title": "Mixture",
+      "type": "object"
+    },
+    "Normal": {
+      "properties": {
+        "kind": {
+          "const": "normal",
+          "default": "normal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "mean": {
+          "title": "Mean",
+          "type": "number"
+        },
+        "sd": {
+          "title": "Sd",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mean",
+        "sd"
+      ],
+      "title": "Normal",
+      "type": "object"
+    },
+    "Point": {
+      "properties": {
+        "kind": {
+          "const": "point",
+          "default": "point",
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "Point",
+      "type": "object"
+    },
+    "Quantity": {
+      "properties": {
+        "dist": {
+          "discriminator": {
+            "mapping": {
+              "bernoulli": "#/$defs/Bernoulli",
+              "categorical": "#/$defs/Categorical",
+              "discrete": "#/$defs/Discrete",
+              "lognormal": "#/$defs/LogNormal",
+              "mixture": "#/$defs/Mixture",
+              "normal": "#/$defs/Normal",
+              "point": "#/$defs/Point",
+              "triangular": "#/$defs/Triangular"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Point"
+            },
+            {
+              "$ref": "#/$defs/Categorical"
+            },
+            {
+              "$ref": "#/$defs/Discrete"
+            },
+            {
+              "$ref": "#/$defs/Triangular"
+            },
+            {
+              "$ref": "#/$defs/LogNormal"
+            },
+            {
+              "$ref": "#/$defs/Normal"
+            },
+            {
+              "$ref": "#/$defs/Bernoulli"
+            },
+            {
+              "$ref": "#/$defs/Mixture"
+            }
+          ],
+          "title": "Dist"
+        },
+        "unit": {
+          "enum": [
+            "ZAR",
+            "USD",
+            "GBP",
+            "EUR",
+            "years",
+            "months",
+            "age",
+            "pct",
+            "count",
+            "date",
+            "none"
+          ],
+          "title": "Unit",
+          "type": "string"
+        },
+        "period": {
+          "default": "none",
+          "enum": [
+            "once",
+            "monthly",
+            "annual",
+            "none"
+          ],
+          "title": "Period",
+          "type": "string"
+        },
+        "basis": {
+          "default": "na",
+          "enum": [
+            "gross",
+            "net",
+            "unknown",
+            "na"
+          ],
+          "title": "Basis",
+          "type": "string"
+        },
+        "real_or_nominal": {
+          "default": "na",
+          "enum": [
+            "real",
+            "nominal",
+            "na"
+          ],
+          "title": "Real Or Nominal",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dist",
+        "unit"
+      ],
+      "title": "Quantity",
+      "type": "object"
+    },
+    "ReviewState": {
+      "properties": {
+        "status": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "accepted",
+            "edited",
+            "rejected",
+            "auto_accepted"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reviewer_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewer Id"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed At"
+        },
+        "original_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "original_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "stated",
+                "implied",
+                "explicitly_unknown",
+                "not_discussed",
+                "contradicted"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Status"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "title": "ReviewState",
+      "type": "object"
+    },
+    "SidecarField": {
+      "additionalProperties": false,
+      "properties": {
+        "fact_id": {
+          "title": "Fact Id",
+          "type": "string"
+        },
+        "slot_id": {
+          "title": "Slot Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "exported": {
+          "title": "Exported",
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "stated",
+            "implied",
+            "explicitly_unknown",
+            "not_discussed",
+            "contradicted"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "change": {
+          "enum": [
+            "new",
+            "changed",
+            "confirmed",
+            "unchanged_not_discussed",
+            "removed"
+          ],
+          "title": "Change",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "call",
+            "prior_fna",
+            "crm",
+            "derived",
+            "fna_default",
+            "followup",
+            "reviewer"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value_text": {
+          "title": "Value Text",
+          "type": "string"
+        },
+        "prior_value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prior_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Prior Text"
+        },
+        "hypotheses": {
+          "items": {
+            "$ref": "#/$defs/SidecarHypothesis"
+          },
+          "title": "Hypotheses",
+          "type": "array"
+        },
+        "p_correct": {
+          "title": "P Correct",
+          "type": "number"
+        },
+        "auto_accepted": {
+          "title": "Auto Accepted",
+          "type": "boolean"
+        },
+        "review_priority": {
+          "title": "Review Priority",
+          "type": "number"
+        },
+        "why": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Why"
+        },
+        "speaker_attribution": {
+          "enum": [
+            "client",
+            "advisor_suggested",
+            "advisor_confirmed_by_client",
+            "mixed"
+          ],
+          "title": "Speaker Attribution",
+          "type": "string"
+        },
+        "said": {
+          "title": "Said",
+          "type": "string"
+        },
+        "interpretation": {
+          "title": "Interpretation",
+          "type": "string"
+        },
+        "hedges": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hedges",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "entity_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Entity Refs",
+          "type": "array"
+        },
+        "review": {
+          "$ref": "#/$defs/ReviewState"
+        },
+        "derivation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Derivation"
+        },
+        "term_resolution": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Term Resolution"
+        }
+      },
+      "required": [
+        "fact_id",
+        "slot_id",
+        "label",
+        "group",
+        "tier",
+        "exported",
+        "status",
+        "change",
+        "source",
+        "value",
+        "quantity",
+        "value_text",
+        "prior_value",
+        "prior_text",
+        "hypotheses",
+        "p_correct",
+        "auto_accepted",
+        "review_priority",
+        "why",
+        "speaker_attribution",
+        "said",
+        "interpretation",
+        "hedges",
+        "evidence",
+        "entity_refs",
+        "review",
+        "derivation",
+        "term_resolution"
+      ],
+      "title": "SidecarField",
+      "type": "object"
+    },
+    "SidecarHypothesis": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ValueSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "weight": {
+          "title": "Weight",
+          "type": "number"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "revises": {
+          "title": "Revises",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "value",
+        "quantity",
+        "text",
+        "weight",
+        "rationale",
+        "revises"
+      ],
+      "title": "SidecarHypothesis",
+      "type": "object"
+    },
+    "Triangular": {
+      "properties": {
+        "kind": {
+          "const": "triangular",
+          "default": "triangular",
+          "title": "Kind",
+          "type": "string"
+        },
+        "low": {
+          "title": "Low",
+          "type": "number"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "number"
+        },
+        "high": {
+          "title": "High",
+          "type": "number"
+        }
+      },
+      "required": [
+        "low",
+        "mode",
+        "high"
+      ],
+      "title": "Triangular",
+      "type": "object"
+    },
+    "ValueSummary": {
+      "additionalProperties": false,
+      "description": "``binding.summarise_value``: the unit, then one of a point, P(true), category probabilities or p10/p50/p90.",
+      "properties": {
+        "unit": {
+          "enum": [
+            "ZAR",
+            "USD",
+            "GBP",
+            "EUR",
+            "years",
+            "months",
+            "age",
+            "pct",
+            "count",
+            "date",
+            "none"
+          ],
+          "title": "Unit",
+          "type": "string"
+        },
+        "period": {
+          "enum": [
+            "once",
+            "monthly",
+            "annual",
+            "none"
+          ],
+          "title": "Period",
+          "type": "string"
+        },
+        "basis": {
+          "enum": [
+            "gross",
+            "net",
+            "unknown",
+            "na"
+          ],
+          "title": "Basis",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Point"
+        },
+        "p_true": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P True"
+        },
+        "probs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Probs"
+        },
+        "p10": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P10"
+        },
+        "p50": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P50"
+        },
+        "p90": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "P90"
+        }
+      },
+      "required": [
+        "unit",
+        "period",
+        "basis",
+        "kind"
+      ],
+      "title": "ValueSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "advisor-intel-sidecar",
+      "default": "advisor-intel-sidecar",
+      "title": "Format",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "call_id": {
+      "title": "Call Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "profile_version": {
+      "title": "Profile Version",
+      "type": "integer"
+    },
+    "last_seq": {
+      "title": "Last Seq",
+      "type": "integer"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "anchor_date": {
+      "format": "date",
+      "title": "Anchor Date",
+      "type": "string"
+    },
+    "fields": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SidecarField"
+      },
+      "title": "Fields",
+      "type": "object"
+    },
+    "blocking_flags": {
+      "items": {
+        "$ref": "#/$defs/BlockingFlag"
+      },
+      "title": "Blocking Flags",
+      "type": "array"
+    },
+    "followups": {
+      "items": {
+        "$ref": "#/$defs/FollowUp"
+      },
+      "title": "Followups",
+      "type": "array"
+    }
+  },
+  "required": [
+    "call_id",
+    "run_id",
+    "profile_version",
+    "last_seq",
+    "schema_version",
+    "anchor_date",
+    "fields",
+    "blocking_flags",
+    "followups"
+  ],
+  "title": "Sidecar",
+  "type": "object"
+}

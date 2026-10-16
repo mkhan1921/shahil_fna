@@ -97,6 +97,38 @@ export const importDocument = async (text: string, password?: string): Promise<F
   }
 };
 
+/*
+ * Advisor Call Intelligence files (spec §11.5): the pipeline hands the adviser a review package,
+ * and the app returns the review result beside the reviewed client file. They travel as plain
+ * JSON with a `format` tag, like the client file itself.
+ */
+export const FILE_FORMATS = ['shahil-fna', 'advisor-intel-review', 'advisor-intel-review-result', 'advisor-intel-sidecar', 'advisor-intel-gold-annotation'] as const;
+export type FileFormat = (typeof FILE_FORMATS)[number];
+
+export interface TransferFile {
+  format: FileFormat;
+  /** Only client files can be encrypted. */
+  encrypted: boolean;
+  json: Record<string, unknown>;
+}
+
+/** What kind of file this is, by its `format` tag; null for anything else. */
+export const readTransferFile = (text: string): TransferFile | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const json = parsed as Record<string, unknown>;
+  const format = FILE_FORMATS.find((f) => f === json.format);
+  return format ? { format, encrypted: json.encrypted === true, json } : null;
+};
+
+/** A review file as a download: plain, indented JSON. */
+export const exportJsonFile = (value: object): Blob => new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+
 export const downloadBlob = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

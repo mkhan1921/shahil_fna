@@ -59,19 +59,19 @@ export function AssetsSection({ doc, update, analysis }: SectionProps) {
         const employer = f.type === 'pension' || f.type === 'provident';
         return (
           <Item key={f.id} id={f.id} n={i + 1} lock={spouse ? 5 : 4} onRemove={() => update((d) => void d.retirementFunds.splice(i, 1))}>
-            <SelectC label="Type" value={f.type} onChange={(v) => set((x) => void (x.type = v))} options={RETIREMENT_FUND_TYPE} span={1.75} />
-            {spouse && <SelectC label="Member" value={f.owner} onChange={(v) => set((x) => void (x.owner = v))} options={personOptions(doc)} span={1} />}
-            <TextC label="Provider" value={f.provider} onChange={(v) => set((x) => void (x.provider = v))} span={1.5} />
-            <TextC label="Fund / product" value={f.name} onChange={(v) => set((x) => void (x.name = v))} span={1.75} />
-            <MoneyC label="Value" value={f.value} onChange={(v) => set((x) => void (x.value = v))} span={1.5} />
-            {pre && <MoneyC label="Savings pot" value={f.savingsPot} onChange={(v) => set((x) => void (x.savingsPot = v))} span={1} />}
-            {pre && <MoneyC label={employer ? 'Member p.m.' : 'Contrib. p.m.'} value={f.employeeMonthly} onChange={(v) => set((x) => void (x.employeeMonthly = v))} span={1} />}
-            {employer && <MoneyC label="Employer p.m." value={f.employerMonthly} onChange={(v) => set((x) => void (x.employerMonthly = v))} span={1} />}
-            {pre && <YesNoC label="Payroll" value={f.viaPayroll} onChange={(v) => set((x) => void (x.viaPayroll = v))} span={0.75} />}
+            <SelectC label="Type" value={f.type} path={`retirementFunds[${f.id}].type`} onChange={(v) => set((x) => void (x.type = v))} options={RETIREMENT_FUND_TYPE} span={1.75} />
+            {spouse && <SelectC label="Member" value={f.owner} path={`retirementFunds[${f.id}].owner`} onChange={(v) => set((x) => void (x.owner = v))} options={personOptions(doc)} span={1} />}
+            <TextC label="Provider" value={f.provider} path={`retirementFunds[${f.id}].provider`} onChange={(v) => set((x) => void (x.provider = v))} span={1.5} />
+            <TextC label="Fund / product" value={f.name} path={`retirementFunds[${f.id}].name`} onChange={(v) => set((x) => void (x.name = v))} span={1.75} />
+            <MoneyC label="Value" value={f.value} path={`retirementFunds[${f.id}].value`} onChange={(v) => set((x) => void (x.value = v))} span={1.5} />
+            {pre && <MoneyC label="Savings pot" value={f.savingsPot} path={`retirementFunds[${f.id}].savingsPot`} onChange={(v) => set((x) => void (x.savingsPot = v))} span={1} />}
+            {pre && <MoneyC label={employer ? 'Member p.m.' : 'Contrib. p.m.'} value={f.employeeMonthly} path={`retirementFunds[${f.id}].employeeMonthly`} onChange={(v) => set((x) => void (x.employeeMonthly = v))} span={1} />}
+            {employer && <MoneyC label="Employer p.m." value={f.employerMonthly} path={`retirementFunds[${f.id}].employerMonthly`} onChange={(v) => set((x) => void (x.employerMonthly = v))} span={1} />}
+            {pre && <YesNoC label="Payroll" value={f.viaPayroll} path={`retirementFunds[${f.id}].viaPayroll`} onChange={(v) => set((x) => void (x.viaPayroll = v))} span={0.75} />}
             {f.type === 'living-annuity' && (
-              <PctC label="Drawdown" value={f.drawdownRate} onChange={(v) => set((x) => void (x.drawdownRate = v))} span={1} hint={money((f.value * f.drawdownRate) / 12)} />
+              <PctC label="Drawdown" value={f.drawdownRate} path={`retirementFunds[${f.id}].drawdownRate`} onChange={(v) => set((x) => void (x.drawdownRate = v))} span={1} hint={money((f.value * f.drawdownRate) / 12)} />
             )}
-            <YesNoC label="Nominees" value={f.beneficiariesNominated} onChange={(v) => set((x) => void (x.beneficiariesNominated = v))} span={0.75} />
+            <YesNoC label="Nominees" value={f.beneficiariesNominated} path={`retirementFunds[${f.id}].beneficiariesNominated`} onChange={(v) => set((x) => void (x.beneficiariesNominated = v))} span={0.75} />
           </Item>
         );
       })}
@@ -91,18 +91,18 @@ export function AssetsSection({ doc, update, analysis }: SectionProps) {
         const investment = b.group === 'investment' || b.group === 'liquid';
         return (
           <Item key={a.id} id={a.id} n={i + 1} lock={spouse ? 4 : 3} onRemove={() => update((d) => void d.assets.splice(i, 1))}>
-            <SelectC label="Type" value={a.type} onChange={(v) => set((x) => void (x.type = v))} options={ASSET_TYPE} span={2} />
-            <TextC label="Description" value={a.description} onChange={(v) => set((x) => void (x.description = v))} span={2} />
-            {spouse && <SelectC label="Owner" value={a.owner} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={1} />}
-            <MoneyC label="Market value" value={a.value} onChange={(v) => set((x) => void (x.value = v))} span={1.5} />
-            {!b.cgtExempt && <MoneyC label="Base cost (CGT)" value={a.baseCost} onChange={(v) => set((x) => void (x.baseCost = v))} span={1.5} />}
-            {investment && <TextC label="Provider" value={a.provider} onChange={(v) => set((x) => void (x.provider = v))} span={1} />}
-            {investment && <MoneyC label="Contrib. p.m." value={a.monthlyContribution} onChange={(v) => set((x) => void (x.monthlyContribution = v))} span={1} />}
-            {investment && <SelectC label="Earmarked" value={a.earmark} onChange={(v) => set((x) => void (x.earmark = v))} options={EARMARK} span={1} />}
+            <SelectC label="Type" value={a.type} path={`assets[${a.id}].type`} onChange={(v) => set((x) => void (x.type = v))} options={ASSET_TYPE} span={2} />
+            <TextC label="Description" value={a.description} path={`assets[${a.id}].description`} onChange={(v) => set((x) => void (x.description = v))} span={2} />
+            {spouse && <SelectC label="Owner" value={a.owner} path={`assets[${a.id}].owner`} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={1} />}
+            <MoneyC label="Market value" value={a.value} path={`assets[${a.id}].value`} onChange={(v) => set((x) => void (x.value = v))} span={1.5} />
+            {!b.cgtExempt && <MoneyC label="Base cost (CGT)" value={a.baseCost} path={`assets[${a.id}].baseCost`} onChange={(v) => set((x) => void (x.baseCost = v))} span={1.5} />}
+            {investment && <TextC label="Provider" value={a.provider} path={`assets[${a.id}].provider`} onChange={(v) => set((x) => void (x.provider = v))} span={1} />}
+            {investment && <MoneyC label="Contrib. p.m." value={a.monthlyContribution} path={`assets[${a.id}].monthlyContribution`} onChange={(v) => set((x) => void (x.monthlyContribution = v))} span={1} />}
+            {investment && <SelectC label="Earmarked" value={a.earmark} path={`assets[${a.id}].earmark`} onChange={(v) => set((x) => void (x.earmark = v))} options={EARMARK} span={1} />}
             {(b.group === 'property' || b.group === 'business') && (
-              <MoneyC label="Income p.m." value={a.monthlyIncome} onChange={(v) => set((x) => void (x.monthlyIncome = v))} span={1} />
+              <MoneyC label="Income p.m." value={a.monthlyIncome} path={`assets[${a.id}].monthlyIncome`} onChange={(v) => set((x) => void (x.monthlyIncome = v))} span={1} />
             )}
-            {spouse && <YesNoC label="To spouse" value={a.bequeathToSpouse} onChange={(v) => set((x) => void (x.bequeathToSpouse = v))} span={1} />}
+            {spouse && <YesNoC label="To spouse" value={a.bequeathToSpouse} path={`assets[${a.id}].bequeathToSpouse`} onChange={(v) => set((x) => void (x.bequeathToSpouse = v))} span={1} />}
             {a.type === 'tfsa' && a.monthlyContribution * 12 > table.tfsa.annual && (
               <ReadC label="TFSA limit" value={`Over ${money(table.tfsa.annual)} p.a. — 40% penalty`} tone="bad" span={3} />
             )}
@@ -154,16 +154,16 @@ export function LiabilitiesSection({ doc, update, analysis }: SectionProps) {
         const expensive = UNSECURED_DEBT.includes(l.type) && l.interestRate >= 0.18;
         return (
           <Item key={l.id} id={l.id} n={i + 1} lock={spouse ? 7 : 6} onRemove={() => update((d) => void d.liabilities.splice(i, 1))}>
-            <SelectC label="Type" value={l.type} onChange={(v) => set((x) => void (x.type = v))} options={LIABILITY_TYPE} span={1.45} />
-            <TextC label="Description" value={l.description} onChange={(v) => set((x) => void (x.description = v))} span={1} />
-            <TextC label="Lender" value={l.lender} onChange={(v) => set((x) => void (x.lender = v))} span={1} />
-            {spouse && <SelectC label="Debtor" value={l.owner} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={0.75} />}
-            <MoneyC label="Balance" value={l.balance} onChange={(v) => set((x) => void (x.balance = v))} span={1.25} />
-            <PctC label="Rate" value={l.interestRate} onChange={(v) => set((x) => void (x.interestRate = v))} decimals={2} span={0.75} hint={expensive ? 'high' : undefined} />
-            <MoneyC label="Instalment" value={l.monthlyRepayment} onChange={(v) => set((x) => void (x.monthlyRepayment = v))} span={1} />
+            <SelectC label="Type" value={l.type} path={`liabilities[${l.id}].type`} onChange={(v) => set((x) => void (x.type = v))} options={LIABILITY_TYPE} span={1.45} />
+            <TextC label="Description" value={l.description} path={`liabilities[${l.id}].description`} onChange={(v) => set((x) => void (x.description = v))} span={1} />
+            <TextC label="Lender" value={l.lender} path={`liabilities[${l.id}].lender`} onChange={(v) => set((x) => void (x.lender = v))} span={1} />
+            {spouse && <SelectC label="Debtor" value={l.owner} path={`liabilities[${l.id}].owner`} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={0.75} />}
+            <MoneyC label="Balance" value={l.balance} path={`liabilities[${l.id}].balance`} onChange={(v) => set((x) => void (x.balance = v))} span={1.25} />
+            <PctC label="Rate" value={l.interestRate} path={`liabilities[${l.id}].interestRate`} onChange={(v) => set((x) => void (x.interestRate = v))} decimals={2} span={0.75} hint={expensive ? 'high' : undefined} />
+            <MoneyC label="Instalment" value={l.monthlyRepayment} path={`liabilities[${l.id}].monthlyRepayment`} onChange={(v) => set((x) => void (x.monthlyRepayment = v))} span={1} />
             {(l.type === 'home-loan' || l.type === 'vehicle-finance') && (
               <SelectC
-                label="Secured against"
+                label="Secured against" path={`liabilities[${l.id}].linkedAssetId`}
                 value={l.linkedAssetId}
                 onChange={(v) => set((x) => void (x.linkedAssetId = v))}
                 options={doc.assets.map((a) => ({ value: a.id, label: a.description || ASSET_TYPE[a.type] }))}
@@ -171,9 +171,9 @@ export function LiabilitiesSection({ doc, update, analysis }: SectionProps) {
                 span={1.1}
               />
             )}
-            <YesNoC label="Credit life" value={l.creditLifeCover} onChange={(v) => set((x) => void (x.creditLifeCover = v))} span={0.9} />
-            <YesNoC label="Settle death" value={l.settleOnDeath} onChange={(v) => set((x) => void (x.settleOnDeath = v))} span={0.9} />
-            <YesNoC label="Settle disab." value={l.settleOnDisability} onChange={(v) => set((x) => void (x.settleOnDisability = v))} span={0.9} />
+            <YesNoC label="Credit life" value={l.creditLifeCover} path={`liabilities[${l.id}].creditLifeCover`} onChange={(v) => set((x) => void (x.creditLifeCover = v))} span={0.9} />
+            <YesNoC label="Settle death" value={l.settleOnDeath} path={`liabilities[${l.id}].settleOnDeath`} onChange={(v) => set((x) => void (x.settleOnDeath = v))} span={0.9} />
+            <YesNoC label="Settle disab." value={l.settleOnDisability} path={`liabilities[${l.id}].settleOnDisability`} onChange={(v) => set((x) => void (x.settleOnDisability = v))} span={0.9} />
             <ReadC
               label="Paid off in"
               value={l.balance > 0 && l.monthlyRepayment > 0 ? term(months) : '—'}
@@ -233,33 +233,33 @@ export function CoverSection({ doc, update }: SectionProps) {
         const monthly = p.type === 'income-protection' || p.type === 'family-income';
         return (
           <Item key={p.id} id={p.id} n={i + 1} lock={lives.length > 1 ? 5 : 4} onRemove={() => update((d) => void d.policies.splice(i, 1))}>
-            <SelectC label="Benefit" value={p.type} onChange={(v) => set((x) => void (x.type = v))} options={POLICY_TYPE} span={2} />
-            {lives.length > 1 && <SelectC label="Life assured" value={p.lifeAssured} onChange={(v) => set((x) => void (x.lifeAssured = v))} options={personOptions(doc)} span={1} />}
-            <TextC label="Insurer / scheme" value={p.insurer} onChange={(v) => set((x) => void (x.insurer = v))} span={2} />
-            <YesNoC label="Group" value={p.isGroup} onChange={(v) => set((x) => void (x.isGroup = v))} span={1} />
+            <SelectC label="Benefit" value={p.type} path={`policies[${p.id}].type`} onChange={(v) => set((x) => void (x.type = v))} options={POLICY_TYPE} span={2} />
+            {lives.length > 1 && <SelectC label="Life assured" value={p.lifeAssured} path={`policies[${p.id}].lifeAssured`} onChange={(v) => set((x) => void (x.lifeAssured = v))} options={personOptions(doc)} span={1} />}
+            <TextC label="Insurer / scheme" value={p.insurer} path={`policies[${p.id}].insurer`} onChange={(v) => set((x) => void (x.insurer = v))} span={2} />
+            <YesNoC label="Group" value={p.isGroup} path={`policies[${p.id}].isGroup`} onChange={(v) => set((x) => void (x.isGroup = v))} span={1} />
             {monthly ? (
-              <MoneyC label="Benefit p.m." value={p.monthlyBenefit} onChange={(v) => set((x) => void (x.monthlyBenefit = v))} span={2} />
+              <MoneyC label="Benefit p.m." value={p.monthlyBenefit} path={`policies[${p.id}].monthlyBenefit`} onChange={(v) => set((x) => void (x.monthlyBenefit = v))} span={2} />
             ) : (
-              <MoneyC label="Cover" value={p.cover} onChange={(v) => set((x) => void (x.cover = v))} span={2} />
+              <MoneyC label="Cover" value={p.cover} path={`policies[${p.id}].cover`} onChange={(v) => set((x) => void (x.cover = v))} span={2} />
             )}
-            {p.type === 'life' && <SelectC label="Beneficiary" value={p.beneficiary} onChange={(v) => set((x) => void (x.beneficiary = v))} options={BENEFICIARY} span={2} />}
+            {p.type === 'life' && <SelectC label="Beneficiary" value={p.beneficiary} path={`policies[${p.id}].beneficiary`} onChange={(v) => set((x) => void (x.beneficiary = v))} options={BENEFICIARY} span={2} />}
             {p.type === 'income-protection' && (
               <>
-                <NumC label="Waiting" value={p.waitingPeriodMonths} onChange={(v) => set((x) => void (x.waitingPeriodMonths = v))} suffix="m" min={0} max={24} span={1} />
-                <NumC label="To age" value={p.benefitToAge} onChange={(v) => set((x) => void (x.benefitToAge = v))} min={0} max={100} span={1} hint="0=temp" />
+                <NumC label="Waiting" value={p.waitingPeriodMonths} path={`policies[${p.id}].waitingPeriodMonths`} onChange={(v) => set((x) => void (x.waitingPeriodMonths = v))} suffix="m" min={0} max={24} span={1} />
+                <NumC label="To age" value={p.benefitToAge} path={`policies[${p.id}].benefitToAge`} onChange={(v) => set((x) => void (x.benefitToAge = v))} min={0} max={100} span={1} hint="0=temp" />
               </>
             )}
-            {p.type === 'family-income' && <NumC label="Paid for" value={p.benefitTermYears} onChange={(v) => set((x) => void (x.benefitTermYears = v))} suffix="yrs" min={0} max={60} span={1} />}
+            {p.type === 'family-income' && <NumC label="Paid for" value={p.benefitTermYears} path={`policies[${p.id}].benefitTermYears`} onChange={(v) => set((x) => void (x.benefitTermYears = v))} suffix="yrs" min={0} max={60} span={1} />}
             {(p.type === 'disability-lump' || p.type === 'income-protection') && (
-              <SelectC label="Definition" value={p.definition} onChange={(v) => set((x) => void (x.definition = v))} options={DISABILITY_DEFINITION} span={2} />
+              <SelectC label="Definition" value={p.definition} path={`policies[${p.id}].definition`} onChange={(v) => set((x) => void (x.definition = v))} options={DISABILITY_DEFINITION} span={2} />
             )}
-            {(p.type === 'severe-illness' || p.type === 'disability-lump') && <YesNoC label="Accelerated" value={p.accelerated} onChange={(v) => set((x) => void (x.accelerated = v))} span={1} />}
-            {!p.isGroup && <MoneyC label="Premium p.m." value={p.premiumMonthly} onChange={(v) => set((x) => void (x.premiumMonthly = v))} span={1} />}
-            {!p.isGroup && <PctC label="Prem. esc." value={p.premiumEscalation} onChange={(v) => set((x) => void (x.premiumEscalation = v))} span={1} />}
-            {!p.isGroup && <PctC label="Cover esc." value={p.coverEscalation} onChange={(v) => set((x) => void (x.coverEscalation = v))} span={1} />}
+            {(p.type === 'severe-illness' || p.type === 'disability-lump') && <YesNoC label="Accelerated" value={p.accelerated} path={`policies[${p.id}].accelerated`} onChange={(v) => set((x) => void (x.accelerated = v))} span={1} />}
+            {!p.isGroup && <MoneyC label="Premium p.m." value={p.premiumMonthly} path={`policies[${p.id}].premiumMonthly`} onChange={(v) => set((x) => void (x.premiumMonthly = v))} span={1} />}
+            {!p.isGroup && <PctC label="Prem. esc." value={p.premiumEscalation} path={`policies[${p.id}].premiumEscalation`} onChange={(v) => set((x) => void (x.premiumEscalation = v))} span={1} />}
+            {!p.isGroup && <PctC label="Cover esc." value={p.coverEscalation} path={`policies[${p.id}].coverEscalation`} onChange={(v) => set((x) => void (x.coverEscalation = v))} span={1} />}
             <TextC label="Policy no." value={p.policyNumber} onChange={(v) => set((x) => void (x.policyNumber = v))} span={1.5} />
-            {!p.isGroup && <DateC label="Inception" value={p.inceptionDate} onChange={(v) => set((x) => void (x.inceptionDate = v))} span={1.5} />}
-            <TextC label="Notes" value={p.notes} onChange={(v) => set((x) => void (x.notes = v))} span={4} placeholder="3× salary, exclusions…" />
+            {!p.isGroup && <DateC label="Inception" value={p.inceptionDate} path={`policies[${p.id}].inceptionDate`} onChange={(v) => set((x) => void (x.inceptionDate = v))} span={1.5} />}
+            <TextC label="Notes" value={p.notes} path={`policies[${p.id}].notes`} onChange={(v) => set((x) => void (x.notes = v))} span={4} placeholder="3× salary, exclusions…" />
           </Item>
         );
       })}

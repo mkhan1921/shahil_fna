@@ -1,0 +1,2787 @@
+{
+  "$defs": {
+    "AdviceRecord": {
+      "additionalProperties": true,
+      "properties": {
+        "summary": {
+          "default": "",
+          "title": "Summary",
+          "type": "string"
+        },
+        "recommendations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Recommendation"
+          },
+          "title": "Recommendations",
+          "type": "array"
+        },
+        "productsConsidered": {
+          "default": "",
+          "title": "Productsconsidered",
+          "type": "string"
+        },
+        "clientDeviations": {
+          "default": "",
+          "title": "Clientdeviations",
+          "type": "string"
+        },
+        "feesAndCommission": {
+          "default": "Commission on long-term insurance products is paid by the product supplier within the limits prescribed by the Regulations under the Long-term Insurance Act and disclosed in the product quotation. No fee is charged to the client unless agreed in writing.",
+          "title": "Feesandcommission",
+          "type": "string"
+        },
+        "conflictsOfInterest": {
+          "default": "",
+          "title": "Conflictsofinterest",
+          "type": "string"
+        },
+        "nextReviewDate": {
+          "default": "",
+          "title": "Nextreviewdate",
+          "type": "string"
+        },
+        "clientSignedAt": {
+          "default": "",
+          "title": "Clientsignedat",
+          "type": "string"
+        },
+        "adviserSignedAt": {
+          "default": "",
+          "title": "Advisersignedat",
+          "type": "string"
+        }
+      },
+      "title": "AdviceRecord",
+      "type": "object"
+    },
+    "Asset": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "owner": {
+          "default": "client",
+          "enum": [
+            "client",
+            "spouse",
+            "joint"
+          ],
+          "title": "Owner",
+          "type": "string"
+        },
+        "type": {
+          "default": "cash",
+          "enum": [
+            "primary-residence",
+            "residential-property",
+            "commercial-property",
+            "vehicle",
+            "personal-effects",
+            "cash",
+            "money-market",
+            "unit-trust",
+            "shares",
+            "tfsa",
+            "endowment",
+            "offshore",
+            "business-interest",
+            "loan-account",
+            "crypto",
+            "other"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
+        "value": {
+          "default": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "baseCost": {
+          "default": 0,
+          "title": "Basecost",
+          "type": "number"
+        },
+        "monthlyContribution": {
+          "default": 0,
+          "title": "Monthlycontribution",
+          "type": "number"
+        },
+        "earmark": {
+          "default": "general",
+          "enum": [
+            "general",
+            "emergency",
+            "retirement",
+            "education",
+            "goal"
+          ],
+          "title": "Earmark",
+          "type": "string"
+        },
+        "monthlyIncome": {
+          "default": 0,
+          "title": "Monthlyincome",
+          "type": "number"
+        },
+        "bequeathToSpouse": {
+          "default": true,
+          "title": "Bequeathtospouse",
+          "type": "boolean"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "Asset",
+      "type": "object"
+    },
+    "Assumptions": {
+      "additionalProperties": true,
+      "properties": {
+        "taxYear": {
+          "default": "2026/27",
+          "title": "Taxyear",
+          "type": "string"
+        },
+        "cpi": {
+          "default": 0.045,
+          "title": "Cpi",
+          "type": "number"
+        },
+        "salaryEscalation": {
+          "default": 0.055,
+          "title": "Salaryescalation",
+          "type": "number"
+        },
+        "preRetirementReturn": {
+          "default": 0.085,
+          "title": "Preretirementreturn",
+          "type": "number"
+        },
+        "postRetirementReturn": {
+          "default": 0.075,
+          "title": "Postretirementreturn",
+          "type": "number"
+        },
+        "riskCapitalReturn": {
+          "default": 0.07,
+          "title": "Riskcapitalreturn",
+          "type": "number"
+        },
+        "educationInflation": {
+          "default": 0.065,
+          "title": "Educationinflation",
+          "type": "number"
+        },
+        "deathIncomeReplacement": {
+          "default": 0.75,
+          "title": "Deathincomereplacement",
+          "type": "number"
+        },
+        "incomeProtectionTarget": {
+          "default": 1,
+          "title": "Incomeprotectiontarget",
+          "type": "number"
+        },
+        "disabilityAdjustments": {
+          "default": 150000,
+          "title": "Disabilityadjustments",
+          "type": "number"
+        },
+        "disabilityIncludeRetirement": {
+          "default": true,
+          "title": "Disabilityincluderetirement",
+          "type": "boolean"
+        },
+        "severeIllnessMonths": {
+          "default": 24,
+          "title": "Severeillnessmonths",
+          "type": "number"
+        },
+        "emergencyMonths": {
+          "default": 3,
+          "title": "Emergencymonths",
+          "type": "number"
+        },
+        "funeralAdult": {
+          "default": 50000,
+          "title": "Funeraladult",
+          "type": "number"
+        },
+        "funeralChild": {
+          "default": 25000,
+          "title": "Funeralchild",
+          "type": "number"
+        },
+        "executorFeeRate": {
+          "default": 0.035,
+          "title": "Executorfeerate",
+          "type": "number"
+        },
+        "vatRate": {
+          "default": 0.15,
+          "title": "Vatrate",
+          "type": "number"
+        },
+        "deathIncomeTerm": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "youngest-independent",
+            "spouse-retirement",
+            "fixed"
+          ],
+          "title": "Deathincometerm",
+          "type": "string"
+        },
+        "deathIncomeFixedYears": {
+          "default": 15,
+          "title": "Deathincomefixedyears",
+          "type": "number"
+        }
+      },
+      "title": "Assumptions",
+      "type": "object"
+    },
+    "BlockingFlag": {
+      "description": "One rule, one fact: any open flag blocks review submission and export (§10.3).",
+      "properties": {
+        "flag_id": {
+          "title": "Flag Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "tier_a_missing",
+            "tier_a_contradicted",
+            "status_flip",
+            "scale_ambiguous",
+            "second_pass_disagrees",
+            "hard_constraint",
+            "unresolved_term",
+            "role_review"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "fact_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fact Id"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "cleared": {
+          "default": false,
+          "title": "Cleared",
+          "type": "boolean"
+        },
+        "cleared_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cleared By"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "enum": [
+                "accepted",
+                "edited",
+                "marked_unknown",
+                "dismissed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolution"
+        }
+      },
+      "required": [
+        "flag_id",
+        "kind",
+        "fact_id",
+        "message"
+      ],
+      "title": "BlockingFlag",
+      "type": "object"
+    },
+    "CustomExpense": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "category": {
+          "default": "other",
+          "enum": [
+            "housing",
+            "transport",
+            "household",
+            "communication",
+            "insurance",
+            "medical",
+            "children",
+            "personal",
+            "family",
+            "other"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        },
+        "amount": {
+          "default": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "essential": {
+          "default": false,
+          "title": "Essential",
+          "type": "boolean"
+        }
+      },
+      "title": "CustomExpense",
+      "type": "object"
+    },
+    "Dependant": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "relationship": {
+          "default": "child",
+          "enum": [
+            "child",
+            "parent",
+            "sibling",
+            "other"
+          ],
+          "title": "Relationship",
+          "type": "string"
+        },
+        "dateOfBirth": {
+          "default": "",
+          "title": "Dateofbirth",
+          "type": "string"
+        },
+        "gender": {
+          "default": "",
+          "enum": [
+            "male",
+            "female",
+            ""
+          ],
+          "title": "Gender",
+          "type": "string"
+        },
+        "dependencyEndAge": {
+          "default": 23,
+          "title": "Dependencyendage",
+          "type": "number"
+        },
+        "monthlySupport": {
+          "default": 0,
+          "title": "Monthlysupport",
+          "type": "number"
+        },
+        "supportYears": {
+          "default": 0,
+          "title": "Supportyears",
+          "type": "number"
+        },
+        "schoolType": {
+          "default": "public",
+          "enum": [
+            "none",
+            "public",
+            "private"
+          ],
+          "title": "Schooltype",
+          "type": "string"
+        },
+        "schoolFeesAnnual": {
+          "default": 0,
+          "title": "Schoolfeesannual",
+          "type": "number"
+        },
+        "tertiary": {
+          "default": true,
+          "title": "Tertiary",
+          "type": "boolean"
+        },
+        "tertiaryStartAge": {
+          "default": 19,
+          "title": "Tertiarystartage",
+          "type": "number"
+        },
+        "tertiaryYears": {
+          "default": 4,
+          "title": "Tertiaryyears",
+          "type": "number"
+        },
+        "tertiaryCostAnnual": {
+          "default": 150000,
+          "title": "Tertiarycostannual",
+          "type": "number"
+        },
+        "educationSavings": {
+          "default": 0,
+          "title": "Educationsavings",
+          "type": "number"
+        },
+        "educationSavingsMonthly": {
+          "default": 0,
+          "title": "Educationsavingsmonthly",
+          "type": "number"
+        },
+        "specialNeeds": {
+          "default": false,
+          "title": "Specialneeds",
+          "type": "boolean"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "Dependant",
+      "type": "object"
+    },
+    "Engagement": {
+      "additionalProperties": true,
+      "properties": {
+        "meetingDate": {
+          "title": "Meetingdate",
+          "type": "string"
+        },
+        "meetingType": {
+          "default": "in-person",
+          "enum": [
+            "in-person",
+            "virtual",
+            "telephonic"
+          ],
+          "title": "Meetingtype",
+          "type": "string"
+        },
+        "adviceType": {
+          "default": "comprehensive",
+          "enum": [
+            "comprehensive",
+            "limited"
+          ],
+          "title": "Advicetype",
+          "type": "string"
+        },
+        "scope": {
+          "items": {
+            "enum": [
+              "risk",
+              "retirement",
+              "investment",
+              "estate",
+              "education",
+              "debt",
+              "medical",
+              "short-term"
+            ],
+            "type": "string"
+          },
+          "title": "Scope",
+          "type": "array"
+        },
+        "limitations": {
+          "default": "",
+          "title": "Limitations",
+          "type": "string"
+        },
+        "disclosureLetterProvided": {
+          "default": false,
+          "title": "Disclosureletterprovided",
+          "type": "boolean"
+        },
+        "popiaConsent": {
+          "default": false,
+          "title": "Popiaconsent",
+          "type": "boolean"
+        },
+        "popiaConsentDate": {
+          "default": "",
+          "title": "Popiaconsentdate",
+          "type": "string"
+        },
+        "specialInfoConsent": {
+          "default": false,
+          "title": "Specialinfoconsent",
+          "type": "boolean"
+        },
+        "ficaVerified": {
+          "default": false,
+          "title": "Ficaverified",
+          "type": "boolean"
+        },
+        "clientDeclinedFna": {
+          "default": false,
+          "title": "Clientdeclinedfna",
+          "type": "boolean"
+        },
+        "declineReason": {
+          "default": "",
+          "title": "Declinereason",
+          "type": "string"
+        },
+        "conflictsDisclosed": {
+          "default": false,
+          "title": "Conflictsdisclosed",
+          "type": "boolean"
+        },
+        "remunerationDisclosed": {
+          "default": false,
+          "title": "Remunerationdisclosed",
+          "type": "boolean"
+        },
+        "pepStatus": {
+          "default": "no",
+          "enum": [
+            "no",
+            "yes",
+            "unknown"
+          ],
+          "title": "Pepstatus",
+          "type": "string"
+        },
+        "marketingOptIn": {
+          "default": false,
+          "title": "Marketingoptin",
+          "type": "boolean"
+        },
+        "copyProvided": {
+          "default": false,
+          "title": "Copyprovided",
+          "type": "boolean"
+        },
+        "reasonForAdvice": {
+          "default": "",
+          "title": "Reasonforadvice",
+          "type": "string"
+        },
+        "clientObjectives": {
+          "default": "",
+          "title": "Clientobjectives",
+          "type": "string"
+        },
+        "clientConcerns": {
+          "default": "",
+          "title": "Clientconcerns",
+          "type": "string"
+        },
+        "otherAdvisers": {
+          "default": "",
+          "title": "Otheradvisers",
+          "type": "string"
+        }
+      },
+      "title": "Engagement",
+      "type": "object"
+    },
+    "Entity": {
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "person",
+            "account",
+            "policy",
+            "property",
+            "business",
+            "liability",
+            "goal",
+            "institution"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "canonical_name": {
+          "title": "Canonical Name",
+          "type": "string"
+        },
+        "aliases": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "attributes": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Attributes",
+          "type": "object"
+        },
+        "crm_match": {
+          "default": [],
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Crm Match",
+          "type": "array"
+        },
+        "first_mention": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Mention"
+        },
+        "fna_list": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fna List"
+        },
+        "fna_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fna Id"
+        }
+      },
+      "required": [
+        "entity_id",
+        "type",
+        "canonical_name"
+      ],
+      "title": "Entity",
+      "type": "object"
+    },
+    "EstateProfile": {
+      "additionalProperties": true,
+      "properties": {
+        "hasWill": {
+          "default": "unsure",
+          "enum": [
+            "yes",
+            "no",
+            "unsure"
+          ],
+          "title": "Haswill",
+          "type": "string"
+        },
+        "willDate": {
+          "default": "",
+          "title": "Willdate",
+          "type": "string"
+        },
+        "willLocation": {
+          "default": "",
+          "title": "Willlocation",
+          "type": "string"
+        },
+        "executor": {
+          "default": "",
+          "title": "Executor",
+          "type": "string"
+        },
+        "guardianNominated": {
+          "default": "na",
+          "enum": [
+            "yes",
+            "no",
+            "na"
+          ],
+          "title": "Guardiannominated",
+          "type": "string"
+        },
+        "hasTrust": {
+          "default": false,
+          "title": "Hastrust",
+          "type": "boolean"
+        },
+        "trustNotes": {
+          "default": "",
+          "title": "Trustnotes",
+          "type": "string"
+        },
+        "additionalIncomeNeedMonthly": {
+          "default": 0,
+          "title": "Additionalincomeneedmonthly",
+          "type": "number"
+        },
+        "additionalCapitalNeed": {
+          "default": 0,
+          "title": "Additionalcapitalneed",
+          "type": "number"
+        },
+        "portedAbatement": {
+          "default": 0,
+          "title": "Portedabatement",
+          "type": "number"
+        },
+        "cashBequests": {
+          "default": 0,
+          "title": "Cashbequests",
+          "type": "number"
+        },
+        "accrualCommencementValue": {
+          "default": 0,
+          "title": "Accrualcommencementvalue",
+          "type": "number"
+        },
+        "funeralCost": {
+          "default": 50000,
+          "title": "Funeralcost",
+          "type": "number"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "EstateProfile",
+      "type": "object"
+    },
+    "Expenses": {
+      "additionalProperties": true,
+      "properties": {
+        "items": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "title": "Items",
+          "type": "object"
+        },
+        "custom": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CustomExpense"
+          },
+          "title": "Custom",
+          "type": "array"
+        }
+      },
+      "title": "Expenses",
+      "type": "object"
+    },
+    "FnaDocument": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "schemaVersion": {
+          "default": 2,
+          "title": "Schemaversion",
+          "type": "integer"
+        },
+        "createdAt": {
+          "title": "Createdat",
+          "type": "string"
+        },
+        "updatedAt": {
+          "title": "Updatedat",
+          "type": "string"
+        },
+        "status": {
+          "default": "draft",
+          "enum": [
+            "draft",
+            "in-progress",
+            "advice-given",
+            "archived"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "client": {
+          "$ref": "#/$defs/Person"
+        },
+        "spouse": {
+          "$ref": "#/$defs/Person"
+        },
+        "household": {
+          "$ref": "#/$defs/Household"
+        },
+        "dependants": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Dependant"
+          },
+          "title": "Dependants",
+          "type": "array"
+        },
+        "income": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Income"
+          },
+          "propertyNames": {
+            "enum": [
+              "client",
+              "spouse"
+            ]
+          },
+          "title": "Income",
+          "type": "object"
+        },
+        "expenses": {
+          "$ref": "#/$defs/Expenses"
+        },
+        "retirementFunds": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RetirementFund"
+          },
+          "title": "Retirementfunds",
+          "type": "array"
+        },
+        "assets": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Asset"
+          },
+          "title": "Assets",
+          "type": "array"
+        },
+        "liabilities": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Liability"
+          },
+          "title": "Liabilities",
+          "type": "array"
+        },
+        "policies": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Policy"
+          },
+          "title": "Policies",
+          "type": "array"
+        },
+        "retirement": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RetirementGoal"
+          },
+          "propertyNames": {
+            "enum": [
+              "client",
+              "spouse"
+            ]
+          },
+          "title": "Retirement",
+          "type": "object"
+        },
+        "goals": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/OtherGoal"
+          },
+          "title": "Goals",
+          "type": "array"
+        },
+        "estate": {
+          "additionalProperties": {
+            "$ref": "#/$defs/EstateProfile"
+          },
+          "propertyNames": {
+            "enum": [
+              "client",
+              "spouse"
+            ]
+          },
+          "title": "Estate",
+          "type": "object"
+        },
+        "riskProfile": {
+          "$ref": "#/$defs/RiskProfile"
+        },
+        "assumptions": {
+          "$ref": "#/$defs/Assumptions"
+        },
+        "engagement": {
+          "$ref": "#/$defs/Engagement"
+        },
+        "advice": {
+          "$ref": "#/$defs/AdviceRecord"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "FnaDocument",
+      "type": "object"
+    },
+    "FollowUp": {
+      "properties": {
+        "followup_id": {
+          "title": "Followup Id",
+          "type": "string"
+        },
+        "fact_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fact Ids",
+          "type": "array"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "why": {
+          "title": "Why",
+          "type": "string"
+        },
+        "expected_pos_change": {
+          "title": "Expected Pos Change",
+          "type": "number"
+        },
+        "answer_type": {
+          "title": "Answer Type",
+          "type": "string"
+        },
+        "status": {
+          "default": "open",
+          "enum": [
+            "open",
+            "asked",
+            "answered",
+            "dropped"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "followup_id",
+        "fact_ids",
+        "question",
+        "why",
+        "expected_pos_change",
+        "answer_type"
+      ],
+      "title": "FollowUp",
+      "type": "object"
+    },
+    "ForecastResult": {
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "profile_version": {
+          "title": "Profile Version",
+          "type": "string"
+        },
+        "config_version": {
+          "title": "Config Version",
+          "type": "string"
+        },
+        "cma_version": {
+          "title": "Cma Version",
+          "type": "string"
+        },
+        "n_paths": {
+          "title": "N Paths",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "pos": {
+          "title": "Pos",
+          "type": "number"
+        },
+        "pos_ci": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Pos Ci",
+          "type": "array"
+        },
+        "goal_funding": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "title": "Goal Funding",
+          "type": "object"
+        },
+        "ages": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Ages",
+          "type": "array"
+        },
+        "net_worth_bands": {
+          "additionalProperties": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "title": "Net Worth Bands",
+          "type": "object"
+        },
+        "shortfall": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Shortfall",
+          "type": "object"
+        },
+        "liquidity_breach_prob": {
+          "default": 0.0,
+          "title": "Liquidity Breach Prob",
+          "type": "number"
+        },
+        "retirement_income_bands": {
+          "additionalProperties": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "default": {},
+          "title": "Retirement Income Bands",
+          "type": "object"
+        },
+        "variance_attribution": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "title": "Variance Attribution",
+          "type": "object"
+        },
+        "market_attribution": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "title": "Market Attribution",
+          "type": "object"
+        },
+        "top_drivers": {
+          "default": [],
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Top Drivers",
+          "type": "array"
+        },
+        "deterministic": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "default": {},
+          "title": "Deterministic",
+          "type": "object"
+        },
+        "need_bands": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "default": {},
+          "title": "Need Bands",
+          "type": "object"
+        }
+      },
+      "required": [
+        "run_id",
+        "profile_version",
+        "config_version",
+        "cma_version",
+        "n_paths",
+        "pos",
+        "pos_ci"
+      ],
+      "title": "ForecastResult",
+      "type": "object"
+    },
+    "Household": {
+      "additionalProperties": true,
+      "properties": {
+        "maritalStatus": {
+          "default": "single",
+          "enum": [
+            "single",
+            "married",
+            "life-partner",
+            "divorced",
+            "widowed"
+          ],
+          "title": "Maritalstatus",
+          "type": "string"
+        },
+        "maritalRegime": {
+          "default": "na",
+          "enum": [
+            "icop",
+            "anc-accrual",
+            "anc-no-accrual",
+            "customary",
+            "foreign",
+            "na"
+          ],
+          "title": "Maritalregime",
+          "type": "string"
+        },
+        "dateOfMarriage": {
+          "default": "",
+          "title": "Dateofmarriage",
+          "type": "string"
+        },
+        "includeSpouse": {
+          "default": false,
+          "title": "Includespouse",
+          "type": "boolean"
+        },
+        "physicalAddress": {
+          "default": "",
+          "title": "Physicaladdress",
+          "type": "string"
+        },
+        "city": {
+          "default": "",
+          "title": "City",
+          "type": "string"
+        },
+        "province": {
+          "default": "",
+          "title": "Province",
+          "type": "string"
+        },
+        "postalCode": {
+          "default": "",
+          "title": "Postalcode",
+          "type": "string"
+        }
+      },
+      "title": "Household",
+      "type": "object"
+    },
+    "Income": {
+      "additionalProperties": true,
+      "properties": {
+        "grossMonthly": {
+          "default": 0,
+          "title": "Grossmonthly",
+          "type": "number"
+        },
+        "annualBonus": {
+          "default": 0,
+          "title": "Annualbonus",
+          "type": "number"
+        },
+        "otherTaxableMonthly": {
+          "default": 0,
+          "title": "Othertaxablemonthly",
+          "type": "number"
+        },
+        "nonTaxableMonthly": {
+          "default": 0,
+          "title": "Nontaxablemonthly",
+          "type": "number"
+        },
+        "medicalAidPayrollMonthly": {
+          "default": 0,
+          "title": "Medicalaidpayrollmonthly",
+          "type": "number"
+        },
+        "medicalSchemeMembers": {
+          "default": 0,
+          "title": "Medicalschememembers",
+          "type": "number"
+        },
+        "otherPayrollDeductionsMonthly": {
+          "default": 0,
+          "title": "Otherpayrolldeductionsmonthly",
+          "type": "number"
+        },
+        "payeOverrideMonthly": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Payeoverridemonthly"
+        },
+        "uifApplies": {
+          "default": true,
+          "title": "Uifapplies",
+          "type": "boolean"
+        }
+      },
+      "title": "Income",
+      "type": "object"
+    },
+    "Liability": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "owner": {
+          "default": "client",
+          "enum": [
+            "client",
+            "spouse",
+            "joint"
+          ],
+          "title": "Owner",
+          "type": "string"
+        },
+        "type": {
+          "default": "home-loan",
+          "enum": [
+            "home-loan",
+            "vehicle-finance",
+            "personal-loan",
+            "credit-card",
+            "store-card",
+            "overdraft",
+            "student-loan",
+            "business-loan",
+            "tax",
+            "other"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "lender": {
+          "default": "",
+          "title": "Lender",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "balance": {
+          "default": 0,
+          "title": "Balance",
+          "type": "number"
+        },
+        "interestRate": {
+          "default": 0.1075,
+          "title": "Interestrate",
+          "type": "number"
+        },
+        "monthlyRepayment": {
+          "default": 0,
+          "title": "Monthlyrepayment",
+          "type": "number"
+        },
+        "linkedAssetId": {
+          "default": "",
+          "title": "Linkedassetid",
+          "type": "string"
+        },
+        "creditLifeCover": {
+          "default": false,
+          "title": "Creditlifecover",
+          "type": "boolean"
+        },
+        "settleOnDeath": {
+          "default": true,
+          "title": "Settleondeath",
+          "type": "boolean"
+        },
+        "settleOnDisability": {
+          "default": true,
+          "title": "Settleondisability",
+          "type": "boolean"
+        }
+      },
+      "title": "Liability",
+      "type": "object"
+    },
+    "NumericSpan": {
+      "description": "An amount, age or product mention found by the grammars, with its readings (§5.3, §5.6).",
+      "properties": {
+        "span_id": {
+          "title": "Span Id",
+          "type": "string"
+        },
+        "segment_id": {
+          "title": "Segment Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "amount",
+            "age",
+            "product"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "word_start": {
+          "title": "Word Start",
+          "type": "integer"
+        },
+        "word_end": {
+          "title": "Word End",
+          "type": "integer"
+        },
+        "surface": {
+          "title": "Surface",
+          "type": "string"
+        },
+        "readings": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Reading"
+          },
+          "title": "Readings",
+          "type": "array"
+        },
+        "provider_itn": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider Itn"
+        },
+        "accepted": {
+          "default": true,
+          "title": "Accepted",
+          "type": "boolean"
+        },
+        "mean_conf": {
+          "default": 1.0,
+          "title": "Mean Conf",
+          "type": "number"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "enum": [
+              "low_asr",
+              "crosstalk",
+              "scale_ambiguous"
+            ],
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "second_pass_reading": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reading"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "second_pass_agreement": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Second Pass Agreement"
+        },
+        "second_pass_method": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Second Pass Method"
+        }
+      },
+      "required": [
+        "span_id",
+        "segment_id",
+        "kind",
+        "word_start",
+        "word_end",
+        "surface"
+      ],
+      "title": "NumericSpan",
+      "type": "object"
+    },
+    "OtherGoal": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "owner": {
+          "default": "client",
+          "enum": [
+            "client",
+            "spouse",
+            "joint"
+          ],
+          "title": "Owner",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "cost": {
+          "default": 0,
+          "title": "Cost",
+          "type": "number"
+        },
+        "targetYear": {
+          "title": "Targetyear",
+          "type": "integer"
+        },
+        "existingSavings": {
+          "default": 0,
+          "title": "Existingsavings",
+          "type": "number"
+        },
+        "monthlyContribution": {
+          "default": 0,
+          "title": "Monthlycontribution",
+          "type": "number"
+        },
+        "priority": {
+          "default": "medium",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Priority",
+          "type": "string"
+        }
+      },
+      "title": "OtherGoal",
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": true,
+      "properties": {
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "firstName": {
+          "default": "",
+          "title": "Firstname",
+          "type": "string"
+        },
+        "surname": {
+          "default": "",
+          "title": "Surname",
+          "type": "string"
+        },
+        "idNumber": {
+          "default": "",
+          "title": "Idnumber",
+          "type": "string"
+        },
+        "passportNumber": {
+          "default": "",
+          "title": "Passportnumber",
+          "type": "string"
+        },
+        "nationality": {
+          "default": "South African",
+          "title": "Nationality",
+          "type": "string"
+        },
+        "dateOfBirth": {
+          "default": "",
+          "title": "Dateofbirth",
+          "type": "string"
+        },
+        "gender": {
+          "default": "",
+          "enum": [
+            "male",
+            "female",
+            ""
+          ],
+          "title": "Gender",
+          "type": "string"
+        },
+        "smoker": {
+          "default": false,
+          "title": "Smoker",
+          "type": "boolean"
+        },
+        "healthNotes": {
+          "default": "",
+          "title": "Healthnotes",
+          "type": "string"
+        },
+        "hazardousPursuits": {
+          "default": "",
+          "title": "Hazardouspursuits",
+          "type": "string"
+        },
+        "occupation": {
+          "default": "",
+          "title": "Occupation",
+          "type": "string"
+        },
+        "employer": {
+          "default": "",
+          "title": "Employer",
+          "type": "string"
+        },
+        "employmentType": {
+          "default": "salaried",
+          "enum": [
+            "salaried",
+            "self-employed",
+            "commission",
+            "contract",
+            "retired",
+            "unemployed",
+            "student"
+          ],
+          "title": "Employmenttype",
+          "type": "string"
+        },
+        "educationLevel": {
+          "default": "",
+          "title": "Educationlevel",
+          "type": "string"
+        },
+        "email": {
+          "default": "",
+          "title": "Email",
+          "type": "string"
+        },
+        "mobile": {
+          "default": "",
+          "title": "Mobile",
+          "type": "string"
+        },
+        "taxNumber": {
+          "default": "",
+          "title": "Taxnumber",
+          "type": "string"
+        }
+      },
+      "title": "Person",
+      "type": "object"
+    },
+    "Policy": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "lifeAssured": {
+          "default": "client",
+          "enum": [
+            "client",
+            "spouse"
+          ],
+          "title": "Lifeassured",
+          "type": "string"
+        },
+        "type": {
+          "default": "life",
+          "enum": [
+            "life",
+            "disability-lump",
+            "income-protection",
+            "severe-illness",
+            "funeral",
+            "family-income"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "insurer": {
+          "default": "",
+          "title": "Insurer",
+          "type": "string"
+        },
+        "policyNumber": {
+          "default": "",
+          "title": "Policynumber",
+          "type": "string"
+        },
+        "isGroup": {
+          "default": false,
+          "title": "Isgroup",
+          "type": "boolean"
+        },
+        "cover": {
+          "default": 0,
+          "title": "Cover",
+          "type": "number"
+        },
+        "monthlyBenefit": {
+          "default": 0,
+          "title": "Monthlybenefit",
+          "type": "number"
+        },
+        "benefitTermYears": {
+          "default": 0,
+          "title": "Benefittermyears",
+          "type": "number"
+        },
+        "waitingPeriodMonths": {
+          "default": 3,
+          "title": "Waitingperiodmonths",
+          "type": "number"
+        },
+        "benefitToAge": {
+          "default": 65,
+          "title": "Benefittoage",
+          "type": "number"
+        },
+        "beneficiary": {
+          "default": "spouse",
+          "enum": [
+            "estate",
+            "spouse",
+            "children",
+            "trust",
+            "other",
+            "business"
+          ],
+          "title": "Beneficiary",
+          "type": "string"
+        },
+        "definition": {
+          "default": "own-occupation",
+          "enum": [
+            "own-occupation",
+            "suited-occupation",
+            "any-occupation",
+            "functional",
+            "activities-of-daily-living"
+          ],
+          "title": "Definition",
+          "type": "string"
+        },
+        "accelerated": {
+          "default": false,
+          "title": "Accelerated",
+          "type": "boolean"
+        },
+        "premiumMonthly": {
+          "default": 0,
+          "title": "Premiummonthly",
+          "type": "number"
+        },
+        "premiumEscalation": {
+          "default": 0,
+          "title": "Premiumescalation",
+          "type": "number"
+        },
+        "coverEscalation": {
+          "default": 0,
+          "title": "Coverescalation",
+          "type": "number"
+        },
+        "inceptionDate": {
+          "default": "",
+          "title": "Inceptiondate",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "Policy",
+      "type": "object"
+    },
+    "QualityReport": {
+      "description": "Call-level quality metrics and the acceptance checks of §5.5.",
+      "properties": {
+        "mean_word_conf": {
+          "title": "Mean Word Conf",
+          "type": "number"
+        },
+        "low_asr_share": {
+          "title": "Low Asr Share",
+          "type": "number"
+        },
+        "crosstalk_share": {
+          "title": "Crosstalk Share",
+          "type": "number"
+        },
+        "n_speakers": {
+          "title": "N Speakers",
+          "type": "integer"
+        },
+        "role_conf_min": {
+          "title": "Role Conf Min",
+          "type": "number"
+        },
+        "scale_ambiguous_spans": {
+          "default": 0,
+          "title": "Scale Ambiguous Spans",
+          "type": "integer"
+        },
+        "banners": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Banners",
+          "type": "array"
+        },
+        "role_review_needed": {
+          "default": false,
+          "title": "Role Review Needed",
+          "type": "boolean"
+        },
+        "failed": {
+          "default": false,
+          "title": "Failed",
+          "type": "boolean"
+        },
+        "cap_p_correct": {
+          "default": false,
+          "title": "Cap P Correct",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mean_word_conf",
+        "low_asr_share",
+        "crosstalk_share",
+        "n_speakers",
+        "role_conf_min"
+      ],
+      "title": "QualityReport",
+      "type": "object"
+    },
+    "Reading": {
+      "description": "One well-formed reading of a spoken amount, age or product span (§5.3).",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Currency"
+        },
+        "period": {
+          "default": "none",
+          "enum": [
+            "once",
+            "monthly",
+            "annual",
+            "none"
+          ],
+          "title": "Period",
+          "type": "string"
+        },
+        "scale_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scale Source"
+        },
+        "lexicon_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lexicon Key"
+        },
+        "weight": {
+          "title": "Weight",
+          "type": "number"
+        },
+        "is_rate": {
+          "default": false,
+          "title": "Is Rate",
+          "type": "boolean"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        }
+      },
+      "required": [
+        "value",
+        "weight"
+      ],
+      "title": "Reading",
+      "type": "object"
+    },
+    "Recommendation": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "area": {
+          "default": "life",
+          "enum": [
+            "life",
+            "disability",
+            "income-protection",
+            "severe-illness",
+            "funeral",
+            "estate",
+            "retirement",
+            "education",
+            "emergency",
+            "investment",
+            "debt",
+            "medical",
+            "other"
+          ],
+          "title": "Area",
+          "type": "string"
+        },
+        "lifeAssured": {
+          "default": "client",
+          "enum": [
+            "client",
+            "spouse"
+          ],
+          "title": "Lifeassured",
+          "type": "string"
+        },
+        "action": {
+          "default": "new",
+          "enum": [
+            "new",
+            "increase",
+            "reduce",
+            "replace",
+            "cancel",
+            "maintain",
+            "restructure",
+            "refer"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "productType": {
+          "default": "",
+          "title": "Producttype",
+          "type": "string"
+        },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
+        "productName": {
+          "default": "",
+          "title": "Productname",
+          "type": "string"
+        },
+        "amount": {
+          "default": 0,
+          "title": "Amount",
+          "type": "number"
+        },
+        "premiumMonthly": {
+          "default": 0,
+          "title": "Premiummonthly",
+          "type": "number"
+        },
+        "premiumEscalation": {
+          "default": 0.06,
+          "title": "Premiumescalation",
+          "type": "number"
+        },
+        "rationale": {
+          "default": "",
+          "title": "Rationale",
+          "type": "string"
+        },
+        "isReplacement": {
+          "default": false,
+          "title": "Isreplacement",
+          "type": "boolean"
+        },
+        "replacementChecklist": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Replacementchecklist",
+          "type": "array"
+        },
+        "replacedPolicy": {
+          "default": "",
+          "title": "Replacedpolicy",
+          "type": "string"
+        },
+        "replacementReasons": {
+          "default": "",
+          "title": "Replacementreasons",
+          "type": "string"
+        },
+        "replacementCostComparison": {
+          "default": "",
+          "title": "Replacementcostcomparison",
+          "type": "string"
+        },
+        "replacementConsequences": {
+          "default": "",
+          "title": "Replacementconsequences",
+          "type": "string"
+        },
+        "clientDecision": {
+          "default": "pending",
+          "enum": [
+            "pending",
+            "accepted",
+            "declined",
+            "deferred"
+          ],
+          "title": "Clientdecision",
+          "type": "string"
+        },
+        "clientReason": {
+          "default": "",
+          "title": "Clientreason",
+          "type": "string"
+        }
+      },
+      "title": "Recommendation",
+      "type": "object"
+    },
+    "RetirementFund": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "owner": {
+          "default": "client",
+          "enum": [
+            "client",
+            "spouse"
+          ],
+          "title": "Owner",
+          "type": "string"
+        },
+        "type": {
+          "default": "pension",
+          "enum": [
+            "pension",
+            "provident",
+            "retirement-annuity",
+            "preservation-pension",
+            "preservation-provident",
+            "living-annuity",
+            "life-annuity"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "default": 0,
+          "title": "Value",
+          "type": "number"
+        },
+        "savingsPot": {
+          "default": 0,
+          "title": "Savingspot",
+          "type": "number"
+        },
+        "employeeMonthly": {
+          "default": 0,
+          "title": "Employeemonthly",
+          "type": "number"
+        },
+        "employerMonthly": {
+          "default": 0,
+          "title": "Employermonthly",
+          "type": "number"
+        },
+        "viaPayroll": {
+          "default": true,
+          "title": "Viapayroll",
+          "type": "boolean"
+        },
+        "beneficiariesNominated": {
+          "default": false,
+          "title": "Beneficiariesnominated",
+          "type": "boolean"
+        },
+        "drawdownRate": {
+          "default": 0.05,
+          "title": "Drawdownrate",
+          "type": "number"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "RetirementFund",
+      "type": "object"
+    },
+    "RetirementGoal": {
+      "additionalProperties": true,
+      "properties": {
+        "retirementAge": {
+          "default": 65,
+          "title": "Retirementage",
+          "type": "number"
+        },
+        "planningAge": {
+          "default": 92,
+          "title": "Planningage",
+          "type": "number"
+        },
+        "targetMode": {
+          "default": "percent",
+          "enum": [
+            "percent",
+            "amount"
+          ],
+          "title": "Targetmode",
+          "type": "string"
+        },
+        "targetPercent": {
+          "default": 0.75,
+          "title": "Targetpercent",
+          "type": "number"
+        },
+        "targetMonthly": {
+          "default": 0,
+          "title": "Targetmonthly",
+          "type": "number"
+        },
+        "otherIncomeMonthly": {
+          "default": 0,
+          "title": "Otherincomemonthly",
+          "type": "number"
+        }
+      },
+      "title": "RetirementGoal",
+      "type": "object"
+    },
+    "ReviewBundle": {
+      "description": "Everything the review overlay needs for one call (§11.5 GET /calls/{call_id}/review).",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "profile_version": {
+          "title": "Profile Version",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/RunState"
+        },
+        "median_document": {
+          "$ref": "#/$defs/FnaDocument"
+        },
+        "prior_document": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FnaDocument"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sidecar": {
+          "additionalProperties": true,
+          "title": "Sidecar",
+          "type": "object"
+        },
+        "transcript": {
+          "$ref": "#/$defs/Transcript"
+        },
+        "audio_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audio Url"
+        },
+        "entities": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Entity"
+          },
+          "default": {},
+          "title": "Entities",
+          "type": "object"
+        },
+        "followups": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FollowUp"
+          },
+          "title": "Followups",
+          "type": "array"
+        },
+        "blocking_flags": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BlockingFlag"
+          },
+          "title": "Blocking Flags",
+          "type": "array"
+        },
+        "preview_forecast": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForecastResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "deterministic_analysis": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deterministic Analysis"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spot_check": {
+          "default": false,
+          "title": "Spot Check",
+          "type": "boolean"
+        },
+        "versions": {
+          "$ref": "#/$defs/VersionPins"
+        },
+        "attribution_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attribution Text"
+        }
+      },
+      "required": [
+        "call_id",
+        "run_id",
+        "profile_version",
+        "state",
+        "median_document",
+        "sidecar",
+        "transcript"
+      ],
+      "title": "ReviewBundle",
+      "type": "object"
+    },
+    "RiskProfile": {
+      "additionalProperties": true,
+      "properties": {
+        "answers": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "default": {},
+          "title": "Answers",
+          "type": "object"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "RiskProfile",
+      "type": "object"
+    },
+    "RunState": {
+      "enum": [
+        "STARTED",
+        "INGESTED",
+        "DISCOURSE_DONE",
+        "AGENT_RUNNING",
+        "AGENT_DONE",
+        "AGENT_PARTIAL",
+        "AWAITING_REVIEW",
+        "REVIEWED",
+        "COMPLETE",
+        "FAILED",
+        "MANUAL"
+      ],
+      "title": "RunState",
+      "type": "string"
+    },
+    "Segment": {
+      "properties": {
+        "segment_id": {
+          "title": "Segment Id",
+          "type": "string"
+        },
+        "speaker_label": {
+          "title": "Speaker Label",
+          "type": "string"
+        },
+        "speaker_role": {
+          "default": "unknown",
+          "enum": [
+            "advisor",
+            "client_primary",
+            "client_secondary",
+            "other",
+            "unknown"
+          ],
+          "title": "Speaker Role",
+          "type": "string"
+        },
+        "role_conf": {
+          "default": 0.0,
+          "title": "Role Conf",
+          "type": "number"
+        },
+        "diarization_conf": {
+          "default": 1.0,
+          "title": "Diarization Conf",
+          "type": "number"
+        },
+        "t_start": {
+          "title": "T Start",
+          "type": "number"
+        },
+        "t_end": {
+          "title": "T End",
+          "type": "number"
+        },
+        "words": {
+          "items": {
+            "$ref": "#/$defs/Word"
+          },
+          "title": "Words",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "rewritten_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rewritten Text"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "enum": [
+              "self_correction",
+              "interrupted",
+              "crosstalk",
+              "low_asr"
+            ],
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "segment_id",
+        "speaker_label",
+        "t_start",
+        "t_end",
+        "words",
+        "text"
+      ],
+      "title": "Segment",
+      "type": "object"
+    },
+    "Transcript": {
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "anchor_date": {
+          "format": "date",
+          "title": "Anchor Date",
+          "type": "string"
+        },
+        "language": {
+          "default": "en-ZA",
+          "title": "Language",
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/Segment"
+          },
+          "title": "Segments",
+          "type": "array"
+        },
+        "asr_provider": {
+          "title": "Asr Provider",
+          "type": "string"
+        },
+        "asr_model_version": {
+          "title": "Asr Model Version",
+          "type": "string"
+        },
+        "asr_alternatives": {
+          "default": true,
+          "title": "Asr Alternatives",
+          "type": "boolean"
+        },
+        "numeric_spans": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/NumericSpan"
+          },
+          "title": "Numeric Spans",
+          "type": "array"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QualityReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "channel_layout": {
+          "default": "mono",
+          "enum": [
+            "stereo_split",
+            "mono"
+          ],
+          "title": "Channel Layout",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_id",
+        "anchor_date",
+        "segments",
+        "asr_provider",
+        "asr_model_version"
+      ],
+      "title": "Transcript",
+      "type": "object"
+    },
+    "VersionPins": {
+      "description": "Everything that changes what a run produces. A change to any pin is a new version (§13.8).",
+      "properties": {
+        "schema_version": {
+          "default": "profile_v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "lexicon_version": {
+          "default": "1.3",
+          "title": "Lexicon Version",
+          "type": "string"
+        },
+        "grammar_version": {
+          "default": "1",
+          "title": "Grammar Version",
+          "type": "string"
+        },
+        "calibrator_version": {
+          "default": "cold-start",
+          "title": "Calibrator Version",
+          "type": "string"
+        },
+        "asr_provider": {
+          "default": "fake",
+          "title": "Asr Provider",
+          "type": "string"
+        },
+        "asr_model_version": {
+          "default": "fake-1",
+          "title": "Asr Model Version",
+          "type": "string"
+        },
+        "diarization_model": {
+          "default": "precision-3",
+          "title": "Diarization Model",
+          "type": "string"
+        },
+        "frontier_model": {
+          "default": "test",
+          "title": "Frontier Model",
+          "type": "string"
+        },
+        "reasoning_model": {
+          "default": "test",
+          "title": "Reasoning Model",
+          "type": "string"
+        },
+        "verifier_model": {
+          "default": "test",
+          "title": "Verifier Model",
+          "type": "string"
+        },
+        "small_model": {
+          "default": "test",
+          "title": "Small Model",
+          "type": "string"
+        },
+        "embedding_model": {
+          "default": "hashed-256",
+          "title": "Embedding Model",
+          "type": "string"
+        },
+        "prompt_versions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Prompt Versions",
+          "type": "object"
+        },
+        "forecast_config_version": {
+          "default": "config_v1",
+          "title": "Forecast Config Version",
+          "type": "string"
+        },
+        "cma_version": {
+          "default": "2026Q4",
+          "title": "Cma Version",
+          "type": "string"
+        },
+        "fna_tables_version": {
+          "default": "za_2026_27",
+          "title": "Fna Tables Version",
+          "type": "string"
+        }
+      },
+      "title": "VersionPins",
+      "type": "object"
+    },
+    "Word": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "t_start": {
+          "title": "T Start",
+          "type": "number"
+        },
+        "t_end": {
+          "title": "T End",
+          "type": "number"
+        },
+        "conf": {
+          "title": "Conf",
+          "type": "number"
+        },
+        "alts": {
+          "default": [],
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Alts",
+          "type": "array"
+        },
+        "raw_spoken": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw Spoken"
+        },
+        "numeric_candidates": {
+          "default": [],
+          "items": {
+            "type": "number"
+          },
+          "title": "Numeric Candidates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "t_start",
+        "t_end",
+        "conf"
+      ],
+      "title": "Word",
+      "type": "object"
+    }
+  },
+  "description": "A review handed to the adviser as a file (file exchange, §11.5).",
+  "properties": {
+    "format": {
+      "const": "advisor-intel-review",
+      "default": "advisor-intel-review",
+      "title": "Format",
+      "type": "string"
+    },
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "bundle": {
+      "$ref": "#/$defs/ReviewBundle"
+    }
+  },
+  "required": [
+    "bundle"
+  ],
+  "title": "ReviewPackage",
+  "type": "object"
+}

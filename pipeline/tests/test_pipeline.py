@@ -71,6 +71,12 @@ def test_verification_voi_and_the_forecast_ran(run):
     missing = {f.fact_id for f in res.flags if f.kind == "tier_a_missing"}
     assert not {"household.maritalStatus", "household.includeSpouse"} & missing
     assert "household.maritalRegime" in missing  # never discussed
+    # The review places every flag and question on a field: each names a fact the sidecar carries (a placeholder if missing).
+    sidecar_ids = {f["fact_id"] for f in res.sidecar["fields"].values()}
+    named = {f.fact_id for f in res.flags if f.fact_id} | {fid for q in res.followups for fid in q.fact_ids}
+    assert named <= sidecar_ids, sorted(named - sidecar_ids)
+    regime = res.profile.facts["household.maritalRegime"]
+    assert regime.status == "not_discussed" and regime.value is None and regime.source == "fna_default"
     call_facts = [f for f in res.profile.facts.values() if f.source == "call"]
     assert all(0.0 < f.p_correct < 1.0 and not f.auto_accepted for f in call_facts)  # cold start: nothing auto-accepted
     assert res.forecast is not None and 0.0 <= res.forecast.pos <= 1.0

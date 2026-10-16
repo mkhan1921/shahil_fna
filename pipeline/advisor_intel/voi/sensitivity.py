@@ -340,7 +340,7 @@ def fna_view(base: Mapping[str, NeedPoint], ends: Sequence[Mapping[str, NeedPoin
     for i in range(len(ends)):
         for j in range(i + 1, len(ends)):
             a, b = ends[i], ends[j]
-            for k in set(a) & set(b):
+            for k in sorted(set(a) & set(b)):  # sorted: equal moves (a joint debt) pick the same need every run
                 delta = abs(b[k].shortfall - a[k].shortfall)
                 n50 = base[k].need if k in base else max(a[k].need, b[k].need)
                 score = delta / max(n50, 1.0)
