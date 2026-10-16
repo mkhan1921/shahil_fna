@@ -98,18 +98,20 @@ class LocalStore:
 class BraintrustStore:
     """Datasets in Braintrust through ``braintrust.init_dataset`` (inserts upsert by id)."""
 
-    def __init__(self, project: str | None = None, *, init_dataset: Callable[..., Any] | None = None) -> None:
+    def __init__(self, project: str | None = None, *, init_dataset: Callable[..., Any] | None = None, api_key: str | None = None) -> None:
         self.project = project or EVAL_PROJECT
         if init_dataset is None:
             from braintrust import init_dataset as _init
 
             init_dataset = _init
         self._init = init_dataset
+        self._api_key = api_key
         self._open: dict[str, Any] = {}
 
     def _dataset(self, name: str) -> Any:
         if name not in self._open:
-            self._open[name] = self._init(project=self.project, name=name)
+            kw = {"api_key": self._api_key} if self._api_key else {}
+            self._open[name] = self._init(project=self.project, name=name, **kw)
         return self._open[name]
 
     def insert(self, dataset: str, records: Sequence[DatasetRecord]) -> list[str]:
@@ -138,9 +140,10 @@ class BraintrustStore:
         return out
 
 
-def get_store(*, project: str | None = None, root: Path | None = None) -> DatasetStore:
-    """Braintrust when ``BRAINTRUST_API_KEY`` is set, else local JSONL."""
-    return BraintrustStore(project) if braintrust_enabled() else LocalStore(root)
+def get_store(*, project: str | None = None, root: Path | None = None, settings: Any = None) -> DatasetStore:
+    """Braintrust when ``BRAINTRUST_API_KEY`` is set (or ``settings.braintrust_api_key``), else local JSONL."""
+    key = getattr(settings, "braintrust_api_key", None) if settings is not None else None
+    return BraintrustStore(project, api_key=key) if (key or braintrust_enabled()) else LocalStore(root)
 
 
 # --------------------------------------------------------------------------- dataset records
@@ -291,132 +294,262 @@ def _value_text(fact: Any) -> str:
     return describe_value(fact.value) if fact is not None and fact.value is not None else ""
 
 
-def sync_error_dataset(
-    review_events: Iterable[ReviewEvent],
+def _row_value_text(value: Any) -> str:
+    """A value from a nightly error row (a dumped ``Quantity``) as review text."""
+    from ..binding import describe_value
+    from ..models.dists import Quantity
+
+    if value in (None, "", {}):
+        return ""
+    try:
+        return describe_value(Quantity.model_validate(value))
+    except ValueError:
+        return str(value)
+
+
+def _error_event(item: ReviewEvent | Mapping[str, Any], profiles: Mapping[str, Profile]) -> dict[str, Any]:
+    """A review event — our ``ReviewEvent``, or a row the nightly activity built from ``review_events`` (run id,
+    fact id, slot id, action, reason, quotes, value, interpretation, note, reviewer, time) — as one flat record,
+    with the run's profile filling in what the event does not carry."""
+    if isinstance(item, Mapping) and "call_id" in item and "quotes" not in item:
+        item = ReviewEvent.model_validate(item)
+    if isinstance(item, ReviewEvent):
+        e: dict[str, Any] = {
+            "call_id": item.call_id,
+            "run_id": item.run_id,
+            "fact_id": item.fact_id,
+            "action": item.action,
+            "reason": item.reason,
+            "note": item.note,
+            "reviewer_id": item.reviewer_id,
+            "at": item.at.isoformat() if item.at else None,
+            "seq": item.seq,
+            "payload": item.payload,
+            "slot_id": None,
+            "quotes": [],
+            "said": "",
+            "interpretation": "",
+            "extracted": "",
+            "status": "",
+            "original_status": None,
+            "attribution": "",
+            "features": {},
+        }
+    else:
+        at = item.get("at")
+        e = {
+            "call_id": item.get("call_id") or "",
+            "run_id": item.get("run_id") or "",
+            "fact_id": item.get("fact_id") or "",
+            "action": item.get("action"),
+            "reason": item.get("reason"),
+            "note": item.get("note"),
+            "reviewer_id": item.get("reviewer_id") or "",
+            "at": at.isoformat() if isinstance(at, datetime) else at,
+            "seq": int(item.get("seq") or 0),
+            "payload": {},
+            "slot_id": item.get("slot_id"),
+            "quotes": [q for q in item.get("quotes") or [] if q],
+            "said": item.get("said") or "",
+            "interpretation": item.get("interpretation") or "",
+            "extracted": _row_value_text(item.get("value")),
+            "status": item.get("status") or "",
+            "original_status": item.get("original_status"),
+            "attribution": item.get("attribution") or "",
+            "features": dict(item.get("features") or {}),
+        }
+    profile = profiles.get(e["call_id"]) or profiles.get(e["run_id"])
+    fact = profile.facts.get(e["fact_id"]) if profile else None
+    if fact is not None:
+        e["quotes"] = e["quotes"] or [ev.quote for ev in fact.evidence]
+        for key, val in (
+            ("said", fact.said),
+            ("interpretation", fact.interpretation),
+            ("extracted", _value_text(fact)),
+            ("status", fact.status),
+            ("attribution", fact.speaker_attribution),
+        ):
+            e[key] = e[key] or val or ""
+        e["original_status"] = e["original_status"] or fact.review.original_status or fact.status
+        e["features"] = e["features"] or dict(fact.features)
+    e["quotes"] = e["quotes"] or [ev.get("quote", "") for ev in e["payload"].get("evidence", []) if isinstance(ev, dict)]
+    return e
+
+
+def error_record(
+    item: ReviewEvent | Mapping[str, Any],
     *,
+    profiles: Mapping[str, Profile] | None = None,
+    pins: VersionPins | None = None,
+    catalog: Catalog | None = None,
+) -> DatasetRecord | None:
+    """One ``production-errors`` row for a reason-coded rejection or a missed slot, else None (§11.4 step 3).
+
+    A rejection is a reject or re-attribute action; a missed slot is a reviewer-added fact or a status change away
+    from not_discussed. Rows are tagged by slot, reason, slot group and tier.
+    """
+    catalog = catalog or load_catalog()
+    e = _error_event(item, profiles or {})
+    action = e["action"]
+    if action in ("reject", "reattribute"):
+        kind, reason = "rejected", e["reason"] or "other"
+    elif action == "add" or (action == "change_status" and (e["original_status"] or "not_discussed") == "not_discussed"):
+        kind, reason = "missed", "missed_slot"
+    else:
+        return None
+    slot = _slot_of(e["fact_id"], catalog) or (_slot_of(e["slot_id"], catalog) if e["slot_id"] else None)
+    group = slot.group if slot else "unknown"
+    tier = slot.sensitivity_tier if slot else "C"
+    slot_id = slot.slot_id if slot else (e["slot_id"] or e["fact_id"].split("#", 1)[0])
+    return DatasetRecord(
+        id=stable_hash([e["call_id"] or e["run_id"], e["fact_id"], action, e["seq"], e["at"], reason, e["quotes"], e["note"]]),
+        input={
+            "call_id": e["call_id"],
+            "run_id": e["run_id"],
+            "fact_id": e["fact_id"],
+            "slot_id": slot_id,
+            "quotes": e["quotes"],
+            "said": e["said"],
+            "interpretation": e["interpretation"],
+            "extracted": e["extracted"] if kind == "rejected" else "",
+            "status": e["status"] or "not_discussed",
+            "attribution": e["attribution"],
+        },
+        expected={"action": action, "reason": reason, "note": e["note"] or "", "correction": e["payload"] if kind == "missed" else {}},
+        metadata={
+            "dataset": PRODUCTION_ERRORS,
+            "kind": kind,
+            "reason": reason,
+            "slot_id": slot_id,
+            "group": group,
+            "tier": tier,
+            "reviewer_id": e["reviewer_id"],
+            "at": e["at"],
+            "features": e["features"],
+            "versions": pins.model_dump(mode="json") if pins else {},
+        },
+        tags=[f"slot:{slot_id}", f"reason:{reason}", f"group:{group}", f"tier:{tier}", kind],
+    )
+
+
+def sync_error_dataset(
+    review_events: Iterable[ReviewEvent | Mapping[str, Any]],
+    *,
+    settings: Any = None,
     profiles: Mapping[str, Profile] | None = None,
     pins: VersionPins | None = None,
     store: DatasetStore | None = None,
     catalog: Catalog | None = None,
-) -> list[str]:
-    """Insert reason-coded rejections and missed slots into ``production-errors``, tagged by slot and reason (§11.4).
+) -> int:
+    """Insert reason-coded rejections and missed slots into ``production-errors``; returns the rows written (§11.4).
 
-    A rejection is a reject or re-attribute action; a missed slot is a reviewer-added fact or a status change away
-    from not_discussed. ``profiles`` (call id → the run's profile) supplies the evidence quotes and the extracted value.
+    Accepts ``ReviewEvent`` models or the nightly activity's error rows. Inserts upsert by a hash of the event, so
+    the nightly run can repeat. ``profiles`` (call or run id → the run's profile) supplies evidence quotes and the
+    extracted value when the events do not carry them.
     """
-    store = store or get_store()
     catalog = catalog or load_catalog()
-    profiles = profiles or {}
-    rows = []
-    for e in review_events:
-        profile = profiles.get(e.call_id)
-        fact = profile.facts.get(e.fact_id) if profile else None
-        if e.action in ("reject", "reattribute"):
-            kind, reason = "rejected", e.reason or "other"
-        elif e.action == "add" or (
-            e.action == "change_status" and (fact is None or (fact.review.original_status or fact.status) == "not_discussed")
-        ):
-            kind, reason = "missed", "missed_slot"
-        else:
-            continue
-        slot = _slot_of(e.fact_id, catalog)
-        group = slot.group if slot else "unknown"
-        tier = slot.sensitivity_tier if slot else "C"
-        slot_id = slot.slot_id if slot else e.fact_id.split("#", 1)[0]
-        quotes = [ev.quote for ev in (fact.evidence if fact else [])] or [
-            ev.get("quote", "") for ev in e.payload.get("evidence", []) if isinstance(ev, dict)
-        ]
-        rows.append(
-            DatasetRecord(
-                id=stable_hash([e.call_id, e.fact_id, e.action, e.seq]),
-                input={
-                    "call_id": e.call_id,
-                    "run_id": e.run_id,
-                    "fact_id": e.fact_id,
-                    "slot_id": slot_id,
-                    "quotes": quotes,
-                    "said": fact.said if fact else "",
-                    "interpretation": fact.interpretation if fact else "",
-                    "extracted": _value_text(fact) if kind == "rejected" else "",
-                    "status": fact.status if fact else "not_discussed",
-                    "attribution": fact.speaker_attribution if fact else "",
-                },
-                expected={"action": e.action, "reason": reason, "note": e.note or "", "correction": e.payload if kind == "missed" else {}},
-                metadata={
-                    "dataset": PRODUCTION_ERRORS,
-                    "kind": kind,
-                    "reason": reason,
-                    "slot_id": slot_id,
-                    "group": group,
-                    "tier": tier,
-                    "reviewer_id": e.reviewer_id,
-                    "at": e.at.isoformat() if e.at else None,
-                    "features": dict(fact.features) if fact else {},
-                    "versions": pins.model_dump(mode="json") if pins else {},
-                },
-                tags=[f"slot:{slot_id}", f"reason:{reason}", f"group:{group}", f"tier:{tier}", kind],
-            )
-        )
-    return store.insert(PRODUCTION_ERRORS, rows) if rows else []
+    rows = [r for r in (error_record(e, profiles=profiles, pins=pins, catalog=catalog) for e in review_events) if r is not None]
+    if not rows:
+        return 0
+    return len((store or get_store(settings=settings)).insert(PRODUCTION_ERRORS, rows))
+
+
+def _candidate_from_result(r: ReviewResult, profile: Profile | None) -> DatasetRecord | None:
+    from ..binding import summarise_value
+
+    corrections = [e for e in events_from_review(r) if e.action != "accept"]
+    if not corrections or profile is None:
+        return None
+    reviewed = {
+        fid: {
+            "status": f.status,
+            "value": summarise_value(f.value),
+            "review": f.review.status,
+            "attribution": f.speaker_attribution,
+            "evidence": [ev.quote for ev in f.evidence],
+        }
+        for fid, f in sorted(profile.facts.items())
+        if f.source not in ("prior_fna", "fna_default") or f.review.status != "pending"
+    }
+    counts: dict[str, int] = {}
+    for e in corrections:
+        counts[e.action] = counts.get(e.action, 0) + 1
+    return DatasetRecord(
+        id=f"{r.call_id}:{r.run_id}",
+        input={"call_id": r.call_id, "run_id": r.run_id, "profile_version": r.base_profile_version},
+        expected={"facts": reviewed, "corrections": [e.model_dump(mode="json") for e in corrections]},
+        metadata={
+            "dataset": GOLD_CANDIDATES,
+            "reviewer_id": r.reviewer_id,
+            "corrections": counts,
+            "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
+        },
+        tags=["gold-candidate", *sorted(f"correction:{k}" for k in counts)],
+    )
+
+
+def _candidate_from_row(row: Mapping[str, Any]) -> DatasetRecord | None:
+    """A gold candidate from the nightly activity's row (run, call, versions, error rows, reviewed-profile location)."""
+    corrections = [dict(c) for c in row.get("corrections") or []]
+    if not corrections:
+        return None
+    counts: dict[str, int] = {}
+    for c in corrections:
+        if c.get("action"):
+            counts[str(c["action"])] = counts.get(str(c["action"]), 0) + 1
+    run_id, call_id = str(row.get("run_id") or ""), str(row.get("call_id") or "")
+    return DatasetRecord(
+        id=f"{call_id or run_id}:{run_id}",
+        input={"call_id": call_id, "run_id": run_id, "versions": dict(row.get("versions") or {})},
+        expected={"corrections": corrections, "reviewed_profile": row.get("reviewed_profile")},
+        metadata={
+            "dataset": GOLD_CANDIDATES,
+            "corrections": counts,
+            "reviewer_id": next((c.get("reviewer_id") for c in corrections), None),
+        },
+        tags=["gold-candidate", *sorted(f"correction:{k}" for k in counts)],
+    )
 
 
 def sync_gold_candidates(
-    results: Iterable[ReviewResult],
+    results: Iterable[ReviewResult | Mapping[str, Any]],
     *,
-    profiles: Mapping[str, Profile],
+    settings: Any = None,
+    profiles: Mapping[str, Profile] | None = None,
     store: DatasetStore | None = None,
-) -> dict[str, list[str]]:
-    """Reviewer-corrected calls → ``gold-candidates``; edited follow-up questions → ``followup-edits`` (§11.4)."""
-    from ..binding import summarise_value
+) -> int:
+    """Reviewer-corrected calls → ``gold-candidates``; edited follow-up questions → ``followup-edits`` (§11.4).
 
-    store = store or get_store()
+    Accepts ``ReviewResult``s (with ``profiles``: call id → the reviewed profile) or the nightly activity's rows
+    (``run_id``, ``call_id``, ``versions``, ``corrections``, ``followup_edits``, ``reviewed_profile``). Returns the
+    rows written across both datasets.
+    """
+    profiles = profiles or {}
     candidates, edits = [], []
     for r in results:
-        events = events_from_review(r)
-        corrections = [e for e in events if e.action not in ("accept",)]
-        profile = profiles.get(r.call_id)
-        if corrections and profile is not None:
-            reviewed = {
-                fid: {
-                    "status": f.status,
-                    "value": summarise_value(f.value),
-                    "review": f.review.status,
-                    "attribution": f.speaker_attribution,
-                    "evidence": [ev.quote for ev in f.evidence],
-                }
-                for fid, f in sorted(profile.facts.items())
-                if f.source not in ("prior_fna", "fna_default") or f.review.status != "pending"
-            }
-            counts: dict[str, int] = {}
-            for e in corrections:
-                counts[e.action] = counts.get(e.action, 0) + 1
-            candidates.append(
-                DatasetRecord(
-                    id=f"{r.call_id}:{r.run_id}",
-                    input={"call_id": r.call_id, "run_id": r.run_id, "profile_version": r.base_profile_version},
-                    expected={"facts": reviewed, "corrections": [e.model_dump(mode="json") for e in corrections]},
-                    metadata={
-                        "dataset": GOLD_CANDIDATES,
-                        "reviewer_id": r.reviewer_id,
-                        "corrections": counts,
-                        "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
-                    },
-                    tags=["gold-candidate", *sorted(f"correction:{k}" for k in counts)],
-                )
-            )
-        questions = {q.followup_id: q.question for q in (profile.open_questions if profile else [])}
-        for fe in r.followup_edits:
-            edits.append(_followup_record(r, fe, questions))
-    return {
-        GOLD_CANDIDATES: store.insert(GOLD_CANDIDATES, candidates) if candidates else [],
-        FOLLOWUP_EDITS: store.insert(FOLLOWUP_EDITS, edits) if edits else [],
-    }
+        if isinstance(r, ReviewResult):
+            profile = profiles.get(r.call_id)
+            cand = _candidate_from_result(r, profile)
+            questions = {q.followup_id: q.question for q in (profile.open_questions if profile else [])}
+            call_id, followup_edits = r.call_id, list(r.followup_edits)
+        else:
+            cand = _candidate_from_row(r)
+            questions, call_id = {}, str(r.get("call_id") or r.get("run_id") or "")
+            followup_edits = [FollowupEdit.model_validate(fe) for fe in r.get("followup_edits") or [] if fe]
+        if cand is not None:
+            candidates.append(cand)
+        edits.extend(_followup_record(call_id, fe, questions) for fe in followup_edits)
+    if not candidates and not edits:
+        return 0
+    store = store or get_store(settings=settings)
+    n = len(store.insert(GOLD_CANDIDATES, candidates)) if candidates else 0
+    return n + (len(store.insert(FOLLOWUP_EDITS, edits)) if edits else 0)
 
 
-def _followup_record(r: ReviewResult, fe: FollowupEdit, questions: Mapping[str, str]) -> DatasetRecord:
+def _followup_record(call_id: str, fe: FollowupEdit, questions: Mapping[str, str]) -> DatasetRecord:
     return DatasetRecord(
-        id=stable_hash([r.call_id, fe.followup_id, fe.action, fe.at.isoformat()]),
-        input={"call_id": r.call_id, "followup_id": fe.followup_id, "original": questions.get(fe.followup_id or "", "")},
+        id=stable_hash([call_id, fe.followup_id, fe.action, fe.at.isoformat()]),
+        input={"call_id": call_id, "followup_id": fe.followup_id, "original": questions.get(fe.followup_id or "", "")},
         expected={"action": fe.action, "question": fe.question},
         metadata={"dataset": FOLLOWUP_EDITS, "reviewer_id": fe.reviewer_id, "at": fe.at.isoformat()},
         tags=[f"followup:{fe.action}"],

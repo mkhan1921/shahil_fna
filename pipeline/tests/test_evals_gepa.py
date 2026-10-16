@@ -75,10 +75,14 @@ def test_prompt_store_versions_and_overlay(setup):
 
 
 def test_evaluate_scores_and_feedback(setup):
-    adapter = GA.ExtractionAdapter(runner=make_runner(setup["golds"]), pins=VersionPins(), groups=["retirement"], prompt_store=setup["store"],
-                                   cache=setup["cache"])
-    batch = [c for c in setup["cases"]
-             if any(f.slot_id.startswith("retirement.") and f.status == "implied" for f in GoldCall.model_validate(c["expected"]).facts)][:2]
+    adapter = GA.ExtractionAdapter(
+        runner=make_runner(setup["golds"]), pins=VersionPins(), groups=["retirement"], prompt_store=setup["store"], cache=setup["cache"]
+    )
+    batch = [
+        c
+        for c in setup["cases"]
+        if any(f.slot_id.startswith("retirement.") and f.status == "implied" for f in GoldCall.model_validate(c["expected"]).facts)
+    ][:2]
     assert batch, "the synthetic set should contain implied retirement ages"
     seed = {COMPONENT: setup["store"].read(COMPONENT)}
     weak = adapter.evaluate(batch, seed, capture_traces=True)
@@ -102,7 +106,9 @@ def test_heldout_calls_never_reach_the_optimiser(setup):
     train, val, test = GA.split_cases(setup["cases"], heldout=held)
     assert {c["input"]["call_id"] for c in test} == held
     assert not ({c["input"]["call_id"] for c in train + val} & held)
-    adapter = GA.ExtractionAdapter(runner=make_runner(setup["golds"]), pins=VersionPins(), heldout=held, prompt_store=setup["store"], cache=setup["cache"])
+    adapter = GA.ExtractionAdapter(
+        runner=make_runner(setup["golds"]), pins=VersionPins(), heldout=held, prompt_store=setup["store"], cache=setup["cache"]
+    )
     with pytest.raises(ValueError, match="held-out"):
         adapter.evaluate(test[:1], {COMPONENT: "x"})
     with pytest.raises(ValueError, match="100–500"):
@@ -126,8 +132,19 @@ def test_gepa_optimises_the_instruction_block_and_promotes_it(setup):
 
     held = GA.heldout_ids(setup["cases"], n=6)
     runner = make_runner(setup["golds"])
-    summary, result = GA.optimize_group("retirement", setup["cases"], runner=runner, pins=VersionPins(), reflection_lm=reflection_lm, budget=60,
-                                        enforce_budget=False, prompt_store=setup["store"], cache=setup["cache"], heldout=held, seed=1)
+    summary, result = GA.optimize_group(
+        "retirement",
+        setup["cases"],
+        runner=runner,
+        pins=VersionPins(),
+        reflection_lm=reflection_lm,
+        budget=60,
+        enforce_budget=False,
+        prompt_store=setup["store"],
+        cache=setup["cache"],
+        heldout=held,
+        seed=1,
+    )
     assert proposals, "GEPA should have asked the reflection model for a new instruction"
     assert "## Feedback" in proposals[0] or "Feedback" in proposals[0]
     best = summary.best_candidate[COMPONENT]
@@ -136,13 +153,15 @@ def test_gepa_optimises_the_instruction_block_and_promotes_it(setup):
     assert summary.metric_calls <= 60 + 10  # GEPA may finish the iteration it started
 
     test_cases = [c for c in setup["cases"] if c["input"]["call_id"] in held]
-    promo = GA.promote_if_gate_passes(summary.best_candidate, test_cases, runner=runner, pins=VersionPins(), prompt_store=setup["store"],
-                                      cache=setup["cache"])
+    promo = GA.promote_if_gate_passes(
+        summary.best_candidate, test_cases, runner=runner, pins=VersionPins(), prompt_store=setup["store"], cache=setup["cache"]
+    )
     assert promo.promoted and promo.heldout_calls == 6
     assert promo.paths == [str(setup["store"].root / COMPONENT / "v2.md")]
     assert setup["store"].read(COMPONENT) == best + ("" if best.endswith("\n") else "\n")
     # a candidate that regresses on the held-out calls is not promoted
     worse = {COMPONENT: "Skip retirement goals entirely."}
-    promo2 = GA.promote_if_gate_passes(worse, test_cases, runner=runner, pins=VersionPins(prompt_versions={}), prompt_store=setup["store"],
-                                       cache=setup["cache"])
+    promo2 = GA.promote_if_gate_passes(
+        worse, test_cases, runner=runner, pins=VersionPins(prompt_versions={}), prompt_store=setup["store"], cache=setup["cache"]
+    )
     assert not promo2.promoted and "failed" in promo2.gate_markdown

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+import json
+
+import httpx
 import pytest
 import yaml
 
@@ -16,9 +20,19 @@ from advisor_intel.models.runs import VersionPins
 def report(dataset="synthetic-calls", n_items=40, n_errors=0, ece=0.04, counts=None, ece_by_group=None, cost=0.05, **scores):
     base = {m: 0.9 for m in TIER_A_METRICS}
     base.update(scores)
-    return EvalReport(dataset=dataset, n_items=n_items, n_errors=n_errors, scores=base,
-                      summary={"ece": ece, "ece_by_group": ece_by_group or {"income": 0.03, "events": 0.2}, "ece_counts": counts or {"income": 120, "events": 4},
-                               "cost_per_call_minute": cost, "brier": 0.1})
+    return EvalReport(
+        dataset=dataset,
+        n_items=n_items,
+        n_errors=n_errors,
+        scores=base,
+        summary={
+            "ece": ece,
+            "ece_by_group": ece_by_group or {"income": 0.03, "events": 0.2},
+            "ece_counts": counts or {"income": 120, "events": 4},
+            "cost_per_call_minute": cost,
+            "brier": 0.1,
+        },
+    )
 
 
 def test_tier_a_regressions_beyond_two_points_fail():
@@ -112,3 +126,74 @@ def test_evaluate_swap_pins_one_role_and_writes_routing(tmp_path):
         M.write_routing_change(lose, tmp_path / "routing.yaml")
     with pytest.raises(ValueError):
         M.evaluate_swap("orchestra", "x", pins=pins, run_eval=run_eval)
+
+
+def _github(existing: str | None):
+    """A fake GitHub REST API: records requests, serves the base ref and the routing file, opens pull request 7."""
+    seen: list[tuple[str, str, dict]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path.removeprefix("/repos/o/r")
+        seen.append((request.method, path, json.loads(request.content) if request.content else {}))
+        if request.method == "GET" and path == "/git/ref/heads/main":
+            return httpx.Response(200, json={"object": {"sha": "base-sha"}})
+        if request.method == "POST" and path == "/git/refs":
+            return httpx.Response(201, json={})
+        if request.method == "GET" and path == "/contents/pipeline/routing.yaml":
+            if existing is None:
+                return httpx.Response(404, json={})
+            return httpx.Response(200, json={"content": base64.b64encode(existing.encode()).decode(), "sha": "file-sha"})
+        if request.method == "PUT" and path == "/contents/pipeline/routing.yaml":
+            return httpx.Response(200, json={})
+        if request.method == "POST" and path == "/pulls":
+            return httpx.Response(201, json={"html_url": "https://github.com/o/r/pull/7"})
+        return httpx.Response(404, json={})
+
+    return M.GitHubPullRequests("o/r", "token", client=httpx.Client(transport=httpx.MockTransport(handler))), seen
+
+
+def test_run_model_swap_opens_a_pull_request_for_a_win():
+    runs = []
+
+    def run_eval(pins: VersionPins) -> EvalReport:
+        runs.append(pins)
+        if pins.reasoning_model == "openai:candidate":
+            return report(slot_recall_tier_a=0.95)
+        return report(ece=0.08) if pins.verifier_model == "openai:worse" else report()
+
+    opener, seen = _github("roles:\n  verifier: anthropic:v\nhistory: []\n")
+    pins = VersionPins(reasoning_model="anthropic:current", verifier_model="anthropic:v")
+    out = M.run_model_swap(
+        {"reasoning": "openai:candidate", "verifier": "openai:worse", "small": "test", "orchestra": "x"},
+        pins=pins,
+        run_eval=run_eval,
+        open_pull_request=opener,
+    )
+    assert out["pull_requests"] == ["https://github.com/o/r/pull/7"]
+    by_role = {r["role"]: r for r in out["results"]}
+    assert by_role["reasoning"]["wins"] and by_role["reasoning"]["pull_request"].endswith("/7")
+    assert not by_role["verifier"]["wins"] and "ece" in by_role["verifier"]["reason"]
+    assert by_role["small"]["skipped"] == "already the current model" and "unknown role" in by_role["orchestra"]["skipped"]
+    assert len(runs) == 3 and runs[0] == pins  # one baseline run serves every role
+    assert [(m, p) for m, p, _ in seen][:2] == [("GET", "/git/ref/heads/main"), ("POST", "/git/refs")]
+    ref = next(b for m, p, b in seen if p == "/git/refs")
+    assert ref["sha"] == "base-sha" and ref["ref"].startswith("refs/heads/model-swap/reasoning-openai-candidate-")
+    put = next(b for m, p, b in seen if m == "PUT")
+    routing = yaml.safe_load(base64.b64decode(put["content"]).decode())
+    assert put["sha"] == "file-sha" and routing["roles"] == {"verifier": "anthropic:v", "reasoning": "openai:candidate"}
+    pr = next(b for m, p, b in seen if p == "/pulls")
+    assert pr["base"] == "main" and pr["head"] == ref["ref"].removeprefix("refs/heads/") and "| `slot_recall_tier_a` |" in pr["body"]
+
+
+def test_run_model_swap_without_github_writes_the_local_routing_file(tmp_path, monkeypatch):
+    for var in ("GITHUB_REPOSITORY", "GITHUB_TOKEN", "GH_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+
+    def run_eval(pins: VersionPins) -> EvalReport:
+        return report(ece=0.02) if pins.verifier_model == "openai:v2" else report()
+
+    out = M.run_model_swap({"verifier": "openai:v2"}, pins=VersionPins(), run_eval=run_eval, routing_path=tmp_path / "routing.yaml")
+    assert out["pull_requests"] == [] and out["results"][0]["routing_file"] == str(tmp_path / "routing.yaml")
+    assert yaml.safe_load((tmp_path / "routing.yaml").read_text())["roles"] == {"verifier": "openai:v2"}
+    with pytest.raises(ValueError, match="gold-calls"):
+        M.gold_suite(store=LocalStore(tmp_path / "empty"))

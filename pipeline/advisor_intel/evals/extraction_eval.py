@@ -17,6 +17,7 @@ The pipeline runner is injected (``configure(runner=...)``); by default it is
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -35,7 +36,7 @@ from ..config import PIPELINE_DIR, get_settings
 from ..models.fna import FnaDocument
 from ..models.runs import VersionPins
 from ..models.transcript import Transcript
-from ._runtime import braintrust_enabled, data_dir, lazy_attr, prompts_dir, run_sync, write_json
+from ._runtime import braintrust_enabled, data_dir, lazy_attr, prompts_dir, run_sync, to_jsonable, write_json
 from .datasets import EVAL_BASELINES, EVAL_PROJECT, CachedCall, DatasetRecord, DatasetStore, Stage12Builder, Stage12Cache, get_store
 from .gold import GoldCall
 from .records import EvalRecord, SystemCallOutput, summarise_result
@@ -330,6 +331,25 @@ def load_report(path: Path) -> EvalReport:
     return EvalReport.model_validate_json(Path(path).read_text())
 
 
+def rows_path(eval_name: str = EVAL_NAME, dataset: str = SYNTHETIC_DATASET) -> Path:
+    """The latest local run's scored rows (output and expected per item), read by the error analysis (§15.5)."""
+    return data_dir() / "evals" / "rows" / f"{eval_name}-{dataset}-latest.jsonl"
+
+
+def save_rows(rows: Sequence[dict[str, Any]], eval_name: str = EVAL_NAME, dataset: str = SYNTHETIC_DATASET) -> Path:
+    path = rows_path(eval_name, dataset)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".jsonl.tmp")
+    keep = ("id", "input", "output", "expected", "metadata", "error")
+    tmp.write_text("".join(json.dumps(to_jsonable({k: r.get(k) for k in keep}), sort_keys=True) + "\n" for r in rows))
+    tmp.replace(path)
+    return path
+
+
+def load_rows(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+
+
 # --------------------------------------------------------------------------- local runner
 
 
@@ -382,6 +402,7 @@ def run_local(
         configure(**previous)
     if save:
         save_report(report, save if isinstance(save, Path) else None)
+        save_rows(rows, eval_name, dataset)
     return report
 
 
@@ -539,6 +560,8 @@ __all__ = [
     "configure",
     "current_version_pins",
     "eval_cases",
+    "load_rows",
+    "rows_path",
     "run_local",
     "run_stages_3_to_6_from_cache",
 ]

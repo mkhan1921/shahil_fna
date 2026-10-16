@@ -81,8 +81,21 @@ def test_households_cover_the_spec_perturbations(calls):
 
 def test_scripts_carry_the_phenomena_extraction_must_handle(calls):
     seen = Counter(p for c in calls for p in c.phenomena)
-    for p in ("approx", "range", "hedge", "self_correction", "spouse_correction", "spouse_contradiction", "advisor_suggested", "advisor_confirmed",
-              "implied", "explicitly_unknown", "slang", "mixed_language", "off_topic"):
+    for p in (
+        "approx",
+        "range",
+        "hedge",
+        "self_correction",
+        "spouse_correction",
+        "spouse_contradiction",
+        "advisor_suggested",
+        "advisor_confirmed",
+        "implied",
+        "explicitly_unknown",
+        "slang",
+        "mixed_language",
+        "off_topic",
+    ):
         assert seen[p], p
     statuses = Counter(f.status for c in calls for f in c.gold.facts)
     assert statuses["contradicted"] and statuses["implied"] and statuses["explicitly_unknown"] and statuses["not_discussed"]
@@ -156,7 +169,11 @@ def test_llm_writer_keeps_every_keyed_phrase():
                 text = bt.text if bt.speaker != "advisor" else "Okay. " + bt.text
                 turns.append({"speaker": bt.speaker if bt.speaker != "other" else "advisor", "text": text})
         if len(attempts) == 1:  # the first draft paraphrases one keyed phrase; the validator sends it back
-            first = next(i for i, t in enumerate(turns) if any(p.keys for b in plan.beats for bt in b.turns for p in bt.pieces if p.text in t["text"]))
+            first = next(
+                i
+                for i, t in enumerate(turns)
+                if any(p.keys for b in plan.beats for bt in b.turns for p in bt.pieces if p.text in t["text"])
+            )
             turns[first]["text"] = "Something else entirely."
         return ModelResponse(parts=[TextPart(content=json.dumps({"turns": turns}))])
 
@@ -179,8 +196,17 @@ def test_transcripts_come_from_ingest_when_installed(monkeypatch):
             halves = [text] if len(text) < 60 else [text[: len(text) // 2], text[len(text) // 2 :]]
             for h in halves:
                 n += 1
-                segs.append(Segment(segment_id=f"s{n:04d}", speaker_label="spk", speaker_role=speaker, t_start=n, t_end=n + 1,
-                                    words=[Word(text=w, t_start=n, t_end=n + 0.1, conf=0.9) for w in h.split()], text=h))
+                segs.append(
+                    Segment(
+                        segment_id=f"s{n:04d}",
+                        speaker_label="spk",
+                        speaker_role=speaker,
+                        t_start=n,
+                        t_end=n + 1,
+                        words=[Word(text=w, t_start=n, t_end=n + 0.1, conf=0.9) for w in h.split()],
+                        text=h,
+                    )
+                )
         return Transcript(call_id=call_id, anchor_date=anchor_date, segments=segs, asr_provider="tts+asr", asr_model_version="t")
 
     fake = types.ModuleType("advisor_intel.ingest")

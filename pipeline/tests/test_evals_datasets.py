@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,32 +22,103 @@ PROV = Provenance(run_id="wf-1")
 
 
 def ev(quote="I want to retire at sixty"):
-    return Evidence(segment_id="s0010", char_start=0, char_end=len(quote), quote=quote, speaker_role="client_primary", t_start=1, t_end=2,
-                    asr_mean_conf=0.9, role="supports")
+    return Evidence(
+        segment_id="s0010",
+        char_start=0,
+        char_end=len(quote),
+        quote=quote,
+        speaker_role="client_primary",
+        t_start=1,
+        t_end=2,
+        asr_mean_conf=0.9,
+        role="supports",
+    )
 
 
 def profile_with_facts():
     p = Profile(call_id="c1", run_id="wf-1", schema_version="profile_v1", anchor_date=date(2026, 10, 15))
     add = lambda slot, inst, path, v, unit="age": (  # noqa: E731
-        "ADD", f"{slot}#{inst}", "s0010",
-        {"slot_id": slot, "instance_key": inst, "fna_path": path, "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=v), unit=unit), weight=1, rationale="")],
-         "evidence": [ev()], "provenance": PROV, "said": "retire at sixty", "interpretation": "retirement age 60"}, "extractor")
-    p = apply_state_ops(p, make_ops(p, [add("retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", 60),
-                                        add("income.{p}.grossMonthly", "client", "income.client.grossMonthly", 45_000, "ZAR")])).profile
-    return p.model_copy(update={"open_questions": [FollowUp(followup_id="q1", fact_ids=[], question="When do you want to retire?", why="", expected_pos_change=0.1,
-                                                            answer_type="AGE")]})
+        "ADD",
+        f"{slot}#{inst}",
+        "s0010",
+        {
+            "slot_id": slot,
+            "instance_key": inst,
+            "fna_path": path,
+            "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=v), unit=unit), weight=1, rationale="")],
+            "evidence": [ev()],
+            "provenance": PROV,
+            "said": "retire at sixty",
+            "interpretation": "retirement age 60",
+        },
+        "extractor",
+    )
+    p = apply_state_ops(
+        p,
+        make_ops(
+            p,
+            [
+                add("retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", 60),
+                add("income.{p}.grossMonthly", "client", "income.client.grossMonthly", 45_000, "ZAR"),
+            ],
+        ),
+    ).profile
+    return p.model_copy(
+        update={
+            "open_questions": [
+                FollowUp(
+                    followup_id="q1",
+                    fact_ids=[],
+                    question="When do you want to retire?",
+                    why="",
+                    expected_pos_change=0.1,
+                    answer_type="AGE",
+                )
+            ]
+        }
+    )
 
 
 def review_result(profile):
-    ops = make_ops(profile, [
-        ("CONFIRM", "income.{p}.grossMonthly#client", None, {"review": {"status": "accepted", "reviewer_id": "adv-1"}}, "reviewer"),
-        ("RETRACT", "retirement.{p}.retirementAge#client", None, {"reason": "advisor_said_it", "note": "that was my suggestion"}, "reviewer"),
-        ("ADD", "{p}.smoker#client", None, {"slot_id": "{p}.smoker", "instance_key": "client", "fna_path": "client.smoker", "source": "reviewer",
-                                            "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=True), unit="none"), weight=1, rationale="")],
-                                            "provenance": PROV}, "reviewer"),
-    ])
-    return ReviewResult(call_id="c1", run_id="wf-1", base_profile_version=profile.version, reviewer_id="adv-1", ops=ops, submitted=True, submitted_at=AT,
-                        followup_edits=[FollowupEdit(followup_id="q1", action="reword", question="Would 60, 63 or 65 be most realistic?", reviewer_id="adv-1", at=AT)])
+    ops = make_ops(
+        profile,
+        [
+            ("CONFIRM", "income.{p}.grossMonthly#client", None, {"review": {"status": "accepted", "reviewer_id": "adv-1"}}, "reviewer"),
+            (
+                "RETRACT",
+                "retirement.{p}.retirementAge#client",
+                None,
+                {"reason": "advisor_said_it", "note": "that was my suggestion"},
+                "reviewer",
+            ),
+            (
+                "ADD",
+                "{p}.smoker#client",
+                None,
+                {
+                    "slot_id": "{p}.smoker",
+                    "instance_key": "client",
+                    "fna_path": "client.smoker",
+                    "source": "reviewer",
+                    "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=True), unit="none"), weight=1, rationale="")],
+                    "provenance": PROV,
+                },
+                "reviewer",
+            ),
+        ],
+    )
+    return ReviewResult(
+        call_id="c1",
+        run_id="wf-1",
+        base_profile_version=profile.version,
+        reviewer_id="adv-1",
+        ops=ops,
+        submitted=True,
+        submitted_at=AT,
+        followup_edits=[
+            FollowupEdit(followup_id="q1", action="reword", question="Would 60, 63 or 65 be most realistic?", reviewer_id="adv-1", at=AT)
+        ],
+    )
 
 
 def test_local_store_upserts_by_id(tmp_path):
@@ -73,7 +145,12 @@ def test_braintrust_store_uses_init_dataset():
             calls.append(("flush", self.name))
 
         def fetch(self):
-            return iter([{"id": r["id"], "input": r["input"], "expected": r["expected"], "metadata": r["metadata"], "tags": r["tags"]} for r in self.rows])
+            return iter(
+                [
+                    {"id": r["id"], "input": r["input"], "expected": r["expected"], "metadata": r["metadata"], "tags": r["tags"]}
+                    for r in self.rows
+                ]
+            )
 
     opened = {}
 
@@ -83,7 +160,13 @@ def test_braintrust_store_uses_init_dataset():
 
     s = D.BraintrustStore("proj", init_dataset=init_dataset)
     s.insert("production-errors", [D.DatasetRecord(id="r1", input={"a": date(2026, 1, 1)}, tags=["slot:x"])])
-    assert opened["production-errors"].rows[0] == {"input": {"a": "2026-01-01"}, "expected": None, "metadata": {}, "tags": ["slot:x"], "id": "r1"}
+    assert opened["production-errors"].rows[0] == {
+        "input": {"a": "2026-01-01"},
+        "expected": None,
+        "metadata": {},
+        "tags": ["slot:x"],
+        "id": "r1",
+    }
     assert ("init", "proj", "production-errors") in calls and ("flush", "production-errors") in calls
     assert [r.id for r in s.fetch("production-errors")] == ["r1"]
 
@@ -93,6 +176,10 @@ def test_store_choice_follows_the_key(monkeypatch, tmp_path):
     assert isinstance(D.get_store(root=tmp_path), D.LocalStore)
     monkeypatch.setenv("BRAINTRUST_API_KEY", "placeholder")
     assert isinstance(D.get_store(), D.BraintrustStore)  # nothing is contacted until a dataset is used
+    monkeypatch.delenv("BRAINTRUST_API_KEY")
+    keyed = D.get_store(settings=SimpleNamespace(braintrust_api_key="from-settings"))
+    assert isinstance(keyed, D.BraintrustStore) and keyed._api_key == "from-settings"
+    assert isinstance(D.get_store(root=tmp_path, settings=SimpleNamespace(braintrust_api_key=None)), D.LocalStore)
 
 
 def test_review_events_follow_the_action_table():
@@ -106,16 +193,59 @@ def test_sync_error_dataset_tags_rejections_and_missed_slots(tmp_path):
     p = profile_with_facts()
     store = D.LocalStore(tmp_path)
     events = D.events_from_review(review_result(p))
-    ids = D.sync_error_dataset(events, profiles={"c1": p}, pins=VersionPins(), store=store)
-    assert len(ids) == 2
+    assert D.sync_error_dataset(events, profiles={"c1": p}, pins=VersionPins(), store=store) == 2
     rows = {r.metadata["kind"]: r for r in store.fetch("production-errors")}
     rej, miss = rows["rejected"], rows["missed"]
     assert set(rej.tags) == {"slot:retirement.{p}.retirementAge", "reason:advisor_said_it", "group:retirement", "tier:A", "rejected"}
     assert rej.input["quotes"] == ["I want to retire at sixty"] and rej.input["extracted"] == "60"
     assert miss.metadata["reason"] == "missed_slot" and "slot:{p}.smoker" in miss.tags
     # idempotent: the nightly run can repeat
-    assert D.sync_error_dataset(events, profiles={"c1": p}, store=store) == ids
-    assert len(store.fetch("production-errors")) == 2
+    ids = {r.id for r in store.fetch("production-errors")}
+    assert D.sync_error_dataset(events, profiles={"c1": p}, store=store) == 2
+    assert {r.id for r in store.fetch("production-errors")} == ids
+    assert D.sync_error_dataset([events[0]], store=store) == 0  # an accept is not an error
+
+
+def test_sync_error_dataset_takes_the_nightly_activity_rows(tmp_path):
+    """The nightly activity hands over rows built from the ``review_events`` table, with its settings."""
+    store = D.LocalStore(tmp_path)
+    value = Quantity(dist=Point(value=60), unit="age").model_dump(mode="json")
+    rows = [
+        {
+            "run_id": "wf-9",
+            "fact_id": "retirement.{p}.retirementAge#client",
+            "slot_id": "retirement.{p}.retirementAge",
+            "action": "reject",
+            "reason": "misheard",
+            "quotes": ["retire at sixty", None],
+            "value": value,
+            "interpretation": "retirement age 60",
+            "note": "fifteen, not fifty",
+            "reviewer_id": "adv-2",
+            "at": AT.isoformat(),
+            "tags": ["retirement", "misheard"],
+        },
+        {
+            "run_id": "wf-9",
+            "fact_id": "{p}.smoker#client",
+            "slot_id": "{p}.smoker",
+            "action": "add",
+            "reason": "missed_slot",
+            "quotes": [],
+            "value": None,
+            "interpretation": None,
+            "note": None,
+            "reviewer_id": "adv-2",
+            "at": AT.isoformat(),
+            "tags": ["client", "missed_slot"],
+        },
+    ]
+    assert D.sync_error_dataset(rows, settings=SimpleNamespace(braintrust_api_key=None), store=store) == 2
+    got = {r.metadata["kind"]: r for r in store.fetch("production-errors")}
+    rej = got["rejected"]
+    assert rej.input["quotes"] == ["retire at sixty"] and rej.input["extracted"] == "60" and rej.input["run_id"] == "wf-9"
+    assert rej.expected["note"] == "fifteen, not fifty" and "reason:misheard" in rej.tags and rej.metadata["tier"] == "A"
+    assert got["missed"].metadata["reason"] == "missed_slot"
 
 
 def test_sync_gold_candidates(tmp_path):
@@ -123,19 +253,48 @@ def test_sync_gold_candidates(tmp_path):
     store = D.LocalStore(tmp_path)
     r = review_result(p)
     reviewed = apply_state_ops(p, r.ops).profile
-    out = D.sync_gold_candidates([r], profiles={"c1": reviewed}, store=store)
-    assert out["gold-candidates"] == ["c1:wf-1"] and len(out["followup-edits"]) == 1
+    assert D.sync_gold_candidates([r], profiles={"c1": reviewed}, store=store) == 2
     cand = store.fetch("gold-candidates")[0]
-    assert cand.metadata["corrections"] == {"reject": 1, "add": 1}
+    assert cand.id == "c1:wf-1" and cand.metadata["corrections"] == {"reject": 1, "add": 1}
     assert cand.expected["facts"]["retirement.{p}.retirementAge#client"]["review"] == "rejected"
     fu = store.fetch("followup-edits")[0]
     assert fu.input["original"] == "When do you want to retire?" and fu.expected["action"] == "reword"
 
 
+def test_sync_gold_candidates_takes_the_nightly_activity_rows(tmp_path):
+    store = D.LocalStore(tmp_path)
+    edit = FollowupEdit(followup_id="q1", action="drop", reviewer_id="adv-1", at=AT).model_dump(mode="json")
+    rows = [
+        {
+            "run_id": "wf-3",
+            "call_id": "c3",
+            "versions": VersionPins().model_dump(mode="json"),
+            "reviewed_profile": "profiles/wf-3/",
+            "corrections": [{"action": "reject", "fact_id": "x#client", "reviewer_id": "adv-1"}, {"action": "add", "fact_id": "y#client"}],
+            "followup_edits": [edit],
+        },
+        {"run_id": "wf-4", "call_id": "c4", "versions": {}, "reviewed_profile": "profiles/wf-4/", "corrections": [], "followup_edits": []},
+    ]
+    assert D.sync_gold_candidates(rows, settings=None, store=store) == 2
+    cand = store.fetch("gold-candidates")[0]
+    assert (
+        cand.id == "c3:wf-3"
+        and cand.expected["reviewed_profile"] == "profiles/wf-3/"
+        and cand.metadata["corrections"] == {"reject": 1, "add": 1}
+    )
+    assert store.fetch("followup-edits")[0].expected["action"] == "drop"
+
+
 def test_stage12_key_ignores_extraction_changes():
     base = VersionPins(prompt_versions={"extract_slot_group/income": "v1", "discourse/rewrite": "v1"})
-    same = base.model_copy(update={"reasoning_model": "anthropic:other", "verifier_model": "openai:x", "calibrator_version": "v9",
-                                   "prompt_versions": {"extract_slot_group/income": "v2", "discourse/rewrite": "v1"}})
+    same = base.model_copy(
+        update={
+            "reasoning_model": "anthropic:other",
+            "verifier_model": "openai:x",
+            "calibrator_version": "v9",
+            "prompt_versions": {"extract_slot_group/income": "v2", "discourse/rewrite": "v1"},
+        }
+    )
     assert D.stage12_key(base) == D.stage12_key(same)
     assert D.stage12_key(base) != D.stage12_key(base.model_copy(update={"asr_model_version": "nova-3"}))
     assert D.stage12_key(base) != D.stage12_key(base.model_copy(update={"prompt_versions": {"discourse/rewrite": "v2"}}))

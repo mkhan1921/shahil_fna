@@ -42,9 +42,13 @@ def test_scoring_rules():
     off = R.value_score(slot, zar(Point(value=40_000)), y)
     assert exact == 1.0 and 1.0 > narrow > wide >= 0.0 and wide < 0.2  # a very wide range cannot score well
     assert off == pytest.approx(1 - 10_000 / 25_000)
-    cat = R.value_score(CAT.slot(WILL), Quantity(dist=Categorical(probs={"yes": 0.8, "no": 0.2}), unit="none"), GoldValue(kind="categorical", label="yes"))
+    cat = R.value_score(
+        CAT.slot(WILL), Quantity(dist=Categorical(probs={"yes": 0.8, "no": 0.2}), unit="none"), GoldValue(kind="categorical", label="yes")
+    )
     assert cat == pytest.approx(1 - 0.5 * (0.2**2 + 0.2**2))
-    assert R.value_score(CAT.slot(SMOKER), Quantity(dist=Bernoulli(p=0.3), unit="none"), GoldValue(kind="boolean", label="false")) == pytest.approx(1 - 0.09)
+    assert R.value_score(
+        CAT.slot(SMOKER), Quantity(dist=Bernoulli(p=0.3), unit="none"), GoldValue(kind="boolean", label="false")
+    ) == pytest.approx(1 - 0.09)
 
 
 def test_reward_terms_hand_computed():
@@ -54,11 +58,26 @@ def test_reward_terms_hand_computed():
         GoldFact(slot_id=SMOKER, instance_key="client", status="not_discussed"),
     ]
     rollout = [
-        R.RolloutFact(slot_id=RA, instance_key="client", status="stated", value=age(65), quotes=[("s1", "retire at sixty-five")], self_score=0.9),
-        R.RolloutFact(slot_id=INC, instance_key="client", status="stated", value=zar(Point(value=40_000)), quotes=[("s2", "R50,000"), ("s2", "R60,000")],
-                      attribution="advisor_suggested", self_score=0.8),
-        R.RolloutFact(slot_id=WILL, instance_key="client", status="stated", value=Quantity(dist=Point(value="yes"), unit="none"),
-                      quotes=[("s1", "retire")], self_score=0.5),
+        R.RolloutFact(
+            slot_id=RA, instance_key="client", status="stated", value=age(65), quotes=[("s1", "retire at sixty-five")], self_score=0.9
+        ),
+        R.RolloutFact(
+            slot_id=INC,
+            instance_key="client",
+            status="stated",
+            value=zar(Point(value=40_000)),
+            quotes=[("s2", "R50,000"), ("s2", "R60,000")],
+            attribution="advisor_suggested",
+            self_score=0.8,
+        ),
+        R.RolloutFact(
+            slot_id=WILL,
+            instance_key="client",
+            status="stated",
+            value=Quantity(dist=Point(value="yes"), unit="none"),
+            quotes=[("s1", "retire")],
+            self_score=0.5,
+        ),
     ]
     rb = R.reward(rollout, reviewed, SEGMENTS)
     assert rb.n_slots == 4  # RA, INC, SMOKER, WILL
@@ -77,15 +96,46 @@ def test_reward_terms_hand_computed():
 
 def test_reviewed_facts_from_a_profile():
     prov = Provenance(run_id="r")
-    ev = Evidence(segment_id="s1", char_start=0, char_end=5, quote="sixty", speaker_role="client_primary", t_start=0, t_end=1, asr_mean_conf=0.9, role="supports")
+    ev = Evidence(
+        segment_id="s1",
+        char_start=0,
+        char_end=5,
+        quote="sixty",
+        speaker_role="client_primary",
+        t_start=0,
+        t_end=1,
+        asr_mean_conf=0.9,
+        role="supports",
+    )
     p = Profile(call_id="c", run_id="r", schema_version="profile_v1", anchor_date=date(2026, 1, 1))
-    add = lambda slot, inst, path, q: ("ADD", f"{slot}#{inst}", "s1", {"slot_id": slot, "instance_key": inst, "fna_path": path,  # noqa: E731
-                                                                         "hypotheses": [Hypothesis(value=q, weight=1, rationale="")], "evidence": [ev],
-                                                                         "provenance": prov}, "extractor")
-    p = apply_state_ops(p, make_ops(p, [add(RA, "client", "retirement.client.retirementAge", age(60)),
-                                        add(INC, "client", "income.client.grossMonthly", zar(Triangular(low=40_000, mode=45_000, high=50_000))),
-                                        add(SMOKER, "client", "client.smoker", Quantity(dist=Point(value=False), unit="none"))])).profile
-    p = apply_state_ops(p, make_ops(p, [("CONFIRM", f"{RA}#client", None, {}, "reviewer"), ("RETRACT", f"{INC}#client", None, {"reason": "misheard"}, "reviewer")])).profile
+    def add(slot, inst, path, q):
+        payload = {
+            "slot_id": slot,
+            "instance_key": inst,
+            "fna_path": path,
+            "hypotheses": [Hypothesis(value=q, weight=1, rationale="")],
+            "evidence": [ev],
+            "provenance": prov,
+        }
+        return ("ADD", f"{slot}#{inst}", "s1", payload, "extractor")
+
+    p = apply_state_ops(
+        p,
+        make_ops(
+            p,
+            [
+                add(RA, "client", "retirement.client.retirementAge", age(60)),
+                add(INC, "client", "income.client.grossMonthly", zar(Triangular(low=40_000, mode=45_000, high=50_000))),
+                add(SMOKER, "client", "client.smoker", Quantity(dist=Point(value=False), unit="none")),
+            ],
+        ),
+    ).profile
+    p = apply_state_ops(
+        p,
+        make_ops(
+            p, [("CONFIRM", f"{RA}#client", None, {}, "reviewer"), ("RETRACT", f"{INC}#client", None, {"reason": "misheard"}, "reviewer")]
+        ),
+    ).profile
     facts = {f.key: f for f in R.reviewed_facts(p)}
     assert facts[(RA, "client")].value.p50 == 60 and facts[(INC, "client")].status == "not_discussed"
     assert (SMOKER, "client") not in facts  # never reviewed
@@ -108,21 +158,60 @@ def test_not_discussed_rate_check():
 
 
 def test_range_width_check():
-    reviewed = {str(i): [GoldFact(slot_id=INC, instance_key="client", status="stated", value=GoldValue(kind="numeric", p50=50_000))] for i in range(5)}
-    narrow = [_out(str(i), "income", [R.RolloutFact(slot_id=INC, instance_key="client", status="stated",
-                                                    value=zar(Triangular(low=45_000, mode=50_000, high=55_000)))]) for i in range(5)]
-    wide = [_out(str(i), "income", [R.RolloutFact(slot_id=INC, instance_key="client", status="stated",
-                                                  value=zar(Triangular(low=20_000, mode=50_000, high=80_000)))]) for i in range(5)]
+    reviewed = {
+        str(i): [GoldFact(slot_id=INC, instance_key="client", status="stated", value=GoldValue(kind="numeric", p50=50_000))]
+        for i in range(5)
+    }
+    narrow = [
+        _out(
+            str(i),
+            "income",
+            [
+                R.RolloutFact(
+                    slot_id=INC, instance_key="client", status="stated", value=zar(Triangular(low=45_000, mode=50_000, high=55_000))
+                )
+            ],
+        )
+        for i in range(5)
+    ]
+    wide = [
+        _out(
+            str(i),
+            "income",
+            [
+                R.RolloutFact(
+                    slot_id=INC, instance_key="client", status="stated", value=zar(Triangular(low=20_000, mode=50_000, high=80_000))
+                )
+            ],
+        )
+        for i in range(5)
+    ]
     rows = R.check_range_width(wide, narrow, reviewed)
     assert not rows[0].passed and "widened" in rows[0].note  # coverage was already 100%: wider ranges bought nothing
-    missed = [_out(str(i), "income", [R.RolloutFact(slot_id=INC, instance_key="client", status="stated",
-                                                    value=zar(Triangular(low=55_000, mode=60_000, high=65_000)))]) for i in range(5)]
+    missed = [
+        _out(
+            str(i),
+            "income",
+            [
+                R.RolloutFact(
+                    slot_id=INC, instance_key="client", status="stated", value=zar(Triangular(low=55_000, mode=60_000, high=65_000))
+                )
+            ],
+        )
+        for i in range(5)
+    ]
     assert R.check_range_width(narrow, missed, reviewed)[0].passed  # wider but now covering: allowed
 
 
 def test_samples_for_human_review(tmp_path):
-    generic = R.RolloutFact(slot_id=RA, instance_key="client", status="stated", value=age(65), quotes=[("s1", "as discussed earlier on")],
-                            interpretation="the client said so")
+    generic = R.RolloutFact(
+        slot_id=RA,
+        instance_key="client",
+        status="stated",
+        value=age(65),
+        quotes=[("s1", "as discussed earlier on")],
+        interpretation="the client said so",
+    )
     outs = [_out(f"p{i}", "retirement", [generic]) for i in range(60)]
     samples = R.sample_for_review(outs, n=50, seed=1)
     assert len(samples) == 50 and len({s["prompt_id"] for s in samples}) == 50

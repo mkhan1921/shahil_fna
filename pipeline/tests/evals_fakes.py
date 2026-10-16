@@ -66,8 +66,15 @@ class FakePipeline:
             if ge.fna_id and ge.fna_id in by_row:
                 emap[ge.entity_id] = by_row[ge.fna_id]
             else:
-                ents[ge.entity_id] = Entity(entity_id=ge.entity_id, type=ge.type, canonical_name=ge.names[0] if ge.names else ge.entity_id,
-                                            aliases=ge.names[1:], attributes={"relation": ge.relation}, fna_list=ge.fna_list, fna_id=ge.fna_id)
+                ents[ge.entity_id] = Entity(
+                    entity_id=ge.entity_id,
+                    type=ge.type,
+                    canonical_name=ge.names[0] if ge.names else ge.entity_id,
+                    aliases=ge.names[1:],
+                    attributes={"relation": ge.relation},
+                    fna_list=ge.fna_list,
+                    fna_id=ge.fna_id,
+                )
                 emap[ge.entity_id] = ge.entity_id
         prof = prof.model_copy(update={"entities": ents})
         seg_index = call.transcript.index()
@@ -85,11 +92,29 @@ class FakePipeline:
                 seg = seg_index.get(s.segment_id)
                 if seg is None:
                     continue
-                ev.append(Evidence(segment_id=s.segment_id, char_start=s.char_start, char_end=s.char_end, quote=s.quote, speaker_role=seg.speaker_role,
-                                   t_start=seg.t_start, t_end=seg.t_end, asr_mean_conf=0.95, role="supports"))
+                ev.append(
+                    Evidence(
+                        segment_id=s.segment_id,
+                        char_start=s.char_start,
+                        char_end=s.char_end,
+                        quote=s.quote,
+                        speaker_role=seg.speaker_role,
+                        t_start=seg.t_start,
+                        t_end=seg.t_end,
+                        asr_mean_conf=0.95,
+                        role="supports",
+                    )
+                )
             if gf.status == "explicitly_unknown":
-                specs.append(("MARK_UNKNOWN", fid, ev[0].segment_id if ev else None,
-                              {"slot_id": gf.slot_id, "instance_key": inst, "fna_path": path, "provenance": prov, "evidence": ev}, "extractor"))
+                specs.append(
+                    (
+                        "MARK_UNKNOWN",
+                        fid,
+                        ev[0].segment_id if ev else None,
+                        {"slot_id": gf.slot_id, "instance_key": inst, "fna_path": path, "provenance": prov, "evidence": ev},
+                        "extractor",
+                    )
+                )
                 continue
             decision = self.policy(gf, call, pins) if self.policy else {}
             if gf.value is None or not ev or rng.random() < self.drop or decision.get("drop"):
@@ -99,20 +124,47 @@ class FakePipeline:
             if rng.random() < self.flip_attribution:
                 attribution = "advisor_suggested" if attribution != "advisor_suggested" else "client"
             attribution = decision.get("attribution", attribution)
-            hyp = Hypothesis(value=quantity_from_gold(slot, gf.value, shift=shift, contradicted=gf.status == "contradicted"), weight=1.0, rationale="fake")
-            specs.append(("ADD", fid, ev[0].segment_id, {
-                "slot_id": gf.slot_id, "instance_key": inst, "fna_path": path, "status": gf.status, "hypotheses": [hyp], "evidence": ev,
-                "speaker_attribution": attribution, "entity_refs": [inst] if inst and inst in ents else [], "provenance": prov,
-                "normalization": {"form": {"type": "AMOUNT_RANGE" if gf.value.vague else "AMOUNT_EXACT"}} if gf.value.kind == "numeric" else None,
-            }, "extractor"))
+            hyp = Hypothesis(
+                value=quantity_from_gold(slot, gf.value, shift=shift, contradicted=gf.status == "contradicted"),
+                weight=1.0,
+                rationale="fake",
+            )
+            specs.append(
+                (
+                    "ADD",
+                    fid,
+                    ev[0].segment_id,
+                    {
+                        "slot_id": gf.slot_id,
+                        "instance_key": inst,
+                        "fna_path": path,
+                        "status": gf.status,
+                        "hypotheses": [hyp],
+                        "evidence": ev,
+                        "speaker_attribution": attribution,
+                        "entity_refs": [inst] if inst and inst in ents else [],
+                        "provenance": prov,
+                        "normalization": {"form": {"type": "AMOUNT_RANGE" if gf.value.vague else "AMOUNT_EXACT"}}
+                        if gf.value.kind == "numeric"
+                        else None,
+                    },
+                    "extractor",
+                )
+            )
         res = apply_state_ops(prof, make_ops(prof, specs))
         assert not res.rejected, res.rejected[:2]
         prof = res.profile
         facts = {}
         for fid, f in prof.facts.items():
             if f.source == "call":
-                f = f.model_copy(update={"p_correct": self.p_correct, "p_raw": self.p_correct, "auto_accepted": bool(rng.random() < self.auto_accept_rate),
-                                         "features": {"entail_score": 0.9, "consistency": 0.8, "self_score": 0.85, "asr_mean_conf": 0.95}})
+                f = f.model_copy(
+                    update={
+                        "p_correct": self.p_correct,
+                        "p_raw": self.p_correct,
+                        "auto_accepted": bool(rng.random() < self.auto_accept_rate),
+                        "features": {"entail_score": 0.9, "consistency": 0.8, "self_score": 0.85, "asr_mean_conf": 0.95},
+                    }
+                )
             facts[fid] = f
         prof = prof.model_copy(update={"facts": facts})
         note = []
@@ -120,7 +172,17 @@ class FakePipeline:
             for f in sorted(prof.facts.values(), key=lambda x: x.fact_id):
                 if f.source == "call" and f.status == "stated" and CATALOG.slot(f.slot_id).sensitivity_tier == "A":
                     note.append(SimpleNamespace(text=f"Recorded {CATALOG.slot(f.slot_id).label.lower()}.", fact_ids=[f.fact_id]))
-        flags = [BlockingFlag(flag_id=f"flag-{i}", kind="tier_a_contradicted", fact_id=f.fact_id, message="contradicted")
-                 for i, f in enumerate(prof.facts.values()) if f.status == "contradicted"]
-        return SimpleNamespace(profile=prof, forecast=SimpleNamespace(pos=self.pos), followups=[], flags=flags, note=note,
-                               usage={"cost_usd": 0.5, "input_tokens": 1000.0}, discourse=None)
+        flags = [
+            BlockingFlag(flag_id=f"flag-{i}", kind="tier_a_contradicted", fact_id=f.fact_id, message="contradicted")
+            for i, f in enumerate(prof.facts.values())
+            if f.status == "contradicted"
+        ]
+        return SimpleNamespace(
+            profile=prof,
+            forecast=SimpleNamespace(pos=self.pos),
+            followups=[],
+            flags=flags,
+            note=note,
+            usage={"cost_usd": 0.5, "input_tokens": 1000.0},
+            discourse=None,
+        )

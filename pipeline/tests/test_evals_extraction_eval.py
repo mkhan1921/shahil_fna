@@ -29,14 +29,21 @@ def world(tmp_path, monkeypatch):
 def test_run_local_scores_a_perfect_and_a_noisy_pipeline(world):
     cases = E.eval_cases("synthetic-calls", store=world["store"])
     assert len(cases) == 4 and all(c["input"]["dataset"] == "synthetic-calls" for c in cases)
-    perfect = E.run_local(cases, runner=FakePipeline(world["golds"].__getitem__), pins=VersionPins(), cache=world["cache"], save=world["tmp"] / "p.json")
+    perfect = E.run_local(
+        cases, runner=FakePipeline(world["golds"].__getitem__), pins=VersionPins(), cache=world["cache"], save=world["tmp"] / "p.json"
+    )
     assert perfect.n_errors == 0
     for m in ("status_accuracy_tier_a", "slot_recall_tier_a", "value_coverage_tier_a", "grounding_tier_a", "attribution_tier_a"):
         assert perfect.scores[m] == pytest.approx(1.0), m
     assert perfect.summary["critical_miss_rate"] == 0.0 and perfect.summary["ece"] == pytest.approx(0.1, abs=0.02)
     assert (world["tmp"] / "p.json").exists() and E.report_path().exists()
-    noisy = E.run_local(cases, runner=FakePipeline(world["golds"].__getitem__, drop=0.3, wrong=0.2, flip_attribution=0.3, seed=1), pins=VersionPins(),
-                        cache=world["cache"], save=False)
+    noisy = E.run_local(
+        cases,
+        runner=FakePipeline(world["golds"].__getitem__, drop=0.3, wrong=0.2, flip_attribution=0.3, seed=1),
+        pins=VersionPins(),
+        cache=world["cache"],
+        save=False,
+    )
     assert noisy.scores["slot_recall_tier_a"] < 0.9 and noisy.scores["value_coverage"] < 1.0 and noisy.scores["attribution"] < 1.0
     assert noisy.summary["critical_miss_rate"] > 0
     assert any(it.misses.get("slot_recall") for it in noisy.items)
@@ -93,15 +100,28 @@ def test_current_version_pins_read_prompt_versions(tmp_path, monkeypatch):
 
 
 def test_report_metric_lookup():
-    rep = E.EvalReport(n_items=10, n_errors=1, scores={"slot_recall": 0.9}, summary={"ece_by_group": {"income": 0.02}, "by_group": {"income": {"slot_recall": 0.8}}})
-    assert rep.metric("slot_recall") == 0.9 and rep.metric("ece_by_group.income") == 0.02 and rep.metric("by_group.income.slot_recall") == 0.8
+    rep = E.EvalReport(
+        n_items=10,
+        n_errors=1,
+        scores={"slot_recall": 0.9},
+        summary={"ece_by_group": {"income": 0.02}, "by_group": {"income": {"slot_recall": 0.8}}},
+    )
+    assert (
+        rep.metric("slot_recall") == 0.9 and rep.metric("ece_by_group.income") == 0.02 and rep.metric("by_group.income.slot_recall") == 0.8
+    )
     assert rep.metric("task_error_rate") == pytest.approx(0.1) and rep.metric("nope") is None
 
 
 def test_braintrust_eval_runs_offline_and_the_reporter_gates(world, monkeypatch, capsys):
     monkeypatch.setenv("BRAINTRUST_DISABLE_ATEXIT_FLUSH", "1")
-    result = E.braintrust_eval(dataset="synthetic-calls", runner=FakePipeline(world["golds"].__getitem__, drop=0.2, seed=3), pins=VersionPins(),
-                               cache=world["cache"], data=lambda: E.eval_cases("synthetic-calls", store=world["store"]), max_concurrency=2)
+    result = E.braintrust_eval(
+        dataset="synthetic-calls",
+        runner=FakePipeline(world["golds"].__getitem__, drop=0.2, seed=3),
+        pins=VersionPins(),
+        cache=world["cache"],
+        data=lambda: E.eval_cases("synthetic-calls", store=world["store"]),
+        max_concurrency=2,
+    )
     assert len(result.results) == 4 and not any(r.error for r in result.results)
     names = set(result.results[0].scores)
     assert {"status_accuracy", "status_accuracy_tier_a", "slot_recall_tier_a", "span_f1", "note_completeness"} <= names

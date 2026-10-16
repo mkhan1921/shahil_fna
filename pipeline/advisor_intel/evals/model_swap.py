@@ -3,24 +3,31 @@
 The gold set is the fixed point; models are interchangeable. A candidate model is pinned in place of the current
 one for a single role, the gold suite runs with it, and the candidate wins only if it is at least as good on every
 gated metric of that role's stage, better on at least one, at equal or lower cost per call-minute. A win writes the
-routing change (``pipeline/routing.yaml``) and a pull-request body; the deployment maps the file to the
-``ADVISOR_INTEL_MODEL_<ROLE>`` settings that ``config.py`` reads. The gold calls, scorers and gates do not change.
+routing change (``pipeline/routing.yaml``) and opens a pull request that switches it; the deployment maps the file
+to the ``ADVISOR_INTEL_MODEL_<ROLE>`` settings that ``config.py`` reads. The gold calls, scorers and gates do not
+change. ``run_model_swap`` is the entry point the monthly Temporal schedule calls.
 """
 
 from __future__ import annotations
 
+import base64
+import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Any, Callable, Literal, Mapping, Sequence
 
+import httpx
 import yaml
 from pydantic import BaseModel
 
 from ..config import PIPELINE_DIR
 from ..models.runs import VersionPins
-from .extraction_eval import EvalReport
+from .datasets import GOLD_CALLS, DatasetStore, Stage12Builder, Stage12Cache, get_store
+from .extraction_eval import EvalReport, Runner, current_version_pins, eval_cases, run_local
 
 ROUTING_FILE = PIPELINE_DIR / "routing.yaml"
+REPO_ROUTING_PATH = "pipeline/routing.yaml"  # the same file, as a path in the repository
 WIN_EPSILON = 0.005  # differences smaller than this count as ties (noise on 40–100 gold calls)
 
 Role = Literal["frontier", "reasoning", "verifier", "small", "embedding", "asr"]
@@ -155,12 +162,11 @@ def evaluate_swap(
     return decide(role, current, candidate, current_model=current_model, candidate_model=candidate_model)
 
 
-def write_routing_change(decision: SwapDecision, path: Path = ROUTING_FILE) -> Path:
-    """Record a winning swap in the routing file (role → model, with history) for the pull request."""
+def routing_text(decision: SwapDecision, current: str | None = None) -> str:
+    """The routing file after a winning swap: role → model, with the history of switches (§13.8, §15.4)."""
     if not decision.wins:
         raise ValueError(f"the candidate did not win: {decision.reason}")
-    data = yaml.safe_load(path.read_text()) if path.exists() else None
-    data = data or {"roles": {}, "history": []}
+    data = (yaml.safe_load(current) if current else None) or {"roles": {}, "history": []}
     data.setdefault("roles", {})[decision.role] = decision.candidate_model
     data.setdefault("history", []).append(
         {
@@ -171,11 +177,16 @@ def write_routing_change(decision: SwapDecision, path: Path = ROUTING_FILE) -> P
             "reason": decision.reason,
         }
     )
-    path.write_text(
+    return (
         "# Model routing per role (spec §13.8), changed by the model-swap protocol (§15.4) through pull requests.\n"
         "# Deployments export each role as ADVISOR_INTEL_MODEL_<ROLE> (read by advisor_intel.config).\n"
         + yaml.safe_dump(data, sort_keys=False)
     )
+
+
+def write_routing_change(decision: SwapDecision, path: Path = ROUTING_FILE) -> Path:
+    """Record a winning swap in the local routing file (role → model, with history) for the pull request."""
+    path.write_text(routing_text(decision, path.read_text() if path.exists() else None))
     return path
 
 
@@ -189,3 +200,156 @@ def routing_env(path: Path = ROUTING_FILE) -> dict[str, str]:
         for role, model in roles.items()
         if role in ("frontier", "reasoning", "verifier", "small")
     }
+
+
+# --------------------------------------------------------------------------- the monthly run
+
+
+class GitHubPullRequests:
+    """Opens the routing-change pull request through the GitHub REST API, so the worker needs no checkout.
+
+    Configured by ``GITHUB_REPOSITORY`` (owner/repo) and ``GITHUB_TOKEN`` (or ``GH_TOKEN``); the base branch is
+    ``ADVISOR_INTEL_MODEL_SWAP_BASE`` (default main). Unconfigured, it opens nothing.
+    """
+
+    def __init__(
+        self,
+        repo: str | None = None,
+        token: str | None = None,
+        *,
+        base: str | None = None,
+        client: httpx.Client | None = None,
+        api_url: str = "https://api.github.com",
+    ) -> None:
+        self.repo = repo or os.environ.get("GITHUB_REPOSITORY")
+        self.token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+        self.base = base or os.environ.get("ADVISOR_INTEL_MODEL_SWAP_BASE", "main")
+        self._client = client
+        self.api_url = api_url.rstrip("/")
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.repo and self.token)
+
+    def _http(self) -> httpx.Client:
+        if self._client is None:
+            self._client = httpx.Client(timeout=30.0)
+        return self._client
+
+    def _request(self, method: str, path: str, **kw: Any) -> httpx.Response:
+        headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+        return self._http().request(method, f"{self.api_url}/repos/{self.repo}{path}", headers=headers, **kw)
+
+    def branch_name(self, decision: SwapDecision) -> str:
+        slug = re.sub(r"[^a-z0-9]+", "-", decision.candidate_model.lower()).strip("-")
+        return f"model-swap/{decision.role}-{slug}-{(decision.decided_at or datetime.now(timezone.utc).isoformat())[:10]}"
+
+    def __call__(self, decision: SwapDecision, routing: str | None = None) -> str | None:
+        """Branch from the base, commit the routing change on it and open the pull request; returns its URL."""
+        if not self.configured:
+            return None
+        branch = self.branch_name(decision)
+        r = self._request("GET", f"/git/ref/heads/{self.base}")
+        r.raise_for_status()
+        r = self._request("POST", "/git/refs", json={"ref": f"refs/heads/{branch}", "sha": r.json()["object"]["sha"]})
+        if r.status_code != 422:  # 422: the branch exists (a re-run of the same decision); update it
+            r.raise_for_status()
+        r = self._request("GET", f"/contents/{REPO_ROUTING_PATH}", params={"ref": branch})
+        current, sha = None, None
+        if r.status_code == 200:
+            body = r.json()
+            current, sha = base64.b64decode(body["content"]).decode(), body["sha"]
+        elif r.status_code != 404:
+            r.raise_for_status()
+        text = routing if routing is not None else routing_text(decision, current)
+        put: dict[str, Any] = {
+            "message": f"Switch the {decision.role} role to {decision.candidate_model} (model-swap protocol, §15.4)",
+            "content": base64.b64encode(text.encode()).decode(),
+            "branch": branch,
+        }
+        if sha:
+            put["sha"] = sha
+        self._request("PUT", f"/contents/{REPO_ROUTING_PATH}", json=put).raise_for_status()
+        r = self._request(
+            "POST",
+            "/pulls",
+            json={
+                "title": f"Model swap: {decision.role} → {decision.candidate_model}",
+                "head": branch,
+                "base": self.base,
+                "body": decision.markdown(),
+            },
+        )
+        if r.status_code == 422:  # a pull request for this branch is already open
+            r = self._request("GET", "/pulls", params={"head": f"{self.repo.split('/')[0]}:{branch}", "state": "open"})
+            r.raise_for_status()
+            return r.json()[0]["html_url"] if r.json() else None
+        r.raise_for_status()
+        return r.json()["html_url"]
+
+
+def gold_suite(
+    *,
+    settings: Any = None,
+    store: DatasetStore | None = None,
+    runner: Runner | None = None,
+    cache: Stage12Cache | None = None,
+    build: Stage12Builder | None = None,
+    transcript_kinds: Sequence[str] | None = None,
+) -> Callable[[VersionPins], EvalReport]:
+    """The gold suite as ``run_eval``: every gold call (human and ASR transcripts) through stages 3–6 with the given
+    pins, from the Stage 1–2 cache (an ASR swap misses the cache and rebuilds Stage 1–2 through ``build``)."""
+    cases = eval_cases(GOLD_CALLS, store=store or get_store(settings=settings), transcript_kinds=transcript_kinds)
+    if not cases:
+        raise ValueError("the gold-calls dataset is empty: the model-swap protocol needs the gold suite")
+
+    def run(pins: VersionPins) -> EvalReport:
+        return run_local(cases, runner=runner, pins=pins, cache=cache, build=build, dataset=GOLD_CALLS, experiment="model-swap", save=False)
+
+    return run
+
+
+def run_model_swap(
+    candidates: Mapping[str, str],
+    *,
+    settings: Any = None,
+    pins: VersionPins | None = None,
+    run_eval: Callable[[VersionPins], EvalReport] | None = None,
+    open_pull_request: Callable[[SwapDecision], str | None] | None = None,
+    routing_path: Path = ROUTING_FILE,
+) -> dict[str, Any]:
+    """The monthly model-swap run (§15.4): for each role → candidate model, run the gold suite with the candidate
+    pinned in place of the current model, decide, and for a win open a pull request that switches it.
+
+    The current pins run once and serve as the baseline for every role. Without a pull-request opener (no GitHub
+    repository and token) a win is written to the local routing file instead. Returns ``{"results": [one decision
+    per role], "pull_requests": [urls]}``.
+    """
+    pins = pins or current_version_pins()
+    run_eval = run_eval or gold_suite(settings=settings)
+    opener = open_pull_request if open_pull_request is not None else GitHubPullRequests()
+    configured = getattr(opener, "configured", True)
+    baseline: EvalReport | None = None
+    results: list[dict[str, Any]] = []
+    prs: list[str] = []
+    for role, model in candidates.items():
+        row: dict[str, Any] = {"role": role, "candidate_model": model}
+        if role not in ROLE_PINS:
+            results.append(row | {"skipped": f"unknown role; one of {sorted(ROLE_PINS)}"})
+            continue
+        if str(getattr(pins, ROLE_PINS[role])) == model:
+            results.append(row | {"skipped": "already the current model"})
+            continue
+        baseline = baseline or run_eval(pins)
+        decision = evaluate_swap(role, model, pins=pins, run_eval=run_eval, baseline=baseline)
+        row = decision.model_dump(mode="json")
+        if decision.wins:
+            if configured:
+                url = opener(decision)
+                if url:
+                    prs.append(url)
+                    row["pull_request"] = url
+            else:
+                row["routing_file"] = str(write_routing_change(decision, routing_path))
+        results.append(row)
+    return {"results": results, "pull_requests": prs}

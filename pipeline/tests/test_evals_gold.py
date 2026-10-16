@@ -18,8 +18,16 @@ ANCHOR = date(2026, 10, 15)
 
 
 def ann(annotator, doc, facts, entities=(), role="annotator"):
-    return G.AnnotationFile(call_id="c1", client_id="crm-1", annotator_id=annotator, role=role, anchor_date=ANCHOR, document=doc,
-                            facts=[G.AnnotatedFact(**f) for f in facts], entities=[G.AnnotatedEntity(**e) for e in entities])
+    return G.AnnotationFile(
+        call_id="c1",
+        client_id="crm-1",
+        annotator_id=annotator,
+        role=role,
+        anchor_date=ANCHOR,
+        document=doc,
+        facts=[G.AnnotatedFact(**f) for f in facts],
+        entities=[G.AnnotatedEntity(**e) for e in entities],
+    )
 
 
 def test_gold_value_normalises_dates_and_fills_quantiles():
@@ -49,22 +57,49 @@ def test_paths_map_to_fact_keys():
 def test_adjudication_averages_quantiles_and_settles_disagreements(sample_fna_json):
     doc = FnaDocument.model_validate(sample_fna_json)
     common = [
-        {"fna_path": "retirement.client.retirementAge", "status": "stated", "p10": 60, "p50": 62, "p90": 65,
-         "spans": [{"segment_id": "s0042", "char_start": 10, "char_end": 31, "quote": "somewhere around sixty"}]},
+        {
+            "fna_path": "retirement.client.retirementAge",
+            "status": "stated",
+            "p10": 60,
+            "p50": 62,
+            "p90": 65,
+            "spans": [{"segment_id": "s0042", "char_start": 10, "char_end": 31, "quote": "somewhere around sixty"}],
+        },
         {"fna_path": "income.client.grossMonthly", "status": "stated", "p50": 100_000},
     ]
-    a = ann("ann-1", doc, common + [
-        {"fna_path": "client.smoker", "status": "stated", "value": False},
-        {"fna_path": "dependants[new-a].tertiary", "status": "stated", "value": True, "spans": [{"segment_id": "s0050", "char_start": 0, "char_end": 9}]},
-        {"fna_path": "estate.client.hasWill", "status": "stated", "value": "yes"},
-    ], entities=[{"row_id": "new-a", "fna_list": "dependants", "names": ["Thandi"], "relation": "child"}])
-    b = ann("ann-2", doc, [
-        {**common[0], "p10": 62, "p50": 64, "p90": 67, "attribution": "client"},
-        common[1],
-        {"fna_path": "client.smoker", "status": "not_discussed"},
-        {"fna_path": "dependants[new-b].tertiary", "status": "stated", "value": True, "spans": [{"segment_id": "s0051", "char_start": 0, "char_end": 4}]},
-        {"fna_path": "estate.client.hasWill", "status": "stated", "value": "unsure"},
-    ], entities=[{"row_id": "new-b", "fna_list": "dependants", "names": ["Thandi Mokoena"], "relation": "child"}])
+    a = ann(
+        "ann-1",
+        doc,
+        common
+        + [
+            {"fna_path": "client.smoker", "status": "stated", "value": False},
+            {
+                "fna_path": "dependants[new-a].tertiary",
+                "status": "stated",
+                "value": True,
+                "spans": [{"segment_id": "s0050", "char_start": 0, "char_end": 9}],
+            },
+            {"fna_path": "estate.client.hasWill", "status": "stated", "value": "yes"},
+        ],
+        entities=[{"row_id": "new-a", "fna_list": "dependants", "names": ["Thandi"], "relation": "child"}],
+    )
+    b = ann(
+        "ann-2",
+        doc,
+        [
+            {**common[0], "p10": 62, "p50": 64, "p90": 67, "attribution": "client"},
+            common[1],
+            {"fna_path": "client.smoker", "status": "not_discussed"},
+            {
+                "fna_path": "dependants[new-b].tertiary",
+                "status": "stated",
+                "value": True,
+                "spans": [{"segment_id": "s0051", "char_start": 0, "char_end": 4}],
+            },
+            {"fna_path": "estate.client.hasWill", "status": "stated", "value": "unsure"},
+        ],
+        entities=[{"row_id": "new-b", "fna_list": "dependants", "names": ["Thandi Mokoena"], "relation": "child"}],
+    )
     g = G.adjudicate(a, b, catalog=CAT)
     idx = g.fact_index()
     ra = idx[("retirement.{p}.retirementAge", "client")]
@@ -77,8 +112,15 @@ def test_adjudication_averages_quantiles_and_settles_disagreements(sample_fna_js
     assert idx[("estate.{p}.hasWill", "client")].disputed
     assert g.annotators == ["ann-1", "ann-2"] and g.adjudicator is None
 
-    senior = ann("senior", doc, [{"fna_path": "estate.client.hasWill", "status": "stated", "value": "unsure"},
-                                 {"fna_path": "client.smoker", "status": "stated", "value": False}], role="adjudicator")
+    senior = ann(
+        "senior",
+        doc,
+        [
+            {"fna_path": "estate.client.hasWill", "status": "stated", "value": "unsure"},
+            {"fna_path": "client.smoker", "status": "stated", "value": False},
+        ],
+        role="adjudicator",
+    )
     g2 = G.adjudicate(a, b, adjudicator=senior, catalog=CAT)
     idx2 = g2.fact_index()
     assert idx2[("estate.{p}.hasWill", "client")].value.label == "unsure" and not idx2[("estate.{p}.hasWill", "client")].disputed
@@ -109,10 +151,14 @@ def test_agreement_report_and_rewrite_list(sample_fna_json):
     pairs = []
     for i in range(12):
         same = i % 2 == 0
-        fa = [{"fna_path": "retirement.client.retirementAge", "status": "stated", "p10": 60, "p50": 62, "p90": 65},
-              {"fna_path": "income.client.grossMonthly", "status": "stated", "p50": 90_000}]
-        fb = [{"fna_path": "retirement.client.retirementAge", "status": "stated" if same else "implied", "p10": 61, "p50": 63, "p90": 66},
-              {"fna_path": "income.client.grossMonthly", "status": "stated", "p50": 90_000}]
+        fa = [
+            {"fna_path": "retirement.client.retirementAge", "status": "stated", "p10": 60, "p50": 62, "p90": 65},
+            {"fna_path": "income.client.grossMonthly", "status": "stated", "p50": 90_000},
+        ]
+        fb = [
+            {"fna_path": "retirement.client.retirementAge", "status": "stated" if same else "implied", "p10": 61, "p50": 63, "p90": 66},
+            {"fna_path": "income.client.grossMonthly", "status": "stated", "p50": 90_000},
+        ]
         if i < 6:
             fa.append({"fna_path": "client.smoker", "status": "stated", "value": False})
             fb.append({"fna_path": "client.smoker", "status": "stated", "value": False})
@@ -128,11 +174,17 @@ def test_agreement_report_and_rewrite_list(sample_fna_json):
 
 
 def test_default_note_facts():
-    g = G.GoldCall(call_id="c", anchor_date=ANCHOR, facts=[
-        G.GoldFact(slot_id="retirement.{p}.retirementAge", instance_key="client", status="stated", value=G.GoldValue(kind="numeric", p50=65)),
-        G.GoldFact(slot_id="{p}.smoker", instance_key="client", status="stated", value=G.GoldValue(kind="boolean", label="false")),
-        G.GoldFact(slot_id="household.maritalStatus", status="not_discussed"),
-    ])
+    g = G.GoldCall(
+        call_id="c",
+        anchor_date=ANCHOR,
+        facts=[
+            G.GoldFact(
+                slot_id="retirement.{p}.retirementAge", instance_key="client", status="stated", value=G.GoldValue(kind="numeric", p50=65)
+            ),
+            G.GoldFact(slot_id="{p}.smoker", instance_key="client", status="stated", value=G.GoldValue(kind="boolean", label="false")),
+            G.GoldFact(slot_id="household.maritalStatus", status="not_discussed"),
+        ],
+    )
     assert [f.slot_id for f in G.default_note_facts(g, CAT)] == ["retirement.{p}.retirementAge"]
     g2 = g.model_copy(update={"note_fact_ids": ["{p}.smoker#client"]})
     assert [f.slot_id for f in G.default_note_facts(g2, CAT)] == ["{p}.smoker"]

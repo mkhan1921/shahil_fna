@@ -34,7 +34,10 @@ def tasks_for(profile):
         slot = CAT.slot(f.slot_id)
         by_group[slot.group][0].add(slot.slot_id)
         by_group[slot.group][1].add(f.instance_key)
-    return [ExtractionTask(task_id=f"t-{g}", slot_group=g, slot_ids=sorted(s), instance_keys=sorted(i, key=lambda x: x or "")) for g, (s, i) in by_group.items()]
+    return [
+        ExtractionTask(task_id=f"t-{g}", slot_group=g, slot_ids=sorted(s), instance_keys=sorted(i, key=lambda x: x or ""))
+        for g, (s, i) in by_group.items()
+    ]
 
 
 @pytest.fixture(scope="module")
@@ -51,16 +54,40 @@ def reviewed_calls():
         specs.append(("RETRACT", call_facts[0], None, {"reason": "misheard"}, "reviewer"))
         f1 = prof.facts[call_facts[1]]
         if f1.value is not None and f1.value.unit == "ZAR":
-            specs.append(("UPDATE", call_facts[1], None, {"replace_hypotheses": [Hypothesis(value=Quantity(dist=Triangular(low=1000, mode=2000, high=3000), unit="ZAR",
-                                                                                                                  period=f1.value.period), weight=1, rationale="edit")],
-                                                          "review": {"status": "edited", "reviewer_id": "adv"}}, "reviewer"))
+            specs.append(
+                (
+                    "UPDATE",
+                    call_facts[1],
+                    None,
+                    {
+                        "replace_hypotheses": [
+                            Hypothesis(
+                                value=Quantity(dist=Triangular(low=1000, mode=2000, high=3000), unit="ZAR", period=f1.value.period),
+                                weight=1,
+                                rationale="edit",
+                            )
+                        ],
+                        "review": {"status": "edited", "reviewer_id": "adv"},
+                    },
+                    "reviewer",
+                )
+            )
         else:
             specs.append(("CONFIRM", call_facts[1], None, {"review": {"status": "accepted"}}, "reviewer"))
         prof = apply_state_ops(prof, make_ops(prof, specs)).profile
-        out.append(FT.ReviewedCall(call_id=c.call_id, client_id=f"client-{i // 2}", profile=prof, tasks=tasks_for(prof), transcript=c.transcript(),
-                                   is_gold=i % 3 == 0, heldout=i == 11, disputed_fact_ids=[call_facts[3]] if i == 4 else []))
+        out.append(
+            FT.ReviewedCall(
+                call_id=c.call_id,
+                client_id=f"client-{i // 2}",
+                profile=prof,
+                tasks=tasks_for(prof),
+                transcript=c.transcript(),
+                is_gold=i % 3 == 0,
+                heldout=i == 11,
+                disputed_fact_ids=[call_facts[3]] if i == 4 else [],
+            )
+        )
     return out
-
 
 
 def render(call, task, stage):
@@ -102,7 +129,12 @@ def test_targets_teach_not_discussed_and_carry_edits(reviewed_calls):
         f = edited[0]
         task = next(t for t in call.tasks if CAT.slot(f.slot_id).slot_id in t.slot_ids)
         v = next(v for v in FT.stage_targets(call, task)["values"] if v["fna_path"] == f.fna_path)
-        assert v["hypotheses"][0]["intermediate"] == {**v["hypotheses"][0]["intermediate"], "type": "AMOUNT_RANGE", "low": 1000, "high": 3000}
+        assert v["hypotheses"][0]["intermediate"] == {
+            **v["hypotheses"][0]["intermediate"],
+            "type": "AMOUNT_RANGE",
+            "low": 1000,
+            "high": 3000,
+        }
         assert v["said"]  # evidence quotes travel with the target
         break
     else:
@@ -110,15 +142,17 @@ def test_targets_teach_not_discussed_and_carry_edits(reviewed_calls):
 
 
 def test_form_from_quantity_round_trips_through_the_form_models():
-    cases = [("income.{p}.grossMonthly", Quantity(dist=Point(value=45000), unit="ZAR", period="monthly"), "AMOUNT_EXACT"),
-             ("retirement.{p}.retirementAge", Quantity(dist=Triangular(low=60, mode=62, high=65), unit="age"), "AGE"),
-             ("{p}.dateOfBirth", Quantity(dist=Point(value="1986-04-12"), unit="date"), "DATE_ABS"),
-             ("goals[].targetYear", Quantity(dist=Point(value=2029), unit="date"), "DATE_ABS"),
-             ("liabilities[].interestRate", Quantity(dist=Point(value=0.1175), unit="pct"), "RATE"),
-             ("{p}.smoker", Quantity(dist=Point(value=False), unit="none"), "BOOLEAN"),
-             ("estate.{p}.hasWill", Quantity(dist=Point(value="yes"), unit="none"), "CATEGORY"),
-             ("dependants[].tertiaryYears", Quantity(dist=Point(value=4), unit="years"), "DURATION_FROM_ANCHOR"),
-             ("{p}.occupation", Quantity(dist=Point(value="teacher"), unit="none"), "TEXT")]
+    cases = [
+        ("income.{p}.grossMonthly", Quantity(dist=Point(value=45000), unit="ZAR", period="monthly"), "AMOUNT_EXACT"),
+        ("retirement.{p}.retirementAge", Quantity(dist=Triangular(low=60, mode=62, high=65), unit="age"), "AGE"),
+        ("{p}.dateOfBirth", Quantity(dist=Point(value="1986-04-12"), unit="date"), "DATE_ABS"),
+        ("goals[].targetYear", Quantity(dist=Point(value=2029), unit="date"), "DATE_ABS"),
+        ("liabilities[].interestRate", Quantity(dist=Point(value=0.1175), unit="pct"), "RATE"),
+        ("{p}.smoker", Quantity(dist=Point(value=False), unit="none"), "BOOLEAN"),
+        ("estate.{p}.hasWill", Quantity(dist=Point(value="yes"), unit="none"), "CATEGORY"),
+        ("dependants[].tertiaryYears", Quantity(dist=Point(value=4), unit="years"), "DURATION_FROM_ANCHOR"),
+        ("{p}.occupation", Quantity(dist=Point(value="teacher"), unit="none"), "TEXT"),
+    ]
     for slot_id, q, kind in cases:
         form = FT.form_from_quantity(CAT.slot(slot_id), q)
         assert form["type"] == kind and FORM_TYPES[kind].model_validate(form)
@@ -196,19 +230,58 @@ class FakeBackend:
         comps = next(v for k, v in self.completions.items() if k in text)
         w = np.exp([self.logits[c] for c in comps])
         idx = self.rng.choice(len(comps), size=num_samples, p=w / w.sum())
-        return Fut(SimpleNamespace(sequences=[SimpleNamespace(tokens=Tok().encode(comps[i]), logprobs=[-0.5] * len(comps[i].encode())) for i in idx]))
+        return Fut(
+            SimpleNamespace(
+                sequences=[SimpleNamespace(tokens=Tok().encode(comps[i]), logprobs=[-0.5] * len(comps[i].encode())) for i in idx]
+            )
+        )
 
     def compute_logprobs(self, prompt):
         return Fut([None] + [-0.6] * (len(prompt.to_ints()) - 1))
 
 
-GOOD = json.dumps({"facts": [{"slot_id": "retirement.{p}.retirementAge", "instance_key": "client", "status": "stated", "value": 65, "quote": "retire at 65",
-                              "segment_id": "s1", "self_score": 0.9}]})
-INVENTED = json.dumps({"facts": [{"slot_id": "retirement.{p}.retirementAge", "instance_key": "client", "status": "stated", "value": 65, "quote": "retire at 65",
-                                  "segment_id": "s1", "self_score": 0.9},
-                                 {"slot_id": "estate.{p}.hasWill", "instance_key": "client", "status": "stated", "value": "yes", "quote": "a will",
-                                  "segment_id": "s1", "self_score": 0.9}]})
-DODGE = json.dumps({"facts": [{"slot_id": "retirement.{p}.retirementAge", "instance_key": "client", "status": "not_discussed", "value": None}]})
+GOOD = json.dumps(
+    {
+        "facts": [
+            {
+                "slot_id": "retirement.{p}.retirementAge",
+                "instance_key": "client",
+                "status": "stated",
+                "value": 65,
+                "quote": "retire at 65",
+                "segment_id": "s1",
+                "self_score": 0.9,
+            }
+        ]
+    }
+)
+INVENTED = json.dumps(
+    {
+        "facts": [
+            {
+                "slot_id": "retirement.{p}.retirementAge",
+                "instance_key": "client",
+                "status": "stated",
+                "value": 65,
+                "quote": "retire at 65",
+                "segment_id": "s1",
+                "self_score": 0.9,
+            },
+            {
+                "slot_id": "estate.{p}.hasWill",
+                "instance_key": "client",
+                "status": "stated",
+                "value": "yes",
+                "quote": "a will",
+                "segment_id": "s1",
+                "self_score": 0.9,
+            },
+        ]
+    }
+)
+DODGE = json.dumps(
+    {"facts": [{"slot_id": "retirement.{p}.retirementAge", "instance_key": "client", "status": "not_discussed", "value": None}]}
+)
 
 
 def postprocess(text, prompt):
@@ -219,25 +292,46 @@ def postprocess(text, prompt):
     out = []
     for f in facts:
         unit = "age" if f["slot_id"].startswith("retirement") else "none"
-        out.append(RolloutFact(slot_id=f["slot_id"], instance_key=f["instance_key"], status=f["status"],
-                               value=None if f.get("value") is None else Quantity(dist=Point(value=f["value"]), unit=unit),
-                               quotes=[(f["segment_id"], f["quote"])] if f.get("quote") else [], self_score=f.get("self_score")))
+        out.append(
+            RolloutFact(
+                slot_id=f["slot_id"],
+                instance_key=f["instance_key"],
+                status=f["status"],
+                value=None if f.get("value") is None else Quantity(dist=Point(value=f["value"]), unit=unit),
+                quotes=[(f["segment_id"], f["quote"])] if f.get("quote") else [],
+                self_score=f.get("self_score"),
+            )
+        )
     return out
 
 
 def rl_prompt(pid="p1", call_id="c1"):
-    return FT.RLPrompt(prompt_id=pid, call_id=call_id, group="retirement", messages=[{"role": "user", "content": f"extract retirement {pid}"}],
-                       reviewed=[GoldFact(slot_id="retirement.{p}.retirementAge", instance_key="client", status="stated",
-                                          value=GoldValue(kind="numeric", p50=65))],
-                       segments={"s1": "I want to retire at 65"})
+    return FT.RLPrompt(
+        prompt_id=pid,
+        call_id=call_id,
+        group="retirement",
+        messages=[{"role": "user", "content": f"extract retirement {pid}"}],
+        reviewed=[
+            GoldFact(
+                slot_id="retirement.{p}.retirementAge", instance_key="client", status="stated", value=GoldValue(kind="numeric", p50=65)
+            )
+        ],
+        segments={"s1": "I want to retire at 65"},
+    )
 
 
 def test_grpo_loop_improves_reward_on_a_fake_backend():
     backend = FakeBackend({"extract retirement p1": [GOOD, INVENTED, DODGE], "extract retirement p2": [GOOD, INVENTED, DODGE]})
     cfg = FT.GRPOConfig(steps=12, prompts_per_step=2, group_size=8, learning_rate=1e-5, kl_coef=0.01, seed=3)
     seen = []
-    res = FT.grpo_train([rl_prompt("p1"), rl_prompt("p2", "c2")], training_client=backend, reference_client=backend, postprocess=postprocess,
-                        config=cfg, on_step=seen.append)
+    res = FT.grpo_train(
+        [rl_prompt("p1"), rl_prompt("p2", "c2")],
+        training_client=backend,
+        reference_client=backend,
+        postprocess=postprocess,
+        config=cfg,
+        on_step=seen.append,
+    )
     assert len(res.steps) == 12 and seen == res.steps
     first, last = res.steps[0].mean_reward, np.mean([m.mean_reward for m in res.steps[-3:]])
     assert last > first  # probability moved to the grounded, honest completion
@@ -254,7 +348,9 @@ def test_grpo_loop_improves_reward_on_a_fake_backend():
 
 def test_groups_without_signal_are_skipped():
     backend = FakeBackend({"extract retirement p1": [GOOD]})
-    res = FT.grpo_train([rl_prompt()], training_client=backend, reference_client=backend, postprocess=postprocess, config=FT.GRPOConfig(steps=2))
+    res = FT.grpo_train(
+        [rl_prompt()], training_client=backend, reference_client=backend, postprocess=postprocess, config=FT.GRPOConfig(steps=2)
+    )
     assert all(m.groups_with_signal == 0 and m.checkpoint == "" for m in res.steps) and not backend.batches
 
 
