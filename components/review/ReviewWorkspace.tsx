@@ -35,13 +35,14 @@ import { useReviewSession, type ReviewHandle, type SyncState } from './useReview
 
 type Dialog = 'followups' | 'transcript' | 'add' | 'submit';
 
-function HeaderButton({ icon, label, onClick, title, disabled }: { icon: ReactNode; label: ReactNode; onClick: () => void; title?: string; disabled?: boolean }) {
+function HeaderButton({ icon, label, onClick, title, disabled }: { icon: ReactNode; label: ReactNode; onClick: () => void; title: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       tabIndex={-1}
       onClick={onClick}
       title={title}
+      aria-label={title}
       disabled={disabled}
       className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-ink-2 hover:bg-wash disabled:opacity-50"
     >
@@ -434,7 +435,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
           Submitted
         </Button>
       ) : (
-        <Button size="sm" variant="primary" icon={<Send size={14} />} disabled={!submittable} onClick={() => setDialog('submit')} title={submitTitle} tabIndex={-1}>
+        <Button size="sm" variant="primary" icon={<Send size={14} />} disabled={!submittable} onClick={() => setDialog('submit')} title={submitTitle}>
           Submit{flags.length ? <span className="tabular"> · {flags.length} open</span> : null}
         </Button>
       )}

@@ -3,7 +3,8 @@
  * where to start the recording for a quote, and the amount readings behind a quote (§3.1, §5.3).
  */
 import type { FnaDocument } from '../fna/types';
-import type { Evidence, EvidenceRole, NumericSpan, Segment, SpeakerRole, Transcript, Word } from './types';
+import { formatIn, pyG, pyGrouped } from './dist';
+import type { Evidence, EvidenceRole, NumericSpan, Reading, Segment, SpeakerRole, Transcript, Word } from './types';
 
 /** Audio starts this long before a quote, so the listener hears it in context (§11.1). */
 export const AUDIO_LEAD_SECONDS = 2;
@@ -73,6 +74,13 @@ export const readingsFor = (t: Transcript, e: Evidence): NumericSpan[] => {
     if (n.segment_id !== e.segment_id || !offs[n.word_start] || !offs[n.word_end - 1]) return false;
     return offs[n.word_end - 1].end > e.char_start && offs[n.word_start].start < e.char_end;
   });
+};
+
+/** A grammar reading as the overlay writes amounts: "R1,850,000", "11.5%", "Allan Gray". */
+export const readingText = (r: Pick<Reading, 'value' | 'currency' | 'is_rate'>): string => {
+  if (typeof r.value !== 'number') return String(r.value);
+  if (r.is_rate) return `${pyG(r.value)}%`;
+  return r.currency ? formatIn({ unit: 'ZAR' }, r.value) : pyGrouped(r.value);
 };
 
 /** Who is speaking, by name where the file knows it. */

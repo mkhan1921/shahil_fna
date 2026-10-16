@@ -31,7 +31,7 @@ const renderSheet = (s: ReviewSession) => {
     openAt: () => undefined,
   };
   const props: SectionProps = { doc: s.working, update: () => undefined, analysis: analyse(s.working, ANCHOR), practice: defaultPractice() };
-  const html = renderToStaticMarkup(createElement(OverlayProvider, { value: overlay }, ...SECTIONS.map((S, i) => createElement(S, { ...props, key: i }))));
+  const html = renderToStaticMarkup(createElement(OverlayProvider, { value: overlay, children: SECTIONS.map((S, i) => createElement(S, { ...props, key: i })) }));
   return { html, asked };
 };
 

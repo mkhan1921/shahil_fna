@@ -19,7 +19,7 @@ import { REJECT_REASONS, type RejectReason } from '@/lib/review/ops';
 import { IDENTITY_FIELD, isListContainer, parsePath } from '@/lib/review/paths';
 import { pBand } from '@/lib/review/queue';
 import { applyAction, isDecided, isUsable, type ReviewAction, type ReviewFact, type ReviewSession } from '@/lib/review/session';
-import { clock, readingsFor, speakerName } from '@/lib/review/transcript';
+import { clock, readingText, readingsFor, speakerName } from '@/lib/review/transcript';
 import type { Attribution, FactStatus } from '@/lib/review/types';
 import { toEditor } from '@/lib/review/values';
 import { Badge, Button, StatusPill, cx } from '../ui';
@@ -272,8 +272,8 @@ export default function FieldPopover({
                     </button>
                     {readings.map((n) => (
                       <p key={n.span_id} className="ml-1.5 text-[11px] text-muted">
-                        “{n.surface}” could be {n.readings.map((r) => `${typeof r.value === 'number' ? money(r.value) : r.value} (${pyPercent(r.weight)})`).join(' or ')}
-                        {n.second_pass_reading && `; re-listening heard ${typeof n.second_pass_reading.value === 'number' ? money(n.second_pass_reading.value) : n.second_pass_reading.value}`}
+                        “{n.surface}” could be {n.readings.map((r) => `${readingText(r)} (${pyPercent(r.weight)})`).join(' or ')}
+                        {n.second_pass_reading && `; re-listening heard ${readingText(n.second_pass_reading)}`}
                       </p>
                     ))}
                   </li>
