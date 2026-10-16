@@ -679,7 +679,7 @@ export const computeEstate = (
       sum(deemedPolicies.filter((p) => p.beneficiary === 'spouse'), (p) => p.cover)
     : 0;
   const spouseDeduction = Math.min(netEstate, toSpouse);
-  // s4A: the surviving spouse can use the predeceased spouse's unused abatement (total max 2 × R3.5m).
+  // s4A: the surviving spouse can use the predeceased spouse's unused abatement (at most twice the abatement in total).
   const abatement = table.estateDuty.abatement + Math.min(Math.max(0, profile.portedAbatement), table.estateDuty.abatement);
   const dutiable = Math.max(0, netEstate - spouseDeduction - abatement);
   const duty = estateDuty(dutiable, table);
