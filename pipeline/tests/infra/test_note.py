@@ -178,3 +178,37 @@ async def test_note_writes_the_narrative_fields_into_the_document():
     assert doc.engagement.clientObjectives.startswith("Retire comfortably")
     assert doc.advice.summary and "62" in doc.advice.summary
     assert doc.engagement.reasonForAdvice == sample_document().engagement.reasonForAdvice  # no such sentences: left as is
+
+
+def test_yes_no_and_option_values_keep_their_odds_in_the_note():
+    """'75% likely' and 'yes (75%), unsure (25%)' cite the value's own probabilities, not stray numbers (§11.6)."""
+    from advisor_intel.models.dists import Bernoulli, Categorical
+    from advisor_intel.models.facts import Provenance
+    from advisor_intel.note.note import template_sentences
+    from advisor_intel.schema.slots import load_catalog
+
+    from .factories import evidence
+
+    p = seeded_profile()
+    prov = Provenance(run_id=p.run_id, schema_version=p.schema_version)
+    specs = [
+        ("ADD", "{p}.smoker#client", "s0004", {"slot_id": "{p}.smoker", "instance_key": "client", "fna_path": "client.smoker", "status": "stated",
+                                              "hypotheses": [Hypothesis(value=Quantity(dist=Bernoulli(p=0.03), unit="none"), weight=1.0, rationale="")],
+                                              "evidence": [evidence("s0004", "No, neither of us", t=40.0)], "provenance": prov}, "extractor"),
+        ("ADD", "estate.{p}.hasWill#client", "s0004", {"slot_id": "estate.{p}.hasWill", "instance_key": "client", "fna_path": "estate.client.hasWill",
+                                                      "status": "stated",
+                                                      "hypotheses": [Hypothesis(value=Quantity(dist=Categorical(probs={"yes": 0.75, "unsure": 0.25}), unit="none"),
+                                                                                weight=1.0, rationale="")],
+                                                      "evidence": [evidence("s0004", "We did wills years ago, I think", t=41.0)], "provenance": prov}, "extractor"),
+    ]
+    r = apply_state_ops(p, make_ops(p, specs))
+    assert not r.rejected, r.rejected
+    p = r.profile
+    sentences = template_sentences([p.facts["{p}.smoker#client"], p.facts["estate.{p}.hasWill#client"]], p, load_catalog())
+    texts = " ".join(s.text for s in sentences)
+    assert "3% likely" in texts and "yes (75%), unsure (25%)" in texts
+    kept, removed = validate(sentences, p)
+    assert not removed and len(kept) == 2
+    # A made-up percentage is still caught.
+    bad = NoteSentence(section="summary", text="The will is 60% likely.", fact_ids=["estate.{p}.hasWill#client"])
+    assert check_sentence(bad, p) == ("number_mismatch", "60%")

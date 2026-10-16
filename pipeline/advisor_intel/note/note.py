@@ -279,6 +279,19 @@ def _dist_numbers(q: Any) -> list[float]:
     return vals
 
 
+def _probability_numbers(q: Any) -> list[float]:
+    """How likely a yes/no or option value is, as a fraction and a percentage ("75% likely", "yes (75%), unsure (25%)")."""
+    if q is None or isinstance(q.dist, Point):
+        return []
+    probs: list[float] = []
+    if stats.is_boolean(q.dist):
+        p = stats.p_true(q.dist)
+        probs += [p, 1.0 - p]
+    elif stats.is_categorical(q.dist):
+        probs += list(stats.categorical_probs(q.dist).values())
+    return [x for p in probs for x in (p, round(p * 100))]
+
+
 def allowed_numbers(f: Fact) -> list[float]:
     """Every number a sentence citing ``f`` may state, in the forms a reader would expect."""
     base: list[float] = []
@@ -287,6 +300,8 @@ def allowed_numbers(f: Fact) -> list[float]:
         if q is not None and q.unit == "date":
             base.extend(float(math.floor(x)) for x in _dist_numbers(q))
     out = list(base)
+    for q in [f.value, f.prior_value, *(h.value for h in f.hypotheses)]:
+        out.extend(_probability_numbers(q))
     unit = f.value.unit if f.value is not None else None
     period = f.value.period if f.value is not None else None
     if unit == "pct":
