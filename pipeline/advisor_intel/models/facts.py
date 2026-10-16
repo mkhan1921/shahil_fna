@@ -91,7 +91,7 @@ class Fact(BaseModel):
     field_retries: int = 0
     reopened_by_coverage: bool = False
     review_priority: float = 0.0  # VOI score (§10)
-    voi: dict[str, float] = {}  # I_content, I_extract, I_fna, forced
+    voi: dict[str, float | str] = {}  # I_content, I_extract, I_fna, forced, and the advisor's "why_text" line (§10.3)
     auto_accepted: bool = False  # passed conformal filter
     review: ReviewState = ReviewState()
     provenance: Provenance

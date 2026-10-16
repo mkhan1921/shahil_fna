@@ -84,6 +84,16 @@ def make_lookup_term(glossary_store: Any = None, *, web_search: Any = None, allo
 def _wired(*, glossary_store: Any = None, web_search: Any = None) -> dict[str, Any]:
     """Verification, constraints, sensitivity, follow-ups and term lookup, when their modules exist."""
     out: dict[str, Any] = {}
+    verify = _optional("advisor_intel.verify.services")
+    if verify is not None:  # consistency probes from extract.probes, bound to the run (§9.1)
+        out["verify"] = verify.verify_service()
+        out["constraints"] = verify.constraints_service()
+    voi = _optional("advisor_intel.voi.services")
+    if voi is not None:  # PoS view from the forecast's reduced runs, FNA view from the deterministic engine (§10.2)
+        analyse = getattr(_optional("advisor_intel.fna_engine.analysis"), "analyse", None)
+        pos_runs = getattr(_optional("advisor_intel.forecast.sensitivity"), "sensitivity_runs", None)
+        out["sensitivity"] = voi.sensitivity_service(pos_runs=pos_runs, analyse=analyse)
+        out["followups"] = voi.followups_service(pos_runs=pos_runs, analyse=analyse)
     if _optional("advisor_intel.lexicon.glossary") is not None:
         out["lookup_term"] = make_lookup_term(glossary_store, web_search=web_search)
     return out
