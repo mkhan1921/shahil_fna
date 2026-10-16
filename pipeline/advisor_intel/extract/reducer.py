@@ -350,7 +350,7 @@ def _apply_one(facts: dict[str, Fact], op: StateOp) -> str | None:
         assert isinstance(payload, UpdatePayload)
         updates = {}
         if payload.replace_hypotheses is not None:
-            if f.value is not None and f.review.original_value is None:
+            if op.actor == "reviewer" and f.value is not None and f.review.original_value is None:
                 updates["review"] = f.review.model_copy(update={"original_value": f.value})
             hyps = list(payload.replace_hypotheses)
         else:
