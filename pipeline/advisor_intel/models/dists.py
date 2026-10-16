@@ -136,7 +136,9 @@ Dist = Annotated[
 ]
 Mixture.model_rebuild()
 
-Unit = Literal["ZAR", "USD", "GBP", "EUR", "years", "age", "pct", "count", "date", "none"]
+# "pct" holds a rate as a decimal (0.115 for 11.5%), as the FnaDocument stores it; "months" is a duration
+# in months (policy waiting periods); calendar years and uncertain dates are decimal years in "date".
+Unit = Literal["ZAR", "USD", "GBP", "EUR", "years", "months", "age", "pct", "count", "date", "none"]
 Period = Literal["once", "monthly", "annual", "none"]
 Basis = Literal["gross", "net", "unknown", "na"]
 RealOrNominal = Literal["real", "nominal", "na"]
