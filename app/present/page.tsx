@@ -323,14 +323,14 @@ function PresentView() {
         ) : (
           <button type="button" className="pv-foot-row" onClick={() => go('plan')} title="Turn to the plan">
             <span>
-              <span className="pv-muted">The plan </span>
               {cost > 0.5 ? (
                 <>
+                  <span className="pv-muted">The plan </span>
                   <b>{money(cost)}</b>
                   <span className="pv-muted"> a month · </span>
                 </>
               ) : (
-                <span className="pv-muted">{summary.unquoted > 0 ? 'with premiums to be quoted · ' : '· '}</span>
+                <span className="pv-muted">{summary.unquoted > 0 ? 'The plan: premiums to be quoted · ' : 'The plan adds no monthly cost · '}</span>
               )}
               {summary.surplusPlan >= -0.5 ? (
                 <>

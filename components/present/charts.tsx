@@ -153,6 +153,8 @@ interface TipState {
   x: number;
   y: number;
   w: number;
+  /** Near the top of the screen the slip opens below the pointer, clear of the bar. */
+  below: boolean;
   content: ReactNode;
 }
 
@@ -176,7 +178,7 @@ function useTip() {
   useTouchAway(ref, !!tip, hide);
   const show = (e: PointerEvent, content: ReactNode) => {
     const box = ref.current?.getBoundingClientRect();
-    if (box) setTip({ x: e.clientX - box.left, y: e.clientY - box.top, w: box.width, content });
+    if (box) setTip({ x: e.clientX - box.left, y: e.clientY - box.top, w: box.width, below: e.clientY < 300, content });
   };
   const leave = (e: PointerEvent) => e.pointerType !== 'touch' && hide();
   return { ref, tip, show, hide, leave };
@@ -187,7 +189,7 @@ function Slip({ tip }: { tip: TipState | null }) {
   if (!tip) return null;
   const left = clamp(tip.x, 110, Math.max(110, tip.w - 110));
   return (
-    <div role="tooltip" className="pv-tip" style={{ left, top: tip.y, transform: 'translate(-50%, calc(-100% - 16px))' }}>
+    <div role="tooltip" className="pv-tip" style={{ left, top: tip.y, transform: tip.below ? 'translate(-50%, 22px)' : 'translate(-50%, calc(-100% - 16px))' }}>
       {tip.content}
     </div>
   );
