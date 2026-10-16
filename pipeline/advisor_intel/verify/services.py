@@ -13,7 +13,8 @@ verify what the agent left unverified or changed since, the omission check with 
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from .. import llm
 from ..config import Settings
@@ -115,17 +116,20 @@ async def verify_after_agent(
     """Stage 5 after the orchestrator (§9): the remaining checks, the omission check, then scoring.
 
     ``reextract`` and ``reopen`` default to the extraction stage's probes bound to this run (each skipped
-    when its role is a stub). ``calibrator`` defaults to the cold-start identity; without ``conformal``
-    thresholds nothing is auto-accepted.
+    when its role is a stub). They read the profile through a live cell that ``verify_stage`` updates after
+    every change, so a field the omission check reopens is extracted against the profile as it stands then
+    (after the verifier's retractions and earlier reopenings), not the one this function was given.
+    ``calibrator`` defaults to the cold-start identity; without ``conformal`` thresholds nothing is auto-accepted.
     """
+    live: dict[str, Profile] = {"profile": profile}
     if (reextract is None and probes_run(pins, "reextract")) or (reopen is None and probes_run(pins, "reopen")):
         from ..extract.probes import make_reextract, make_reopen
 
         ctx = _probe_context(catalog=catalog, transcript=transcript, discourse=discourse, pins=pins, run_id=run_id)
         if reextract is None and probes_run(pins, "reextract"):
-            reextract = make_reextract(ctx, lambda: profile)
+            reextract = make_reextract(ctx, lambda: live["profile"])
         if reopen is None and probes_run(pins, "reopen"):
-            reopen = make_reopen(ctx, lambda: profile)
+            reopen = make_reopen(ctx, lambda: live["profile"])
     return await verify_stage(
         profile,
         transcript=transcript,
@@ -138,4 +142,5 @@ async def verify_after_agent(
         settings=settings,
         minicheck=minicheck,
         discourse=discourse,
+        on_profile=lambda p: live.__setitem__("profile", p),
     )

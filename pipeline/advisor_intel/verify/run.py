@@ -17,7 +17,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from typing import Any, Sequence
+import logging
+from collections.abc import Callable, Sequence
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -38,13 +40,18 @@ from .entailment import EntailmentResult, FactEntailment, check_entailment, corr
 from .features import EvidenceIndex, features, to_storable
 from .minicheck import GroundingScorer
 
+log = logging.getLogger(__name__)
+
 EXTRACTED_SOURCES = frozenset({"call", "derived", "followup"})
 TRUSTED_SOURCES = frozenset({"prior_fna", "crm", "fna_default", "reviewer"})
 QUALITY_CAP = 0.9  # §5.5: a call failing the ASR quality checks caps p_correct (and so auto-accept)
+# Entailment "errors" that mean there was nothing to check (a fact without a value or without transcript evidence):
+# the fact counts as checked in its current form, unlike a provider failure, which is retried on the next pass.
+NOTHING_TO_CHECK = frozenset({"no claims", "no evidence segments in the transcript"})
 
 __all__ = [
-    "VerifyResult",
     "Stage5Result",
+    "VerifyResult",
     "check_coverage",
     "fingerprint",
     "needs_verification",
@@ -70,7 +77,8 @@ class VerifyResult(BaseModel):
     ops: list[StateOp] = []  # the verifier's corrective ops that the reducer applied
     rejected: list[RejectedOp] = []
     results: dict[str, dict[str, Any]] = {}  # fact id → a compact summary for the orchestrator
-    usage: dict[str, int] = {}
+    usage: dict[str, int] = {}  # requests, tokens and ``failures`` (verifier calls and probes that failed)
+    errors: list[str] = []  # "fact id: what failed", for facts whose checks did not run because of a failure
 
 
 def _surviving(fe: FactEntailment, retracted: set[int], weights: list[float]) -> FactEntailment:
@@ -126,18 +134,30 @@ async def verify_facts(
         else no_probes(),
     )
     assert isinstance(ent, EntailmentResult)
+    errors: list[str] = []
+    probe_failures = 0
     for fid in ids:
         f = profile.facts[fid]
         ver = dict(f.verification)
         if fid in ent.facts:
-            ver.update(ent.facts[fid].verification())
-            if ent.facts[fid].status != "not_run":  # a check that did not run is retried later
+            fe = ent.facts[fid]
+            ver.update(fe.verification())
+            # A check that failed (provider error, output never validated) is retried on the next pass; one with
+            # nothing to check (no valued hypothesis, no evidence in the transcript) has seen the fact as it is.
+            if fe.status != "not_run" or fe.error in NOTHING_TO_CHECK:
                 ver["checked_fingerprint"] = fingerprint(f)
+            if fe.error and fe.error not in NOTHING_TO_CHECK:
+                errors.append(f"{fid}: entailment {fe.error}")
         if fid in cons:
             ver.update(cons[fid].verification())
+            probe_failures += cons[fid].failures
+            if cons[fid].failures and cons[fid].answered == 0:
+                errors.append(f"{fid}: consistency probes all failed ({cons[fid].error})")
         profile = annotate(profile, fid, verification=ver)
 
-    result = VerifyResult(profile=profile, usage=dict(ent.usage))
+    usage = dict(ent.usage)
+    usage["failures"] = usage.get("failures", 0) + probe_failures
+    result = VerifyResult(profile=profile, usage=usage, errors=errors)
     specs = corrective_ops(profile, ent)
     if specs:
         r = apply_state_ops(profile, make_ops(profile, specs))
@@ -210,6 +230,8 @@ class Stage5Result(BaseModel):
     coverage: CoverageResult | None = None
     reverify: VerifyResult | None = None
     usage: dict[str, int] = {}
+    errors: list[str] = []  # every check that failed to run (never a silent NaN or "absent"): the activity logs these
+    skipped: list[str] = []  # checks that did not run at all in this deployment (a stub verifier, no probes)
 
 
 async def verify_stage(
@@ -226,16 +248,27 @@ async def verify_stage(
     minicheck: GroundingScorer | None = None,
     discourse: DiscourseOutput | None = None,
     fact_ids: Sequence[str] | None = None,
+    on_profile: Callable[[Profile], None] | None = None,
 ) -> Stage5Result:
     """The whole of Stage 5 for one call: verify, omission check, verify what it reopened, then score.
 
     ``fact_ids`` defaults to every extracted fact the checks have not seen in its current form, so after
     the orchestrator (which verifies each slot group as it goes) only new or changed facts are checked again.
+    ``on_profile`` is told the profile after every step that changes it, so ``reextract`` and ``reopen``
+    callables bound to a live view of the run (``verify_after_agent``) read the profile as it now stands.
     """
     catalog = catalog or load_catalog(profile.schema_version)
+
+    def changed(p: Profile) -> Profile:
+        if on_profile is not None:
+            on_profile(p)
+        return p
+
     ids = list(fact_ids) if fact_ids is not None else [fid for fid, f in profile.facts.items() if needs_verification(f)]
     v = await verify_facts(profile, ids, transcript=transcript, pins=pins, catalog=catalog, reextract=reextract, minicheck=minicheck)
-    out = Stage5Result(profile=v.profile, verify=v)
+    out = Stage5Result(profile=changed(v.profile), verify=v, errors=list(v.errors))
+    if reextract is None:
+        out.skipped.append("consistency probes (no re-extraction callable: the small role is a stub)")
     usage = dict(v.usage)
     if reopen is not None:
         c = await check_coverage(
@@ -245,8 +278,12 @@ async def verify_stage(
             catalog=catalog,
             reopen=reopen,
             topic_index=discourse.topic_index if discourse else None,
+            on_profile=on_profile,
         )
         out.coverage, out.profile = c, c.profile
+        out.errors += c.errors
+        if c.skipped:
+            out.skipped.append(f"omission check ({c.skipped})")
         for k2, n in c.usage.items():
             usage[k2] = usage.get(k2, 0) + n
         new = [fid for fid in c.reopened if fid in c.profile.facts]
@@ -254,9 +291,16 @@ async def verify_stage(
             rv = await verify_facts(
                 c.profile, new, transcript=transcript, pins=pins, catalog=catalog, reextract=reextract, minicheck=minicheck
             )
-            out.reverify, out.profile = rv, rv.profile
+            out.reverify, out.profile = rv, changed(rv.profile)
+            out.errors += rv.errors
             for k2, n in rv.usage.items():
                 usage[k2] = usage.get(k2, 0) + n
-    out.profile = score_profile(out.profile, calibrator, conformal, settings, transcript=transcript, catalog=catalog, discourse=discourse)
+    else:
+        out.skipped.append("omission check (no reopen callable: the reasoning role is a stub)")
+    out.profile = changed(
+        score_profile(out.profile, calibrator, conformal, settings, transcript=transcript, catalog=catalog, discourse=discourse)
+    )
     out.usage = usage
+    if out.errors:
+        log.warning("stage 5 on call %s: %d check(s) failed to run: %s", profile.call_id, len(out.errors), "; ".join(out.errors[:5]))
     return out

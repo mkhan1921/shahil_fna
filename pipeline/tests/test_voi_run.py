@@ -9,7 +9,6 @@ import threading
 from datetime import date
 
 from pydantic import BaseModel
-
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
@@ -26,7 +25,7 @@ from advisor_intel.voi.followups import followup_agent
 from advisor_intel.voi.run import run_voi_and_followups
 
 from .conftest import load_fixture
-from .verify_factories import CATALOG, PROV, ev, qty, segment, transcript
+from .verify_factories import CATALOG, PROV, ProfileBuilder, ev, money, qty, segment, transcript
 
 ANCHOR = date(2026, 10, 16)
 
@@ -87,7 +86,7 @@ def _pos_runs(profile, fact_ids, *, n_paths, seed):
 def _drafter():
     def fn(messages, info: AgentInfo):
         prompt = str(messages[-1].parts[-1].content)
-        items = re.findall(r"^- (i\d+): .*Answer forms: ([A-Z_]+)", prompt, flags=re.M)
+        items = re.findall(r"^- (i\d+): .*Answer forms: ([A-Z_]+)", prompt, flags=re.MULTILINE)
         return ModelResponse(
             parts=[
                 TextPart(
@@ -201,3 +200,49 @@ async def test_the_runner_call_binds_today_and_reads_forecast_rows():
     assert seen == {"base_document": doc, "seed": 7, "thread": False, "today": ANCHOR}
     inc = next(r for r in out.sensitivity if r.fact_id == "income.{p}.grossMonthly#client")
     assert round(inc.i_pos, 9) == 0.2 and round(inc.i_extract, 9) == 0.06
+    assert out.errors == []
+
+
+async def test_placeholders_are_scored_as_seeds_and_carry_their_priority():
+    """A field a flag or question names but no fact holds gets a placeholder: scored like every seed (p_correct 1, never
+    auto-accepted) and annotated with its row's priority and why line, so the sidecar does not show a 50% score and a
+    zero priority on a field the review asks about."""
+    b = ProfileBuilder()
+    b.add("income.{p}.grossMonthly", "client", money(45000))  # the only fact: every other tier A field is missing
+    prof = b.build()
+    with followup_agent.override(model=_drafter()):
+        out = await run_voi_and_followups(
+            prof,
+            catalog=CATALOG,
+            pins=VersionPins(),
+            pos_runs=None,
+            analyse=functools.partial(fna_analyse, today=ANCHOR),
+            transcript=None,
+            settings=Settings(),
+            base_document=None,
+        )
+    named = {f.fact_id for f in out.flags if f.fact_id} | {fid for q in out.followups for fid in q.fact_ids}
+    seeds = [f for fid, f in out.profile.facts.items() if fid in named and f.source == "fna_default"]
+    assert seeds and any(f.review_priority > 0 for f in seeds)  # missing tier A fields, ranked by their prior's spread
+    by_id = {it.fact_id: it for it in out.priorities}
+    for f in seeds:
+        assert f.p_correct == 1.0 and f.p_raw == 1.0 and not f.auto_accepted and f.status == "not_discussed" and f.value is None
+        if f.fact_id in by_id:
+            assert f.review_priority == by_id[f.fact_id].priority and f.voi["why_text"] == by_id[f.fact_id].why
+    side = binding.sidecar(out.profile, catalog=CATALOG)
+    assert all(v["p_correct"] == 1.0 for v in side["fields"].values() if v["fact_id"] in {f.fact_id for f in seeds})
+    assert check_profile(out.profile) == []
+
+
+async def test_a_failed_view_is_reported_on_the_output():
+    prof, doc = _profile()
+
+    def broken(profile, fact_ids, **kw):
+        raise RuntimeError("forecast down")
+
+    with followup_agent.override(model=_drafter()):
+        out = await run_voi_and_followups(
+            prof, catalog=CATALOG, pins=VersionPins(), pos_runs=broken, analyse=functools.partial(fna_analyse, today=ANCHOR), base_document=doc
+        )
+    assert out.errors == ["PoS runs failed: RuntimeError: forecast down"]
+    assert all(r.i_pos == 0 for r in out.sensitivity) and any(r.i_fna > 0 for r in out.sensitivity)  # the FNA view still ranked

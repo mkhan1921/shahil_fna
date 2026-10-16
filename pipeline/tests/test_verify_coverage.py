@@ -13,7 +13,7 @@ from advisor_intel.models.facts import Hypothesis
 from advisor_intel.models.profile import StateOp
 from advisor_intel.models.runs import VersionPins
 from advisor_intel.schema.compiler import anthropic_schema, check_limits, schema_stats
-from advisor_intel.verify.coverage import CoverageAnswers, check_coverage, coverage_agent, expected_facts, is_missing
+from advisor_intel.verify.coverage import OFFLINE_SKIP, CoverageAnswers, check_coverage, coverage_agent, expected_facts, is_missing
 
 from .verify_factories import CATALOG, PROV, ProfileBuilder, ev, point, segment, transcript
 
@@ -101,7 +101,7 @@ def _responder(rule):
 
     def fn(messages, info: AgentInfo):
         prompt = str(messages[-1].parts[-1].content)
-        qs = re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.M)
+        qs = re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.MULTILINE)
         batches.append([q for q, _ in qs])
         answers = []
         for qid, line in qs:
@@ -194,6 +194,65 @@ async def test_offline_pins_ask_nothing_of_a_provider():
     p = _household()
     res = await check_coverage(p, transcript=_segments(), pins=VersionPins(), catalog=CATALOG, reopen=_no_reopen)
     assert res.asked and res.answers == {} and res.ops == [] and res.profile == p
+    assert res.skipped == OFFLINE_SKIP and res.errors == [] and res.unanswered == []  # "did not run", not "nothing missing"
+
+
+async def test_a_failed_verifier_batch_is_reported_not_treated_as_absent():
+    p = _household()
+
+    def never_valid(messages, info: AgentInfo):  # answers for question ids that do not exist: the retries run out
+        return ModelResponse(parts=[TextPart(json.dumps({"answers": [{"question_id": "q99", "answer": "absent", "segment_ids": [], "reason": "r"}]}))])
+
+    with coverage_agent.override(model=FunctionModel(never_valid)):
+        res = await check_coverage(p, transcript=_segments(), pins=VersionPins(), catalog=CATALOG, reopen=_no_reopen)
+    expected_missing = {it.fact_id for it in res.expected if is_missing(p, it)}
+    assert res.skipped is None and res.answers == {} and res.profile == p
+    assert res.errors and all(e.startswith("omission check batch not answered") and "UnexpectedModelBehavior" in e for e in res.errors)
+    assert set(res.unanswered) == expected_missing and res.usage["failures"] == len(res.errors)
+
+
+async def test_a_reopen_that_raises_is_reported_and_the_check_carries_on():
+    p = _household()
+    calls = []
+
+    async def reopen(slot_id, instance, segs):
+        calls.append(slot_id)
+        if slot_id == "{p}.dateOfBirth":
+            raise RuntimeError("extractor down")
+        return []
+
+    model, _ = _responder(lambda line: ("present", ["s0002"]) if ("date of birth" in line or "gross salary" in line) else ("absent", []))
+    with coverage_agent.override(model=model):
+        res = await check_coverage(p, transcript=_segments(), pins=VersionPins(), catalog=CATALOG, reopen=reopen)
+    assert "{p}.dateOfBirth" in calls and "income.{p}.grossMonthly" in calls  # the failure did not stop the other reopenings
+    assert any(e.startswith("reopening {p}.dateOfBirth#") and "RuntimeError" in e for e in res.errors)
+    assert "income.{p}.grossMonthly#client" in res.contradicted  # disagreed twice as before
+    assert "{p}.dateOfBirth#client" not in res.contradicted  # a failed reopen is not a disagreement
+    assert check_profile(res.profile) == []
+
+
+async def test_on_profile_sees_every_applied_batch():
+    p = _household()
+    seen: list = []
+
+    async def reopen(slot_id, instance, segs):
+        if slot_id != "retirement.{p}.retirementAge":
+            return []
+        payload = {
+            "slot_id": slot_id,
+            "instance_key": "client",
+            "fna_path": "retirement.client.retirementAge",
+            "status": "stated",
+            "hypotheses": [Hypothesis(value=point(62, "age"), weight=1, rationale="said").model_dump(mode="json")],
+            "evidence": [ev("s0003", "segment number 3").model_dump(mode="json")],
+            "provenance": PROV.model_dump(mode="json"),
+        }
+        return [StateOp(op="ADD", fact_id="retirement.{p}.retirementAge#client", segment_id="s0003", payload=payload, actor="extractor", seq=1)]
+
+    model, _ = _responder(lambda line: ("present", ["s0003"]) if "client's target retirement age" in line else ("absent", []))
+    with coverage_agent.override(model=model):
+        res = await check_coverage(p, transcript=_segments(), pins=VersionPins(), catalog=CATALOG, reopen=reopen, on_profile=seen.append)
+    assert seen and "retirement.{p}.retirementAge#client" in seen[0].facts and seen[-1] is res.profile
 
 
 def test_answer_schema_fits_strict_limits():

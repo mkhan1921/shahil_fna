@@ -57,7 +57,7 @@ def _profile():
 def _verifier(rule):
     def fn(messages, info: AgentInfo):
         prompt = str(messages[-1].parts[-1].content)
-        claims = re.findall(r"^- (c\d+): (.*)$", prompt, flags=re.M)
+        claims = re.findall(r"^- (c\d+): (.*)$", prompt, flags=re.MULTILINE)
         return ModelResponse(
             parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": rule(t), "reason": "r"} for c, t in claims]}))]
         )
@@ -72,8 +72,8 @@ async def _reextract(fact, variant):
 
 
 async def test_verify_facts_annotates_and_applies_corrective_ops():
-    p, ra, inc, bonus, rep, _ = _profile()
-    rule = lambda t: "contradicted" if ("65" in t or "R30,000" in t) else "entailed"  # noqa: E731
+    p, ra, inc, bonus, _rep, _ = _profile()
+    rule = lambda t: "contradicted" if ("65" in t or "R30,000" in t) else "entailed"
     with entailment_agent.override(model=_verifier(rule)):
         res = await verify_facts(
             p,
@@ -154,7 +154,7 @@ def test_hard_constraint_failures_are_never_auto_accepted():
 
 
 async def test_verify_stage_reverifies_what_the_omission_check_reopened():
-    p, ra, inc, bonus, rep, _ = _profile()
+    p, _ra, _inc, _bonus, _rep, _ = _profile()
 
     async def reopen(slot_id, instance, segs):
         if slot_id != "{p}.employmentType":
@@ -172,7 +172,7 @@ async def test_verify_stage_reverifies_what_the_omission_check_reopened():
 
     def answers(messages, info):
         prompt = str(messages[-1].parts[-1].content)
-        qs = re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.M)
+        qs = re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.MULTILINE)
         out = [
             {
                 "question_id": q,
@@ -219,7 +219,7 @@ async def test_after_the_agent_only_new_or_changed_facts_are_verified_again():
     seen: list[list[str]] = []
 
     def fn(messages, info: AgentInfo):
-        seen.append(re.findall(r"^- (c\d+): (.*)$", str(messages[-1].parts[-1].content), flags=re.M))
+        seen.append(re.findall(r"^- (c\d+): (.*)$", str(messages[-1].parts[-1].content), flags=re.MULTILINE))
         return _verifier(lambda t: "entailed").function(messages, info)
 
     with entailment_agent.override(model=FunctionModel(fn)):
@@ -228,3 +228,158 @@ async def test_after_the_agent_only_new_or_changed_facts_are_verified_again():
         )
     assert len(seen) == 3 and set(res.verify.results) == {ra, bonus, rep}  # the income fact was not asked again
     assert not any(needs_verification(f) for f in res.profile.facts.values())
+
+
+def _broken_verifier():
+    """A verifier whose output never names the claims: the retries run out and the check fails."""
+
+    def fn(messages, info: AgentInfo):
+        return ModelResponse(parts=[TextPart(json.dumps({"verdicts": [{"claim_id": "zzz", "verdict": "entailed", "reason": "r"}]}))])
+
+    return FunctionModel(fn)
+
+
+async def test_nothing_to_check_counts_as_checked_but_a_failed_check_is_retried():
+    b = ProfileBuilder()
+    unknown = b.add("income.{p}.annualBonus", "client", None, status="explicitly_unknown", evidence=[])  # no claim to verify
+    valued = b.add("income.{p}.grossMonthly", "client", money(45000), evidence=[ev("s0003", "about forty-five thousand a month")])
+    p = b.build()
+    # a stub verifier: the valued fact's check did not run and stays due; the unknown fact had nothing to check
+    res = await verify_facts(p, [unknown, valued], transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=None)
+    assert not needs_verification(res.profile.facts[unknown]) and res.profile.facts[unknown].verification["entailment"]["error"] == "no claims"
+    assert needs_verification(res.profile.facts[valued]) and res.errors == []
+    # a verifier that fails: the fact is reported, keeps NaN features and is retried on the next pass
+    with entailment_agent.override(model=_broken_verifier()):
+        res = await verify_facts(p, [valued], transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=None)
+    f = res.profile.facts[valued]
+    assert needs_verification(f) and f.verification["entail_score"] is None and f.verification["entailment"]["status"] == "not_run"
+    assert len(res.errors) == 1 and res.errors[0].startswith(f"{valued}: entailment UnexpectedModelBehavior")
+    assert res.usage["failures"] == 1
+
+
+async def test_probe_failures_are_counted_in_the_usage_and_reported_when_nothing_answered():
+    p, ra, inc, *_ = _profile()
+
+    async def flaky(fact, variant):
+        if fact.fact_id == ra:
+            raise RuntimeError("small model down")
+        return ProbeResult(status="stated", value=fact.value)
+
+    with entailment_agent.override(model=_verifier(lambda t: "entailed")):
+        res = await verify_facts(p, [ra, inc], transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=flaky)
+    detail = res.profile.facts[ra].verification["consistency_detail"]
+    assert detail["failures"] == 3 and detail["answered"] == 0 and "RuntimeError" in detail["error"] and "failed" in detail["skipped"]
+    assert res.profile.facts[ra].verification["consistency"] is None
+    assert res.profile.facts[inc].verification["consistency"] == 1.0 and res.profile.facts[inc].verification["consistency_detail"]["failures"] == 0
+    assert res.usage["failures"] == 3 and [e for e in res.errors if e.startswith(ra)] and not [e for e in res.errors if e.startswith(inc)]
+
+
+def _present_for(label, segs):
+    def answers(messages, info):
+        prompt = str(messages[-1].parts[-1].content)
+        qs = re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.MULTILINE)
+        out = [
+            {"question_id": q, "answer": "present" if label in line else "absent", "segment_ids": segs if label in line else [], "reason": "r"}
+            for q, line in qs
+        ]
+        return ModelResponse(parts=[TextPart(json.dumps({"answers": out}))])
+
+    return FunctionModel(answers)
+
+
+def _contradict_once(pattern):
+    """A verifier that contradicts the first claim matching ``pattern`` and entails everything after it, so a field the
+    omission check reopens is not retracted again when it is verified a second time."""
+    hit: list[str] = []
+
+    def rule(t):
+        if pattern in t and not hit:
+            hit.append(t)
+            return "contradicted"
+        return "entailed"
+
+    return _verifier(rule)
+
+
+def _reopen_gross(seen):
+    """A reopen that records its calls and re-adds the client's gross salary."""
+
+    async def reopen(slot_id, instance, segs):
+        if slot_id != "income.{p}.grossMonthly" or instance != "client":
+            return []
+        seen.append(slot_id)
+        payload = {
+            "slot_id": slot_id,
+            "instance_key": "client",
+            "fna_path": "income.client.grossMonthly",
+            "status": "stated",
+            "hypotheses": [Hypothesis(value=money(45000), weight=1, rationale="said").model_dump(mode="json")],
+            "evidence": [ev("s0003", "forty-five thousand").model_dump(mode="json")],
+            "provenance": PROV.model_dump(mode="json"),
+        }
+        return [StateOp(op="ADD", fact_id="income.{p}.grossMonthly#client", segment_id="s0003", payload=payload, actor="extractor", seq=1)]
+
+    return reopen
+
+
+async def test_verify_stage_tells_a_live_view_every_change_and_names_what_did_not_run():
+    p, _ra, inc, bonus, _rep, _ = _profile()
+    live: list = []
+    seen: list = []
+    reopen = _reopen_gross(seen)
+    # the verifier contradicts the salary: the whole fact is retracted (no prior), then the omission check finds it again
+    with (
+        entailment_agent.override(model=_contradict_once("R45,000")),
+        coverage_agent.override(model=_present_for("gross salary", ["s0003"])),
+    ):
+        res = await verify_stage(
+            p,
+            transcript=_t(),
+            pins=VersionPins(),
+            catalog=CATALOG,
+            reextract=None,
+            reopen=reopen,
+            calibrator=None,
+            conformal=None,
+            on_profile=live.append,
+        )
+    assert seen == ["income.{p}.grossMonthly"] and res.coverage is not None and res.coverage.reopened == [inc]
+    # the live view saw the retraction before the omission check reopened the field, and the final scored profile last
+    assert inc not in live[0].facts and bonus in live[0].facts
+    assert live[-1] is res.profile and res.profile.facts[inc].reopened_by_coverage and res.profile.facts[inc].p_correct != 0.5
+    assert res.skipped == ["consistency probes (no re-extraction callable: the small role is a stub)"] and res.errors == []
+    assert check_profile(res.profile) == []
+
+
+async def test_verify_after_agent_binds_the_probes_to_the_live_profile(monkeypatch):
+    """The reopen built from ``extract.probes`` reads the profile as it stands after the verifier's retractions, not the
+    one the stage was given: an ADD for a fact the verifier removed, rather than an UPDATE the reducer would reject."""
+    from advisor_intel.extract import probes
+    from advisor_intel.models.entities import DiscourseOutput
+    from advisor_intel.verify.services import verify_after_agent
+
+    p, _ra, inc, _bonus, _rep, _ = _profile()
+    views: list = []
+
+    def fake_make_reopen(ctx, get_profile):
+        inner = _reopen_gross([])
+
+        async def reopen(slot_id, instance, segs):
+            views.append(get_profile())
+            return await inner(slot_id, instance, segs)
+
+        return reopen
+
+    monkeypatch.setattr(probes, "make_reopen", fake_make_reopen)
+    monkeypatch.setattr(probes, "make_reextract", lambda ctx, get_profile: None)
+    pins = VersionPins(reasoning_model="openai:gpt-4.1-mini")  # a live-looking reasoning pin: the reopen probe is built (never called here)
+    with (
+        entailment_agent.override(model=_contradict_once("R45,000")),
+        coverage_agent.override(model=_present_for("gross salary", ["s0003"])),
+    ):
+        res = await verify_after_agent(
+            p, transcript=_t(), discourse=DiscourseOutput(entities=p.entities), pins=pins, catalog=CATALOG, run_id="wf-1"
+        )
+    assert len(views) >= 1 and inc not in views[0].facts  # the verifier's retraction was visible to the reopen
+    assert res.coverage is not None and res.coverage.reopened == [inc] and res.coverage.rejected == []
+    assert res.profile.facts[inc].status == "stated" and check_profile(res.profile) == []

@@ -15,7 +15,7 @@ from .verify_factories import CATALOG, ProfileBuilder, money, point, qty
 
 
 def _row(fid, slot, **kw):
-    base = dict(fact_id=fid, slot_id=slot, tier=CATALOG.slot(slot).sensitivity_tier, reasons=["tier"])
+    base = {"fact_id": fid, "slot_id": slot, "tier": CATALOG.slot(slot).sensitivity_tier, "reasons": ["tier"]}
     base.update(kw)
     return SensitivityRow(**base)
 
@@ -74,6 +74,16 @@ def test_forced_rules():
     assert v.forced == 0.0 and v.virtual and "not discussed in the call" in v.why
 
 
+def test_why_line_when_the_swing_exceeds_the_whole_need():
+    b = ProfileBuilder()
+    b.entity("liability.car", "liability", "Car finance")
+    bal = b.add("liabilities[].balance", "liability.car", money(150000, "once"))
+    p = b.build()
+    row = _row(bal, "liabilities[].balance", i_fna=4.63, i_content=4.63, top_need="estate:spouse", top_need_change=2_800_000)
+    item = prioritise(p, [row], catalog=CATALOG)[0]
+    assert item.why == "moves the spouse's estate liquidity shortfall by R2.8m (more than the whole need)"
+
+
 def test_collapse_annotation_sidecar_and_review_list():
     b = ProfileBuilder()
     ids = [b.add("income.{p}.annualBonus", "client", money(30000, "annual")), b.add("income.{p}.grossMonthly", "client", money(45000))]
@@ -106,19 +116,19 @@ def test_collapse_annotation_sidecar_and_review_list():
 
 
 def _item(**kw):
-    base = dict(
-        fact_id="x#client",
-        slot_id="retirement.{p}.retirementAge",
-        tier="A",
-        status="stated",
-        p_correct=0.8,
-        i_content=0.0,
-        i_extract=0.0,
-        i_fna=0.0,
-        i_pos=0.0,
-        forced=0.0,
-        priority=0.0,
-    )
+    base = {
+        "fact_id": "x#client",
+        "slot_id": "retirement.{p}.retirementAge",
+        "tier": "A",
+        "status": "stated",
+        "p_correct": 0.8,
+        "i_content": 0.0,
+        "i_extract": 0.0,
+        "i_fna": 0.0,
+        "i_pos": 0.0,
+        "forced": 0.0,
+        "priority": 0.0,
+    }
     base.update(kw)
     return PriorityItem(**base)
 

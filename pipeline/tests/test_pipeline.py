@@ -82,6 +82,13 @@ def test_verification_voi_and_the_forecast_ran(run):
     assert res.forecast is not None and 0.0 <= res.forecast.pos <= 1.0
     assert any(float(f.voi.get("I_pos", 0.0)) > 0 for f in res.profile.facts.values())  # the forecast's sensitivity runs fed VOI
     assert res.analysis and "table" in res.analysis
+    # a placeholder the review asks about is scored like a seed and carries its priority, not the model defaults
+    asked = {fid for q in res.followups for fid in q.fact_ids} & {fid for fid, f in res.profile.facts.items() if f.source == "fna_default"}
+    assert asked and all(res.profile.facts[fid].p_correct == 1.0 and not res.profile.facts[fid].auto_accepted for fid in asked)
+    assert any(res.profile.facts[fid].review_priority > 0 and res.profile.facts[fid].voi.get("why_text") for fid in asked)
+    # checks that did not run on stub roles are named, never silently absent: the omission check and the consistency probes
+    assert any("omission check" in w for w in res.warnings) and any("consistency probes" in w for w in res.warnings)
+    assert not any(w.startswith(("verify: ", "voi: ")) for w in res.warnings)  # nothing failed
 
 
 def test_cli_writes_the_files_the_app_imports(tmp_path, run, monkeypatch):

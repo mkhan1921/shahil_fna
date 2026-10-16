@@ -19,7 +19,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-from typing import Any, Awaitable, Callable, Literal, Sequence
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any, Literal
 
 from pydantic import BaseModel
 from rapidfuzz import fuzz
@@ -53,11 +54,13 @@ class ConsistencyResult(BaseModel):
     kind: Kind
     k: int
     answered: int = 0
+    failures: int = 0  # probes that raised (left out of the score, counted so a dead small model is visible)
     consistency: float | None = None  # None is NaN: tier C, or no probe answered
     value_agreement: float | None = None
     status_agreement: float | None = None
     probes: list[dict[str, Any]] = []
     skipped: str | None = None
+    error: str | None = None  # the last probe failure, when any
 
     def verification(self) -> dict[str, Any]:
         return {
@@ -66,10 +69,12 @@ class ConsistencyResult(BaseModel):
                 "kind": self.kind,
                 "k": self.k,
                 "answered": self.answered,
+                "failures": self.failures,
                 "value_agreement": self.value_agreement,
                 "status_agreement": self.status_agreement,
                 "probes": self.probes,
                 "skipped": self.skipped,
+                "error": self.error,
             },
         }
 
@@ -164,17 +169,24 @@ async def consistency_probe(
     if slot.sensitivity_tier == "C":
         return ConsistencyResult(fact_id=fact.fact_id, kind=value_kind(fact, slot), k=k, skipped="tier C")
     sem = sem or asyncio.Semaphore(k)
+    errors: list[str] = []
 
     async def one(variant: int) -> ProbeResult | None:
         async with sem:
             try:
                 return await reextract(fact, variant)
-            except Exception as e:  # noqa: BLE001 - a failed probe is left out, not fatal
+            except Exception as e:  # noqa: BLE001 - a failed probe is left out, not fatal; the failure is counted
                 log.warning("consistency probe %s/%d failed: %s", fact.fact_id, variant, e)
+                errors.append(f"{type(e).__name__}: {e}")
                 return None
 
     answered = [p for p in await asyncio.gather(*(one(v) for v in range(k))) if p is not None]
-    return score_probes(fact, slot, answered, k)
+    res = score_probes(fact, slot, answered, k)
+    res.failures = len(errors)
+    res.error = errors[-1] if errors else None
+    if errors and not answered:
+        res.skipped = f"no probe answered ({len(errors)} failed)"
+    return res
 
 
 async def run_consistency(

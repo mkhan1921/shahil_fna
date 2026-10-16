@@ -98,5 +98,8 @@ async def test_tier_c_is_nan_and_failed_probes_are_left_out():
     assert res[occ].consistency is None and res[occ].skipped == "tier C"
     assert all(fid != occ for fid, _ in calls)
     assert res[smoker].answered == 2 and res[smoker].consistency == pytest.approx(0.5)
+    assert res[smoker].failures == 1 and res[smoker].error == "RuntimeError: timeout" and res[smoker].skipped is None
     all_fail, _ = _scripted({smoker: [RuntimeError("x")] * 3})
-    assert (await run_consistency(p, [smoker], catalog=CATALOG, reextract=all_fail))[smoker].consistency is None
+    dead = (await run_consistency(p, [smoker], catalog=CATALOG, reextract=all_fail))[smoker]
+    assert dead.consistency is None and dead.failures == 3 and dead.skipped == "no probe answered (3 failed)"
+    assert dead.verification()["consistency_detail"]["failures"] == 3  # the record on the fact says the probes failed, not "no spread"

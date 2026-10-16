@@ -51,6 +51,7 @@ class VoiOutput(BaseModel):
     review_list: list[str] = []  # the top of the review rail
     drafted_by: str = "none"
     usage: dict[str, int] = {}
+    errors: list[str] = []  # a view or the drafting that failed: its terms are 0 (or templates were used) because it did not run
 
 
 def _setting(settings: Settings, name: str, default: Any) -> Any:
@@ -111,6 +112,9 @@ async def run_voi_and_followups(
     profile = annotate_priorities(profile, items)
     decisions = clarify_all(profile, items, threshold=threshold)
     drafted = await draft_followups(profile, decisions, items, catalog=catalog, pins=pins, max_questions=max_q)
+    errors = sorted({r.error for r in rows if r.error})
+    if drafted.error:
+        errors.append(f"follow-up drafting: {drafted.error} (template questions used)")
 
     kept = [q for q in profile.open_questions if q.status in ("asked", "answered")]
     kept_ids = {q.followup_id for q in kept}
@@ -120,7 +124,10 @@ async def run_voi_and_followups(
     fresh = compute_flags(profile, catalog=catalog, transcript=transcript, sensitivity=rows, violations=violations)
     flags = merge_flags(profile.blocking_flags, fresh, profile)
     profile = placeholders(profile, catalog, [f.fact_id for f in flags if f.fact_id] + [fid for q in questions for fid in q.fact_ids])
+    profile = annotate_priorities(profile, items)  # again: the placeholders now carry their rows' priority and why line
     profile = profile.model_copy(update={"open_questions": questions, "blocking_flags": flags})
+    if errors:
+        log.warning("stage 6 on call %s: %s", profile.call_id, "; ".join(errors))
     return VoiOutput(
         profile=profile,
         followups=questions,
@@ -132,6 +139,7 @@ async def run_voi_and_followups(
         review_list=review_list(items, top),
         drafted_by=drafted.drafted_by,
         usage=drafted.usage,
+        errors=errors,
     )
 
 
@@ -140,10 +148,12 @@ def placeholders(profile: Profile, catalog: Catalog, fact_ids: list[str]) -> Pro
 
     The review places every flag and question on its field in the client file (the sidecar's concrete path),
     so a missing tier A field needs a fact there for the adviser to fill in, mark unknown or dismiss. A later
-    statement or reviewer edit replaces the seed like any other.
+    statement or reviewer edit replaces the seed like any other. Like every other seed (``score_profile``), a
+    placeholder is not an extraction: it is scored ``p_correct = 1`` and never auto-accepted, rather than
+    left at the model's default, which would read as a real 50% score in the review.
     """
     from ..extract.context import concrete_path
-    from ..extract.reducer import apply_state_ops, make_ops
+    from ..extract.reducer import annotate, apply_state_ops, make_ops
     from ..models.facts import Provenance
 
     specs = []
@@ -165,4 +175,7 @@ def placeholders(profile: Profile, catalog: Catalog, fact_ids: list[str]) -> Pro
     res = apply_state_ops(profile, make_ops(profile, specs))
     for r in res.rejected:
         log.warning("placeholder for %s rejected: %s", r.op.fact_id, r.reason)
-    return res.profile
+    out = res.profile
+    for op in res.applied:
+        out = annotate(out, op.fact_id, p_correct=1.0, p_raw=1.0, auto_accepted=False)
+    return out

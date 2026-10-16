@@ -86,7 +86,8 @@ def why_line(item: PriorityItem, row: SensitivityRow | None) -> str:
                 parts.append(f"moves success odds by {_points(row.i_pos)}")
             elif row.top_need:
                 need = need_label(row.top_need)
-                parts.append(f"moves {need} shortfall by {_money(row.top_need_change)} (~{row.i_fna:.0%} of the need)")
+                share = "more than the whole need" if row.i_fna > 1.0 else f"~{row.i_fna:.0%} of the need"
+                parts.append(f"moves {need} shortfall by {_money(row.top_need_change)} ({share})")
         elif item.i_extract > 0 and row.pos_base is not None and row.pos_prior is not None:
             parts.append(f"if misheard, success odds could be off by {_points(row.pos_base - row.pos_prior)}")
         if item.virtual:

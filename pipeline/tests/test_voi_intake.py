@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,7 +15,7 @@ from advisor_intel.voi.intake import answer_segment_id, answer_transcript, appen
 
 from .verify_factories import ProfileBuilder, ev, point, qty, segment, transcript
 
-AT = datetime(2026, 10, 20, 9, 0, tzinfo=timezone.utc)
+AT = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
 
 
 def _setup():
@@ -34,7 +34,7 @@ def _setup():
 
 
 def test_answer_becomes_a_one_segment_client_transcript():
-    p, fid, fu = _setup()
+    p, _fid, fu = _setup()
     ans = FollowupAnswer(call_id="c1", followup_id="fu_abc", text="Probably sixty three", answered_at=AT)
     t = answer_transcript(ans, fu, call_id="c1", anchor_date=p.anchor_date)
     assert len(t.segments) == 1 and t.asr_provider == "followup" and t.asr_model_version == "followup"
@@ -49,7 +49,7 @@ def test_answer_becomes_a_one_segment_client_transcript():
 
 
 async def test_intake_applies_the_extracted_ops_and_marks_the_followup_answered():
-    p, fid, fu = _setup()
+    p, fid, _fu = _setup()
     seen = {}
 
     async def extract(profile, followup, t):
@@ -71,6 +71,22 @@ async def test_intake_applies_the_extracted_ops_and_marks_the_followup_answered(
     assert res.followup.status == "answered" and res.profile.open_questions[0].status == "answered"
     assert len(res.ops) == 1 and not res.rejected
     assert check_profile(res.profile) == []
+
+
+async def test_answers_are_re_sourced_as_followup_whatever_the_extraction_wrote():
+    p, fid, _fu = _setup()
+
+    async def extract(profile, followup, t):
+        payload = {
+            "replace_hypotheses": [Hypothesis(value=point(63, "age"), weight=1, rationale="answered")],
+            "status": "stated",
+            "source": "call",  # §10.6: the answer's ops carry source="followup" regardless
+            "evidence": [ev(t.segments[0].segment_id, "sixty three", start=9)],
+        }
+        return make_ops(profile, [("UPDATE", fid, t.segments[0].segment_id, payload, "extractor")])
+
+    res = await intake_answer(p, FollowupAnswer(call_id="c1", followup_id="fu_abc", text="Probably sixty three", answered_at=AT), extract=extract)
+    assert res.profile.facts[fid].source == "followup" and res.ops[0].payload["source"] == "followup"
 
 
 async def test_unknown_followups_are_refused():

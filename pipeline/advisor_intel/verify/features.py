@@ -23,8 +23,9 @@ boosting calibrator takes NaN natively; the cold-start score replaces it with gr
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Mapping
 from functools import lru_cache
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 import numpy as np
 
@@ -341,7 +342,9 @@ def features(
         "second_pass_agreement": NAN if agrees is None else float(agrees),
         "distance_from_prior": _distance_from_prior(fact),
         "aligner_score": float(max(aligner)) if aligner else NAN,
-        "reopened_by_coverage": float(fact.reopened_by_coverage),
+        # The ADD payload flag, or the omission check's own record: a prior field it reopened is an UPDATE, which
+        # carries no such flag (§9.1d).
+        "reopened_by_coverage": float(fact.reopened_by_coverage or bool((ver.get("coverage") or {}).get("reopened"))),
         "field_retries": float(fact.field_retries),
         "term_unresolved": float(term_unresolved),
         "minicheck_score": _num(ver.get("minicheck_score")),

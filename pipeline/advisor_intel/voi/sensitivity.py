@@ -35,7 +35,8 @@ import functools
 import inspect
 import logging
 import math
-from typing import Any, Awaitable, Callable, Iterable, Literal, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -188,6 +189,7 @@ class SensitivityRow(BaseModel):
     top_need: str | None = None  # the need the FNA view moved most
     top_need_change: float = 0.0  # |ΔS| of that need, in rand (or rand a month for monthly needs)
     note: str = ""
+    error: str | None = None  # a view that failed for this fact: its terms are 0 because it did not run, not because it found nothing
 
 
 def candidates(profile: Profile, catalog: Catalog, *, include_missing: bool = True) -> list[tuple[Fact, list[str], bool]]:
@@ -342,7 +344,10 @@ def fna_view(base: Mapping[str, NeedPoint], ends: Sequence[Mapping[str, NeedPoin
             a, b = ends[i], ends[j]
             for k in sorted(set(a) & set(b)):  # sorted: equal moves (a joint debt) pick the same need every run
                 delta = abs(b[k].shortfall - a[k].shortfall)
-                n50 = base[k].need if k in base else max(a[k].need, b[k].need)
+                # The need at the median (§10.2). When the median document has no such need at all (a liability the
+                # call never valued, an estate with nothing to settle) the spec's floor of 1 would turn a rand swing
+                # into a ratio in the millions; the need the ends create is the sensible scale then.
+                n50 = base[k].need if k in base and base[k].need >= 1.0 else max(a[k].need, b[k].need)
                 score = delta / max(n50, 1.0)
                 if score > best:
                     best, best_need, best_delta = score, k, delta
@@ -386,9 +391,11 @@ async def sensitivity(
     if pos_runs is not None and real:
         try:
             table = await _call_pos_runs(pos_runs, profile, real, n_paths, seed, base_document)
-        except Exception as e:  # noqa: BLE001 - the FNA view still ranks if the forecast fails
+        except Exception as e:  # noqa: BLE001 - the FNA view still ranks if the forecast fails, and every row says so
             log.warning("sensitivity runs failed: %s", e)
             table = {}
+            for fid in real:
+                rows[fid].error = f"PoS runs failed: {type(e).__name__}: {e}"
         for fid in real:
             r, row = rows[fid], table.get(fid)
             if row is None:
@@ -406,9 +413,12 @@ async def sensitivity(
         doc = median.model_dump(mode="json")
         try:
             base_needs = need_table(analyse(median))
-        except Exception as e:  # noqa: BLE001 - a document the engine cannot analyse leaves the PoS view
+        except Exception as e:  # noqa: BLE001 - a document the engine cannot analyse leaves the PoS view, on every row
             log.warning("FNA analysis of the median document failed: %s", e)
             base_needs = None
+            for r in rows.values():
+                r.note = "FNA view did not run"
+                r.error = f"FNA analysis of the median document failed: {type(e).__name__}: {e}"
         for f, _, _ in cands:
             if base_needs is None:
                 break
@@ -427,7 +437,8 @@ async def sensitivity(
                 tables = [need_table(analyse(_with_value(doc, path, slot, v))) for v in ends]
             except Exception as e:  # noqa: BLE001
                 log.warning("FNA analysis failed for %s: %s", f.fact_id, e)
-                r.note = f"FNA analysis failed: {e}"
+                r.note = "FNA view did not run"
+                r.error = f"FNA analysis failed: {type(e).__name__}: {e}"
                 continue
             r.i_fna, r.status_flip, r.flips, r.top_need, r.top_need_change = fna_view(base_needs, tables)
     for r in rows.values():

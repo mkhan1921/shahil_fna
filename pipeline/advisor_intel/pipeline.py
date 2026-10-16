@@ -78,6 +78,7 @@ class PipelineResult:
     tool_calls: list[str] = field(default_factory=list)
     summary: str = ""
     skipped: list[str] = field(default_factory=list)  # stages not installed in this deployment
+    warnings: list[str] = field(default_factory=list)  # checks that failed or did not run inside a stage (§9, §10): never a silent zero
     pins: VersionPins = field(default_factory=VersionPins)
     prior_document: FnaDocument | None = None
 
@@ -192,9 +193,12 @@ async def process_call(
     # Stage 5 after the agent (§9): the omission check, re-checks of facts changed since the agent's checks,
     # then calibration and conformal auto-accept (cold-start calibrator, no auto-accept, until gold calls exist).
     verify_after = _optional("advisor_intel.verify.services", "verify_after_agent")
+    warnings: list[str] = []
     if verify_after is not None:
-        profile = (await verify_after(profile, transcript=transcript, discourse=discourse, pins=pins, catalog=catalog, run_id=run_id,
-                                      settings=settings)).profile
+        checked = await verify_after(profile, transcript=transcript, discourse=discourse, pins=pins, catalog=catalog, run_id=run_id,
+                                     settings=settings)
+        profile = checked.profile
+        warnings += [f"verify: {e}" for e in getattr(checked, "errors", [])] + [f"verify skipped {s}" for s in getattr(checked, "skipped", [])]
     else:
         skipped.append("verify")
     followups, flags = list(agent.followups or profile.open_questions), list(profile.blocking_flags)
@@ -208,6 +212,7 @@ async def process_call(
         out = await voi(profile, catalog=catalog, pins=pins, pos_runs=pos_runs, analyse=analyse, transcript=transcript, settings=settings,
                         base_document=doc, seed=forecast_seed(run_id))
         profile, followups, flags = out.profile, list(out.followups), list(out.flags)
+        warnings += [f"voi: {e}" for e in getattr(out, "errors", [])]
     else:
         skipped.append("voi")
     if transcript.quality is not None and transcript.quality.role_review_needed and not any(f.kind == "role_review" for f in flags):
@@ -245,7 +250,8 @@ async def process_call(
     return PipelineResult(
         call_id=call.call_id, run_id=run_id, transcript=transcript, discourse=discourse, profile=profile, outcome=agent.outcome, followups=followups,
         flags=flags, forecast=fc, note=mn, analysis=analysis, document=document, sidecar=sidecar, usage=usage,
-        tool_calls=[e["tool"] for e in agent.state.get("events", [])], summary=agent.summary, skipped=skipped, pins=pins, prior_document=doc,
+        tool_calls=[e["tool"] for e in agent.state.get("events", [])], summary=agent.summary, skipped=skipped, warnings=warnings, pins=pins,
+        prior_document=doc,
     )
 
 
@@ -320,6 +326,8 @@ def main(argv: list[str] | None = None) -> int:
           f"{' (partial: ' + str(res.outcome.reason) + ')' if res.partial else ''}; cost ${res.usage.get('cost_usd', 0.0):.2f}")
     if res.skipped:
         print(f"not installed: {', '.join(res.skipped)}")
+    for w in res.warnings:
+        print(f"warning: {w}")
     print(f"wrote {args.out / 'export.json'}, {args.out / 'review_package.json'}, {args.out / 'sidecar.json'}")
     return 0
 
