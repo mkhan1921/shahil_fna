@@ -190,9 +190,16 @@ def _tri_logpdf(x: np.ndarray, a: float, c: float, b: float) -> np.ndarray:
     return out
 
 
+_MODE_GRID = 50  # candidate modes searched before refining around the best one
+
+
 def fit_triangular(xs: Sequence[float], floor: float = 0.0) -> tuple[float, float, float]:
-    """(low, mode, high) maximising the triangular likelihood. The mode is searched over the data
-    (the MLE mode is an order statistic); the ends are optimised for each candidate mode."""
+    """(low, mode, high) maximising the triangular likelihood.
+
+    The MLE mode is an order statistic, so modes are searched over the observations: a rank-spaced
+    grid of at most 50 first, then every observation between the best one's grid neighbours. For each
+    candidate mode the ends are optimised below the smallest and above the largest observation.
+    """
     x = np.sort(np.asarray(xs, dtype=float))
     lo, hi = float(x[0]), float(x[-1])
     spread = hi - lo
@@ -200,20 +207,27 @@ def fit_triangular(xs: Sequence[float], floor: float = 0.0) -> tuple[float, floa
         c = float(np.median(x))
         w = max(floor, 1e-9)
         return c - w, c, c + w
-    best: tuple[float, tuple[float, float, float]] | None = None
-    for c in np.unique(x):
 
-        def nll(p: np.ndarray, c: float = float(c)) -> float:
-            a = lo - spread * math.exp(p[0])
-            b = hi + spread * math.exp(p[1])
-            v = -float(np.sum(_tri_logpdf(x, a, c, b)))
+    def ends(c: float) -> tuple[float, float, float]:
+        def nll(p: np.ndarray) -> float:
+            v = -float(np.sum(_tri_logpdf(x, lo - spread * math.exp(p[0]), c, hi + spread * math.exp(p[1]))))
             return v if math.isfinite(v) else 1e300
 
         res = optimize.minimize(nll, x0=np.array([-2.0, -2.0]), method="L-BFGS-B", bounds=[(-14.0, 3.0), (-14.0, 3.0)])
-        a, b = lo - spread * math.exp(res.x[0]), hi + spread * math.exp(res.x[1])
-        if best is None or res.fun < best[0]:
-            best = (float(res.fun), (a, float(c), b))
-    a, c, b = best[1]  # type: ignore[index]
+        return float(res.fun), lo - spread * math.exp(res.x[0]), hi + spread * math.exp(res.x[1])
+
+    uniq = np.unique(x)
+    grid = np.unique(np.linspace(0, len(uniq) - 1, min(len(uniq), _MODE_GRID)).round().astype(int))
+    scored = {int(i): ends(float(uniq[i])) for i in grid}
+    best_i = min(scored, key=lambda i: scored[i][0])
+    pos = int(np.searchsorted(grid, best_i))
+    left, right = int(grid[max(0, pos - 1)]), int(grid[min(len(grid) - 1, pos + 1)])
+    for i in range(left, right + 1):
+        if i not in scored:
+            scored[i] = ends(float(uniq[i]))
+    best_i = min(scored, key=lambda i: scored[i][0])
+    _, a, b = scored[best_i]
+    c = float(uniq[best_i])
     if c - a < floor and b - c < floor:
         a, b = c - floor, c + floor
     return a, c, b
