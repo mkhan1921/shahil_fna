@@ -20,7 +20,9 @@ def _note(recipient="thandi@practice.co.za"):
         run_id="call-1-run-a",
         recipient=recipient,
         client_label="Thabo Mokoena",
-        s=ReviewSummary(needs_you=7, open_flags=2, open_followups=3, partial=True, unfinished_groups=["estate"], banners=["low ASR confidence"]),
+        s=ReviewSummary(
+            needs_you=7, open_flags=2, open_followups=3, partial=True, unfinished_groups=["estate"], banners=["low ASR confidence"]
+        ),
     )
 
 
@@ -62,7 +64,14 @@ def test_messages_say_what_needs_the_adviser(monkeypatch):
     monkeypatch.setenv("ADVISOR_INTEL_REVIEW_URL", "https://fna.example.co.za/review/{call_id}")
     n = _note()
     assert n.subject == "Call with Thabo Mokoena is ready for review"
-    for part in ("7 item(s) need you", "2 blocking flag(s)", "3 follow-up question(s)", "unfinished: estate", "low ASR confidence", "https://fna.example.co.za/review/call-1"):
+    for part in (
+        "7 item(s) need you",
+        "2 blocking flag(s)",
+        "3 follow-up question(s)",
+        "unfinished: estate",
+        "low ASR confidence",
+        "https://fna.example.co.za/review/call-1",
+    ):
         assert part in n.body
     r = compose("review_reminder", call_id="c", run_id="r", recipient=None, client_label="X", s=ReviewSummary(reminder_number=2))
     assert r.subject.startswith("Reminder") and "reminder 2" in r.body

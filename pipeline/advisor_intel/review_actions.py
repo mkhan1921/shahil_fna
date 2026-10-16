@@ -126,7 +126,14 @@ def apply_flag_clearances(profile: Profile, clearances: list[FlagClearance]) -> 
 def followup_edit_events(run_id: str, edits: list[FollowupEdit]) -> list[ReviewEvent]:
     """Edited follow-up questions, kept for prompt tuning (§11.2, §15.6)."""
     return [
-        ReviewEvent(workflow_id=run_id, action="edit_followup", reason=e.action, reviewer_id=e.reviewer_id, at=e.at, detail={"edit": e.model_dump(mode="json")})
+        ReviewEvent(
+            workflow_id=run_id,
+            action="edit_followup",
+            reason=e.action,
+            reviewer_id=e.reviewer_id,
+            at=e.at,
+            detail={"edit": e.model_dump(mode="json")},
+        )
         for e in edits
     ]
 

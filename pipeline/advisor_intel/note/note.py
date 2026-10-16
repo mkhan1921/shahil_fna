@@ -195,17 +195,22 @@ def fact_table(facts: Iterable[Fact], profile: Profile, catalog: Catalog) -> str
 
 _SCALE = {"thousand": 1e3, "k": 1e3, "bar": 1e3, "million": 1e6, "mil": 1e6, "m": 1e6, "billion": 1e9, "bn": 1e9}
 _NUM = re.compile(
-    r"(?P<cur>R|\$|£|€)?\s?(?P<num>\d{1,3}(?:[ , ]\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)\s?(?P<scale>thousand|million|billion|mil|bn|bar|k|m)?\b(?P<pct>\s?%|\s?percent)?",
+    r"(?P<cur>R|\$|£|€)?\s?"
+    r"(?P<num>\d{1,3}(?:[ ,\u00a0]\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)\s?"
+    r"(?P<scale>thousand|million|billion|mil|bn|bar|k|m)?\b(?P<pct>\s?%|\s?percent)?",
     re.IGNORECASE,
 )
-_THOUSANDS = re.compile(r"\d{1,3}(?:[ , ]\d{3})+(?:\.\d+)?")
+_THOUSANDS = re.compile(r"\d{1,3}(?:[ ,\u00a0]\d{3})+(?:\.\d+)?")
 _WORDS = {
-    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12,
     "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
     "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
 }  # fmt: skip
 _TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
-_WORD_NUM = re.compile(r"\b(" + "|".join(sorted(_WORDS, key=len, reverse=True)) + r")(?:[- ](one|two|three|four|five|six|seven|eight|nine))?\b", re.IGNORECASE)
+_WORD_NUM = re.compile(
+    r"\b(" + "|".join(sorted(_WORDS, key=len, reverse=True)) + r")(?:[- ](one|two|three|four|five|six|seven|eight|nine))?\b", re.IGNORECASE
+)
 
 
 class NumberMention(BaseModel):
@@ -222,7 +227,7 @@ def numbers_in(text: str) -> list[NumberMention]:
     for m in _NUM.finditer(text):
         raw = m.group("num")
         # "1 200 000" and "1,200,000" group thousands; "1,2 million" uses a decimal comma.
-        digits = re.sub(r"[ , ]", "", raw) if _THOUSANDS.fullmatch(raw) else raw.replace(",", ".")
+        digits = re.sub(r"[ ,\u00a0]", "", raw) if _THOUSANDS.fullmatch(raw) else raw.replace(",", ".")
         v = float(digits)
         decimals = len(digits.split(".")[1]) if "." in digits else 0
         res = 10.0 ** (-decimals)
@@ -307,7 +312,23 @@ def _matches(n: NumberMention, allowed: Iterable[float]) -> bool:
 
 
 NOTE_SUBJECTS = frozenset({"person.client_primary", "person.spouse", "person.advisor"})
-_GENERIC_NAMES = {"client", "spouse", "adviser", "advisor", "child", "parent", "policy", "fund", "goal", "item", "expense", "debt", "home", "house", "car"}
+_GENERIC_NAMES = {
+    "client",
+    "spouse",
+    "adviser",
+    "advisor",
+    "child",
+    "parent",
+    "policy",
+    "fund",
+    "goal",
+    "item",
+    "expense",
+    "debt",
+    "home",
+    "house",
+    "car",
+}
 
 
 def _entity_names(profile: Profile) -> dict[str, list[str]]:
@@ -316,7 +337,9 @@ def _entity_names(profile: Profile) -> dict[str, list[str]]:
         cands = {e.canonical_name, *e.aliases}
         if e.type == "person":  # people are named by first name too ("Neo"); a shared surname is not a name
             cands |= {c.split()[0] for c in list(cands) if c and " " in c}
-        names[eid] = sorted({c for c in cands if c and len(c) >= 3 and c.lower() not in _GENERIC_NAMES and not c.isdigit()}, key=len, reverse=True)
+        names[eid] = sorted(
+            {c for c in cands if c and len(c) >= 3 and c.lower() not in _GENERIC_NAMES and not c.isdigit()}, key=len, reverse=True
+        )
     return names
 
 
@@ -349,7 +372,11 @@ def check_sentence(s: NoteSentence, profile: Profile, names: dict[str, list[str]
     lowered = s.text.lower()
     # Names the cited facts themselves carry (the client's own words, the value of a text slot) may be repeated.
     own_words = " ".join(
-        [str(f.value.dist.value) for f in facts if f.value is not None and isinstance(f.value.dist, Point) and isinstance(f.value.dist.value, str)]
+        [
+            str(f.value.dist.value)
+            for f in facts
+            if f.value is not None and isinstance(f.value.dist, Point) and isinstance(f.value.dist.value, str)
+        ]
         + [e.quote for f in facts for e in f.evidence]
         + [f.said for f in facts]
     ).lower()
@@ -386,7 +413,13 @@ def validate(sentences: list[NoteSentence], profile: Profile) -> tuple[list[Note
 
 
 def note_agent(model: Model | str) -> Agent[None, list[NoteSentence]]:
-    return Agent(model, output_type=NativeOutput(list[NoteSentence], name="meeting_note", strict=True), instructions=INSTRUCTIONS, name="meeting_note", retries=2)
+    return Agent(
+        model,
+        output_type=NativeOutput(list[NoteSentence], name="meeting_note", strict=True),
+        instructions=INSTRUCTIONS,
+        name="meeting_note",
+        retries=2,
+    )
 
 
 def _resolve_model(pins: VersionPins, model: Model | str | None) -> tuple[Model | str | None, str, Any]:
@@ -421,7 +454,9 @@ def template_sentences(facts: list[Fact], profile: Profile, catalog: Catalog) ->
     return out
 
 
-async def _write(facts: list[Fact], profile: Profile, catalog: Catalog, *, pins: VersionPins, model: Model | str | None, task: str) -> tuple[list[NoteSentence], str]:
+async def _write(
+    facts: list[Fact], profile: Profile, catalog: Catalog, *, pins: VersionPins, model: Model | str | None, task: str
+) -> tuple[list[NoteSentence], str]:
     m, name, settings = _resolve_model(pins, model)
     if m is None:
         return template_sentences(facts, profile, catalog), name
@@ -432,10 +467,14 @@ async def _write(facts: list[Fact], profile: Profile, catalog: Catalog, *, pins:
 
 def _hashes(profile: Profile, sentences: list[NoteSentence]) -> dict[str, str]:
     ids = {fid for s in sentences for fid in s.fact_ids if fid in profile.facts}
-    return {fid: content_hash(profile.facts[fid].model_dump(mode="json", exclude={"review_priority", "voi", "features"})) for fid in sorted(ids)}
+    return {
+        fid: content_hash(profile.facts[fid].model_dump(mode="json", exclude={"review_priority", "voi", "features"})) for fid in sorted(ids)
+    }
 
 
-async def generate_note(profile: Profile, *, pins: VersionPins, catalog: Catalog | None = None, model: Model | str | None = None) -> MeetingNote:
+async def generate_note(
+    profile: Profile, *, pins: VersionPins, catalog: Catalog | None = None, model: Model | str | None = None
+) -> MeetingNote:
     """Write the whole note from the profile's reviewed facts and validate every sentence."""
     catalog = catalog or load_catalog(profile.schema_version)
     facts = note_facts(profile)
@@ -444,7 +483,13 @@ async def generate_note(profile: Profile, *, pins: VersionPins, catalog: Catalog
     raw, name = await _write(facts, profile, catalog, pins=pins, model=model, task="Write the meeting note.")
     kept, removed = validate(raw, profile)
     return MeetingNote(
-        call_id=profile.call_id, run_id=profile.run_id, profile_version=profile.version, sentences=kept, removed=removed, fact_hashes=_hashes(profile, kept), model=name
+        call_id=profile.call_id,
+        run_id=profile.run_id,
+        profile_version=profile.version,
+        sentences=kept,
+        removed=removed,
+        fact_hashes=_hashes(profile, kept),
+        model=name,
     )
 
 
@@ -455,7 +500,13 @@ def changed_facts(note: MeetingNote, profile: Profile) -> set[str]:
 
 
 async def update_note(
-    note: MeetingNote, profile: Profile, *, pins: VersionPins, catalog: Catalog | None = None, model: Model | str | None = None, edited: set[str] | None = None
+    note: MeetingNote,
+    profile: Profile,
+    *,
+    pins: VersionPins,
+    catalog: Catalog | None = None,
+    model: Model | str | None = None,
+    edited: set[str] | None = None,
 ) -> MeetingNote:
     """Regenerate only the sentences that cite an edited fact; every other sentence is kept as written."""
     catalog = catalog or load_catalog(profile.schema_version)

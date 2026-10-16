@@ -54,7 +54,9 @@ async def _record(env, handle, name: str) -> None:
     assert result.replay_failure is None
     if os.environ.get("ADVISOR_INTEL_RECORD_HISTORIES") == "1":
         HISTORIES.mkdir(parents=True, exist_ok=True)
-        (HISTORIES / f"{name}.json").write_text(json.dumps({"workflow_id": handle.id, "history": json.loads(history.to_json())}, indent=1) + "\n")
+        (HISTORIES / f"{name}.json").write_text(
+            json.dumps({"workflow_id": handle.id, "history": json.loads(history.to_json())}, indent=1) + "\n"
+        )
 
 
 @pytest.mark.temporal
@@ -66,12 +68,20 @@ async def test_record_and_replay_fresh_histories(temporal_bin):
     mocks = MockActivities()
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         # A full run: a reminder, a follow-up answer during review, then the review.
-        h = await env.client.start_workflow(CallPipelineWorkflow.run, args, id="call-replay-run-a", task_queue=tq, execution_timeout=EXEC_TIMEOUT)
+        h = await env.client.start_workflow(
+            CallPipelineWorkflow.run, args, id="call-replay-run-a", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
         await wait_state(h, RunState.AWAITING_REVIEW)
         await wait_for(lambda: len(mocks.inputs("send_review_reminder")) >= 1)
-        await h.signal(CallPipelineWorkflow.followup_answered, FollowupAnswer(call_id="call-replay", followup_id="fu.1", text="about 63", answered_at=now))
+        await h.signal(
+            CallPipelineWorkflow.followup_answered,
+            FollowupAnswer(call_id="call-replay", followup_id="fu.1", text="about 63", answered_at=now),
+        )
         await wait_for(lambda: len(mocks.inputs("intake_followup_answer")) >= 1)
-        await h.signal(CallPipelineWorkflow.review_submitted, ReviewSubmission(call_id="call-replay", reviewer_id="adv-1", profile_version=4, submitted_at=now))
+        await h.signal(
+            CallPipelineWorkflow.review_submitted,
+            ReviewSubmission(call_id="call-replay", reviewer_id="adv-1", profile_version=4, submitted_at=now),
+        )
         await h.result()
         await _record(env, h, "call_pipeline_full")
 
@@ -79,11 +89,18 @@ async def test_record_and_replay_fresh_histories(temporal_bin):
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         # A partial agent run, re-run from the agent stage.
         rerun = args.model_copy(update={"start_stage": 3, "review_reminder_seconds": 3600})
-        h = await env.client.start_workflow(CallPipelineWorkflow.run, rerun, id="call-replay-run-b", task_queue=tq, execution_timeout=EXEC_TIMEOUT)
+        h = await env.client.start_workflow(
+            CallPipelineWorkflow.run, rerun, id="call-replay-run-b", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
         await wait_state(h, RunState.AWAITING_REVIEW)
-        await h.signal(CallPipelineWorkflow.review_submitted, ReviewSubmission(call_id="call-replay", reviewer_id="adv-1", profile_version=3, submitted_at=now))
+        await h.signal(
+            CallPipelineWorkflow.review_submitted,
+            ReviewSubmission(call_id="call-replay", reviewer_id="adv-1", profile_version=3, submitted_at=now),
+        )
         await h.result()
         await _record(env, h, "call_pipeline_partial_rerun")
-        h = await env.client.start_workflow(NightlyFeedbackWorkflow.run, NightlyArgs(until=now), id="nightly-replay", task_queue=tq, execution_timeout=EXEC_TIMEOUT)
+        h = await env.client.start_workflow(
+            NightlyFeedbackWorkflow.run, NightlyArgs(until=now), id="nightly-replay", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
         await h.result()
         await _record(env, h, "nightly_feedback")

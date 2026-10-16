@@ -262,7 +262,9 @@ class TracingMiddleware:
         tracer = get_tracer("advisor_intel.api")
         attrs = {"http.request.method": method, "url.path": scope.get("path", ""), "url.scheme": scope.get("scheme", "http")}
         status: dict[str, int] = {}
-        with tracer.start_as_current_span(f"{method} {scope.get('path', '')}", context=parent, kind=SpanKind.SERVER, attributes=attrs) as span:
+        with tracer.start_as_current_span(
+            f"{method} {scope.get('path', '')}", context=parent, kind=SpanKind.SERVER, attributes=attrs
+        ) as span:
 
             async def send_wrapper(message: Mapping[str, Any]) -> None:
                 if message["type"] == "http.response.start":

@@ -127,7 +127,9 @@ class NightlyActivities:
             trained_on = int(current.metrics.get("n_labels", 0)) if current else 0
             if current is not None and len(all_labels) - trained_on < RETRAIN_EVERY:
                 return CalibratorOutcome(
-                    version=current.version, n_labels=len(all_labels), skipped_reason=f"{len(all_labels) - trained_on} new labels; retrain at {RETRAIN_EVERY}"
+                    version=current.version,
+                    n_labels=len(all_labels),
+                    skipped_reason=f"{len(all_labels) - trained_on} new labels; retrain at {RETRAIN_EVERY}",
                 )
             previous = await self.objects.get_bytes(current.artifact_uri) if current and current.artifact_uri else None
             async with heartbeating("retrain_calibrator"):
@@ -140,7 +142,9 @@ class NightlyActivities:
             if artifact is not None:
                 data = artifact if isinstance(artifact, bytes) else json.dumps(artifact, default=str).encode()
                 uri = await self.objects.put_bytes(f"calibration/calibrators/{version}.bin", data, content_type="application/octet-stream")
-            await self.store.register_calibrator(CalibratorRecord(version=version, slot_group="*", artifact_uri=uri, metrics=metrics, promoted=promoted))
+            await self.store.register_calibrator(
+                CalibratorRecord(version=version, slot_group="*", artifact_uri=uri, metrics=metrics, promoted=promoted)
+            )
             return CalibratorOutcome(version=version, promoted=promoted, n_labels=len(all_labels), metrics=metrics, artifact_uri=uri)
 
     @activity.defn(name=REFIT_CONFORMAL)
@@ -155,14 +159,26 @@ class NightlyActivities:
             artifact = await self.objects.get_bytes(pooled.artifact_uri) if pooled and pooled.artifact_uri else None
             labels = await self._all_labels()
             async with heartbeating("refit_conformal"):
-                res = await invoke(self.stages.get("refit_conformal"), labels, calibrator=artifact, alpha=alpha, min_calls=self.settings.min_conformal_calls)
+                res = await invoke(
+                    self.stages.get("refit_conformal"),
+                    labels,
+                    calibrator=artifact,
+                    alpha=alpha,
+                    min_calls=self.settings.min_conformal_calls,
+                )
             tau = {str(k): float(v) for k, v in dict(_get(res, "tau", default={})).items()}
             n_calls = int(_get(res, "n_calib_calls", default=0))
             enabled = bool(_get(res, "enabled", default=n_calls >= self.settings.min_conformal_calls))
             for family, t in tau.items():
                 await self.store.register_calibrator(
                     CalibratorRecord(
-                        version=version, slot_group=family, tau=t, alpha=alpha, n_calib_calls=n_calls, metrics={"auto_accept": enabled}, promoted=bool(pooled and pooled.promoted)
+                        version=version,
+                        slot_group=family,
+                        tau=t,
+                        alpha=alpha,
+                        n_calib_calls=n_calls,
+                        metrics={"auto_accept": enabled},
+                        promoted=bool(pooled and pooled.promoted),
                     )
                 )
             return ConformalOutcome(calibrator_version=version, alpha=alpha, tau=tau, n_calib_calls=n_calls, auto_accept_enabled=enabled)
@@ -184,8 +200,15 @@ class NightlyActivities:
             text = _get(proposal, "yaml", "diff", default=None)
             uri = None
             if text:
-                uri = await self.objects.put_bytes(f"lexicon/proposals/{w.until:%Y-%m-%d}-{version}.yaml", str(text).encode(), content_type="text/yaml")
-            return LexiconFitOutcome(n_pairs=len(pairs), keys_fitted=[str(k) for k in keys], pull_request=_get(proposal, "pull_request", "pr_url"), proposal_uri=uri)
+                uri = await self.objects.put_bytes(
+                    f"lexicon/proposals/{w.until:%Y-%m-%d}-{version}.yaml", str(text).encode(), content_type="text/yaml"
+                )
+            return LexiconFitOutcome(
+                n_pairs=len(pairs),
+                keys_fitted=[str(k) for k in keys],
+                pull_request=_get(proposal, "pull_request", "pr_url"),
+                proposal_uri=uri,
+            )
 
     # ------------------------------------------------------------------ Braintrust datasets (§11.4, §15.5, §15.6)
 
@@ -212,7 +235,9 @@ class NightlyActivities:
                 by_run[e.workflow_id].append(e)
             rows = []
             for run_id, evs in sorted(by_run.items()):
-                corrections = [e for e in evs if e.action in ("edit", "change_status", "reject", "reattribute", "add", "mark_unknown", "remove")]
+                corrections = [
+                    e for e in evs if e.action in ("edit", "change_status", "reject", "reattribute", "add", "mark_unknown", "remove")
+                ]
                 followup_edits = [e.detail.get("edit") for e in evs if e.action == "edit_followup"]
                 if not corrections and not followup_edits:
                     continue
@@ -242,7 +267,9 @@ class NightlyActivities:
                 return ModelSwapOutcome(results=[{"skipped": "no candidate models configured"}])
             async with heartbeating("model_swap"):
                 res = await invoke(self.stages.get("run_model_swap"), candidates, settings=self.settings)
-            return ModelSwapOutcome(results=list(_get(res, "results", default=[])), pull_requests=list(_get(res, "pull_requests", default=[])))
+            return ModelSwapOutcome(
+                results=list(_get(res, "results", default=[])), pull_requests=list(_get(res, "pull_requests", default=[]))
+            )
 
 
 def lexicon_pair(e: ReviewEvent) -> dict[str, Any] | None:

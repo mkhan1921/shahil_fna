@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ..models.runs import AgentOutcome, CallArgs, FollowupAnswer, ReviewSubmission, RunState
+from ..models.runs import CallArgs, FollowupAnswer, ReviewSubmission, RunState
 from ..models.transcript import QualityReport
 
 # --------------------------------------------------------------------------- activity names
@@ -47,7 +47,15 @@ PIPELINE_ACTIVITIES = (
     INTAKE_FOLLOWUP,
     RENDER_NOTE,
 )
-NIGHTLY_ACTIVITIES = (BUILD_LABELS, RETRAIN_CALIBRATOR, REFIT_CONFORMAL, PROPOSE_LEXICON_FIT, SYNC_ERROR_DATASET, SYNC_GOLD_CANDIDATES, RUN_MODEL_SWAP)
+NIGHTLY_ACTIVITIES = (
+    BUILD_LABELS,
+    RETRAIN_CALIBRATOR,
+    REFIT_CONFORMAL,
+    PROPOSE_LEXICON_FIT,
+    SYNC_ERROR_DATASET,
+    SYNC_GOLD_CANDIDATES,
+    RUN_MODEL_SWAP,
+)
 
 # Workflow type names (stable across code moves: they are what the server and histories record).
 CALL_PIPELINE = "CallPipelineWorkflow"

@@ -196,14 +196,23 @@ class Store:
                 ON CONFLICT (call_id, cache_key) DO UPDATE SET transcript = EXCLUDED.transcript, quality = EXCLUDED.quality,
                   transcript_uri = COALESCE(EXCLUDED.transcript_uri, transcripts.transcript_uri)
                 """,
-                (call_id, transcript.asr_model_version, cache_key, Jsonb(transcript.model_dump(mode="json")), Jsonb(quality) if quality else None, uri),
+                (
+                    call_id,
+                    transcript.asr_model_version,
+                    cache_key,
+                    Jsonb(transcript.model_dump(mode="json")),
+                    Jsonb(quality) if quality else None,
+                    uri,
+                ),
             )
 
     async def load_transcript(self, call_id: str, cache_key: str | None = None) -> Transcript | None:
         """The transcript for one ASR cache key, or the latest one for the call."""
         async with self.db.connection() as conn:
             if cache_key is None:
-                cur = await conn.execute("SELECT transcript FROM transcripts WHERE call_id = %s ORDER BY created_at DESC LIMIT 1", (call_id,))
+                cur = await conn.execute(
+                    "SELECT transcript FROM transcripts WHERE call_id = %s ORDER BY created_at DESC LIMIT 1", (call_id,)
+                )
             else:
                 cur = await conn.execute("SELECT transcript FROM transcripts WHERE call_id = %s AND cache_key = %s", (call_id, cache_key))
             row = await cur.fetchone()
@@ -218,7 +227,9 @@ class Store:
             row = await cur.fetchone()
         return QualityReport.model_validate(row["quality"]) if row and row["quality"] else None
 
-    async def save_discourse(self, call_id: str, cache_key: str, output: DiscourseOutput, *, versions: dict[str, Any] | None = None, uri: str | None = None) -> None:
+    async def save_discourse(
+        self, call_id: str, cache_key: str, output: DiscourseOutput, *, versions: dict[str, Any] | None = None, uri: str | None = None
+    ) -> None:
         async with self.db.connection() as conn:
             await conn.execute(
                 """
@@ -232,7 +243,9 @@ class Store:
     async def load_discourse(self, call_id: str, cache_key: str | None = None) -> DiscourseOutput | None:
         async with self.db.connection() as conn:
             if cache_key is None:
-                cur = await conn.execute("SELECT output FROM discourse_outputs WHERE call_id = %s ORDER BY created_at DESC LIMIT 1", (call_id,))
+                cur = await conn.execute(
+                    "SELECT output FROM discourse_outputs WHERE call_id = %s ORDER BY created_at DESC LIMIT 1", (call_id,)
+                )
             else:
                 cur = await conn.execute("SELECT output FROM discourse_outputs WHERE call_id = %s AND cache_key = %s", (call_id, cache_key))
             row = await cur.fetchone()
@@ -250,7 +263,9 @@ class Store:
         async with self.db.connection() as conn:
             return await self._load_profile(conn, run_id, version)
 
-    async def update_profile(self, run_id: str, fn: Callable[[Profile], tuple[Profile, T]] | Callable[[Profile], Awaitable[tuple[Profile, T]]]) -> tuple[Profile, T]:
+    async def update_profile(
+        self, run_id: str, fn: Callable[[Profile], tuple[Profile, T]] | Callable[[Profile], Awaitable[tuple[Profile, T]]]
+    ) -> tuple[Profile, T]:
         """Read-modify-write the latest profile under the run's lock. ``fn`` returns (new profile, extra)."""
         async with self.db.transaction() as conn:
             await self._lock_run(conn, run_id)
@@ -292,14 +307,16 @@ class Store:
                 cur = await conn.execute("SELECT fact_id, fact FROM facts_latest WHERE workflow_id = %s ORDER BY fact_id", (run_id,))
             else:
                 cur = await conn.execute(
-                    "SELECT fact_id, fact FROM facts_latest WHERE workflow_id = %s AND fact_id = ANY(%s) ORDER BY fact_id", (run_id, list(fact_ids))
+                    "SELECT fact_id, fact FROM facts_latest WHERE workflow_id = %s AND fact_id = ANY(%s) ORDER BY fact_id",
+                    (run_id, list(fact_ids)),
                 )
             return {r["fact_id"]: Fact.model_validate(r["fact"]) for r in await cur.fetchall()}
 
     async def fact_history(self, run_id: str, fact_id: str) -> list[FactVersion]:
         async with self.db.connection() as conn:
             cur = await conn.execute(
-                "SELECT fact_id, version, profile_version, deleted, fact, created_at FROM facts WHERE workflow_id = %s AND fact_id = %s ORDER BY version",
+                "SELECT fact_id, version, profile_version, deleted, fact, created_at FROM facts"
+                " WHERE workflow_id = %s AND fact_id = %s ORDER BY version",
                 (run_id, fact_id),
             )
             return [FactVersion.model_validate(r) for r in await cur.fetchall()]
@@ -358,7 +375,8 @@ class Store:
         if rows:
             async with conn.cursor() as c:
                 await c.executemany(
-                    "INSERT INTO facts (workflow_id, fact_id, version, profile_version, fact, deleted, content_hash) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO facts (workflow_id, fact_id, version, profile_version, fact, deleted, content_hash)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s)",
                     rows,
                 )
 
@@ -397,7 +415,9 @@ class Store:
         await conn.execute("DELETE FROM entities WHERE workflow_id = %s AND NOT (entity_id = ANY(%s))", (run_id, list(entities)))
 
     async def _save_flags(self, conn: Connection, run_id: str, flags: list[BlockingFlag]) -> None:
-        rows = [(run_id, f.flag_id, i, Jsonb(f.model_dump(mode="json")), f.cleared, f.cleared_by, f.resolution) for i, f in enumerate(flags)]
+        rows = [
+            (run_id, f.flag_id, i, Jsonb(f.model_dump(mode="json")), f.cleared, f.cleared_by, f.resolution) for i, f in enumerate(flags)
+        ]
         if rows:
             async with conn.cursor() as c:
                 await c.executemany(
@@ -429,7 +449,8 @@ class Store:
             await c.executemany(
                 """
                 INSERT INTO followups (workflow_id, followup_id, ord, followup, status) VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (workflow_id, followup_id) DO UPDATE SET followup = EXCLUDED.followup, status = EXCLUDED.status, updated_at = now()
+                ON CONFLICT (workflow_id, followup_id) DO UPDATE
+                  SET followup = EXCLUDED.followup, status = EXCLUDED.status, updated_at = now()
                 """,
                 rows,
             )
@@ -511,7 +532,8 @@ class Store:
     async def set_followup_status(self, run_id: str, followup_id: str, status: str) -> None:
         async with self.db.connection() as conn:
             await conn.execute(
-                "UPDATE followups SET status = %s, updated_at = now() WHERE workflow_id = %s AND followup_id = %s", (status, run_id, followup_id)
+                "UPDATE followups SET status = %s, updated_at = now() WHERE workflow_id = %s AND followup_id = %s",
+                (status, run_id, followup_id),
             )
 
     async def apply_followup_edit(self, run_id: str, edit: FollowupEdit, *, new_id: str | None = None) -> str | None:
@@ -519,11 +541,19 @@ class Store:
         async with self.db.transaction() as conn:
             if edit.action == "add":
                 fid = new_id or f"fu.adviser.{content_hash([edit.question, edit.at.isoformat()])[:10]}"
-                q = FollowUp(followup_id=fid, fact_ids=[], question=edit.question, why="added by the adviser", expected_pos_change=0.0, answer_type="text")
+                q = FollowUp(
+                    followup_id=fid,
+                    fact_ids=[],
+                    question=edit.question,
+                    why="added by the adviser",
+                    expected_pos_change=0.0,
+                    answer_type="text",
+                )
                 cur = await conn.execute("SELECT COALESCE(MAX(ord), -1) + 1 AS o FROM followups WHERE workflow_id = %s", (run_id,))
                 ord_ = (await cur.fetchone())["o"]
                 await conn.execute(
-                    "INSERT INTO followups (workflow_id, followup_id, ord, followup, status) VALUES (%s, %s, %s, %s, 'open') ON CONFLICT DO NOTHING",
+                    "INSERT INTO followups (workflow_id, followup_id, ord, followup, status)"
+                    " VALUES (%s, %s, %s, %s, 'open') ON CONFLICT DO NOTHING",
                     (run_id, fid, ord_, Jsonb(q.model_dump(mode="json"))),
                 )
                 return fid
@@ -531,7 +561,8 @@ class Store:
                 return None
             if edit.action == "drop":
                 await conn.execute(
-                    "UPDATE followups SET status = 'dropped', updated_at = now() WHERE workflow_id = %s AND followup_id = %s", (run_id, edit.followup_id)
+                    "UPDATE followups SET status = 'dropped', updated_at = now() WHERE workflow_id = %s AND followup_id = %s",
+                    (run_id, edit.followup_id),
                 )
             else:
                 await conn.execute(
@@ -580,11 +611,16 @@ class Store:
                     INSERT INTO review_events (workflow_id, fact_id, action, reason, reviewer_id, at, op_seq, profile_version, detail)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
-                    [(e.workflow_id, e.fact_id, e.action, e.reason, e.reviewer_id, e.at, e.op_seq, e.profile_version, Jsonb(e.detail)) for e in events],
+                    [
+                        (e.workflow_id, e.fact_id, e.action, e.reason, e.reviewer_id, e.at, e.op_seq, e.profile_version, Jsonb(e.detail))
+                        for e in events
+                    ],
                 )
         return len(events)
 
-    async def review_events(self, *, run_id: str | None = None, since: datetime | None = None, until: datetime | None = None) -> list[ReviewEvent]:
+    async def review_events(
+        self, *, run_id: str | None = None, since: datetime | None = None, until: datetime | None = None
+    ) -> list[ReviewEvent]:
         where, params = ["true"], []
         if run_id is not None:
             where.append("workflow_id = %s")
@@ -617,12 +653,16 @@ class Store:
 
     # ------------------------------------------------------------------ forecasts
 
-    async def save_forecast(self, run_id: str, profile_version: int, mode: str, result: ForecastResult, *, config_version: str, cma_version: str) -> None:
+    async def save_forecast(
+        self, run_id: str, profile_version: int, mode: str, result: ForecastResult, *, config_version: str, cma_version: str
+    ) -> None:
         async with self.db.connection() as conn:
             await conn.execute(
                 """
-                INSERT INTO forecasts (workflow_id, profile_version, config_version, cma_version, mode, result) VALUES (%s, %s, %s, %s, %s, %s)
-                ON CONFLICT (workflow_id, profile_version, config_version, cma_version, mode) DO UPDATE SET result = EXCLUDED.result, created_at = now()
+                INSERT INTO forecasts (workflow_id, profile_version, config_version, cma_version, mode, result)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (workflow_id, profile_version, config_version, cma_version, mode)
+                  DO UPDATE SET result = EXCLUDED.result, created_at = now()
                 """,
                 (run_id, profile_version, config_version, cma_version, mode, Jsonb(result.model_dump(mode="json"))),
             )
@@ -638,7 +678,8 @@ class Store:
             params.append(profile_version)
         async with self.db.connection() as conn:
             cur = await conn.execute(
-                f"SELECT * FROM forecasts WHERE {' AND '.join(where)} ORDER BY profile_version DESC, created_at DESC LIMIT 1", params  # noqa: S608
+                f"SELECT * FROM forecasts WHERE {' AND '.join(where)} ORDER BY profile_version DESC, created_at DESC LIMIT 1",
+                params,  # noqa: S608
             )
             row = await cur.fetchone()
         return ForecastRecord.model_validate(row) if row else None
@@ -662,7 +703,9 @@ class Store:
             if before_id is None:
                 cur = await conn.execute("SELECT id FROM client_documents WHERE client_id = %s ORDER BY id DESC LIMIT 1", (client_id,))
             else:
-                cur = await conn.execute("SELECT id FROM client_documents WHERE client_id = %s AND id < %s ORDER BY id DESC LIMIT 1", (client_id, before_id))
+                cur = await conn.execute(
+                    "SELECT id FROM client_documents WHERE client_id = %s AND id < %s ORDER BY id DESC LIMIT 1", (client_id, before_id)
+                )
             row = await cur.fetchone()
         return row["id"] if row else None
 
@@ -698,7 +741,8 @@ class Store:
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (version, slot_group) DO UPDATE SET artifact_uri = COALESCE(EXCLUDED.artifact_uri, calibrators.artifact_uri),
                   metrics = calibrators.metrics || EXCLUDED.metrics, tau = COALESCE(EXCLUDED.tau, calibrators.tau),
-                  alpha = COALESCE(EXCLUDED.alpha, calibrators.alpha), n_calib_calls = COALESCE(EXCLUDED.n_calib_calls, calibrators.n_calib_calls),
+                  alpha = COALESCE(EXCLUDED.alpha, calibrators.alpha),
+                  n_calib_calls = COALESCE(EXCLUDED.n_calib_calls, calibrators.n_calib_calls),
                   promoted = EXCLUDED.promoted OR calibrators.promoted
                 """,
                 (rec.version, rec.slot_group, rec.artifact_uri, Jsonb(rec.metrics), rec.tau, rec.alpha, rec.n_calib_calls, rec.promoted),
@@ -741,7 +785,9 @@ class Store:
 
     # ------------------------------------------------------------------ notifications (idempotent sends)
 
-    async def claim_notification(self, idem_key: str, *, run_id: str, kind: str, recipient: str | None, payload: dict[str, Any]) -> NotificationRecord:
+    async def claim_notification(
+        self, idem_key: str, *, run_id: str, kind: str, recipient: str | None, payload: dict[str, Any]
+    ) -> NotificationRecord:
         """The notification row for ``idem_key``, created if new. Send only when ``sent_at`` is None."""
         async with self.db.connection() as conn:
             await conn.execute(
@@ -757,7 +803,9 @@ class Store:
     async def mark_notification(self, idem_key: str, *, channel: str, error: str | None = None) -> None:
         async with self.db.connection() as conn:
             if error is None:
-                await conn.execute("UPDATE notifications SET channel = %s, sent_at = now(), error = NULL WHERE idem_key = %s", (channel, idem_key))
+                await conn.execute(
+                    "UPDATE notifications SET channel = %s, sent_at = now(), error = NULL WHERE idem_key = %s", (channel, idem_key)
+                )
             else:
                 await conn.execute("UPDATE notifications SET channel = %s, error = %s WHERE idem_key = %s", (channel, error, idem_key))
 

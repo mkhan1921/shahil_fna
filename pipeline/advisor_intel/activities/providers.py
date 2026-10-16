@@ -68,7 +68,9 @@ def _build(kind: str, name: str, table: dict[str, ProviderSpec], settings: Setti
     if spec.key_setting:
         key = getattr(settings, spec.key_setting)
         if not key:
-            raise ProviderConfigError(f"{kind} {name!r} needs settings.{spec.key_setting} (environment ADVISOR_INTEL_{spec.key_setting.upper()})")
+            raise ProviderConfigError(
+                f"{kind} {name!r} needs settings.{spec.key_setting} (environment ADVISOR_INTEL_{spec.key_setting.upper()})"
+            )
         kwargs["base_url" if spec.key_setting.endswith("_url") else "api_key"] = key
     if spec.model_kwarg and model:
         kwargs[spec.model_kwarg] = model

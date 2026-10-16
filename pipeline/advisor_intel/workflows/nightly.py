@@ -68,19 +68,31 @@ class NightlyFeedbackWorkflow:
             result.lexicon = await workflow.execute_activity(PROPOSE_LEXICON_FIT, window, result_type=LexiconFitOutcome, **LEXICON_FIT_OPTS)
 
         async def errors() -> None:
-            result.errors_dataset = await workflow.execute_activity(SYNC_ERROR_DATASET, window, result_type=DatasetSyncOutcome, **DATASET_SYNC_OPTS)
+            result.errors_dataset = await workflow.execute_activity(
+                SYNC_ERROR_DATASET, window, result_type=DatasetSyncOutcome, **DATASET_SYNC_OPTS
+            )
 
         async def gold() -> None:
-            result.gold_candidates = await workflow.execute_activity(SYNC_GOLD_CANDIDATES, window, result_type=DatasetSyncOutcome, **DATASET_SYNC_OPTS)
+            result.gold_candidates = await workflow.execute_activity(
+                SYNC_GOLD_CANDIDATES, window, result_type=DatasetSyncOutcome, **DATASET_SYNC_OPTS
+            )
 
-        branches: dict[str, Any] = {"calibration": calibration(), "lexicon_fit": lexicon(), "error_dataset": errors(), "gold_candidates": gold()}
+        branches: dict[str, Any] = {
+            "calibration": calibration(),
+            "lexicon_fit": lexicon(),
+            "error_dataset": errors(),
+            "gold_candidates": gold(),
+        }
         outcomes = await asyncio.gather(*branches.values(), return_exceptions=True)
         for name, out in zip(branches, outcomes):
             if isinstance(out, BaseException):
                 result.failures[name] = str(getattr(out, "cause", None) or out)
         if result.failures:
             raise ApplicationError(
-                f"nightly feedback: {', '.join(sorted(result.failures))} failed", result.model_dump(mode="json"), type="NightlyStepsFailed", non_retryable=True
+                f"nightly feedback: {', '.join(sorted(result.failures))} failed",
+                result.model_dump(mode="json"),
+                type="NightlyStepsFailed",
+                non_retryable=True,
             )
         return result
 

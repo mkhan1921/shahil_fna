@@ -61,7 +61,9 @@ def build_worker(
     ``deployment`` defaults to this build's Worker Deployment version (the workflows need a versioned worker).
     """
     stages = stages or StageFunctions()
-    pipeline = PipelineActivities(store=store, objects=objects, settings=settings, notifier=notifier, stages=stages, providers=providers, note_model=note_model)
+    pipeline = PipelineActivities(
+        store=store, objects=objects, settings=settings, notifier=notifier, stages=stages, providers=providers, note_model=note_model
+    )
     nightly = NightlyActivities(store=store, objects=objects, settings=settings, stages=stages)
     return Worker(
         client,

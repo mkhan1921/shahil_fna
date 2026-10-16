@@ -56,12 +56,16 @@ def build_id() -> str:
 
 
 def deployment_version(build: str | None = None) -> WorkerDeploymentVersion:
-    return WorkerDeploymentVersion(deployment_name=os.environ.get("ADVISOR_INTEL_DEPLOYMENT_NAME", DEPLOYMENT_NAME), build_id=build or build_id())
+    return WorkerDeploymentVersion(
+        deployment_name=os.environ.get("ADVISOR_INTEL_DEPLOYMENT_NAME", DEPLOYMENT_NAME), build_id=build or build_id()
+    )
 
 
 def deployment_config(*, build: str | None = None) -> WorkerDeploymentConfig:
     """The worker's deployment config: this build in the ``advisor-intel`` deployment, PINNED unless a workflow says otherwise."""
-    return WorkerDeploymentConfig(version=deployment_version(build), use_worker_versioning=True, default_versioning_behavior=VersioningBehavior.PINNED)
+    return WorkerDeploymentConfig(
+        version=deployment_version(build), use_worker_versioning=True, default_versioning_behavior=VersioningBehavior.PINNED
+    )
 
 
 async def wait_for_version(client: Client, version: WorkerDeploymentVersion, *, timeout_s: float = 30.0) -> None:
@@ -72,7 +76,10 @@ async def wait_for_version(client: Client, version: WorkerDeploymentVersion, *, 
             d = await client.workflow_service.describe_worker_deployment(
                 DescribeWorkerDeploymentRequest(namespace=client.namespace, deployment_name=version.deployment_name)
             )
-            if any(s.deployment_version.build_id == version.build_id or s.version == version.to_canonical_string() for s in d.worker_deployment_info.version_summaries):
+            if any(
+                s.deployment_version.build_id == version.build_id or s.version == version.to_canonical_string()
+                for s in d.worker_deployment_info.version_summaries
+            ):
                 return
         except RPCError:
             pass  # the deployment does not exist until the first poll
@@ -81,7 +88,9 @@ async def wait_for_version(client: Client, version: WorkerDeploymentVersion, *, 
         await asyncio.sleep(0.2)
 
 
-async def set_current_version(client: Client, version: WorkerDeploymentVersion, *, identity: str = "advisor-intel-worker", wait_s: float = 30.0) -> None:
+async def set_current_version(
+    client: Client, version: WorkerDeploymentVersion, *, identity: str = "advisor-intel-worker", wait_s: float = 30.0
+) -> None:
     """Route new and AUTO_UPGRADE workflow tasks to ``version``."""
     await wait_for_version(client, version, timeout_s=wait_s)
     await client.workflow_service.set_worker_deployment_current_version(

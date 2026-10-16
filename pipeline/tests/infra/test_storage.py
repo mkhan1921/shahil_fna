@@ -68,10 +68,15 @@ async def test_schema_file_is_the_rendered_migrations_and_applies(empty_pg_dsn, 
     assert SCHEMA_FILE.read_text() == render_schema(), "storage/schema.sql is stale: run `python -m advisor_intel.storage.migrate render`"
     async with await psycopg.AsyncConnection.connect(empty_pg_dsn, autocommit=True) as conn:
         await conn.execute(SCHEMA_FILE.read_text())
-        a = await (await conn.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1")).fetchall()
+        a = await (
+            await conn.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY 1")
+        ).fetchall()
     async with await psycopg.AsyncConnection.connect(pg_dsn, autocommit=True) as conn:
         b = await (
-            await conn.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name <> 'schema_migrations' ORDER BY 1")
+            await conn.execute(
+                "SELECT table_name FROM information_schema.tables"
+                " WHERE table_schema = 'public' AND table_name <> 'schema_migrations' ORDER BY 1"
+            )
         ).fetchall()
     assert a == b
     names = {r[0] for r in a}
@@ -115,7 +120,13 @@ async def test_facts_are_append_only_with_a_latest_view(store: Store, pg_dsn):
     assert GROSS not in await store.latest_facts(p.run_id)
     assert [h.deleted for h in await store.fact_history(p.run_id, GROSS)] == [False, True]
     async with await psycopg.AsyncConnection.connect(pg_dsn, autocommit=True) as conn:
-        for sql in ("UPDATE facts SET profile_version = 99", "DELETE FROM facts", "DELETE FROM state_ops", "UPDATE review_events SET reason = 'x'", "TRUNCATE facts"):
+        for sql in (
+            "UPDATE facts SET profile_version = 99",
+            "DELETE FROM facts",
+            "DELETE FROM state_ops",
+            "UPDATE review_events SET reason = 'x'",
+            "TRUNCATE facts",
+        ):
             with pytest.raises(psycopg.errors.RestrictViolation, match="append-only"):
                 await conn.execute(sql)
 
@@ -210,13 +221,27 @@ async def test_checkpoints_resume_latest_turn_per_execution(store: Store):
 
 async def test_glossary_get_put_search(store: Store, pg_dsn):
     g = PostgresGlossaryStore(store.db)
-    await g.put(GlossaryEntry(term="10X RA", canonical_name="10X Retirement Annuity", aliases=["ten x ra"], product_type="retirement-annuity",
-                              provider="10X", confirmed_by="adv-1"))  # fmt: skip
-    await g.put(GlossaryEntry(term="Discovery Classic", canonical_name="Discovery Classic Saver", product_type="medical", provider="Discovery"))
+    await g.put(
+        GlossaryEntry(
+            term="10X RA",
+            canonical_name="10X Retirement Annuity",
+            aliases=["ten x ra"],
+            product_type="retirement-annuity",
+            provider="10X",
+            confirmed_by="adv-1",
+        )
+    )
+    await g.put(
+        GlossaryEntry(term="Discovery Classic", canonical_name="Discovery Classic Saver", product_type="medical", provider="Discovery")
+    )
     hit = await g.get("10x  ra")
     assert hit is not None and hit.canonical_name == "10X Retirement Annuity"
     assert (await g.get("Ten X RA")).term == "10X RA"
-    await g.put(GlossaryEntry(term="10X RA", canonical_name="10X Retirement Annuity", aliases=["tenex"], product_type="retirement-annuity", provider="10X"))
+    await g.put(
+        GlossaryEntry(
+            term="10X RA", canonical_name="10X Retirement Annuity", aliases=["tenex"], product_type="retirement-annuity", provider="10X"
+        )
+    )
     assert set((await g.get("10x ra")).aliases) == {"ten x ra", "tenex"}
     found = await g.search("discovery saver")
     assert found and found[0].provider == "Discovery"
@@ -237,8 +262,13 @@ async def test_followups_status_never_moves_back(store: Store):
     assert rec.status == "answered" and rec.answer.text == "sixty-three"
     await store.save_profile(p)  # the agent's copy still says "open"
     assert (await store.get_followup(p.run_id, "fu.retirement_age")).status == "answered"
-    added = await store.apply_followup_edit(p.run_id, FollowupEdit(followup_id=None, action="add", question="Any offshore assets?", reviewer_id="adv-1", at=NOW))
-    await store.apply_followup_edit(p.run_id, FollowupEdit(followup_id="fu.retirement_age", action="reword", question="Retire at 60 or 65?", reviewer_id="adv-1", at=NOW))
+    added = await store.apply_followup_edit(
+        p.run_id, FollowupEdit(followup_id=None, action="add", question="Any offshore assets?", reviewer_id="adv-1", at=NOW)
+    )
+    await store.apply_followup_edit(
+        p.run_id,
+        FollowupEdit(followup_id="fu.retirement_age", action="reword", question="Retire at 60 or 65?", reviewer_id="adv-1", at=NOW),
+    )
     qs = {r.followup.followup_id: r for r in await store.list_followups(p.run_id)}
     assert qs["fu.retirement_age"].followup.question == "Retire at 60 or 65?" and qs[added].followup.question == "Any offshore assets?"
     loaded = await store.load_profile(p.run_id)
@@ -248,13 +278,25 @@ async def test_followups_status_never_moves_back(store: Store):
 async def test_review_events_forecasts_documents_notifications(store: Store):
     await _setup_call(store)
     ev = ReviewEvent(workflow_id="call-1-run-a", fact_id=RET_AGE, action="accept", reviewer_id="adv-1", at=NOW, detail={"note": "ok"})
-    await store.record_review_events([ev, ev.model_copy(update={"action": "reject", "reason": "misheard", "at": NOW + timedelta(hours=30)})])
+    await store.record_review_events(
+        [ev, ev.model_copy(update={"action": "reject", "reason": "misheard", "at": NOW + timedelta(hours=30)})]
+    )
     assert [e.action for e in await store.review_events(since=NOW - timedelta(hours=1), until=NOW + timedelta(hours=1))] == ["accept"]
     assert len(await store.review_events(run_id="call-1-run-a")) == 2
 
-    fr = ForecastResult(run_id="call-1-run-a", profile_version="3", config_version="config_v1", cma_version="2026Q4", n_paths=1000, pos=0.71, pos_ci=(0.68, 0.74))
+    fr = ForecastResult(
+        run_id="call-1-run-a",
+        profile_version="3",
+        config_version="config_v1",
+        cma_version="2026Q4",
+        n_paths=1000,
+        pos=0.71,
+        pos_ci=(0.68, 0.74),
+    )
     await store.save_forecast("call-1-run-a", 3, "preview", fr, config_version="config_v1", cma_version="2026Q4")
-    await store.save_forecast("call-1-run-a", 4, "final", fr.model_copy(update={"pos": 0.75}), config_version="config_v1", cma_version="2026Q4")
+    await store.save_forecast(
+        "call-1-run-a", 4, "final", fr.model_copy(update={"pos": 0.75}), config_version="config_v1", cma_version="2026Q4"
+    )
     assert (await store.get_forecast("call-1-run-a")).result["pos"] == 0.75
     assert (await store.get_forecast("call-1-run-a", mode="preview")).profile_version == 3
 
@@ -271,8 +313,12 @@ async def test_review_events_forecasts_documents_notifications(store: Store):
     n2 = await store.claim_notification("run-a/review_ready", run_id="call-1-run-a", kind="review_ready", recipient="a@x.co", payload={})
     assert n2.sent_at is not None and n2.channel == "log"
 
-    await store.register_calibrator(CalibratorRecord(version="cal-2026-10-16", slot_group="*", artifact_uri="file:///c.pkl", metrics={"ece": 0.04}))
-    await store.register_calibrator(CalibratorRecord(version="cal-2026-10-16", slot_group="*", tau=0.93, alpha=0.1, n_calib_calls=60, promoted=True))
+    await store.register_calibrator(
+        CalibratorRecord(version="cal-2026-10-16", slot_group="*", artifact_uri="file:///c.pkl", metrics={"ece": 0.04})
+    )
+    await store.register_calibrator(
+        CalibratorRecord(version="cal-2026-10-16", slot_group="*", tau=0.93, alpha=0.1, n_calib_calls=60, promoted=True)
+    )
     [cal] = await store.calibrators(version="cal-2026-10-16")
     assert cal.artifact_uri == "file:///c.pkl" and cal.tau == 0.93 and cal.promoted and cal.metrics == {"ece": 0.04}
     assert await store.current_calibrator_version() == "cal-2026-10-16"

@@ -155,7 +155,9 @@ class CallPipelineWorkflow:
 
         assert self.review is not None
         self._stage = APPLY_REVIEW
-        applied = await workflow.execute_activity(APPLY_REVIEW, ReviewInput(run_id=run_id, review=self.review), result_type=ReviewOutcome, **REVIEW_OPTS)
+        applied = await workflow.execute_activity(
+            APPLY_REVIEW, ReviewInput(run_id=run_id, review=self.review), result_type=ReviewOutcome, **REVIEW_OPTS
+        )
         self._profile_version = applied.profile_version
         self.state = RunState.REVIEWED
         await self._take_answers(run_id, args, forecast=False)  # answers that arrived after submission
@@ -165,7 +167,12 @@ class CallPipelineWorkflow:
         self.state = RunState.COMPLETE
         self._stage = ""
         return CallResult(
-            call_id=args.call_id, run_id=run_id, profile_version=result.profile_version, pos=result.pos, partial=self._partial, state=RunState.COMPLETE
+            call_id=args.call_id,
+            run_id=run_id,
+            profile_version=result.profile_version,
+            pos=result.pos,
+            partial=self._partial,
+            state=RunState.COMPLETE,
         )
 
     # ------------------------------------------------------------------ steps

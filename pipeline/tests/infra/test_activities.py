@@ -77,7 +77,9 @@ class Fakes:
 
     async def discourse(self, transcript, *, prior, crm, pins, catalog):
         self.count("discourse")
-        return DiscourseOutput(entities=prior.entities if prior else {}, rewrites={"s0002": "The client would like to retire at sixty, maybe sixty-five."})
+        return DiscourseOutput(
+            entities=prior.entities if prior else {}, rewrites={"s0002": "The client would like to retire at sixty, maybe sixty-five."}
+        )
 
     async def agent(self, inputs, *, checkpoints, heartbeat):
         self.count("agent")
@@ -104,23 +106,38 @@ class Fakes:
         self.count("forecast")
         assert base_document is not None and seed is not None
         return ForecastResult(
-            run_id=profile.run_id, profile_version=str(profile.version), config_version="config_v1", cma_version="2026Q4", n_paths=1000, seed=seed, pos=0.7,
+            run_id=profile.run_id,
+            profile_version=str(profile.version),
+            config_version="config_v1",
+            cma_version="2026Q4",
+            n_paths=1000,
+            seed=seed,
+            pos=0.7,
             pos_ci=(0.67, 0.73),
-        )  # fmt: skip
+        )
 
     async def extract_followup(self, profile, transcript, *, followup, pins, catalog):
         self.count("extract_followup")
         seg = transcript.segments[0]
         ev = Evidence(
-            segment_id=seg.segment_id, char_start=0, char_end=len(seg.text), quote=seg.text, speaker_role="client_primary", t_start=0, t_end=1,
-            asr_mean_conf=1.0, role="supports",
-        )  # fmt: skip
+            segment_id=seg.segment_id,
+            char_start=0,
+            char_end=len(seg.text),
+            quote=seg.text,
+            speaker_role="client_primary",
+            t_start=0,
+            t_end=1,
+            asr_mean_conf=1.0,
+            role="supports",
+        )
         payload = {
             "slot_id": "retirement.{p}.retirementAge",
             "instance_key": "client",
             "fna_path": "retirement.client.retirementAge",
             "status": "stated",
-            "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=63), unit="age"), weight=1.0, rationale="answered 63").model_dump(mode="json")],
+            "hypotheses": [
+                Hypothesis(value=Quantity(dist=Point(value=63), unit="age"), weight=1.0, rationale="answered 63").model_dump(mode="json")
+            ],
             "evidence": [ev.model_dump(mode="json")],
             "entity_refs": ["person.client_primary"],
             "provenance": Provenance(run_id=profile.run_id).model_dump(mode="json"),
@@ -155,7 +172,14 @@ async def ctx(store: Store, objects):
     doc_id = await store.save_client_document("cl-1", sample_document(), source="import")
     audio = await objects.put_bytes("audio/call-1/call.wav", b"RIFF-call-audio")
     await store.upsert_call(
-        CallRecord(call_id="call-1", advisor_id="adv-1", client_ids=["cl-1"], started_at=NOW, audio_uri=audio, meta={"advisor_email": "adv@practice.co.za", "prior_document_id": doc_id})
+        CallRecord(
+            call_id="call-1",
+            advisor_id="adv-1",
+            client_ids=["cl-1"],
+            started_at=NOW,
+            audio_uri=audio,
+            meta={"advisor_email": "adv@practice.co.za", "prior_document_id": doc_id},
+        )
     )
     fakes = Fakes()
     notifier = RecordingNotifier()
@@ -172,7 +196,9 @@ async def ctx(store: Store, objects):
 
 def env(run_id: str = RUN, execution: str = "exec-1", activity_id: str = "1", heartbeats: list | None = None) -> ActivityEnvironment:
     e = ActivityEnvironment()
-    e.info = dataclasses.replace(e.info, workflow_id=run_id, workflow_run_id=execution, activity_id=activity_id, heartbeat_timeout=timedelta(seconds=3))
+    e.info = dataclasses.replace(
+        e.info, workflow_id=run_id, workflow_run_id=execution, activity_id=activity_id, heartbeat_timeout=timedelta(seconds=3)
+    )
     if heartbeats is not None:
         e.on_heartbeat = lambda *d: heartbeats.append(d)
     return e
@@ -215,7 +241,9 @@ async def test_discourse_is_cached_and_survives_extraction_prompt_changes(ctx):
     pins = VersionPins(prompt_versions={"extract_slot_group": "v7"})
     second = await env("call-1-run-b").run(ctx.acts.run_discourse, stage_in("call-1-run-b", versions=pins))
     assert second.cached and second.cache_key == first.cache_key and ctx.fakes.calls["discourse"] == 1
-    third = await env("call-1-run-c").run(ctx.acts.run_discourse, stage_in("call-1-run-c", versions=VersionPins(prompt_versions={"rewrite": "v2"})))
+    third = await env("call-1-run-c").run(
+        ctx.acts.run_discourse, stage_in("call-1-run-c", versions=VersionPins(prompt_versions={"rewrite": "v2"}))
+    )
     assert not third.cached and ctx.fakes.calls["discourse"] == 2
 
 
@@ -273,7 +301,9 @@ async def test_rerun_from_a_later_stage_starts_from_the_source_runs_profile(ctx)
     await _through_forecast(ctx)
     source = await ctx.store.load_profile(RUN)
     await ctx.store.register_run("call-1-run-b", "call-1", VersionPins(cma_version="2027Q1"), start_stage=Stage.FORECAST, source_run_id=RUN)
-    out = await env("call-1-run-b").run(ctx.acts.run_forecast, stage_in("call-1-run-b", start_stage=Stage.FORECAST, versions=VersionPins(cma_version="2027Q1")))
+    out = await env("call-1-run-b").run(
+        ctx.acts.run_forecast, stage_in("call-1-run-b", start_stage=Stage.FORECAST, versions=VersionPins(cma_version="2027Q1"))
+    )
     copy = await ctx.store.load_profile("call-1-run-b")
     assert copy.facts == source.facts and copy.run_id == "call-1-run-b" and out.profile_version == source.version
     assert "ingest" not in ctx.fakes.calls or ctx.fakes.calls["ingest"] == 1
@@ -303,7 +333,11 @@ async def test_apply_review_with_file_exchange_ops(ctx):
     events = await ctx.store.review_events(run_id=RUN)
     assert [e.action for e in events] == ["accept", "reject", "submit"]
     reject = events[1]
-    assert reject.reason == "misheard" and reject.detail["fact_before"]["review"]["status"] == "pending" and reject.detail["note"] == "it was 58k"
+    assert (
+        reject.reason == "misheard"
+        and reject.detail["fact_before"]["review"]["status"] == "pending"
+        and reject.detail["note"] == "it was 58k"
+    )
     # The reviewed document becomes the client's prior for the next call.
     latest = await ctx.store.latest_client_document("cl-1")
     assert latest.retirement["client"].retirementAge == 62
@@ -325,7 +359,9 @@ async def test_followup_answer_goes_through_the_reducer_once(ctx):
     dup = await env().run(ctx.acts.intake_followup_answer, inp)
     assert dup.duplicate and ctx.fakes.calls["extract_followup"] == 1
     with pytest.raises(ApplicationError, match="no follow-up"):
-        await env().run(ctx.acts.intake_followup_answer, inp.model_copy(update={"answer": answer.model_copy(update={"followup_id": "fu.nope"})}))
+        await env().run(
+            ctx.acts.intake_followup_answer, inp.model_copy(update={"answer": answer.model_copy(update={"followup_id": "fu.nope"})})
+        )
 
 
 async def test_meeting_note_is_rendered_and_written_into_the_reviewed_document(ctx):
@@ -345,7 +381,9 @@ async def test_notifications_are_sent_once_per_scheduled_activity(ctx):
     retry = await env(activity_id="7").run(ctx.acts.notify_advisor, inp)
     assert first.sent and not first.duplicate and retry.duplicate and len(ctx.notifier.sent) == 1
     n = ctx.notifier.sent[0]
-    assert n.recipient == "adv@practice.co.za" and "Thabo Mokoena" in n.subject and n.data["open_flags"] == 1 and n.data["open_followups"] == 1
+    assert (
+        n.recipient == "adv@practice.co.za" and "Thabo Mokoena" in n.subject and n.data["open_flags"] == 1 and n.data["open_followups"] == 1
+    )
     await env(activity_id="9").run(ctx.acts.send_review_reminder, inp.model_copy(update={"kind": "review_reminder", "reminder_number": 1}))
     assert len(ctx.notifier.sent) == 2 and ctx.notifier.sent[1].subject.startswith("Reminder")
 
@@ -362,12 +400,20 @@ async def test_missing_call_is_a_non_retryable_input_error(ctx):
 async def test_nightly_labels_retrain_refit_and_lexicon(store: Store, objects):
     from advisor_intel.storage import ReviewEvent
 
-    before = {"slot_id": "retirement.{p}.retirementAge", "normalization": {"lexicon_key": "about", "phrase": "about sixty"}, "value": {"dist": {"kind": "point", "value": 60}}}
+    before = {
+        "slot_id": "retirement.{p}.retirementAge",
+        "normalization": {"lexicon_key": "about", "phrase": "about sixty"},
+        "value": {"dist": {"kind": "point", "value": 60}},
+    }
     after = {"slot_id": "retirement.{p}.retirementAge", "value": {"dist": {"kind": "point", "value": 62}}}
     await store.record_review_events(
         [
-            ReviewEvent(workflow_id="r1", fact_id="f1", action="edit", reviewer_id="a", at=NOW, detail={"fact_before": before, "fact_after": after}),
-            ReviewEvent(workflow_id="r2", fact_id="f2", action="reject", reason="misheard", reviewer_id="a", at=NOW, detail={"fact_before": before}),
+            ReviewEvent(
+                workflow_id="r1", fact_id="f1", action="edit", reviewer_id="a", at=NOW, detail={"fact_before": before, "fact_after": after}
+            ),
+            ReviewEvent(
+                workflow_id="r2", fact_id="f2", action="reject", reason="misheard", reviewer_id="a", at=NOW, detail={"fact_before": before}
+            ),
             ReviewEvent(workflow_id="r2", action="submit", reviewer_id="a", at=NOW),
         ]
     )
@@ -389,7 +435,15 @@ async def test_nightly_labels_retrain_refit_and_lexicon(store: Store, objects):
         seen["pairs"] = pairs
         return {"keys_fitted": ["about"], "yaml": "about: {p10: 0.9}\n", "pull_request": "https://github.com/x/y/pull/7"}
 
-    stages = StageFunctions({"build_labels": build_labels, "retrain_calibrator": retrain, "refit_conformal": refit, "load_lexicon": lambda v: f"lex-{v}", "propose_lexicon_fit": propose})
+    stages = StageFunctions(
+        {
+            "build_labels": build_labels,
+            "retrain_calibrator": retrain,
+            "refit_conformal": refit,
+            "load_lexicon": lambda v: f"lex-{v}",
+            "propose_lexicon_fit": propose,
+        }
+    )
     nightly = NightlyActivities(store=store, objects=objects, settings=Settings(), stages=stages)
     window = C.NightlyWindow(since=NOW - timedelta(hours=1), until=NOW + timedelta(hours=1))
     e = env("nightly")
@@ -416,12 +470,28 @@ async def test_nightly_labels_retrain_refit_and_lexicon(store: Store, objects):
 async def test_dataset_sync_with_a_key(store: Store, objects):
     from advisor_intel.storage import ReviewEvent
 
+    before = {"slot_id": "dependants[].dateOfBirth", "evidence": [{"quote": "she was born in 2012"}]}
     await store.record_review_events(
         [
-            ReviewEvent(workflow_id="r2", fact_id="f2", action="reject", reason="wrong_person", reviewer_id="a", at=NOW, detail={"fact_before": {"slot_id": "dependants[].dateOfBirth", "evidence": [{"quote": "she was born in 2012"}]}}),
-            ReviewEvent(workflow_id="r2", action="edit_followup", reason="reword", reviewer_id="a", at=NOW, detail={"edit": {"question": "When was Neo born?"}}),
+            ReviewEvent(
+                workflow_id="r2",
+                fact_id="f2",
+                action="reject",
+                reason="wrong_person",
+                reviewer_id="a",
+                at=NOW,
+                detail={"fact_before": before},
+            ),
+            ReviewEvent(
+                workflow_id="r2",
+                action="edit_followup",
+                reason="reword",
+                reviewer_id="a",
+                at=NOW,
+                detail={"edit": {"question": "When was Neo born?"}},
+            ),
         ]
-    )  # fmt: skip
+    )
     got: dict[str, Any] = {}
 
     def sink(name):

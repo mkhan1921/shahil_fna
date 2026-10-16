@@ -214,7 +214,9 @@ class LocalObjectStore(ObjectStore):
 class S3ObjectStore(ObjectStore):
     """Objects in one S3 bucket under an optional prefix; URIs are ``s3://bucket/prefix/key``."""
 
-    def __init__(self, bucket: str, prefix: str = "", *, client: Any | None = None, endpoint_url: str | None = None, region_name: str | None = None) -> None:
+    def __init__(
+        self, bucket: str, prefix: str = "", *, client: Any | None = None, endpoint_url: str | None = None, region_name: str | None = None
+    ) -> None:
         if client is None:
             import boto3
 

@@ -50,7 +50,9 @@ def model_swap_schedule(task_queue: str, *, paused: bool = False) -> Schedule:
             MODEL_SWAP, ModelSwapArgs(), id="monthly-model-swap", task_queue=task_queue, execution_timeout=timedelta(hours=12)
         ),
         spec=ScheduleSpec(
-            calendars=[ScheduleCalendarSpec(day_of_month=[ScheduleRange(1)], hour=[ScheduleRange(3)], comment="1st of the month, 03:00 SAST")],
+            calendars=[
+                ScheduleCalendarSpec(day_of_month=[ScheduleRange(1)], hour=[ScheduleRange(3)], comment="1st of the month, 03:00 SAST")
+            ],
             time_zone_name=SAST,
         ),
         policy=SchedulePolicy(overlap=ScheduleOverlapPolicy.SKIP, catchup_window=timedelta(days=1)),

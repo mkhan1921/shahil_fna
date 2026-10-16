@@ -44,7 +44,9 @@ class Database:
         return self._cond
 
     async def _open(self) -> Connection:
-        return await psycopg.AsyncConnection.connect(self.dsn, autocommit=True, row_factory=dict_row, connect_timeout=int(self.connect_timeout))
+        return await psycopg.AsyncConnection.connect(
+            self.dsn, autocommit=True, row_factory=dict_row, connect_timeout=int(self.connect_timeout)
+        )
 
     @contextlib.asynccontextmanager
     async def connection(self) -> AsyncIterator[Connection]:
@@ -66,7 +68,12 @@ class Database:
         finally:
             async with cond:
                 self._in_use -= 1
-                if conn is not None and not conn.closed and not conn.broken and conn.info.transaction_status == psycopg.pq.TransactionStatus.IDLE:
+                if (
+                    conn is not None
+                    and not conn.closed
+                    and not conn.broken
+                    and conn.info.transaction_status == psycopg.pq.TransactionStatus.IDLE
+                ):
                     self._idle.append(conn)
                 cond.notify()
 

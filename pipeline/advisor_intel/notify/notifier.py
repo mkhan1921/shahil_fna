@@ -80,7 +80,14 @@ def smtp_from_env() -> SmtpConfig | None:
         return None
     port = int(_env("SMTP_PORT") or 587)
     starttls = (_env("SMTP_STARTTLS") or ("false" if port == 465 else "true")).lower() in ("1", "true", "yes", "on")
-    return SmtpConfig(host=host, port=port, user=_env("SMTP_USER"), password=_env("SMTP_PASSWORD"), sender=_env("SMTP_FROM") or "advisor-intel@localhost", starttls=starttls)
+    return SmtpConfig(
+        host=host,
+        port=port,
+        user=_env("SMTP_USER"),
+        password=_env("SMTP_PASSWORD"),
+        sender=_env("SMTP_FROM") or "advisor-intel@localhost",
+        starttls=starttls,
+    )
 
 
 def webhook_from_env() -> WebhookConfig | None:
@@ -93,7 +100,9 @@ def sign(secret: str, body: bytes) -> str:
 
 
 class Notifier:
-    def __init__(self, *, smtp: SmtpConfig | None = None, webhook: WebhookConfig | None = None, http: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self, *, smtp: SmtpConfig | None = None, webhook: WebhookConfig | None = None, http: httpx.AsyncClient | None = None
+    ) -> None:
         self.smtp = smtp
         self.webhook = webhook
         self._http = http

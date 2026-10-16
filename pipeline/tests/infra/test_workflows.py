@@ -43,7 +43,9 @@ async def test_full_run_completes_after_review(temporal_bin):
     mocks = MockActivities()
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         run_id = f"call-1-{uuid.uuid4().hex[:6]}"
-        handle = await env.client.start_workflow(CallPipelineWorkflow.run, _args(), id=run_id, task_queue=tq, execution_timeout=EXEC_TIMEOUT)
+        handle = await env.client.start_workflow(
+            CallPipelineWorkflow.run, _args(), id=run_id, task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
         await wait_state(handle, RunState.AWAITING_REVIEW)
         status = await handle.query(CallPipelineWorkflow.run_status)
         assert status.profile_version == 3 and status.pos == 0.72 and not status.review_submitted
@@ -71,7 +73,11 @@ async def test_rerun_from_a_later_stage_skips_earlier_stages(temporal_bin):
     mocks = MockActivities()
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         handle = await env.client.start_workflow(
-            CallPipelineWorkflow.run, _args(start_stage=Stage.VOI), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+            CallPipelineWorkflow.run,
+            _args(start_stage=Stage.VOI),
+            id=f"call-1-{uuid.uuid4().hex[:6]}",
+            task_queue=tq,
+            execution_timeout=EXEC_TIMEOUT,
         )
         await wait_state(handle, RunState.AWAITING_REVIEW)
         await handle.signal(CallPipelineWorkflow.review_submitted, _review())
@@ -84,7 +90,11 @@ async def test_review_reminders_while_waiting(temporal_bin):
     mocks = MockActivities()
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         handle = await env.client.start_workflow(
-            CallPipelineWorkflow.run, _args(review_reminder_seconds=1), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+            CallPipelineWorkflow.run,
+            _args(review_reminder_seconds=1),
+            id=f"call-1-{uuid.uuid4().hex[:6]}",
+            task_queue=tq,
+            execution_timeout=EXEC_TIMEOUT,
         )
         await wait_state(handle, RunState.AWAITING_REVIEW)
         await wait_for(lambda: len(mocks.inputs(C.SEND_REVIEW_REMINDER)) >= 2, timeout=15)
@@ -99,7 +109,9 @@ async def test_review_reminders_while_waiting(temporal_bin):
 async def test_followup_answers_during_review_are_taken_in(temporal_bin):
     mocks = MockActivities(failing_answers=("fu.bad",))
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
-        handle = await env.client.start_workflow(CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT)
+        handle = await env.client.start_workflow(
+            CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
         await wait_state(handle, RunState.AWAITING_REVIEW)
         await handle.signal(CallPipelineWorkflow.followup_answered, _answer())
         await wait_for(lambda: len(mocks.inputs(C.RUN_FORECAST)) >= 2)
@@ -122,7 +134,9 @@ async def test_followup_answers_during_review_are_taken_in(temporal_bin):
 async def test_agent_partial_still_goes_to_review(temporal_bin):
     mocks = MockActivities(partial=True)
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
-        handle = await env.client.start_workflow(CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT)
+        handle = await env.client.start_workflow(
+            CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
         await wait_state(handle, RunState.AWAITING_REVIEW)
         assert (await handle.query(CallPipelineWorkflow.run_status)).partial is True
         await handle.signal(CallPipelineWorkflow.review_submitted, _review())
@@ -144,11 +158,20 @@ async def test_manual_route_when_speakers_out_of_range(temporal_bin):
 async def test_large_review_submission_is_offloaded_to_object_storage(temporal_bin, objects):
     mocks = MockActivities()
     ops = [
-        StateOp(op="CONFIRM", fact_id=f"expenses.items[]#item_{i}", segment_id=None, payload={"review": {"status": "accepted", "reviewer_id": "adv-1"}}, actor="reviewer", seq=100 + i)
+        StateOp(
+            op="CONFIRM",
+            fact_id=f"expenses.items[]#item_{i}",
+            segment_id=None,
+            payload={"review": {"status": "accepted", "reviewer_id": "adv-1"}},
+            actor="reviewer",
+            seq=100 + i,
+        )
         for i in range(400)
     ]
     async with temporal_env(temporal_bin, objects, threshold=16 * 1024) as env, running_worker(env.client, mocks) as tq:
-        handle = await env.client.start_workflow(CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT)
+        handle = await env.client.start_workflow(
+            CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
         await wait_state(handle, RunState.AWAITING_REVIEW)
         await handle.signal(CallPipelineWorkflow.review_submitted, _review(ops))
         await handle.result()
@@ -182,9 +205,12 @@ async def test_forecast_workflow(temporal_bin):
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         args = _args().final().model_copy(update={"versions": _args().versions.model_copy(update={"cma_version": "2027Q1"})})
         out = await env.client.execute_workflow(
-            ForecastWorkflow.run, C.ForecastArgs(run_id="call-1-run-a", args=args, profile_version=7), id=f"fc-{uuid.uuid4().hex[:6]}", task_queue=tq,
+            ForecastWorkflow.run,
+            C.ForecastArgs(run_id="call-1-run-a", args=args, profile_version=7),
+            id=f"fc-{uuid.uuid4().hex[:6]}",
+            task_queue=tq,
             execution_timeout=EXEC_TIMEOUT,
-        )  # fmt: skip
+        )
     [inp] = mocks.inputs(C.RUN_FORECAST)
     assert inp.profile_version == 7 and inp.args.versions.cma_version == "2027Q1" and out.mode == "final"
 
@@ -194,7 +220,11 @@ async def test_nightly_feedback_runs_every_branch_in_order(temporal_bin):
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         until = datetime(2026, 10, 16, 0, 0, tzinfo=timezone.utc)
         out = await env.client.execute_workflow(
-            NightlyFeedbackWorkflow.run, C.NightlyArgs(until=until), id=f"nightly-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+            NightlyFeedbackWorkflow.run,
+            C.NightlyArgs(until=until),
+            id=f"nightly-{uuid.uuid4().hex[:6]}",
+            task_queue=tq,
+            execution_timeout=EXEC_TIMEOUT,
         )
     names = mocks.names()
     assert names.index(C.BUILD_LABELS) < names.index(C.RETRAIN_CALIBRATOR) < names.index(C.REFIT_CONFORMAL)
@@ -208,7 +238,11 @@ async def test_nightly_failure_in_one_branch_lets_the_others_finish(temporal_bin
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
         with pytest.raises(WorkflowFailureError) as ei:
             await env.client.execute_workflow(
-                NightlyFeedbackWorkflow.run, C.NightlyArgs(), id=f"nightly-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+                NightlyFeedbackWorkflow.run,
+                C.NightlyArgs(),
+                id=f"nightly-{uuid.uuid4().hex[:6]}",
+                task_queue=tq,
+                execution_timeout=EXEC_TIMEOUT,
             )
     assert "calibration" in str(ei.value.cause)
     names = mocks.names()

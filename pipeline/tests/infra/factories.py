@@ -56,7 +56,11 @@ def with_call_facts(profile: Profile) -> Profile:
                 "instance_key": "client",
                 "fna_path": "retirement.client.retirementAge",
                 "status": "stated",
-                "hypotheses": [Hypothesis(value=Quantity(dist=Triangular(low=60, mode=62, high=65), unit="age"), weight=1.0, rationale="between 60 and 65")],
+                "hypotheses": [
+                    Hypothesis(
+                        value=Quantity(dist=Triangular(low=60, mode=62, high=65), unit="age"), weight=1.0, rationale="between 60 and 65"
+                    )
+                ],
                 "evidence": [evidence()],
                 "entity_refs": ["person.client_primary"],
                 "interpretation": "retire between 60 and 65, most likely 62",
@@ -73,7 +77,11 @@ def with_call_facts(profile: Profile) -> Profile:
                 "instance_key": "client",
                 "fna_path": "income.client.grossMonthly",
                 "status": "stated",
-                "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=85000), unit="ZAR", period="monthly", basis="gross"), weight=1.0, rationale="said")],
+                "hypotheses": [
+                    Hypothesis(
+                        value=Quantity(dist=Point(value=85000), unit="ZAR", period="monthly", basis="gross"), weight=1.0, rationale="said"
+                    )
+                ],
                 "evidence": [evidence("s0003", "I earn eighty-five thousand a month before tax", t=20.0)],
                 "entity_refs": ["person.client_primary"],
                 "provenance": prov,
@@ -87,7 +95,12 @@ def with_call_facts(profile: Profile) -> Profile:
 
 
 def flagged(profile: Profile, *, fact_id: str = RET_AGE) -> Profile:
-    flag = BlockingFlag(flag_id="flag.tier_a.retirement_age", kind="tier_a_contradicted", fact_id=fact_id, message="retirement age contradicts the prior FNA")
+    flag = BlockingFlag(
+        flag_id="flag.tier_a.retirement_age",
+        kind="tier_a_contradicted",
+        fact_id=fact_id,
+        message="retirement age contradicts the prior FNA",
+    )
     question = FollowUp(
         followup_id="fu.retirement_age",
         fact_ids=[fact_id],
@@ -123,11 +136,21 @@ def make_transcript(call_id: str = "call-1", asr_model_version: str = "fake-1") 
         )
         t = words[-1].t_end + 0.5
     quality = QualityReport(mean_word_conf=0.92, low_asr_share=0.0, crosstalk_share=0.0, n_speakers=2, role_conf_min=0.95)
-    return Transcript(call_id=call_id, anchor_date=ANCHOR, segments=segs, asr_provider="fake", asr_model_version=asr_model_version, quality=quality)
+    return Transcript(
+        call_id=call_id, anchor_date=ANCHOR, segments=segs, asr_provider="fake", asr_model_version=asr_model_version, quality=quality
+    )
 
 
 def reviewer_accept(profile: Profile, fact_id: str, reviewer: str = "adv-1") -> list[StateOp]:
     return make_ops(
         profile,
-        [("CONFIRM", fact_id, None, {"review": {"status": "accepted", "reviewer_id": reviewer, "reviewed_at": datetime.now(timezone.utc).isoformat()}}, "reviewer")],
+        [
+            (
+                "CONFIRM",
+                fact_id,
+                None,
+                {"review": {"status": "accepted", "reviewer_id": reviewer, "reviewed_at": datetime.now(timezone.utc).isoformat()}},
+                "reviewer",
+            )
+        ],
     )

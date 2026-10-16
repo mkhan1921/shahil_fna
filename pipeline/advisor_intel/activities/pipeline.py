@@ -257,7 +257,9 @@ class PipelineActivities:
                 await self.store.save_transcript(args.call_id, key, transcript, uri=uri)
             q = transcript.quality
             out = IngestOutcome(cache_key=key, quality=q, manual=bool(q and q.failed), role_review_needed=bool(q and q.role_review_needed))
-            await self.store.put_stage_output(args.call_id, "ingest", key, inp.run_id, out.model_dump(mode="json"), pins.model_dump(mode="json"))
+            await self.store.put_stage_output(
+                args.call_id, "ingest", key, inp.run_id, out.model_dump(mode="json"), pins.model_dump(mode="json")
+            )
             return out
 
     async def _transcribe(self, call_id: str, pins: VersionPins) -> Transcript:
@@ -265,7 +267,9 @@ class PipelineActivities:
         if not call.audio_uri:
             raise input_error(f"call {call_id} has no audio")
         prior, crm = await self._prior(call)
-        crm_names = sorted({p.name for p in crm.household} | {x for p in crm.products for x in (p.provider, p.product) if x}) if crm else None
+        crm_names = (
+            sorted({p.name for p in crm.household} | {x for p in crm.products for x in (p.provider, p.product) if x}) if crm else None
+        )
         meta = {
             "call_id": call.call_id,
             "advisor_id": call.advisor_id,
@@ -312,7 +316,9 @@ class PipelineActivities:
                 doc, crm = await self._prior(call)
                 catalog = self._catalog(pins)
                 prior = (
-                    binding.load_prior(doc, crm, call_id=args.call_id, run_id=inp.run_id, anchor_date=transcript.anchor_date, catalog=catalog)
+                    binding.load_prior(
+                        doc, crm, call_id=args.call_id, run_id=inp.run_id, anchor_date=transcript.anchor_date, catalog=catalog
+                    )
                     if doc is not None or crm is not None
                     else None
                 )
@@ -321,8 +327,12 @@ class PipelineActivities:
                 output = DiscourseOutput.model_validate(dump(output))
                 uri = await self.objects.put_json(f"discourse/{safe_segment(args.call_id)}/{key}.json", output)
                 await self.store.save_discourse(args.call_id, key, output, versions=pins.model_dump(mode="json"), uri=uri)
-            out = StageOutcome(stage="discourse", cache_key=key, detail={"entities": len(output.entities), "rewrites": len(output.rewrites)})
-            await self.store.put_stage_output(args.call_id, "discourse", key, inp.run_id, out.model_dump(mode="json"), pins.model_dump(mode="json"))
+            out = StageOutcome(
+                stage="discourse", cache_key=key, detail={"entities": len(output.entities), "rewrites": len(output.rewrites)}
+            )
+            await self.store.put_stage_output(
+                args.call_id, "discourse", key, inp.run_id, out.model_dump(mode="json"), pins.model_dump(mode="json")
+            )
             return out
 
     # ------------------------------------------------------------------ stages 3–6: the agent (§13.2)
@@ -350,7 +360,15 @@ class PipelineActivities:
                 extractor_model=pins.reasoning_model,
                 extractor_prompt_version=pins.prompt_versions.get("extract_slot_group", ""),
             )
-            profile = binding.load_prior(doc, crm, call_id=args.call_id, run_id=inp.run_id, anchor_date=transcript.anchor_date, catalog=catalog, provenance=provenance)
+            profile = binding.load_prior(
+                doc,
+                crm,
+                call_id=args.call_id,
+                run_id=inp.run_id,
+                anchor_date=transcript.anchor_date,
+                catalog=catalog,
+                provenance=provenance,
+            )
             budgets = self.settings.budgets.scaled(transcript.duration / 60.0)
             if args.budget_usd is not None:
                 budgets = budgets.model_copy(update={"usd_cap": args.budget_usd})
@@ -368,7 +386,9 @@ class PipelineActivities:
             result = await invoke(self.stages.get("run_agent"), inputs, checkpoints=checkpoints, heartbeat=activity.heartbeat)
             outcome = AgentOutcome.model_validate(dump(result.outcome))
             await self._save_new_profile(Profile.model_validate(dump(result.profile)))
-            await self.store.put_stage_output(args.call_id, "agent", key, inp.run_id, outcome.model_dump(mode="json"), pins.model_dump(mode="json"))
+            await self.store.put_stage_output(
+                args.call_id, "agent", key, inp.run_id, outcome.model_dump(mode="json"), pins.model_dump(mode="json")
+            )
             return outcome
 
     # ------------------------------------------------------------------ stage 6: VOI and follow-ups (§10)
@@ -413,7 +433,9 @@ class PipelineActivities:
             flags = [cleared.get(f.flag_id, f) for f in flags]
             saved = await self.store.save_profile(new.model_copy(update={"open_questions": followups, "blocking_flags": flags}))
             result = VoiOutcome(profile_version=saved.version, n_followups=len(followups), n_flags=sum(not f.cleared for f in flags))
-            await self.store.put_stage_output(args.call_id, "voi", key, inp.run_id, result.model_dump(mode="json"), pins.model_dump(mode="json"))
+            await self.store.put_stage_output(
+                args.call_id, "voi", key, inp.run_id, result.model_dump(mode="json"), pins.model_dump(mode="json")
+            )
             return result
 
     # ------------------------------------------------------------------ stage 8: forecast (§12)
@@ -437,9 +459,13 @@ class PipelineActivities:
             async with heartbeating("forecast"):
                 raw = await invoke(self.stages.get("run_forecast"), profile, base_document=base, mode=mode, seed=forecast_seed(inp.run_id))
             result = ForecastResult.model_validate(dump(raw))
-            await self.store.save_forecast(inp.run_id, profile.version, mode, result, config_version=pins.forecast_config_version, cma_version=pins.cma_version)
+            await self.store.save_forecast(
+                inp.run_id, profile.version, mode, result, config_version=pins.forecast_config_version, cma_version=pins.cma_version
+            )
             out = ForecastOutcome(run_id=inp.run_id, profile_version=profile.version, mode=mode, pos=result.pos)
-            await self.store.put_stage_output(args.call_id, "forecast", key, inp.run_id, out.model_dump(mode="json"), pins.model_dump(mode="json"))
+            await self.store.put_stage_output(
+                args.call_id, "forecast", key, inp.run_id, out.model_dump(mode="json"), pins.model_dump(mode="json")
+            )
             return out
 
     # ------------------------------------------------------------------ stage 7: review (§11)
@@ -480,7 +506,9 @@ class PipelineActivities:
             await self.store.freeze_profile(inp.run_id, profile.version, frozen_by=r.reviewer_id)
             await self.objects.put_json(f"profiles/{safe_segment(inp.run_id)}/v{profile.version}.json", profile)
             await self._save_reviewed_document(r.call_id, profile, note=None)
-            out = ReviewOutcome(profile_version=profile.version, applied=applied, rejected=rejected, review_events=n, changes=change_summary(profile))
+            out = ReviewOutcome(
+                profile_version=profile.version, applied=applied, rejected=rejected, review_events=n, changes=change_summary(profile)
+            )
             await self.store.put_stage_output(r.call_id, "review", key, inp.run_id, out.model_dump(mode="json"))
             return out
 
@@ -511,10 +539,16 @@ class PipelineActivities:
             profile = await self._run_profile(inp.run_id, inp.args.call_id)
             segment = answer_segment(a)
             transcript = Transcript(
-                call_id=inp.args.call_id, anchor_date=profile.anchor_date, segments=[segment], asr_provider="followup", asr_model_version="text"
+                call_id=inp.args.call_id,
+                anchor_date=profile.anchor_date,
+                segments=[segment],
+                asr_provider="followup",
+                asr_model_version="text",
             )
             async with heartbeating("followup_intake"):
-                raw = await invoke(self.stages.get("extract_followup"), profile, transcript, followup=rec.followup, pins=pins, catalog=self._catalog(pins))
+                raw = await invoke(
+                    self.stages.get("extract_followup"), profile, transcript, followup=rec.followup, pins=pins, catalog=self._catalog(pins)
+                )
             ops = [StateOp.model_validate(dump(o)) for o in raw]
 
             def fn(p: Profile) -> tuple[Profile, Any]:
@@ -524,13 +558,17 @@ class PipelineActivities:
                     payload = dict(op.payload)
                     if op.op == "ADD":
                         payload["source"] = "followup"
-                    ready.append(op.model_copy(update={"seq": seq + i, "segment_id": op.segment_id or segment.segment_id, "payload": payload}))
+                    ready.append(
+                        op.model_copy(update={"seq": seq + i, "segment_id": op.segment_id or segment.segment_id, "payload": payload})
+                    )
                 res = apply_state_ops(p, ready)
                 return res.profile, res
 
             profile, res = await self.store.update_profile(inp.run_id, fn)
             await self.store.set_followup_status(inp.run_id, a.followup_id, "answered")
-            out = IntakeOutcome(followup_id=a.followup_id, profile_version=profile.version, applied=len(res.applied), rejected=len(res.rejected))
+            out = IntakeOutcome(
+                followup_id=a.followup_id, profile_version=profile.version, applied=len(res.applied), rejected=len(res.rejected)
+            )
             if res.rejected:
                 log.warning("follow-up %s: %d op(s) rejected: %s", a.followup_id, len(res.rejected), res.rejected[0].reason)
             await self.store.put_stage_output(inp.args.call_id, "intake", key, inp.run_id, out.model_dump(mode="json"))
@@ -579,10 +617,18 @@ class PipelineActivities:
             call = await self._call(inp.args.call_id)
             profile = await self.store.load_profile(inp.run_id)
             summary = await self._summary(inp, profile)
-            label = profile.entities["person.client_primary"].canonical_name if profile and "person.client_primary" in profile.entities else ""
-            label = call.meta.get("client_name") or (label if label and label != "Client" else "") or (call.primary_client_id or call.call_id)
-            n = compose(inp.kind, call_id=call.call_id, run_id=inp.run_id, recipient=call.meta.get("advisor_email"), client_label=label, s=summary)
-            rec = await self.store.claim_notification(key, run_id=inp.run_id, kind=inp.kind, recipient=n.recipient, payload=n.model_dump(mode="json"))
+            label = (
+                profile.entities["person.client_primary"].canonical_name if profile and "person.client_primary" in profile.entities else ""
+            )
+            label = (
+                call.meta.get("client_name") or (label if label and label != "Client" else "") or (call.primary_client_id or call.call_id)
+            )
+            n = compose(
+                inp.kind, call_id=call.call_id, run_id=inp.run_id, recipient=call.meta.get("advisor_email"), client_label=label, s=summary
+            )
+            rec = await self.store.claim_notification(
+                key, run_id=inp.run_id, kind=inp.kind, recipient=n.recipient, payload=n.model_dump(mode="json")
+            )
             if rec.sent_at is not None:
                 return NotifyOutcome(sent=True, channel=rec.channel or "", duplicate=True, recipient=rec.recipient)
             try:

@@ -99,5 +99,7 @@ def data_converter(objects: ObjectStore | None = None, *, threshold: int | None 
     """Pydantic JSON payloads; with ``objects``, payloads at or above ``threshold`` bytes are offloaded."""
     if objects is None:
         return pydantic_data_converter
-    storage = ExternalStorage(drivers=[ObjectStoreDriver(objects)], payload_size_threshold=offload_threshold() if threshold is None else threshold)
+    storage = ExternalStorage(
+        drivers=[ObjectStoreDriver(objects)], payload_size_threshold=offload_threshold() if threshold is None else threshold
+    )
     return dataclasses.replace(pydantic_data_converter, external_storage=storage)

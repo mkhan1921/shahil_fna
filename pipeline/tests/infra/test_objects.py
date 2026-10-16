@@ -47,18 +47,29 @@ async def test_s3_store_against_stubbed_client():
     client, stub = _s3()
     s = S3ObjectStore("advisor-intel", "prod", client=client)
     assert s.uri_for("audio/c1/rec.wav") == "s3://advisor-intel/prod/audio/c1/rec.wav"
-    stub.add_response("put_object", {}, {"Bucket": "advisor-intel", "Key": "prod/audio/c1/rec.wav", "Body": b"wav", "ContentType": "audio/wav"})
+    stub.add_response(
+        "put_object", {}, {"Bucket": "advisor-intel", "Key": "prod/audio/c1/rec.wav", "Body": b"wav", "ContentType": "audio/wav"}
+    )
     body = StreamingBody(io.BytesIO(b"wav"), 3)
     stub.add_response("get_object", {"Body": body}, {"Bucket": "advisor-intel", "Key": "prod/audio/c1/rec.wav"})
-    stub.add_client_error("head_object", service_error_code="404", http_status_code=404, expected_params={"Bucket": "advisor-intel", "Key": "prod/missing"})
-    stub.add_client_error("get_object", service_error_code="NoSuchKey", http_status_code=404, expected_params={"Bucket": "advisor-intel", "Key": "prod/missing"})
+    stub.add_client_error(
+        "head_object", service_error_code="404", http_status_code=404, expected_params={"Bucket": "advisor-intel", "Key": "prod/missing"}
+    )
+    stub.add_client_error(
+        "get_object",
+        service_error_code="NoSuchKey",
+        http_status_code=404,
+        expected_params={"Bucket": "advisor-intel", "Key": "prod/missing"},
+    )
     stub.add_response(
         "list_objects_v2",
         {"Contents": [{"Key": "prod/audio/c1/rec.wav"}], "IsTruncated": True, "NextContinuationToken": "t1"},
         {"Bucket": "advisor-intel", "Prefix": "prod/audio/"},
     )
     stub.add_response(
-        "list_objects_v2", {"Contents": [{"Key": "prod/audio/c2/rec.wav"}], "IsTruncated": False}, {"Bucket": "advisor-intel", "Prefix": "prod/audio/", "ContinuationToken": "t1"}
+        "list_objects_v2",
+        {"Contents": [{"Key": "prod/audio/c2/rec.wav"}], "IsTruncated": False},
+        {"Bucket": "advisor-intel", "Prefix": "prod/audio/", "ContinuationToken": "t1"},
     )
     stub.add_response("delete_object", {}, {"Bucket": "advisor-intel", "Key": "prod/audio/c1/rec.wav"})
     with stub:

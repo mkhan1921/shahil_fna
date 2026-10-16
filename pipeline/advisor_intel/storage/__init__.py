@@ -19,4 +19,33 @@ from .records import (
 )
 from .store import NotFound, StaleProfile, Store, content_hash
 
-__all__ = [name for name in dir() if not name.startswith("_")]
+__all__ = [
+    "CalibratorRecord",
+    "CallRecord",
+    "Checkpoint",
+    "Database",
+    "FactVersion",
+    "FollowupRecord",
+    "ForecastRecord",
+    "ForeignURI",
+    "GlossaryEntry",
+    "LocalObjectStore",
+    "NotFound",
+    "NotificationRecord",
+    "ObjectNotFound",
+    "ObjectStore",
+    "PostgresCheckpointStore",
+    "PostgresGlossaryStore",
+    "ProfileVersionRecord",
+    "ReviewEvent",
+    "ReviewResultRecord",
+    "RunRecord",
+    "S3ObjectStore",
+    "StageRecord",
+    "StaleProfile",
+    "Store",
+    "SyncGlossaryStore",
+    "content_hash",
+    "normalise_term",
+    "open_object_store",
+]

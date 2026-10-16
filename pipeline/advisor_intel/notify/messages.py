@@ -30,7 +30,9 @@ def review_url(call_id: str) -> str | None:
     return f"{origin.rstrip('/')}/?review={call_id}" if origin else None
 
 
-def compose(kind: NotificationKind, *, call_id: str, run_id: str, recipient: str | None, client_label: str, s: ReviewSummary) -> Notification:
+def compose(
+    kind: NotificationKind, *, call_id: str, run_id: str, recipient: str | None, client_label: str, s: ReviewSummary
+) -> Notification:
     url = review_url(call_id)
     lines: list[str] = []
     if kind in ("review_ready", "review_reminder"):
@@ -52,7 +54,9 @@ def compose(kind: NotificationKind, *, call_id: str, run_id: str, recipient: str
             lines.append(f"- Call quality: {b}")
     elif kind == "manual_review":
         subject = f"Call with {client_label} needs manual handling"
-        lines.append(f"The recording of the call with {client_label} could not be processed automatically (speaker detection outside 2–4 speakers).")
+        lines.append(
+            f"The recording of the call with {client_label} could not be processed automatically (speaker detection outside 2–4 speakers)."
+        )
         lines.append("Please capture this call's details manually.")
         for b in s.banners:
             lines.append(f"- Call quality: {b}")

@@ -123,7 +123,10 @@ class ClientGateway:
         activity = STAGE_ACTIVITY[stage]
         target = None
         for e in history.events:
-            if e.event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED and e.activity_task_scheduled_event_attributes.activity_type.name == activity:
+            if (
+                e.event_type == EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED
+                and e.activity_task_scheduled_event_attributes.activity_type.name == activity
+            ):
                 target = e.activity_task_scheduled_event_attributes.workflow_task_completed_event_id
                 break
         if target is None:

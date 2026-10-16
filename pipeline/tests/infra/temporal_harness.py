@@ -58,7 +58,12 @@ class MockActivities:
         @activity.defn(name=C.RUN_AGENT)
         async def run_agent(inp: C.StageInput) -> AgentOutcome:
             m.calls.append((C.RUN_AGENT, inp))
-            return AgentOutcome(partial=m.partial, reason="token budget exhausted" if m.partial else None, turns=12, unfinished_groups=["estate"] if m.partial else [])
+            return AgentOutcome(
+                partial=m.partial,
+                reason="token budget exhausted" if m.partial else None,
+                turns=12,
+                unfinished_groups=["estate"] if m.partial else [],
+            )
 
         @activity.defn(name=C.RUN_VOI)
         async def run_voi(inp: C.StageInput) -> C.VoiOutcome:

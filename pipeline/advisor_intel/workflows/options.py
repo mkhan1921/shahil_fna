@@ -13,7 +13,9 @@ from typing import Any
 from temporalio.common import RetryPolicy
 
 
-def _opts(timeout: timedelta, retries: int, heartbeat: timedelta | None = None, *, initial: timedelta = timedelta(seconds=5)) -> dict[str, Any]:
+def _opts(
+    timeout: timedelta, retries: int, heartbeat: timedelta | None = None, *, initial: timedelta = timedelta(seconds=5)
+) -> dict[str, Any]:
     out: dict[str, Any] = {
         "start_to_close_timeout": timeout,
         "retry_policy": RetryPolicy(

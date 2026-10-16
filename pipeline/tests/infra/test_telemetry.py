@@ -29,8 +29,18 @@ def spans():
 
 
 def test_mapping_reads_current_and_legacy_names():
-    legacy = {"gen_ai.system": "anthropic", "gen_ai.usage.prompt_tokens": 120, "gen_ai.usage.completion_tokens": 30, "agent_name": "extractor"}
-    current = {A.GEN_AI_PROVIDER_NAME: "anthropic", A.GEN_AI_USAGE_INPUT_TOKENS: 120, A.GEN_AI_USAGE_OUTPUT_TOKENS: 30, A.GEN_AI_AGENT_NAME: "extractor"}
+    legacy = {
+        "gen_ai.system": "anthropic",
+        "gen_ai.usage.prompt_tokens": 120,
+        "gen_ai.usage.completion_tokens": 30,
+        "agent_name": "extractor",
+    }
+    current = {
+        A.GEN_AI_PROVIDER_NAME: "anthropic",
+        A.GEN_AI_USAGE_INPUT_TOKENS: 120,
+        A.GEN_AI_USAGE_OUTPUT_TOKENS: 30,
+        A.GEN_AI_AGENT_NAME: "extractor",
+    }
     for attrs in (legacy, current):
         v = A.view(attrs)
         assert (v["provider"], v["input_tokens"], v["output_tokens"], v["agent"]) == ("anthropic", 120, 30, "extractor")
@@ -65,7 +75,9 @@ def test_every_span_carries_run_attributes_and_schema_url(spans):
     for name in ("tool call", "model request"):
         a = done[name].attributes
         assert a[A.SCHEMA_URL_ATTR] == A.SCHEMA_URL
-        assert {k: a[k] for k in A.RUN_ATTRIBUTES} == telemetry.run_attributes(call_id="c1", workflow_id="c1-run-a", stage="agent", pins=PINS)
+        assert {k: a[k] for k in A.RUN_ATTRIBUTES} == telemetry.run_attributes(
+            call_id="c1", workflow_id="c1-run-a", stage="agent", pins=PINS
+        )
     # The span that was current when the context was entered is annotated too.
     assert done["activity"].attributes[A.CALL_ID] == "c1"
     assert done["model request"].resource.schema_url == A.SCHEMA_URL
@@ -140,7 +152,9 @@ def test_otlp_exporter_targets_braintrust(monkeypatch):
             seen.update(kw)
 
     monkeypatch.setattr(otlp, "OTLPSpanExporter", Recorder)
-    telemetry.otlp_exporter(Settings(braintrust_api_key="bt-key", braintrust_project="advisor-intel", otlp_endpoint="https://api.braintrust.dev/otel"))
+    telemetry.otlp_exporter(
+        Settings(braintrust_api_key="bt-key", braintrust_project="advisor-intel", otlp_endpoint="https://api.braintrust.dev/otel")
+    )
     assert seen["endpoint"] == "https://api.braintrust.dev/otel/v1/traces"
     assert seen["headers"] == {"Authorization": "Bearer bt-key", "x-bt-parent": "project_name:advisor-intel"}
 

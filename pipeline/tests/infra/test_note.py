@@ -35,7 +35,13 @@ def _profile():
                 "slot_id": "engagement.clientObjectives",
                 "fna_path": "engagement.clientObjectives",
                 "status": "stated",
-                "hypotheses": [Hypothesis(value=Quantity(dist=Point(value="Retire comfortably and pay for Neo's studies"), unit="none"), weight=1.0, rationale="quoted")],
+                "hypotheses": [
+                    Hypothesis(
+                        value=Quantity(dist=Point(value="Retire comfortably and pay for Neo's studies"), unit="none"),
+                        weight=1.0,
+                        rationale="quoted",
+                    )
+                ],
                 "evidence": [evidence("s0004", "we want to retire comfortably and pay for Neo's studies", t=40.0)],
                 "provenance": Provenance(run_id=p.run_id, schema_version=p.schema_version),
             },
@@ -79,7 +85,10 @@ def test_validation_keeps_grounded_sentences_and_removes_the_rest():
     for sentence, expected in cases:
         why = check_sentence(sentence, p)
         assert (why[0] if why else None) == expected, (sentence.text, why)
-    assert check_sentence(NoteSentence(section="summary", text="The client is an engineer.", fact_ids=["{p}.occupation#client"]), rejected)[0] == "rejected_fact"
+    assert (
+        check_sentence(NoteSentence(section="summary", text="The client is an engineer.", fact_ids=["{p}.occupation#client"]), rejected)[0]
+        == "rejected_fact"
+    )
     kept, removed = validate([s for s, _ in cases], p)
     assert len(kept) == 5 and {r.reason for r in removed} == {"number_mismatch", "no_facts", "unknown_fact", "entity_mismatch"}
 
@@ -126,20 +135,34 @@ async def test_editing_a_fact_regenerates_only_the_sentences_citing_it():
             [
                 {"section": "summary", "text": "Thabo plans to retire at 62.", "fact_ids": [RET_AGE]},
                 {"section": "summary", "text": "He earns R85,000 a month.", "fact_ids": [GROSS]},
-                {"section": "objectives", "text": "Retire comfortably and pay for Neo's studies.", "fact_ids": ["engagement.clientObjectives"]},
+                {
+                    "section": "objectives",
+                    "text": "Retire comfortably and pay for Neo's studies.",
+                    "fact_ids": ["engagement.clientObjectives"],
+                },
             ]
         ),
     )
     # The reviewer edits the income to R90,000 a month.
     edit = {
-        "replace_hypotheses": [Hypothesis(value=Quantity(dist=Point(value=90000), unit="ZAR", period="monthly", basis="gross"), weight=1.0, rationale="adviser")],
+        "replace_hypotheses": [
+            Hypothesis(
+                value=Quantity(dist=Point(value=90000), unit="ZAR", period="monthly", basis="gross"), weight=1.0, rationale="adviser"
+            )
+        ],
         "review": {"status": "edited", "reviewer_id": "adv-1", "reviewed_at": datetime.now(timezone.utc).isoformat()},
     }
     p2 = apply_state_ops(p, make_ops(p, [("UPDATE", GROSS, None, edit, "reviewer")])).profile
     assert changed_facts(first, p2) == {GROSS}
     prompts: list[str] = []
-    updated = await update_note(first, p2, pins=PINS, model=_model([{"section": "summary", "text": "He earns R90,000 a month.", "fact_ids": [GROSS]}], prompts))
-    assert [s.text for s in updated.sentences] == ["Thabo plans to retire at 62.", "He earns R90,000 a month.", "Retire comfortably and pay for Neo's studies."]
+    updated = await update_note(
+        first, p2, pins=PINS, model=_model([{"section": "summary", "text": "He earns R90,000 a month.", "fact_ids": [GROSS]}], prompts)
+    )
+    assert [s.text for s in updated.sentences] == [
+        "Thabo plans to retire at 62.",
+        "He earns R90,000 a month.",
+        "Retire comfortably and pay for Neo's studies.",
+    ]
     assert updated.profile_version == p2.version
     # Only the edited fact went to the model.
     assert GROSS in prompts[0] and RET_AGE not in prompts[0]

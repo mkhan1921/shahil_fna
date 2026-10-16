@@ -229,11 +229,17 @@ async def apply_actions(d: ApiDeps, run: RunRecord, actions: ReviewActions, revi
     )
 
 
-async def submit_review(d: ApiDeps, call: CallRecord, run: RunRecord, reviewer_id: str, *, spot: bool | None, review_seconds: float | None) -> Submitted:
+async def submit_review(
+    d: ApiDeps, call: CallRecord, run: RunRecord, reviewer_id: str, *, spot: bool | None, review_seconds: float | None
+) -> Submitted:
     profile = await _profile(d, run)
     if profile.open_flags():
         raise HTTPException(
-            409, {"message": "blocking flags must be cleared before the review can be submitted", "open_flags": [f.model_dump(mode="json") for f in profile.open_flags()]}
+            409,
+            {
+                "message": "blocking flags must be cleared before the review can be submitted",
+                "open_flags": [f.model_dump(mode="json") for f in profile.open_flags()],
+            },
         )
     if await _submitted(d, run):
         raise HTTPException(409, "the review was already submitted")
@@ -332,7 +338,14 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
     run_id = new_run_id(call_id)
     pins = _apply_overrides(await d.pins(), meta.versions)
     await d.store.upsert_call(
-        CallRecord(call_id=call_id, advisor_id=meta.advisor_id, client_ids=meta.client_ids, started_at=meta.started_at, audio_uri=audio_uri, meta=call_meta)
+        CallRecord(
+            call_id=call_id,
+            advisor_id=meta.advisor_id,
+            client_ids=meta.client_ids,
+            started_at=meta.started_at,
+            audio_uri=audio_uri,
+            meta=call_meta,
+        )
     )
     await d.store.register_run(run_id, call_id, pins, start_stage=Stage.INGEST)
     args = CallArgs(call_id=call_id, advisor_id=meta.advisor_id, client_ids=meta.client_ids, versions=pins, budget_usd=meta.budget_usd)
@@ -377,7 +390,9 @@ async def get_profile(call_id: str, run_id: str | None = None, version: int | No
 
 
 @router.get("/calls/{call_id}/forecast", response_model=ForecastResult)
-async def get_forecast(call_id: str, run_id: str | None = None, mode: str | None = Query(None, pattern="^(preview|final)$"), d: ApiDeps = Depends(deps)) -> ForecastResult:
+async def get_forecast(
+    call_id: str, run_id: str | None = None, mode: str | None = Query(None, pattern="^(preview|final)$"), d: ApiDeps = Depends(deps)
+) -> ForecastResult:
     run = await _run(d, await _call(d, call_id), run_id)
     rec = await d.store.get_forecast(run.workflow_id, mode=mode)
     if rec is None:
@@ -509,13 +524,17 @@ async def get_fna(call_id: str, part: str | None = Query(None, pattern="^(fna|si
     run = await _run(d, call)
     profile = await _profile(d, run)
     if profile.open_flags():
-        raise HTTPException(409, {"message": "export is blocked while blocking flags are open", "open_flags": [f.flag_id for f in profile.open_flags()]})
+        raise HTTPException(
+            409, {"message": "export is blocked while blocking flags are open", "open_flags": [f.flag_id for f in profile.open_flags()]}
+        )
     export, sidecar = binding.export_bundle(profile, base=await prior_document(d.store, call))
     note = await d.store.latest_note(run.workflow_id)
     if note is not None:
         export = export.model_copy(update={"document": apply_note(export.document, MeetingNote.model_validate(note[1]))})
     if part == "fna":
-        return JSONResponse(export.model_dump(mode="json"), headers={"Content-Disposition": f'attachment; filename="{call_id}-reviewed.json"'})
+        return JSONResponse(
+            export.model_dump(mode="json"), headers={"Content-Disposition": f'attachment; filename="{call_id}-reviewed.json"'}
+        )
     if part == "sidecar":
         return JSONResponse(sidecar, headers={"Content-Disposition": f'attachment; filename="{call_id}-sidecar.json"'})
     return JSONResponse(FnaExport(fna=export, sidecar=sidecar).model_dump(mode="json"))
@@ -528,7 +547,9 @@ async def answer_followup(call_id: str, followup_id: str, body: AnswerRequest, d
     run = await _run(d, call)
     if await d.store.get_followup(run.workflow_id, followup_id) is None:
         raise HTTPException(404, f"run {run.workflow_id} has no follow-up {followup_id}")
-    answer = FollowupAnswer(call_id=call_id, followup_id=followup_id, text=body.text, source=body.source, recorded_by=body.recorded_by, answered_at=_now())
+    answer = FollowupAnswer(
+        call_id=call_id, followup_id=followup_id, text=body.text, source=body.source, recorded_by=body.recorded_by, answered_at=_now()
+    )
     info = await d.temporal.describe(run.workflow_id)
     with run_context(call_id=call_id, workflow_id=run.workflow_id, stage="followup_intake", pins=run.versions):
         if info.status == "RUNNING":
@@ -627,7 +648,11 @@ def create_app(
                 await s.close()
 
     app = FastAPI(title="Advisor Call Intelligence", version="1", lifespan=lifespan)
-    app.state.deps = _deps(settings, store, objects, temporal, stages, pins) if store is not None and objects is not None and temporal is not None else None
+    app.state.deps = (
+        _deps(settings, store, objects, temporal, stages, pins)
+        if store is not None and objects is not None and temporal is not None
+        else None
+    )
     origins = [o.strip() for o in os.environ.get("ADVISOR_INTEL_FNA_APP_ORIGIN", "http://localhost:3000").split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
@@ -647,7 +672,14 @@ def create_app(
     return app
 
 
-def _deps(settings: Settings, store: Store | None, objects: ObjectStore | None, temporal: TemporalGateway | None, stages: StageFunctions | None, pins: Any) -> ApiDeps:
+def _deps(
+    settings: Settings,
+    store: Store | None,
+    objects: ObjectStore | None,
+    temporal: TemporalGateway | None,
+    stages: StageFunctions | None,
+    pins: Any,
+) -> ApiDeps:
     assert store is not None and objects is not None and temporal is not None
     return ApiDeps(
         settings=settings,

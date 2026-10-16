@@ -7,4 +7,11 @@ from .nightly import ModelSwapWorkflow, NightlyFeedbackWorkflow
 
 ALL_WORKFLOWS = [CallPipelineWorkflow, FollowupIntakeWorkflow, ForecastWorkflow, NightlyFeedbackWorkflow, ModelSwapWorkflow]
 
-__all__ = ["ALL_WORKFLOWS", "CallPipelineWorkflow", "FollowupIntakeWorkflow", "ForecastWorkflow", "ModelSwapWorkflow", "NightlyFeedbackWorkflow"]
+__all__ = [
+    "ALL_WORKFLOWS",
+    "CallPipelineWorkflow",
+    "FollowupIntakeWorkflow",
+    "ForecastWorkflow",
+    "ModelSwapWorkflow",
+    "NightlyFeedbackWorkflow",
+]

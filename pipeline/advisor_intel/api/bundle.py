@@ -40,7 +40,11 @@ def attribution_text(f: ForecastResult | None) -> str | None:
         return None
     va = f.variance_attribution
     parts = []
-    for key, label in (("market", "markets"), ("client_content", "the client's own uncertainty"), ("extraction", "what may have been misheard or misread")):
+    for key, label in (
+        ("market", "markets"),
+        ("client_content", "the client's own uncertainty"),
+        ("extraction", "what may have been misheard or misread"),
+    ):
         share = va.get(key)
         if share is not None and share >= 0.005:
             parts.append(f"{share:.0%} is {label}")
@@ -92,7 +96,9 @@ async def build_bundle(
     answered = [r for r in await store.list_followups(run.workflow_id) if r.answer is not None]
     if answered:
         # Follow-up answers are evidence too (§10.6): give the overlay their segments.
-        transcript = transcript.model_copy(update={"segments": [*transcript.segments, *(answer_segment(r.answer) for r in answered if r.answer)]})
+        transcript = transcript.model_copy(
+            update={"segments": [*transcript.segments, *(answer_segment(r.answer) for r in answered if r.answer)]}
+        )
     prior = await prior_document(store, call)
     catalog = load_catalog(profile.schema_version)
     median = binding.materialise(profile, "median", base=prior, catalog=catalog)

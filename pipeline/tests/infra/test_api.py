@@ -80,7 +80,9 @@ async def api(store: Store, objects):
     gw = FakeGateway()
     stages = StageFunctions({"fna_analyse": lambda doc: {"needs": {"retirement": "shortfall"}, "client": doc.client.firstName}})
     app = create_app(settings=Settings(env="test", api_token=TOKEN), store=store, objects=objects, temporal=gw, stages=stages, pins=_pins)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}) as c:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}
+    ) as c:
         yield SimpleNamespace(c=c, gw=gw, store=store, objects=objects, app=app)
 
 
@@ -95,8 +97,16 @@ async def seed_run(a, call_id: str = "call-1", run_id: str = "call-1-run-a"):
     await a.store.register_run(run_id, call_id, VersionPins())
     await a.store.save_transcript(call_id, ingest_key(VersionPins()), make_transcript(call_id))
     profile = await a.store.save_profile(flagged(with_call_facts(seeded_profile(run_id, call_id))))
-    fr = ForecastResult(run_id=run_id, profile_version=str(profile.version), config_version="config_v1", cma_version="2026Q4", n_paths=1000, pos=0.71,
-                        pos_ci=(0.68, 0.74), variance_attribution={"market": 0.6, "client_content": 0.3, "extraction": 0.1})  # fmt: skip
+    fr = ForecastResult(
+        run_id=run_id,
+        profile_version=str(profile.version),
+        config_version="config_v1",
+        cma_version="2026Q4",
+        n_paths=1000,
+        pos=0.71,
+        pos_ci=(0.68, 0.74),
+        variance_attribution={"market": 0.6, "client_content": 0.3, "extraction": 0.1},
+    )
     await a.store.save_forecast(run_id, profile.version, "preview", fr, config_version="config_v1", cma_version="2026Q4")
     a.gw.status[run_id] = "RUNNING"
     return profile
@@ -105,7 +115,9 @@ async def seed_run(a, call_id: str = "call-1", run_id: str = "call-1-run-a"):
 def _clear_flag_body(reviewer="adv-1"):
     return {
         "reviewer_id": reviewer,
-        "flag_clearances": [{"flag_id": "flag.tier_a.retirement_age", "resolution": "accepted", "reviewer_id": reviewer, "at": NOW.isoformat()}],
+        "flag_clearances": [
+            {"flag_id": "flag.tier_a.retirement_age", "resolution": "accepted", "reviewer_id": reviewer, "at": NOW.isoformat()}
+        ],
     }
 
 
@@ -118,7 +130,14 @@ async def test_bearer_token_is_required(api):
         assert (await anon.get("/calls/x", headers={"Authorization": "Bearer wrong"})).status_code == 401
         r = await anon.get("/healthz")
         assert r.status_code == 200 and r.json() == {"ok": True, "database": True}
-        pre = await anon.options("/calls", headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "authorization"})
+        pre = await anon.options(
+            "/calls",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
         assert pre.status_code == 200 and pre.headers["access-control-allow-origin"] == "http://localhost:3000"
     assert (await api.c.get("/calls/x")).status_code == 404
 
@@ -135,20 +154,34 @@ async def test_api_is_closed_without_a_token_outside_local(store, objects):
 async def test_create_call_by_upload_or_uri(api):
     seeded = await api.c.post("/clients/cl-1/fna", content=ExportFile(document=sample_document()).model_dump_json())
     assert seeded.status_code == 201
-    meta = {"call_id": "call-7", "advisor_id": "adv-1", "advisor_email": "adv@practice.co.za", "client_ids": ["cl-1"], "started_at": NOW.isoformat(),
-            "versions": {"cma_version": "2027Q1"}, "review_reminder_seconds": 60}  # fmt: skip
+    meta = {
+        "call_id": "call-7",
+        "advisor_id": "adv-1",
+        "advisor_email": "adv@practice.co.za",
+        "client_ids": ["cl-1"],
+        "started_at": NOW.isoformat(),
+        "versions": {"cma_version": "2027Q1"},
+        "review_reminder_seconds": 60,
+    }
     r = await api.c.post("/calls", files={"audio": ("meeting.wav", b"RIFF-audio", "audio/wav")}, data={"metadata": json.dumps(meta)})
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["call_id"] == "call-7" and body["workflow_id"].startswith("call-7-run-")
     wf, args = api.gw.started[0]
-    assert wf == body["workflow_id"] and args.versions.cma_version == "2027Q1" and args.review_reminder_seconds == 60 and args.start_stage == Stage.INGEST
+    assert (
+        wf == body["workflow_id"]
+        and args.versions.cma_version == "2027Q1"
+        and args.review_reminder_seconds == 60
+        and args.start_stage == Stage.INGEST
+    )
     call = await api.store.get_call("call-7")
     assert await api.objects.get_bytes(call.audio_uri) == b"RIFF-audio"
     assert call.meta["prior_document_id"] == seeded.json()["document_id"] and call.meta["advisor_email"] == "adv@practice.co.za"
     assert (await api.store.get_run(wf)).versions.cma_version == "2027Q1"
     # The same call again is refused; a URI outside the store is refused; a URI in the store is accepted.
-    assert (await api.c.post("/calls", files={"audio": ("m.wav", b"x", "audio/wav")}, data={"metadata": json.dumps(meta)})).status_code == 409
+    assert (
+        await api.c.post("/calls", files={"audio": ("m.wav", b"x", "audio/wav")}, data={"metadata": json.dumps(meta)})
+    ).status_code == 409
     bad = await api.c.post("/calls", json={"call_id": "call-8", "audio_uri": "file:///etc/passwd"})
     assert bad.status_code == 422
     uri = await api.objects.put_bytes("audio/inbox/call-9.wav", b"RIFF")
@@ -165,7 +198,11 @@ async def test_call_state_profile_and_forecast(api):
     assert r.status_code == 200
     v = r.json()
     assert v["state"] == "AWAITING_REVIEW" and v["workflow_status"] == "RUNNING" and v["quality"]["n_speakers"] == 2
-    assert v["profile_version"] == profile.version and v["open_flags"] == 1 and v["versions"]["lexicon_version"] == VersionPins().lexicon_version
+    assert (
+        v["profile_version"] == profile.version
+        and v["open_flags"] == 1
+        and v["versions"]["lexicon_version"] == VersionPins().lexicon_version
+    )
     p = (await api.c.get("/calls/call-1/profile")).json()
     assert p["facts"][RET_AGE]["status"] == "stated" and p["version"] == profile.version
     f = await api.c.get("/calls/call-1/forecast")
@@ -184,8 +221,12 @@ async def test_rerun_new_run_or_reset(api):
     assert run.source_run_id == "call-1-run-a" and run.start_stage == Stage.FORECAST and run.versions.cma_version == "2027Q1"
     assert api.gw.started[-1][1].start_stage == Stage.FORECAST and (await api.store.get_call("call-1")).workflow_id == body["workflow_id"]
     reset = await api.c.post("/calls/call-1/rerun", json={"from_stage": 3, "mode": "reset"})
-    assert reset.status_code == 202 and reset.json()["execution_run_id"] == "exec-2" and api.gw.resets == [(body["workflow_id"], Stage.AGENT)]
-    assert (await api.c.post("/calls/call-1/rerun", json={"from_stage": "agent", "mode": "reset", "versions": {"cma_version": "x"}})).status_code == 422
+    assert (
+        reset.status_code == 202 and reset.json()["execution_run_id"] == "exec-2" and api.gw.resets == [(body["workflow_id"], Stage.AGENT)]
+    )
+    assert (
+        await api.c.post("/calls/call-1/rerun", json={"from_stage": "agent", "mode": "reset", "versions": {"cma_version": "x"}})
+    ).status_code == 422
 
 
 # --------------------------------------------------------------------------- review
@@ -193,7 +234,9 @@ async def test_rerun_new_run_or_reset(api):
 
 async def test_review_bundle(api):
     await seed_run(api)
-    await api.store.record_followup_answer("call-1-run-a", FollowupAnswer(call_id="call-1", followup_id="fu.retirement_age", text="sixty-three", answered_at=NOW))
+    await api.store.record_followup_answer(
+        "call-1-run-a", FollowupAnswer(call_id="call-1", followup_id="fu.retirement_age", text="sixty-three", answered_at=NOW)
+    )
     r = await api.c.get("/calls/call-1/review")
     assert r.status_code == 200, r.text
     b = r.json()
@@ -204,7 +247,9 @@ async def test_review_bundle(api):
     assert [s["segment_id"] for s in b["transcript"]["segments"]][-1] == "followup:fu.retirement_age"
     assert b["audio_url"] == "http://test/calls/call-1/audio"
     assert b["followups"][0]["status"] == "answered" and b["blocking_flags"][0]["kind"] == "tier_a_contradicted"
-    assert b["preview_forecast"]["pos"] == 0.71 and b["attribution_text"].startswith("Of the uncertainty in this plan, about 60% is markets")
+    assert b["preview_forecast"]["pos"] == 0.71 and b["attribution_text"].startswith(
+        "Of the uncertainty in this plan, about 60% is markets"
+    )
     assert b["deterministic_analysis"] == {"needs": {"retirement": "shortfall"}, "client": "Thabo"}
     assert b["quality"]["n_speakers"] == 2 and isinstance(b["spot_check"], bool)
     audio = await api.c.get("/calls/call-1/audio", headers={"Range": "bytes=0-3"})
@@ -213,9 +258,18 @@ async def test_review_bundle(api):
 
 async def test_reviewer_ops_go_through_the_reducer_and_are_written_immediately(api):
     profile = await seed_run(api)
-    ops = make_ops(profile, [("CONFIRM", RET_AGE, None, {}, "reviewer"), ("RETRACT", GROSS, None, {"reason": "misheard"}, "reviewer"), ("CONFIRM", "no#fact", None, {}, "reviewer")])
+    ops = make_ops(
+        profile,
+        [
+            ("CONFIRM", RET_AGE, None, {}, "reviewer"),
+            ("RETRACT", GROSS, None, {"reason": "misheard"}, "reviewer"),
+            ("CONFIRM", "no#fact", None, {}, "reviewer"),
+        ],
+    )
     ops.append(ops[0].model_copy(update={"actor": "extractor"}))
-    r = await api.c.post("/calls/call-1/ops", content=json.dumps([o.model_dump(mode="json") for o in ops]), headers={"X-Reviewer-Id": "adv-9"})
+    r = await api.c.post(
+        "/calls/call-1/ops", content=json.dumps([o.model_dump(mode="json") for o in ops]), headers={"X-Reviewer-Id": "adv-9"}
+    )
     assert r.status_code == 200, r.text
     body = r.json()
     assert len(body["applied"]) == 2 and len(body["rejected"]) == 2 and body["profile_version"] == profile.version + 1
@@ -228,8 +282,25 @@ async def test_reviewer_ops_go_through_the_reducer_and_are_written_immediately(a
     # Side records: a flag clearance, a reworded follow-up and a confirmed term.
     side = {
         **_clear_flag_body(),
-        "followup_edits": [{"followup_id": "fu.retirement_age", "action": "reword", "question": "Retire at 60, 63 or 65?", "reviewer_id": "adv-1", "at": NOW.isoformat()}],
-        "term_confirmations": [{"term": "10X RA", "canonical_name": "10X Retirement Annuity", "product_type": "retirement-annuity", "provider": "10X", "reviewer_id": "adv-1", "at": NOW.isoformat()}],
+        "followup_edits": [
+            {
+                "followup_id": "fu.retirement_age",
+                "action": "reword",
+                "question": "Retire at 60, 63 or 65?",
+                "reviewer_id": "adv-1",
+                "at": NOW.isoformat(),
+            }
+        ],
+        "term_confirmations": [
+            {
+                "term": "10X RA",
+                "canonical_name": "10X Retirement Annuity",
+                "product_type": "retirement-annuity",
+                "provider": "10X",
+                "reviewer_id": "adv-1",
+                "at": NOW.isoformat(),
+            }
+        ],
     }
     r = await api.c.post("/calls/call-1/ops", json=side)
     assert r.status_code == 200 and r.json()["open_flags"] == [] and r.json()["unknown_flags"] == []

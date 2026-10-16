@@ -54,14 +54,38 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
     providers = Providers(asr=lambda s, p: "asr", diarizer=lambda s, p: "diarizer", second_pass=lambda s, p: None)
     async with temporal_env(temporal_bin, objects, threshold=64 * 1024) as env:
         cfg = deployment_config(build=f"e2e-{uuid.uuid4().hex[:6]}")
-        worker = build_worker(env.client, settings, store=store, objects=objects, notifier=notifier, stages=stages, providers=providers, deployment=cfg, task_queue=tq)
+        worker = build_worker(
+            env.client,
+            settings,
+            store=store,
+            objects=objects,
+            notifier=notifier,
+            stages=stages,
+            providers=providers,
+            deployment=cfg,
+            task_queue=tq,
+        )
         async with worker:
             await set_current_version(env.client, cfg.version)
-            app = create_app(settings=settings, store=store, objects=objects, temporal=ClientGateway(env.client, tq), stages=stages, pins=_pins)
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}) as c:
-                assert (await c.post("/clients/cl-1/fna", content=ExportFile(document=sample_document()).model_dump_json())).status_code == 201
-                meta = {"call_id": "call-e2e", "advisor_id": "adv-1", "advisor_email": "adv@practice.co.za", "client_ids": ["cl-1"], "review_reminder_seconds": 3600}
-                r = await c.post("/calls", files={"audio": ("call.wav", b"RIFF-call-audio", "audio/wav")}, data={"metadata": json.dumps(meta)})
+            app = create_app(
+                settings=settings, store=store, objects=objects, temporal=ClientGateway(env.client, tq), stages=stages, pins=_pins
+            )
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}
+            ) as c:
+                assert (
+                    await c.post("/clients/cl-1/fna", content=ExportFile(document=sample_document()).model_dump_json())
+                ).status_code == 201
+                meta = {
+                    "call_id": "call-e2e",
+                    "advisor_id": "adv-1",
+                    "advisor_email": "adv@practice.co.za",
+                    "client_ids": ["cl-1"],
+                    "review_reminder_seconds": 3600,
+                }
+                r = await c.post(
+                    "/calls", files={"audio": ("call.wav", b"RIFF-call-audio", "audio/wav")}, data={"metadata": json.dumps(meta)}
+                )
                 assert r.status_code == 201, r.text
                 run_id = r.json()["workflow_id"]
 
@@ -78,8 +102,17 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
                 # The adviser clears the flag, accepts the retirement age and records the client's answer.
                 profile = await store.load_profile(run_id)
                 ops = [o.model_dump(mode="json") for o in make_ops(profile, [("CONFIRM", RET_AGE, None, {}, "reviewer")])]
-                clear = [{"flag_id": "flag.tier_a.retirement_age", "resolution": "accepted", "reviewer_id": "adv-1", "at": "2026-10-16T10:00:00Z"}]
-                assert (await c.post("/calls/call-e2e/ops", json={"reviewer_id": "adv-1", "ops": ops, "flag_clearances": clear})).status_code == 200
+                clear = [
+                    {
+                        "flag_id": "flag.tier_a.retirement_age",
+                        "resolution": "accepted",
+                        "reviewer_id": "adv-1",
+                        "at": "2026-10-16T10:00:00Z",
+                    }
+                ]
+                assert (
+                    await c.post("/calls/call-e2e/ops", json={"reviewer_id": "adv-1", "ops": ops, "flag_clearances": clear})
+                ).status_code == 200
                 a = await c.post("/calls/call-e2e/followups/fu.retirement_age/answer", json={"text": "Sixty-three is realistic"})
                 assert a.json()["routed"] == "signal"
 
@@ -124,15 +157,29 @@ async def test_rerun_by_reset_rewinds_to_the_stage_and_reuses_earlier_outputs(st
     providers = Providers(asr=lambda s, p: "asr", diarizer=lambda s, p: "diarizer", second_pass=lambda s, p: None)
     async with temporal_env(temporal_bin, objects) as env:
         cfg = deployment_config(build=f"e2e-{uuid.uuid4().hex[:6]}")
-        worker = build_worker(env.client, settings, store=store, objects=objects, notifier=notifier, stages=stages, providers=providers, deployment=cfg, task_queue=tq)
+        worker = build_worker(
+            env.client,
+            settings,
+            store=store,
+            objects=objects,
+            notifier=notifier,
+            stages=stages,
+            providers=providers,
+            deployment=cfg,
+            task_queue=tq,
+        )
         async with worker:
             await set_current_version(env.client, cfg.version)
             gateway = ClientGateway(env.client, tq)
             app = create_app(settings=settings, store=store, objects=objects, temporal=gateway, stages=stages, pins=_pins)
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}) as c:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test", headers={"Authorization": f"Bearer {TOKEN}"}
+            ) as c:
                 await c.post("/clients/cl-1/fna", content=ExportFile(document=sample_document()).model_dump_json())
                 meta = {"call_id": "call-reset", "advisor_id": "adv-1", "client_ids": ["cl-1"]}
-                r = await c.post("/calls", files={"audio": ("call.wav", b"RIFF-call-audio", "audio/wav")}, data={"metadata": json.dumps(meta)})
+                r = await c.post(
+                    "/calls", files={"audio": ("call.wav", b"RIFF-call-audio", "audio/wav")}, data={"metadata": json.dumps(meta)}
+                )
                 run_id = r.json()["workflow_id"]
 
                 async def waiting():
@@ -147,10 +194,17 @@ async def test_rerun_by_reset_rewinds_to_the_stage_and_reuses_earlier_outputs(st
                 async def back_in_review():
                     info = await gateway.describe(run_id)
                     st = await gateway.run_status(run_id)
-                    return info.execution_run_id != first and st is not None and st.state.value == "AWAITING_REVIEW" and fakes.calls.get("voi") == 2
+                    return (
+                        info.execution_run_id != first
+                        and st is not None
+                        and st.state.value == "AWAITING_REVIEW"
+                        and fakes.calls.get("voi") == 2
+                    )
 
                 await _until(back_in_review)
                 # Stages before VOI were not run again; VOI ran in the new execution; the unchanged preview forecast was reused.
                 assert fakes.calls["ingest"] == 1 and fakes.calls["agent"] == 1 and fakes.calls["forecast"] == 1
-                bad = await c.post("/calls/call-reset/rerun", json={"from_stage": "review", "mode": "reset", "versions": {"cma_version": "x"}})
+                bad = await c.post(
+                    "/calls/call-reset/rerun", json={"from_stage": "review", "mode": "reset", "versions": {"cma_version": "x"}}
+                )
                 assert bad.status_code == 422

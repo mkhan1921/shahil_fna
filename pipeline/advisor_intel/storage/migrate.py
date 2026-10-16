@@ -104,7 +104,9 @@ async def migrate(dsn: str, *, target: int | None = None, directory: Path = MIGR
                     break
                 if m.version in done:
                     if done[m.version]["checksum"] != m.checksum:
-                        raise MigrationError(f"migration {m.version:04d}_{m.name} changed after it was applied; add a new migration instead")
+                        raise MigrationError(
+                            f"migration {m.version:04d}_{m.name} changed after it was applied; add a new migration instead"
+                        )
                     continue
                 async with conn.transaction():
                     await conn.execute(m.sql)  # no parameters: several statements run in one call

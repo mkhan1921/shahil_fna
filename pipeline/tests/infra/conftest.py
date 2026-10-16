@@ -170,7 +170,11 @@ def objects(tmp_path):
 
 
 def temporal_cli_path() -> str | None:
-    for cand in (os.environ.get("TEMPORAL_CLI_PATH"), str(PIPELINE_DIR / ".tools" / "temporal"), "/home/user/shahil_fna/pipeline/.tools/temporal"):
+    for cand in (
+        os.environ.get("TEMPORAL_CLI_PATH"),
+        str(PIPELINE_DIR / ".tools" / "temporal"),
+        "/home/user/shahil_fna/pipeline/.tools/temporal",
+    ):
         if cand and Path(cand).is_file() and os.access(cand, os.X_OK):
             return cand
     return shutil.which("temporal")
