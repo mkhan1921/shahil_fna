@@ -1,5 +1,16 @@
 import type { NextConfig } from 'next';
 
+/*
+ * The Advisor Call Intelligence review API and its call recordings are the only other origins the
+ * app may talk to, and only those this deployment names (space- or comma-separated). Left unset,
+ * the app connects to nothing but itself; recordings the adviser opens from disk play as blob: URLs.
+ */
+const reviewOrigins = (process.env.NEXT_PUBLIC_ADVISOR_INTEL_ORIGINS ?? '')
+  .split(/[\s,]+/)
+  .map((s) => s.trim().replace(/\/+$/, ''))
+  .filter((s) => /^https?:\/\/[^\s'";]+$/.test(s));
+const withReviewOrigins = (sources: string) => [sources, ...reviewOrigins].join(' ');
+
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -14,7 +25,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      `connect-src ${withReviewOrigins("'self'")}`,
+      `media-src ${withReviewOrigins("'self' blob:")}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

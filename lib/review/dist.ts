@@ -523,6 +523,40 @@ export const phraseHypotheses = (hyps: Hypothesis[], merged: Quantity | null): s
   return phrase(merged);
 };
 
+const BASIS: Record<string, string> = { gross: 'gross', net: 'after tax', unknown: 'gross or after tax' };
+
+/** The normalised value exactly: the distribution and its parameters, in the value's unit. */
+export const explain = (q: Quantity): string => {
+  const f = (x: number) => formatIn(q, x);
+  const d = q.dist;
+  const per = PER[q.period] ?? '';
+  const basis = BASIS[q.basis] ? `, ${BASIS[q.basis]}` : '';
+  const body = (() => {
+    switch (d.kind) {
+      case 'point':
+        return typeof d.value === 'number' ? `exactly ${f(d.value)}` : typeof d.value === 'boolean' ? (d.value ? 'yes' : 'no') : `“${d.value}”`;
+      case 'triangular':
+        return `a range: lowest ${f(d.low)}, most likely ${f(d.mode)}, highest ${f(d.high)}`;
+      case 'discrete':
+        return `options: ${d.support.map((x, i) => `${f(x)} at ${pyPercent(d.weights[i])}`).join(', ')}`;
+      case 'categorical':
+        return `options: ${Object.entries(d.probs)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, p]) => `${k} at ${pyPercent(p)}`)
+          .join(', ')}`;
+      case 'bernoulli':
+        return `a ${pyPercent(d.p)} chance`;
+      case 'lognormal':
+        return `skewed: 80% between ${f(d.p10)} and ${f(d.p90)}, median ${f(d.median)}`;
+      case 'normal':
+        return `around ${f(d.mean)}, give or take ${q.unit === 'pct' ? `${pyFixed(d.sd * 100, 1)} points` : f(d.sd)}`;
+      case 'mixture':
+        return `${d.components.length} scenarios: ${d.components.map(([w, c]) => `${explain({ ...q, dist: c, period: 'none', basis: 'na' })} (${pyPercent(w)})`).join('; ')}`;
+    }
+  })();
+  return `${body}${per}${basis}`;
+};
+
 /* ------------------------------------------------------------------ */
 /* Density, for the popover's sparkline                                */
 /* ------------------------------------------------------------------ */
