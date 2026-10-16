@@ -519,14 +519,19 @@ class Lexicon:
     def _approx_entry(self, word_c: str) -> str | None:
         return self._exact("approx_words", word_c)
 
+    def _scale_tokens(self) -> set[str]:
+        return {canon(k) for k in self.data.scale_words if len(canon(k).split()) == 1}
+
     def approx(self, word: str, value: float) -> Lookup:
         """A spread around a stated value (§8.3 AMOUNT_APPROX): 'about' 2.5m → Triangular(2.25m, 2.5m, 2.75m)."""
-        scale_toks = {t for k in self.data.scale_words for t in canon(k).split()}
-        c = strip_numbers(canon(word), extra=scale_toks)
-        if not c:
-            return Lookup(section="approx_words", phrase=word, match="default", dist=self.params.approx_default.around(value), base_value=value,
-                          detail="no approx word: params.approx_default")  # fmt: skip
-        key = self._approx_entry(c)
+        c = canon(word)
+        key = self._approx_entry(c) if c else None
+        if key is None:  # the model may have quoted the number with the word: 'about 2.5 million'
+            c = strip_numbers(c, extra=self._scale_tokens())
+            if not c:
+                return Lookup(section="approx_words", phrase=word, match="default", dist=self.params.approx_default.around(value), base_value=value,
+                              detail="no approx word: params.approx_default")  # fmt: skip
+            key = self._approx_entry(c)
         if key:
             return Lookup(section="approx_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.approx_words[key].around(value),
                           base_value=value)  # fmt: skip
@@ -641,8 +646,11 @@ class Lexicon:
 
     def scale(self, word: str) -> Lookup:
         """The multiplier of a scale word: 'bar' → 1000, 'mil' → 1e6, 'half a bar' → 500."""
-        c = strip_numbers(canon(word)) if parse_number(canon(word)) is None else canon(word)
+        c = canon(word)
         key = self._exact("scale_words", c)
+        if key is None and parse_number(c) is None:  # 'two bar' → 'bar'
+            c = strip_numbers(c) or c
+            key = self._exact("scale_words", c)
         if key:
             v = self.data.scale_words[key]
             return Lookup(section="scale_words", phrase=word, key=key, match="exact", similarity=1.0, value=v, dist=Point(value=v))
@@ -651,14 +659,17 @@ class Lexicon:
     # ------------------------------------------------------------------ ages
 
     def _age_candidates(self, c: str) -> list[str]:
+        """The phrase as said, then without trailing 'years old' and leading fillers ('in his', 'when I')."""
         toks = [_AGE_AF.get(t, t) for t in c.split()]
+        out = [" ".join(toks)]
         while toks and toks[-1] in _AGE_TRAIL:
             toks = toks[:-1]
-        out = [" ".join(toks)]
+        out.append(" ".join(toks))
         while toks and toks[0] in _AGE_LEAD:
             toks = toks[1:]
             out.append(" ".join(toks))
-        return [v for v in out if v]
+        seen: set[str] = set()
+        return [v for v in out if v and not (v in seen or seen.add(v))]
 
     def age_band(self, word: str) -> Lookup:
         """An age from a band or template: 'early sixties', 'late 50s', 'turning sixty', 'before fifty-five', 'grade nine'."""
