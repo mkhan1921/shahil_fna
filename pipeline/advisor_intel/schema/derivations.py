@@ -23,11 +23,11 @@ import numpy as np
 from .. import stats
 from ..binding import row_id_for
 from ..extract.reducer import apply_state_ops, make_ops
-from ..models.dists import Categorical, Point, Quantity, Triangular
+from ..models.dists import Bernoulli, Categorical, Point, Quantity, Triangular
 from ..models.facts import Evidence, Fact, Hypothesis, Provenance
 from ..models.fna import FnaDocument
 from ..models.profile import Profile
-from .slots import Catalog, fact_id_for, load_catalog
+from .slots import Catalog, fact_id_for, load_catalog, person_of
 
 OpSpec = tuple[str, str, str | None, dict[str, Any], str]
 LIQUID = ("cash", "money-market", "unit-trust", "shares", "tfsa", "endowment", "offshore", "crypto")
@@ -299,7 +299,23 @@ def linked_assets(ctx: DeriveContext) -> list[OpSpec]:
     return out
 
 
-RULES: list[Callable[[DeriveContext], list[OpSpec]]] = [dob_from_id, tertiary_after_matric, gross_from_net, horizon_answer, income_stability_answer, linked_assets]
+def include_spouse(ctx: DeriveContext) -> list[OpSpec]:
+    """A spouse whose own facts come from the call is in the plan: household.includeSpouse, implied true."""
+    f = _fact(ctx.profile, "household.includeSpouse")
+    if _said(f) or "person.spouse" not in ctx.profile.entities:
+        return []
+    if _usable(f) and stats.p_true(f.value.dist) >= 0.5:  # type: ignore[union-attr]
+        return []  # the prior file already includes the spouse
+    spouse = [x for x in sorted(ctx.profile.facts.values(), key=lambda x: x.fact_id)
+              if x.source == "call" and x.status in ("stated", "implied") and person_of(x.fact_id) == "spouse"]
+    if not spouse:
+        return []
+    spec = _add(ctx, "household.includeSpouse", None, "household.includeSpouse", Bernoulli(p=0.95), "none", "include_spouse_on_call", spouse[:3])
+    return [spec] if spec else []
+
+
+RULES: list[Callable[[DeriveContext], list[OpSpec]]] = [dob_from_id, tertiary_after_matric, gross_from_net, horizon_answer, income_stability_answer, linked_assets,
+                                                        include_spouse]
 
 
 def derive_all(profile: Profile, *, base: FnaDocument | None = None, run_id: str | None = None, seed: int = 0) -> Profile:
