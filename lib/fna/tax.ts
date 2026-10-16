@@ -1,9 +1,14 @@
 /**
  * South African tax tables (SARS) and tax calculators.
  *
+ * Every SARS value lives in `fna_tables/za_<year>.json` (validated against
+ * `fna_tables/schema.json`), shared with the Python engine in
+ * `pipeline/advisor_intel/fna_engine`; nothing here hard-codes a SARS number.
  * Sources are listed per table in `TAX_TABLES[year].sources` and surfaced in
  * the report appendix so the adviser can evidence the basis of calculation.
  */
+import za_2025_26 from '../../fna_tables/za_2025_26.json';
+import za_2026_27 from '../../fna_tables/za_2026_27.json';
 
 export interface Bracket {
   /** Lower bound of the bracket (exclusive of previous upper bound). */
@@ -34,90 +39,63 @@ export interface TaxTable {
   sources: string[];
 }
 
-const RETIREMENT_LUMP_SUM: Bracket[] = [
-  { from: 0, base: 0, rate: 0 },
-  { from: 550_000, base: 0, rate: 0.18 },
-  { from: 770_000, base: 39_600, rate: 0.27 },
-  { from: 1_155_000, base: 143_550, rate: 0.36 },
-];
+/**
+ * Everything in one table file (fna_tables/schema.json). `TaxTable` is the part
+ * the analysis reports; the rest holds SARS rules it reads but does not report.
+ * TypeScript checks the JSON files against this shape when they are imported.
+ */
+export interface TaxTableFile extends Omit<TaxTable, 'status'> {
+  schemaVersion: number;
+  taxYear: string;
+  /** First day of the year of assessment. */
+  startDate: string;
+  status: string;
+  donations: { annualExemption: number; rateLow: number; threshold: number; rateHigh: number; source: string };
+  /** Two-pot savings withdrawal benefit: taxed at the member's marginal rate. */
+  savingsWithdrawal: { perTaxYear: number; minimum: number; source: string };
+  /** Allowed annual living annuity drawdown, as a share of capital. */
+  livingAnnuity: { minDrawdown: number; maxDrawdown: number; source: string };
+}
 
-const WITHDRAWAL_LUMP_SUM: Bracket[] = [
-  { from: 0, base: 0, rate: 0 },
-  { from: 27_500, base: 0, rate: 0.18 },
-  { from: 726_000, base: 125_730, rate: 0.27 },
-  { from: 1_089_000, base: 223_740, rate: 0.36 },
-];
+/** Newest year first; each Budget adds a file to fna_tables/ and an import here. */
+const TABLE_FILES: TaxTableFile[] = [za_2026_27, za_2025_26];
 
-const COMMON = {
-  uif: { rate: 0.01, ceilingMonthly: 17_712 },
-  interestExemption: { under65: 23_800, over65: 34_500 },
-  estateDuty: { abatement: 3_500_000, rateLow: 0.2, threshold: 30_000_000, rateHigh: 0.25 },
-  retirementLumpSum: RETIREMENT_LUMP_SUM,
-  withdrawalLumpSum: WITHDRAWAL_LUMP_SUM,
+const isStatus = (s: string): s is TaxTable['status'] => s === 'confirmed' || s === 'provisional';
+
+/** The reported part of a table file, with the fields in their established order. */
+const toTaxTable = (f: TaxTableFile): TaxTable => {
+  if (!isStatus(f.status)) throw new Error(`fna_tables ${f.taxYear}: unknown status "${f.status}"`);
+  return {
+    label: f.label,
+    period: f.period,
+    endDate: f.endDate,
+    status: f.status,
+    brackets: f.brackets,
+    rebates: f.rebates,
+    thresholds: f.thresholds,
+    medicalCredits: f.medicalCredits,
+    retirementDeduction: f.retirementDeduction,
+    cgt: f.cgt,
+    tfsa: f.tfsa,
+    uif: f.uif,
+    interestExemption: f.interestExemption,
+    estateDuty: f.estateDuty,
+    retirementLumpSum: f.retirementLumpSum,
+    withdrawalLumpSum: f.withdrawalLumpSum,
+    sources: f.sources,
+  };
 };
 
-export const TAX_TABLES: Record<string, TaxTable> = {
-  '2026/27': {
-    label: '2026/27',
-    period: '1 March 2026 – 28 February 2027',
-    endDate: '2027-02-28',
-    status: 'confirmed',
-    brackets: [
-      { from: 0, base: 0, rate: 0.18 },
-      { from: 245_100, base: 44_118, rate: 0.26 },
-      { from: 383_100, base: 79_998, rate: 0.31 },
-      { from: 530_200, base: 125_599, rate: 0.36 },
-      { from: 695_800, base: 185_215, rate: 0.39 },
-      { from: 887_000, base: 259_783, rate: 0.41 },
-      { from: 1_878_600, base: 666_339, rate: 0.45 },
-    ],
-    rebates: { primary: 17_820, secondary: 9_765, tertiary: 3_249 },
-    thresholds: { under65: 99_000, age65to74: 153_250, age75plus: 171_300 },
-    medicalCredits: { main: 376, firstDependant: 376, additional: 254 },
-    retirementDeduction: { rate: 0.275, cap: 430_000 },
-    cgt: { inclusionRate: 0.4, annualExclusion: 50_000, deathExclusion: 440_000, primaryResidence: 3_000_000 },
-    tfsa: { annual: 46_000, lifetime: 500_000 },
-    ...COMMON,
-    sources: [
-      'SARS — Rates of Tax for Individuals: https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/',
-      'SARS — Budget 2026 Tax Guide: https://www.sars.gov.za/wp-content/uploads/Docs/Budget/Budget2026/Budget-tax-guide-2026-online-version-for-printing.pdf',
-      'National Treasury — 2026 Budget Review, Chapter 4: https://www.treasury.gov.za/documents/National%20Budget/2026/review/Chapter%204.pdf',
-      'SARS — Retirement lump sum benefits: https://www.sars.gov.za/tax-rates/income-tax/retirement-lump-sum-benefits/',
-      'SARS — Estate duty: https://www.sars.gov.za/types-of-tax/estate-duty/',
-    ],
-  },
-  '2025/26': {
-    label: '2025/26',
-    period: '1 March 2025 – 28 February 2026',
-    endDate: '2026-02-28',
-    status: 'confirmed',
-    brackets: [
-      { from: 0, base: 0, rate: 0.18 },
-      { from: 237_100, base: 42_678, rate: 0.26 },
-      { from: 370_500, base: 77_362, rate: 0.31 },
-      { from: 512_800, base: 121_475, rate: 0.36 },
-      { from: 673_000, base: 179_147, rate: 0.39 },
-      { from: 857_900, base: 251_258, rate: 0.41 },
-      { from: 1_817_000, base: 644_489, rate: 0.45 },
-    ],
-    rebates: { primary: 17_235, secondary: 9_444, tertiary: 3_145 },
-    thresholds: { under65: 95_750, age65to74: 148_217, age75plus: 165_689 },
-    medicalCredits: { main: 364, firstDependant: 364, additional: 246 },
-    retirementDeduction: { rate: 0.275, cap: 350_000 },
-    cgt: { inclusionRate: 0.4, annualExclusion: 40_000, deathExclusion: 300_000, primaryResidence: 2_000_000 },
-    tfsa: { annual: 36_000, lifetime: 500_000 },
-    ...COMMON,
-    sources: [
-      'SARS — Rates of Tax for Individuals (2026 tax year): https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/',
-      'SARS — Medical Tax Credit Rates: https://www.sars.gov.za/tax-rates/medical-tax-credit-rates/',
-      'SARS — Retirement lump sum benefits: https://www.sars.gov.za/tax-rates/income-tax/retirement-lump-sum-benefits/',
-    ],
-  },
-};
+export const TAX_TABLE_FILES: Record<string, TaxTableFile> = Object.fromEntries(TABLE_FILES.map((f) => [f.taxYear, f]));
+
+export const TAX_TABLES: Record<string, TaxTable> = Object.fromEntries(TABLE_FILES.map((f) => [f.taxYear, toTaxTable(f)]));
 
 export const DEFAULT_TAX_YEAR = '2026/27';
 
 export const getTaxTable = (year: string): TaxTable => TAX_TABLES[year] ?? TAX_TABLES[DEFAULT_TAX_YEAR];
+
+/** The whole table file for a year (falls back to the default year, like `getTaxTable`). */
+export const getTaxTableFile = (year: string): TaxTableFile => TAX_TABLE_FILES[year] ?? TAX_TABLE_FILES[DEFAULT_TAX_YEAR];
 
 export const TAX_YEARS = (): string[] => Object.keys(TAX_TABLES);
 
