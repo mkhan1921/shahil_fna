@@ -187,9 +187,14 @@ class Registry:
         self.mentions = [m.model_copy(update={"entity_id": keep}) if m.entity_id == drop else m for m in self.mentions]
 
 
-def seed_registry(prior_entities: dict[str, Entity] | None, crm: CrmRecord | None) -> Registry:
+def seed_registry(prior_entities: dict[str, Entity] | None, crm: CrmRecord | None, *, secondary_speaker: bool = False) -> Registry:
+    """The prior file's people, the client and the adviser; a second client on the call is the spouse."""
     ents = dict(prior_entities or {})
     ents.setdefault("person.client_primary", Entity(entity_id="person.client_primary", type="person", canonical_name="Client", attributes={"person_key": "client"}))
+    if secondary_speaker:
+        name = next((p.name for p in crm.household if p.role == "spouse" and p.name), "") if crm else ""
+        ents.setdefault("person.spouse", Entity(entity_id="person.spouse", type="person", canonical_name=name or "Spouse",
+                                                aliases=[name.split()[0]] if name else [], attributes={"person_key": "spouse"}))
     ents.setdefault("person.advisor", Entity(entity_id="person.advisor", type="person", canonical_name=(crm.adviser_name if crm else "") or "Adviser",
                                              attributes={"role": "advisor"}))
     return Registry(entities=ents)

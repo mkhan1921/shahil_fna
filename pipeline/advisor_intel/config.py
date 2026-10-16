@@ -56,7 +56,12 @@ class Budgets(BaseModel):
     tool_result_chars: int = 6000
     get_segments_chars: int = 20000
 
+    scaled_for_minutes: float | None = None  # set by ``scaled``: budgets are scaled to a call once
+
     def scaled(self, call_minutes: float) -> "Budgets":
+        """Budgets for a call of this length (per hour of call, at least one hour). Scaling twice is a no-op."""
+        if self.scaled_for_minutes is not None:
+            return self
         f = max(1.0, call_minutes / 60.0)
         return self.model_copy(
             update={
@@ -64,6 +69,7 @@ class Budgets(BaseModel):
                 "tool_calls": int(self.tool_calls * f),
                 "total_tokens": int(self.total_tokens * f),
                 "usd_cap": self.usd_cap * f,
+                "scaled_for_minutes": call_minutes,
             }
         )
 
@@ -92,6 +98,7 @@ class Settings(BaseModel):
     speechmatics_api_key: str | None = None
     pyannote_api_key: str | None = None
     vllm_base_url: str | None = None  # self-hosted second pass, MiniCheck, fine-tuned extractor
+    parakeet_base_url: str | None = None  # self-hosted Parakeet + TurboBias gateway (ASR bake-off, constrained second pass)
     web_search_allowlist: list[str] = [
         "sars.gov.za",
         "fsca.co.za",
@@ -132,6 +139,7 @@ def get_settings() -> Settings:
         ("speechmatics_api_key", "SPEECHMATICS_API_KEY"),
         ("pyannote_api_key", "PYANNOTEAI_API_KEY"),
         ("vllm_base_url", "VLLM_BASE_URL"),
+        ("parakeet_base_url", "PARAKEET_BASE_URL"),
         ("api_token", "API_TOKEN"),
     ):
         v = _env(name)

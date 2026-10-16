@@ -44,7 +44,7 @@ async def run_discourse(
     groups = catalog.group_names()
     usage: dict[str, int] = {}
 
-    reg = R.seed_registry(prior.entities if prior else None, crm)
+    reg = R.seed_registry(prior.entities if prior else None, crm, secondary_speaker=any(s.speaker_role == "client_secondary" for s in transcript.segments))
     use_frontier = not llm.is_stub(llm.role_model_name("frontier", pins))
     use_small = not llm.is_stub(llm.role_model_name("small", pins))
     reg = await R.discover(reg, transcript, pins, use_llm=use_frontier)

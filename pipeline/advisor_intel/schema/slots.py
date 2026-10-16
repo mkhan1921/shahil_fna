@@ -123,8 +123,12 @@ def generic_slot_id(concrete: str) -> str:
 
 
 def person_of(concrete: str) -> str | None:
-    m = _PERSON_RE.search(concrete.split("#", 1)[0])
-    return m.group(1) if m else None
+    """The person a path or fact id is about: 'income.client.grossMonthly' and 'income.{p}.grossMonthly#client' → 'client'."""
+    base, _, inst = concrete.partition("#")
+    m = _PERSON_RE.search(base)
+    if m:
+        return m.group(1)
+    return inst if "{p}" in base and inst in ("client", "spouse") else None
 
 
 class SlotGroup(BaseModel):

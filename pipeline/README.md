@@ -38,6 +38,40 @@ uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e '.[de
 Runs pinned to the `"test"` model use schema-driven fakes, so nothing reaches a provider;
 `"local:<name>"` pins use registered in-process models (scripted tests and the gold-call oracle).
 
+### One call, in process
+
+`advisor_intel.pipeline.process_call` runs a call through every installed stage without Temporal or a
+database: stage 1 (a ready transcript, a scripted call, or audio through the pinned ASR and diarizer),
+discourse, the client's prior file, the orchestrated extraction and verification, VOI and follow-ups,
+the median document with its sidecar, the preview forecast and the meeting note.
+
+```python
+from advisor_intel.pipeline import CallInput, process_call
+
+result = await process_call(CallInput(call_id="c1", script=open("call.txt").read(), prior_document=doc), pins)
+result.document      # the reviewed-median FnaDocument
+result.sidecar       # probabilities and evidence per FnaDocument path
+result.followups, result.flags, result.forecast, result.note
+```
+
+From the command line, a scripted call or a recording becomes the files the FNA app imports:
+
+```bash
+.venv/bin/python -m advisor_intel.pipeline --script call.txt --roles sipho=advisor,thabo=client_primary,lerato=client_secondary \
+    --prior thabo-before.json --date 2026-10-15 --out out/
+# out/export.json          the reviewed-median client file (shahil-fna format)
+# out/review_package.json  the review for the app's overlay (file exchange)
+# out/sidecar.json         probabilities and evidence per field
+```
+
+`--pins deployment` (the default) uses the configured models and needs their API keys; `--pins test`
+runs offline on fakes whose values are arbitrary (plumbing only). `--audio` takes a recording and
+uses the pinned ASR provider and diarizer.
+
+`process_cached_call(call, pins)` is the eval harness's task (stages 3–6 on cached stage 1–2 output).
+`tests/test_extract_e2e.py` and `tests/test_pipeline.py` run the sample call end to end with the
+gold-call oracle standing in for the model.
+
 ## FNA engine (spec §12.7)
 
 `advisor_intel/fna_engine` is the app's needs analysis (`lib/fna`) ported to Python, with the TypeScript as
