@@ -11,7 +11,7 @@ import { checkPackage } from '@/lib/review/exchange';
 import { describeErrors, validate } from '@/lib/review/jsonSchema';
 import { getPath } from '@/lib/review/paths';
 import { badgeAt, buildQueue, groupOf } from '@/lib/review/queue';
-import { createSession, isReviewItem, applyAction, submit, toResult } from '@/lib/review/session';
+import { createSession, isReviewItem, isUsable, applyAction, submit, toResult, type ReviewFact } from '@/lib/review/session';
 import type { Quantity, ReviewPackage } from '@/lib/review/types';
 import { readJson, schema, STAMP } from './reviewFixture';
 
@@ -47,19 +47,34 @@ describe('a review package from process_call', () => {
     expect(gross.status).toBe('implied');
     expect(badgeAt(s, 'income.client.grossMonthly')?.title).toContain('grossed up from take-home pay');
     const derived = Object.values(s.facts).filter((f) => f.derivation);
-    expect(derived.map((f) => f.derivation).sort()).toEqual(['emergency_from_cash_flow', 'gross_from_net', 'gross_from_net', 'horizon_from_retirement', 'income_stability_from_employment']);
+    expect(derived.map((f) => f.derivation).sort()).toEqual([
+      'emergency_from_cash_flow', 'gross_from_net', 'gross_from_net', 'horizon_from_retirement', 'income_stability_from_employment',
+      'partner_on_call', 'partner_on_call', // the spouse spoke on the call: included, married or life partner
+    ]);
   });
 
   it('reviews end to end: every fact queued, accepted, submitted as a valid review result', () => {
     let s = createSession(bundle, { docId: bundle.median_document.id, reviewerId: STAMP.reviewerId, now: STAMP.at });
     const q = buildQueue(s);
-    const queued = [...q.needs, ...q.quick, ...q.collapsed];
-    expect(queued.length).toBe(Object.values(s.facts).filter(isReviewItem).length);
+    expect(q.flags.length).toBeGreaterThan(0); // VOI's flags: missing tier A fields and a status flip
+    const flagged = [...new Map(q.flags.flatMap((f) => (f.fact ? [[f.fact.factId, f.fact] as const] : []))).values()];
+    expect(flagged.length).toBe(new Set(q.flags.map((f) => f.flag.fact_id)).size); // every flag sits on a fact in the package
+    const grouped = [...q.needs, ...q.quick, ...q.collapsed];
+    const queued: ReviewFact[] = [...flagged, ...grouped];
+    const ids = new Set(queued.map((f) => f.factId));
+    expect(ids.size).toBe(queued.length);
+    for (const f of Object.values(s.facts).filter(isReviewItem)) expect(ids.has(f.factId), f.factId).toBe(true);
     // Unverified facts (p_correct 0.5) all need the adviser.
-    for (const f of queued) if (f.pCorrect < 0.6 && !f.autoAccepted) expect(groupOf(f, false), f.factId).toBe('needs');
-    s = applyAction(s, { type: 'acceptMany', factIds: queued.map((f) => f.factId) }, STAMP);
-    expect(s.ops.length).toBe(queued.length);
+    for (const f of grouped) if (f.pCorrect < 0.6 && !f.autoAccepted) expect(groupOf(f, false), f.factId).toBe('needs');
+    const decidable = queued.filter(isUsable); // a missing field is filled in or marked unknown, not accepted
+    s = applyAction(s, { type: 'acceptMany', factIds: decidable.map((f) => f.factId) }, STAMP);
+    expect(s.ops.length).toBe(decidable.length);
     expect(s.ops[0].seq).toBe(bundle.sidecar.last_seq + 1);
+    // Every blocking flag is cleared before submitting: accepted where the call gave a value, marked unknown where it did not.
+    for (const { flag, fact } of buildQueue(s).flags) {
+      s = applyAction(s, { type: 'clearFlag', flagId: flag.flag_id, resolution: fact && isUsable(fact) ? 'accepted' : 'marked_unknown' }, STAMP);
+    }
+    expect(s.ops.some((op) => op.op === 'MARK_UNKNOWN')).toBe(true);
     const done = submit(s, STAMP.at);
     expect(describeErrors(validate(schema('review_result'), toResult(done, { submitted: true, at: STAMP.at })))).toBe('');
   });

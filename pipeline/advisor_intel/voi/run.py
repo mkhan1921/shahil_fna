@@ -119,6 +119,7 @@ async def run_voi_and_followups(
     violations = check_constraints(profile, catalog, net_income_monthly=household_take_home(analyse, profile, base_document, catalog))
     fresh = compute_flags(profile, catalog=catalog, transcript=transcript, sensitivity=rows, violations=violations)
     flags = merge_flags(profile.blocking_flags, fresh, profile)
+    profile = placeholders(profile, catalog, [f.fact_id for f in flags if f.fact_id] + [fid for q in questions for fid in q.fact_ids])
     profile = profile.model_copy(update={"open_questions": questions, "blocking_flags": flags})
     return VoiOutput(
         profile=profile,
@@ -132,3 +133,36 @@ async def run_voi_and_followups(
         drafted_by=drafted.drafted_by,
         usage=drafted.usage,
     )
+
+
+def placeholders(profile: Profile, catalog: Catalog, fact_ids: list[str]) -> Profile:
+    """Expected fields a flag or a follow-up names but no fact holds get one: not discussed, no value, a seed.
+
+    The review places every flag and question on its field in the client file (the sidecar's concrete path),
+    so a missing tier A field needs a fact there for the adviser to fill in, mark unknown or dismiss. A later
+    statement or reviewer edit replaces the seed like any other.
+    """
+    from ..extract.context import concrete_path
+    from ..extract.reducer import apply_state_ops, make_ops
+    from ..models.facts import Provenance
+
+    specs = []
+    for fid in dict.fromkeys(fact_ids):
+        if fid in profile.facts:
+            continue
+        slot_id, _, inst = fid.partition("#")
+        try:
+            slot = catalog.slot(slot_id)
+        except (KeyError, ValueError):
+            log.warning("flag or follow-up names unknown slot %s", slot_id)
+            continue
+        instance = inst or None
+        specs.append(("ADD", fid, None, {"slot_id": slot.slot_id, "instance_key": instance, "fna_path": concrete_path(profile, slot, instance),
+                                         "source": "fna_default", "status": "not_discussed",
+                                         "provenance": Provenance(run_id=profile.run_id, schema_version=catalog.version)}, "loader"))
+    if not specs:
+        return profile
+    res = apply_state_ops(profile, make_ops(profile, specs))
+    for r in res.rejected:
+        log.warning("placeholder for %s rejected: %s", r.op.fact_id, r.reason)
+    return res.profile
