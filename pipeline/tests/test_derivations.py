@@ -68,3 +68,34 @@ def test_tertiary_after_matric_and_linked_asset():
     link = out.facts["liabilities[].linkedAssetId#liability.bond_1"]
     assert link.fna_path == "liabilities[l1].linkedAssetId" and link.derivation == "linked_asset_from_registry"
     assert check_profile(out) == []
+
+
+def test_gross_from_net_uses_the_tax_module():
+    from advisor_intel.fna_engine import tables, tax
+
+    p = base_profile()
+    p = add(p, "{p}.dateOfBirth", "client", "client.dateOfBirth", Point(value=1982.2), "date")
+    fid = "income.{p}.grossMonthly#client"
+    payload = {"slot_id": "income.{p}.grossMonthly", "instance_key": "client", "fna_path": "income.client.grossMonthly",
+               "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=42000), unit="ZAR", period="monthly", basis="net"), weight=1, rationale="")],
+               "evidence": [ev("s0007", "I take home about forty-two thousand a month")], "provenance": PROV}
+    p = apply_state_ops(p, make_ops(p, [("ADD", fid, "s0007", payload, "extractor")])).profile
+    out = derive_all(p)
+    f = out.facts[fid]
+    assert f.status == "implied" and f.value.basis == "gross"
+    med = stats.median(f.value.dist)
+    expected = tax.gross_up_monthly(42000.0, age=44.6, table=tables.get_table())
+    assert abs(med - expected) / expected < 0.02 and med > 42000
+    assert stats.quantile(f.value.dist, 0.9) > stats.quantile(f.value.dist, 0.1)  # widened for unknown deductions
+    assert check_profile(out) == []
+
+
+def test_dob_from_prior_id_number(sample_fna_json):
+    from advisor_intel.models import fna as F
+
+    doc = F.FnaDocument.model_validate(sample_fna_json)
+    doc.client.dateOfBirth = ""
+    p = base_profile()
+    out = derive_all(p, base=doc)
+    f = out.facts["{p}.dateOfBirth#client"]
+    assert f.value.dist == Point(value="1986-04-12") and f.status == "not_discussed" and f.derivation == "dob_from_id_number"
