@@ -79,7 +79,7 @@ NormalizationFlag = Literal[
 MONEY_PERIOD: dict[str, Literal["once", "monthly", "annual"]] = {"rand": "once", "rand_monthly": "monthly", "rand_annual": "annual"}
 QUANTITY_UNIT: dict[str, str] = {
     "years": "years",
-    "months": "count",  # Quantity has no 'months' unit: a count of months (normalization records fna_unit)
+    "months": "months",
     "age": "age",
     "year": "date",  # a calendar year, as a decimal-year date
     "decimal": "pct",  # rates as decimal fractions (0.115 = 11.5%)

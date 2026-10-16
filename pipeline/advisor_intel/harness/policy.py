@@ -52,7 +52,7 @@ def policy(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
     if extracted:
         last = extracted[-1]
         g = groups.get(last)
-        if g and verified.count(g) < extracted.count(last) and names[-1] == "extract_slot_group":
+        if g and verified.count(g) < [groups.get(t) for t in extracted].count(g) and names[-1] == "extract_slot_group":
             return ModelResponse(parts=[ToolCallPart(tool_name="verify_facts", args={"slot_group": g})])
     for t in plan["tasks"]:
         if t["status"] == "todo" and t["task_id"] not in extracted:

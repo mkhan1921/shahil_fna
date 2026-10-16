@@ -39,6 +39,7 @@ approx_words:    # spread around a stated value: relative half-width, or relativ
   "in the ballpark of": {dist: triangular, rel_halfwidth: 0.25}
   "somewhere around": {dist: triangular, rel_halfwidth: 0.15}
   "something like": {dist: triangular, rel_halfwidth: 0.15}
+  "more like": {dist: triangular, rel_halfwidth: 0.10}               # a correction: "it's more like forty-five now"
   "or so": {dist: triangular, rel_halfwidth: 0.15}
   "or thereabouts": {dist: triangular, rel_halfwidth: 0.15}
   "ish": {dist: triangular, rel_halfwidth: 0.10}
@@ -260,6 +261,13 @@ relative_words:  # multiplier on the reference slot's value
   "three quarters": {dist: triangular, low: 0.7, mode: 0.75, high: 0.8}
   "double": {dist: triangular, low: 1.9, mode: 2.0, high: 2.1}
   "twice as much": {dist: triangular, low: 1.9, mode: 2.0, high: 2.1}
+  # One month's pay as an annual amount: the reference (monthly pay) is annualised first, so 1/12.
+  "a thirteenth cheque": {dist: point, value: 0.0833333333}
+  "thirteenth cheque": {dist: point, value: 0.0833333333}
+  "13th cheque": {dist: point, value: 0.0833333333}
+  "a month's salary": {dist: point, value: 0.0833333333}
+  "one month's salary": {dist: point, value: 0.0833333333}
+  "dertiende tjek": {dist: point, value: 0.0833333333}                            # Afr. thirteenth cheque
   "dieselfde": {dist: triangular, low: 0.95, mode: 1.0, high: 1.05}             # Afr. the same
   "omtrent dieselfde": {dist: triangular, low: 0.9, mode: 1.0, high: 1.1}       # Afr. about the same
   "n bietjie minder": {dist: triangular, low: 0.75, mode: 0.88, high: 0.97}     # Afr. a bit less
@@ -364,6 +372,7 @@ hedge_strength:  # feature for calibration, 0 (certain) .. 1 (pure speculation)
   "more or less": 0.25
   "give or take": 0.25
   "something like": 0.35
+  "more like": 0.2
   "ballpark": 0.4
   "ish": 0.3
   "i reckon": 0.35

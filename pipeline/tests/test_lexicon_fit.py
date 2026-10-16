@@ -109,7 +109,7 @@ def test_refit_recovers_synthetic_truth_for_every_family():
 
 
 def test_proposed_yaml_is_a_minimal_valid_diff_and_the_lexicon_is_untouched():
-    before_text, before_about = LEX.source_text, LEX.entry("approx_words", "about")
+    before_text, before_about, before_misses = LEX.source_text, LEX.entry("approx_words", "about"), len(LEX.miss_log)
     d = propose_lexicon_fit(approx_pairs("about", 0.2, 60) + relative_pairs("a bit less", (0.6, 0.75, 0.9), 40), LEX)
     assert d.changed and d.base_version == "1.3" and d.new_version == "1.4" and d.new_path == "lexicon/v1.4.yaml"
     proposed = Lexicon.from_text(d.yaml_text)
@@ -125,7 +125,7 @@ def test_proposed_yaml_is_a_minimal_valid_diff_and_the_lexicon_is_untouched():
     assert "a bit less" in d.summary() and "v1.3 → v1.4" in d.summary()
     assert LEX.source_text == before_text and LEX.entry("approx_words", "about") == before_about
     assert load_lexicon().entry("approx_words", "about").rel_halfwidth == 0.10
-    assert len(LEX.miss_log) == 0  # re-looking phrases up never touches the shared miss log
+    assert len(LEX.miss_log) == before_misses  # re-looking phrases up never touches the shared miss log
 
 
 def test_keys_need_twenty_pairs_and_points_stay_fixed():

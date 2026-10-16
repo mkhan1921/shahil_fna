@@ -164,6 +164,24 @@ def gross_from_net(ctx: DeriveContext) -> list[OpSpec]:
                                                        rationale=f"grossed up from a net take-home of {stats.median(f.value.dist):,.0f}")],
                      "status": "implied", "reason": "gross_from_net", "normalization": {**(f.normalization or {}), "derivation": "gross_from_net", "net": f.value.model_dump(mode="json")}},
                     "deriver"))
+        out += _rescale_relatives(ctx.profile, f, stats.median(dist) / max(1e-9, stats.median(f.value.dist)))
+    return out
+
+
+def _rescale_relatives(profile: Profile, ref: Fact, ratio: float) -> list[OpSpec]:
+    """Values read relative to a net figure ('a thirteenth cheque') follow it to the gross basis."""
+    out: list[OpSpec] = []
+    for g in profile.facts.values():
+        if g.fact_id == ref.fact_id or g.value is None or g.value.basis != "net" or g.derivation == "gross_from_net":
+            continue
+        values = (g.normalization or {}).get("values") or []
+        if not any(isinstance(v, dict) and (v.get("reference") or {}).get("fact_id") == ref.fact_id for v in values):
+            continue
+        hyps = [h.model_copy(update={"value": h.value.model_copy(update={"dist": stats.scaled(h.value.dist, ratio), "basis": "gross"})}) if h.value is not None else h
+                for h in g.hypotheses]
+        out.append(("UPDATE", g.fact_id, g.evidence[0].segment_id if g.evidence else None,
+                    {"replace_hypotheses": hyps, "reason": "gross_from_net",
+                     "normalization": {**(g.normalization or {}), "derivation": "gross_from_net", "gross_ratio": ratio}}, "deriver"))
     return out
 
 

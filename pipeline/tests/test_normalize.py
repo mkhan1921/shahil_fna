@@ -118,7 +118,7 @@ def summary(n):
         ("rand_monthly", ("ZAR", "monthly")),
         ("rand_annual", ("ZAR", "annual")),
         ("years", ("years", "none")),
-        ("months", ("count", "none")),
+        ("months", ("months", "none")),
         ("age", ("age", "none")),
         ("year", ("date", "none")),
         ("decimal", ("pct", "none")),
