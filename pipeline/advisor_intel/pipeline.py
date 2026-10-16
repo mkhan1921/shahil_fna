@@ -12,6 +12,7 @@ A stage whose package is not installed is skipped and named in ``PipelineResult.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import importlib
 import logging
@@ -169,13 +170,12 @@ async def process_call(
     profile = agent.profile
     followups, flags = list(agent.followups or profile.open_questions), list(profile.blocking_flags)
 
-    analyse = _optional("advisor_intel.fna_engine.analysis", "analyse")
+    engine = _optional("advisor_intel.fna_engine.analysis", "analyse")
+    analyse = functools.partial(engine, today=transcript.anchor_date) if engine is not None else None  # needs as of the call date
     voi = _optional("advisor_intel.voi.run", "run_voi_and_followups")
     if voi is not None:
-        out = voi(profile, catalog=catalog, pins=pins, pos_runs=_optional("advisor_intel.forecast.sensitivity", "sensitivity_runs"),
-                  analyse=(lambda d: analyse(d).model_dump(mode="json")) if analyse else None, transcript=transcript, settings=settings)
-        if hasattr(out, "__await__"):
-            out = await out
+        out = await voi(profile, catalog=catalog, pins=pins, pos_runs=_optional("advisor_intel.forecast.sensitivity", "sensitivity_runs"),
+                        analyse=analyse, transcript=transcript, settings=settings, base_document=doc, seed=forecast_seed(run_id))
         profile, followups, flags = out.profile, list(out.followups), list(out.flags)
     else:
         skipped.append("voi")
