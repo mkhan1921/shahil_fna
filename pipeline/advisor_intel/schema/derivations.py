@@ -23,11 +23,11 @@ import numpy as np
 from .. import stats
 from ..binding import row_id_for
 from ..extract.reducer import apply_state_ops, make_ops
-from ..models.dists import Categorical, Point, Quantity, Triangular
+from ..models.dists import Bernoulli, Categorical, Point, Quantity, Triangular
 from ..models.facts import Evidence, Fact, Hypothesis, Provenance
 from ..models.fna import FnaDocument
 from ..models.profile import Profile
-from .slots import Catalog, fact_id_for, load_catalog
+from .slots import Catalog, fact_id_for, load_catalog, person_of
 
 OpSpec = tuple[str, str, str | None, dict[str, Any], str]
 LIQUID = ("cash", "money-market", "unit-trust", "shares", "tfsa", "endowment", "offshore", "crypto")
@@ -299,7 +299,30 @@ def linked_assets(ctx: DeriveContext) -> list[OpSpec]:
     return out
 
 
-RULES: list[Callable[[DeriveContext], list[OpSpec]]] = [dob_from_id, tertiary_after_matric, gross_from_net, horizon_answer, income_stability_answer, linked_assets]
+def partner_on_call(ctx: DeriveContext) -> list[OpSpec]:
+    """A spouse whose own facts come from the call is a partner in the plan (both persons are analysed only then):
+    household.includeSpouse true, and household.maritalStatus married or life partner (which one stays open)."""
+    if "person.spouse" not in ctx.profile.entities:
+        return []
+    spouse = [x for x in sorted(ctx.profile.facts.values(), key=lambda x: x.fact_id)
+              if x.source == "call" and x.status in ("stated", "implied") and person_of(x.fact_id) == "spouse"][:3]
+    if not spouse:
+        return []
+    out: list[OpSpec] = []
+    inc = _fact(ctx.profile, "household.includeSpouse")
+    if not _said(inc) and not (_usable(inc) and stats.p_true(inc.value.dist) >= 0.5):  # type: ignore[union-attr]
+        spec = _add(ctx, "household.includeSpouse", None, "household.includeSpouse", Bernoulli(p=0.95), "none", "partner_on_call", spouse)
+        out += [spec] if spec else []
+    ms = _fact(ctx.profile, "household.maritalStatus")
+    if not _said(ms) and not (_usable(ms) and stats.mode_label(ms.value.dist) in ("married", "life-partner")):  # type: ignore[union-attr]
+        spec = _add(ctx, "household.maritalStatus", None, "household.maritalStatus", Categorical(probs={"married": 0.75, "life-partner": 0.25}), "none",
+                    "partner_on_call", spouse)
+        out += [spec] if spec else []
+    return out
+
+
+RULES: list[Callable[[DeriveContext], list[OpSpec]]] = [dob_from_id, tertiary_after_matric, gross_from_net, horizon_answer, income_stability_answer, linked_assets,
+                                                        partner_on_call]
 
 
 def derive_all(profile: Profile, *, base: FnaDocument | None = None, run_id: str | None = None, seed: int = 0) -> Profile:

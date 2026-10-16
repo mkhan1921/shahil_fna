@@ -9,6 +9,7 @@ from advisor_intel.extract.reducer import apply_state_ops, check_profile, make_o
 from advisor_intel.models import Entity, Evidence, Hypothesis, Point, Profile, Quantity, Triangular
 from advisor_intel.models.dists import Categorical
 from advisor_intel.models.facts import Provenance
+from advisor_intel.schema import load_catalog
 from advisor_intel.schema.derivations import derive_all
 
 PROV = Provenance(run_id="wf-d")
@@ -99,3 +100,24 @@ def test_dob_from_prior_id_number(sample_fna_json):
     out = derive_all(p, base=doc)
     f = out.facts["{p}.dateOfBirth#client"]
     assert f.value.dist == Point(value="1986-04-12") and f.status == "not_discussed" and f.derivation == "dob_from_id_number"
+
+
+def test_a_spouse_with_facts_from_the_call_is_a_partner_in_the_plan():
+    from advisor_intel.models import Entity
+    from advisor_intel.schema.derivations import derive_all
+
+    cat = load_catalog()
+    p = Profile(call_id="c", run_id="r", schema_version=cat.version, anchor_date=date(2026, 10, 15),
+                entities={"person.spouse": Entity(entity_id="person.spouse", type="person", canonical_name="Lerato")})
+    assert "household.includeSpouse" not in derive_all(p).facts  # no spouse facts: nothing to infer
+    seg = "s0010"
+    ev = Evidence(segment_id=seg, char_start=0, char_end=6, quote="I earn", speaker_role="client_secondary", t_start=0, t_end=1, asr_mean_conf=0.95, role="supports")
+    spec = ("ADD", "income.{p}.grossMonthly#spouse", seg, {"slot_id": "income.{p}.grossMonthly", "instance_key": "spouse", "fna_path": "income.spouse.grossMonthly",
+            "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=35000), unit="ZAR", period="monthly"), weight=1, rationale="")],
+            "evidence": [ev], "provenance": Provenance(run_id="r")}, "extractor")
+    p = apply_state_ops(p, make_ops(p, [spec])).profile
+    d = derive_all(p)
+    f = d.facts["household.includeSpouse"]
+    assert f.status == "implied" and f.derivation == "partner_on_call" and f.value.dist.p > 0.9 and f.evidence[0].segment_id == seg
+    ms = d.facts["household.maritalStatus"]
+    assert ms.status == "implied" and stats.mode_label(ms.value.dist) == "married" and set(ms.value.dist.probs) == {"married", "life-partner"}

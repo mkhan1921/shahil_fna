@@ -12,9 +12,12 @@ A stage whose package is not installed is skipped and named in ``PipelineResult.
 
 from __future__ import annotations
 
+import argparse
+import asyncio
 import functools
 import hashlib
 import importlib
+import json
 import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
@@ -31,9 +34,10 @@ from .harness.run import run_agent
 from .models.crm import CrmRecord
 from .models.entities import DiscourseOutput
 from .models.facts import Provenance
-from .models.fna import FnaDocument
+from .models.fna import ExportFile, FnaDocument
 from .models.profile import BlockingFlag, FollowUp, Profile
-from .models.runs import AgentOutcome, VersionPins
+from .models.review import ReviewBundle, ReviewPackage
+from .models.runs import AgentOutcome, RunState, VersionPins
 from .models.transcript import SpeakerRole, Transcript
 from .schema.slots import load_catalog
 
@@ -74,10 +78,25 @@ class PipelineResult:
     tool_calls: list[str] = field(default_factory=list)
     summary: str = ""
     skipped: list[str] = field(default_factory=list)  # stages not installed in this deployment
+    pins: VersionPins = field(default_factory=VersionPins)
+    prior_document: FnaDocument | None = None
 
     @property
     def partial(self) -> bool:
         return self.outcome.partial
+
+    def review_package(self) -> ReviewPackage:
+        """The review as a file for the FNA app's overlay (file exchange, §11.5)."""
+        attribution = _optional("advisor_intel.api.bundle", "attribution_text")
+        bundle = ReviewBundle(
+            call_id=self.call_id, run_id=self.run_id, profile_version=self.profile.version,
+            state=RunState.AGENT_PARTIAL if self.partial else RunState.AWAITING_REVIEW,
+            median_document=self.document or FnaDocument(), prior_document=self.prior_document, sidecar=self.sidecar, transcript=self.transcript,
+            entities=self.profile.entities, followups=self.followups, blocking_flags=self.flags, preview_forecast=self.forecast,
+            deterministic_analysis=self.analysis, quality=self.transcript.quality, versions=self.pins,
+            attribution_text=attribution(self.forecast) if attribution is not None and self.forecast is not None else None,
+        )
+        return ReviewPackage(bundle=bundle)
 
 
 def run_id_for(call_id: str, pins: VersionPins) -> str:
@@ -168,6 +187,15 @@ async def process_call(
                          call_minutes=transcript.duration / 60.0)
     agent = await run_agent(inputs, services=services)
     profile = agent.profile
+
+    # Stage 5 after the agent (§9): the omission check, re-checks of facts changed since the agent's checks,
+    # then calibration and conformal auto-accept (cold-start calibrator, no auto-accept, until gold calls exist).
+    verify_after = _optional("advisor_intel.verify.services", "verify_after_agent")
+    if verify_after is not None:
+        profile = (await verify_after(profile, transcript=transcript, discourse=discourse, pins=pins, catalog=catalog, run_id=run_id,
+                                      settings=settings)).profile
+    else:
+        skipped.append("verify")
     followups, flags = list(agent.followups or profile.open_questions), list(profile.blocking_flags)
 
     engine = _optional("advisor_intel.fna_engine.analysis", "analyse")
@@ -216,7 +244,7 @@ async def process_call(
     return PipelineResult(
         call_id=call.call_id, run_id=run_id, transcript=transcript, discourse=discourse, profile=profile, outcome=agent.outcome, followups=followups,
         flags=flags, forecast=fc, note=mn, analysis=analysis, document=document, sidecar=sidecar, usage=usage,
-        tool_calls=[e["tool"] for e in agent.state.get("events", [])], summary=agent.summary, skipped=skipped,
+        tool_calls=[e["tool"] for e in agent.state.get("events", [])], summary=agent.summary, skipped=skipped, pins=pins, prior_document=doc,
     )
 
 
@@ -225,3 +253,75 @@ async def process_cached_call(call: Any, pins: VersionPins) -> PipelineResult:
     ci = CallInput(call_id=call.call_id, anchor_date=call.anchor_date, transcript=call.transcript, discourse=getattr(call, "discourse", None),
                    prior_document=getattr(call, "prior_document", None), crm=getattr(call, "crm", None))
     return await process_call(ci, pins, note=False)
+
+
+ASR_DEFAULT_MODEL = {"assemblyai": "universal-3", "deepgram": "nova-3", "speechmatics": "enhanced", "granite": "ibm-granite/granite-speech-4.0",
+                     "parakeet": "nvidia/parakeet-tdt-0.6b-v3"}
+
+
+def deployment_pins(settings: Settings | None = None) -> VersionPins:
+    """Pins from the deployment's settings: its model routing and ASR provider (the calibrator stays cold-start without a store)."""
+    s = settings or get_settings()
+    m = s.models
+    return VersionPins(frontier_model=m.frontier, reasoning_model=m.reasoning, verifier_model=m.verifier, small_model=m.small,
+                       asr_provider=s.asr_provider, asr_model_version=ASR_DEFAULT_MODEL.get(s.asr_provider, s.asr_provider))
+
+
+def _roles(spec: str) -> dict[str, SpeakerRole]:
+    out: dict[str, SpeakerRole] = {}
+    for part in filter(None, (p.strip() for p in spec.split(","))):
+        speaker, _, role = part.partition("=")
+        out[speaker.strip()] = role.strip()  # type: ignore[assignment]
+    return out
+
+
+def _read_prior(path: Path) -> FnaDocument:
+    data = json.loads(path.read_text())
+    if data.get("format") == "shahil-fna":
+        if data.get("encrypted"):
+            raise SystemExit(f"{path} is an encrypted export: export the client again without a passphrase")
+        return ExportFile.model_validate(data).document
+    return FnaDocument.model_validate(data)
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="python -m advisor_intel.pipeline", description="Process one call and write the files the FNA app imports.")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--script", type=Path, help="a scripted call: 'speaker[@channel]: text' lines")
+    src.add_argument("--audio", type=Path, nargs="+", help="the call recording (one file, or one per channel)")
+    src.add_argument("--transcript", type=Path, help="a Transcript JSON")
+    ap.add_argument("--roles", default="", help="script speakers to roles: 'sipho=advisor,thabo=client_primary,lerato=client_secondary'")
+    ap.add_argument("--prior", type=Path, help="the client's shahil-fna export (unencrypted) from before the call")
+    ap.add_argument("--crm", type=Path, help="the client's CRM record (CrmRecord JSON)")
+    ap.add_argument("--call-id", default=None)
+    ap.add_argument("--date", type=date.fromisoformat, default=None, help="the call date, YYYY-MM-DD (default: today)")
+    ap.add_argument("--pins", choices=["deployment", "test"], default="deployment",
+                    help="'deployment': the configured models (needs their API keys); 'test': offline fakes with arbitrary values")
+    ap.add_argument("--out", type=Path, required=True, help="directory for export.json, review_package.json and sidecar.json")
+    args = ap.parse_args(argv)
+
+    source = args.script or args.transcript or args.audio[0]
+    call = CallInput(
+        call_id=args.call_id or Path(source).stem, anchor_date=args.date,
+        transcript=Transcript.model_validate_json(args.transcript.read_text()) if args.transcript else None,
+        script=args.script.read_text() if args.script else None, script_roles=_roles(args.roles), audio=list(args.audio or []),
+        prior_document=_read_prior(args.prior) if args.prior else None,
+        crm=CrmRecord.model_validate_json(args.crm.read_text()) if args.crm else None,
+    )
+    pins = deployment_pins() if args.pins == "deployment" else VersionPins()
+    res = asyncio.run(process_call(call, pins))
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "export.json").write_text(ExportFile(document=res.document or FnaDocument()).model_dump_json(indent=2))
+    (args.out / "review_package.json").write_text(res.review_package().model_dump_json(indent=2))
+    (args.out / "sidecar.json").write_text(json.dumps(res.sidecar, indent=2, default=str))
+    found = sum(1 for f in res.profile.facts.values() if f.source == "call")
+    print(f"{res.call_id}: {found} facts from the call, {len(res.followups)} follow-ups, {sum(not f.cleared for f in res.flags)} open flags"
+          f"{' (partial: ' + str(res.outcome.reason) + ')' if res.partial else ''}; cost ${res.usage.get('cost_usd', 0.0):.2f}")
+    if res.skipped:
+        print(f"not installed: {', '.join(res.skipped)}")
+    print(f"wrote {args.out / 'export.json'}, {args.out / 'review_package.json'}, {args.out / 'sidecar.json'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
