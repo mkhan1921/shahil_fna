@@ -39,19 +39,19 @@ REPO = PIPELINE.parent
 if str(PIPELINE) not in sys.path:
     sys.path.insert(0, str(PIPELINE))
 
-from advisor_intel import binding  # noqa: E402
-from advisor_intel.extract.reducer import annotate, apply_state_ops, check_profile, make_ops  # noqa: E402
-from advisor_intel.models import fna as F  # noqa: E402
-from advisor_intel.models.dists import Bernoulli, Categorical, Discrete, Point, Quantity, Triangular  # noqa: E402
-from advisor_intel.models.entities import Entity  # noqa: E402
-from advisor_intel.models.facts import Evidence, Hedge, Hypothesis, Provenance  # noqa: E402
-from advisor_intel.models.forecast import ForecastResult  # noqa: E402
-from advisor_intel.models.profile import BlockingFlag, FollowUp, Profile  # noqa: E402
-from advisor_intel.models.review import ReviewBundle, ReviewPackage  # noqa: E402
-from advisor_intel.models.runs import RunState, VersionPins  # noqa: E402
-from advisor_intel.models.transcript import NumericSpan, QualityReport, Reading, Segment, Transcript, Word  # noqa: E402
-from advisor_intel.schema.derivations import derive_all  # noqa: E402
-from advisor_intel.schema.slots import fact_id_for, load_catalog  # noqa: E402
+from advisor_intel import binding
+from advisor_intel.extract.reducer import annotate, apply_state_ops, check_profile, make_ops
+from advisor_intel.models import fna as F
+from advisor_intel.models.dists import Bernoulli, Categorical, Discrete, Point, Quantity, Triangular
+from advisor_intel.models.entities import Entity
+from advisor_intel.models.facts import Evidence, Hedge, Hypothesis, Provenance
+from advisor_intel.models.forecast import ForecastResult
+from advisor_intel.models.profile import BlockingFlag, FollowUp, Profile
+from advisor_intel.models.review import ReviewBundle, ReviewPackage
+from advisor_intel.models.runs import RunState, VersionPins
+from advisor_intel.models.transcript import NumericSpan, QualityReport, Reading, Segment, Transcript, Word
+from advisor_intel.schema.derivations import derive_all
+from advisor_intel.schema.slots import fact_id_for, load_catalog
 
 # Test copies are indented so a regenerated fixture diffs line by line; the copy the app serves is compact.
 OUTPUTS: tuple[tuple[Path, bool], ...] = (
@@ -94,7 +94,11 @@ DIALOGUE: list[tuple[str, str, float]] = [
     ("advisor", "Morning Thabo, morning Lerato. Thanks for making time for the annual review.", 1.2),
     ("client_primary", "Morning Sipho. Ja, a lot has changed since last year, so the timing is good.", 0.6),
     ("advisor", "Let's start with income. Thabo, last time you were on a hundred thousand a month gross.", 0.8),
-    ("client_primary", "That was before the promotion. It's one eighteen now, one hundred and eighteen thousand gross a month, from September.", 0.5),
+    (
+        "client_primary",
+        "That was before the promotion. It's one eighteen now, one hundred and eighteen thousand gross a month, from September.",
+        0.5,
+    ),
     ("advisor", "Congratulations. And Lerato, are you still at Brightwater?", 0.9),
     ("client_secondary", "Still there. I take home forty-two thousand a month, same as last year.", 0.7),
     ("advisor", "And the bonus, Thabo?", 0.6),
@@ -202,14 +206,28 @@ def build_transcript() -> Transcript:
     return tr.model_copy(update={"quality": quality(tr)})
 
 
-def _span(span_id: str, segs: list[Segment], seg_id: str, surface: str, readings: list[tuple[float, float]], period: str, second_pass: float | None = None) -> NumericSpan:
+def _span(
+    span_id: str,
+    segs: list[Segment],
+    seg_id: str,
+    surface: str,
+    readings: list[tuple[float, float]],
+    period: str,
+    second_pass: float | None = None,
+) -> NumericSpan:
     seg = next(s for s in segs if s.segment_id == seg_id)
     texts = [w.text for w in seg.words]
     parts = surface.split(" ")
     start = next(i for i in range(len(texts)) if texts[i : i + len(parts)] == parts)
     words = seg.words[start : start + len(parts)]
-    rs = [Reading(value=v, currency="ZAR", period=period, scale_source="context" if w < 0.9 else "scale word", weight=w) for v, w in readings]  # type: ignore[arg-type]
-    sp = Reading(value=second_pass, currency="ZAR", period=period, scale_source="second pass", weight=1.0) if second_pass is not None else None  # type: ignore[arg-type]
+    rs = [
+        Reading(value=v, currency="ZAR", period=period, scale_source="context" if w < 0.9 else "scale word", weight=w) for v, w in readings
+    ]  # type: ignore[arg-type]
+    sp = (
+        Reading(value=second_pass, currency="ZAR", period=period, scale_source="second pass", weight=1.0)
+        if second_pass is not None
+        else None
+    )  # type: ignore[arg-type]
     return NumericSpan(
         span_id=span_id,
         segment_id=seg_id,
@@ -429,21 +447,28 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
     profile = binding.load_prior(prior, None, call_id=CALL_ID, run_id=RUN_ID, anchor_date=ANCHOR, provenance=PROV)
     profile = profile.model_copy(update={"entities": {**profile.entities, **{e.entity_id: e for e in NEW_ENTITIES}}})
     c = Call(profile, tr)
-    E = lambda seg, quote, role="supports": ev(tr, seg, quote, role)  # noqa: E731
+    E = lambda seg, quote, role="supports": ev(tr, seg, quote, role)
     # Scoring annotations the verifier, calibrator, conformal filter and VOI stage set (§9, §10):
     # fact id → (p_correct, auto_accepted, review_priority, why).
     scores: dict[str, tuple[float, bool, float, str | None]] = {}
 
     # Income
     fid = c.add(
-        "income.{p}.grossMonthly", "client", [(Point(value=118_000), 1.0, "'one hundred and eighteen thousand gross a month'")],
-        [E("s0004", "one hundred and eighteen thousand gross a month, from September"), E("s0003", "last time you were on a hundred thousand a month gross", "context")],
+        "income.{p}.grossMonthly",
+        "client",
+        [(Point(value=118_000), 1.0, "'one hundred and eighteen thousand gross a month'")],
+        [
+            E("s0004", "one hundred and eighteen thousand gross a month, from September"),
+            E("s0003", "last time you were on a hundred thousand a month gross", "context"),
+        ],
         interpretation="Thabo's gross salary since his promotion in September: R118,000 a month. He said 'one eighteen' and then the full figure.",
         basis="gross",
     )
     scores[fid] = (0.94, False, 0.034, "Moves Thabo's life cover and income protection from partial to shortfall.")
     fid = c.add(
-        "income.{p}.grossMonthly", "spouse", [(Point(value=42_000), 1.0, "'I take home forty-two thousand a month'")],
+        "income.{p}.grossMonthly",
+        "spouse",
+        [(Point(value=42_000), 1.0, "'I take home forty-two thousand a month'")],
         [E("s0006", "I take home forty-two thousand a month, same as last year.")],
         interpretation="Lerato gave her take-home pay, R42,000 a month, and said it has not changed. The field holds gross salary, "
         "so the figure is grossed up through the tax tables (the derivation runs after extraction).",
@@ -451,7 +476,9 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
     )
     scores[fid] = (0.93, False, 0.004, "Confirms the salary on file once her take-home pay is grossed up.")
     fid = c.add(
-        "income.{p}.annualBonus", "client", [(Triangular(low=108_000, mode=120_000, high=132_000), 1.0, "'about a hundred and twenty, give or take'")],
+        "income.{p}.annualBonus",
+        "client",
+        [(Triangular(low=108_000, mode=120_000, high=132_000), 1.0, "'about a hundred and twenty, give or take'")],
         [E("s0008", "The bonus is about a hundred and twenty, give or take, depending on how the year goes.")],
         interpretation="An annual bonus of about R120,000 that varies with the company's year; 'give or take' widens it by 10% each side.",
         hedges=(("give or take", 0.2),),
@@ -461,16 +488,35 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
 
     # Retirement goal
     fid = c.add(
-        "retirement.{p}.retirementAge", "client", [(Triangular(low=60, mode=62, high=65), 1.0, "'between sixty and sixty-five, probably sixty-two'")],
-        [E("s0010", "somewhere between sixty and sixty-five. Probably sixty-two, if the numbers allow it."), E("s0009", "Last time we planned on sixty-five for you", "context")],
+        "retirement.{p}.retirementAge",
+        "client",
+        [(Triangular(low=60, mode=62, high=65), 1.0, "'between sixty and sixty-five, probably sixty-two'")],
+        [
+            E("s0010", "somewhere between sixty and sixty-five. Probably sixty-two, if the numbers allow it."),
+            E("s0009", "Last time we planned on sixty-five for you", "context"),
+        ],
         interpretation="Thabo now hopes to retire earlier than the 65 on file: anywhere from 60 to 65, most likely 62, depending on the numbers.",
         hedges=(("probably", 0.3),),
-        normalization={"form": {"type": "AGE", "low": 60, "high": 65, "value": 62}, "rule": "a range with a most likely value becomes a triangular", "lexicon_version": "1.3"},
+        normalization={
+            "form": {"type": "AGE", "low": 60, "high": 65, "value": 62},
+            "rule": "a range with a most likely value becomes a triangular",
+            "lexicon_version": "1.3",
+        },
     )
-    scores[fid] = (0.79, False, 0.091, "Moves the success odds by about 9 points, and between 60 and 65 his retirement need changes status.")
+    scores[fid] = (
+        0.79,
+        False,
+        0.091,
+        "Moves the success odds by about 9 points, and between 60 and 65 his retirement need changes status.",
+    )
     fid = c.add(
-        "retirement.{p}.targetPercent", "client", [(Point(value=0.7), 1.0, "Sipho proposed 70% of salary")],
-        [E("s0011", "Most people in your position plan on about seventy percent of salary in retirement."), E("s0012", "If you say so. I haven't really thought about it.", "context")],
+        "retirement.{p}.targetPercent",
+        "client",
+        [(Point(value=0.7), 1.0, "Sipho proposed 70% of salary")],
+        [
+            E("s0011", "Most people in your position plan on about seventy percent of salary in retirement."),
+            E("s0012", "If you say so. I haven't really thought about it.", "context"),
+        ],
         interpretation="Sipho suggested planning on 70% of salary; Thabo did not clearly agree, so this stays the adviser's suggestion rather than his goal.",
         attribution="advisor_suggested",
     )
@@ -478,21 +524,29 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
 
     # Children and education
     fid = c.add(
-        "dependants[].schoolFeesAnnual", NEO, [(Triangular(low=94_500, mode=105_000, high=115_500), 1.0, "'about a hundred and five thousand for the year'")],
+        "dependants[].schoolFeesAnnual",
+        NEO,
+        [(Triangular(low=94_500, mode=105_000, high=115_500), 1.0, "'about a hundred and five thousand for the year'")],
         [E("s0014", "It's about a hundred and five thousand for the year now.")],
         interpretation="Neo's independent-school fees have gone up to about R105,000 a year.",
         hedges=(("about", 0.1),),
     )
     scores[fid] = (0.91, True, 0.003, "Adds about R7,000 a year to Neo's school costs.")
     fid = c.add(
-        "dependants[].schoolType", KAGISO, [(Categorical(probs={"private": 0.55, "public": 0.45}), 1.0, "'thinking of moving Kagiso to the same school'")],
-        [E("s0015", "we're thinking of moving Kagiso to the same school next year."), E("s0013", "Neo is still at the independent school?", "context")],
+        "dependants[].schoolType",
+        KAGISO,
+        [(Categorical(probs={"private": 0.55, "public": 0.45}), 1.0, "'thinking of moving Kagiso to the same school'")],
+        [
+            E("s0015", "we're thinking of moving Kagiso to the same school next year."),
+            E("s0013", "Neo is still at the independent school?", "context"),
+        ],
         interpretation="They are considering moving Kagiso to Neo's independent school next year; 'thinking of' is a plan, not a decision.",
         hedges=(("thinking of", 0.5),),
     )
     scores[fid] = (0.76, False, 0.012, "An independent school would cost about R60,000 a year more than her current fees.")
     fid = c.add(
-        "dependants[].tertiaryCostAnnual", KAGISO,
+        "dependants[].tertiaryCostAnnual",
+        KAGISO,
         [
             (Triangular(low=135_000, mode=150_000, high=170_000), 0.6, "studying in South Africa: 'about a hundred and fifty a year'"),
             (Triangular(low=400_000, mode=450_000, high=520_000), 0.4, "studying in the UK: 'more like four-fifty'"),
@@ -501,34 +555,56 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
         interpretation="Two scenarios: about R150,000 a year if Kagiso studies locally, about R450,000 a year in the UK, weighted by how likely the overseas plan is.",
         hedges=(("about", 0.1), ("more like", 0.25)),
     )
-    scores[fid] = (0.71, False, 0.118, "Moves the success odds by about 12 points: the education need roughly triples if she studies overseas.")
+    scores[fid] = (
+        0.71,
+        False,
+        0.118,
+        "Moves the success odds by about 12 points: the education need roughly triples if she studies overseas.",
+    )
 
     # The overseas study plan: a forecast-only event
-    fid = c.add("event[].kind", STUDY, [(Point(value="education-offshore"), 1.0, "'study overseas'")], [E("s0016", "She might study overseas one day.")], interpretation="An overseas study plan for Kagiso.")
+    fid = c.add(
+        "event[].kind",
+        STUDY,
+        [(Point(value="education-offshore"), 1.0, "'study overseas'")],
+        [E("s0016", "She might study overseas one day.")],
+        interpretation="An overseas study plan for Kagiso.",
+    )
     scores[fid] = (0.9, False, 0.004, None)
     fid = c.add(
-        "event[].description", STUDY, [(Point(value="Kagiso may study in the UK, like her cousins"), 1.0, "Lerato's words")],
+        "event[].description",
+        STUDY,
+        [(Point(value="Kagiso may study in the UK, like her cousins"), 1.0, "Lerato's words")],
         [E("s0016", "She might study overseas one day. My sister's kids all went to the UK.")],
         interpretation="Kagiso may follow her cousins to university in the UK.",
     )
     scores[fid] = (0.88, True, 0.0, None)
     fid = c.add(
-        "event[].occurs", STUDY, [(Bernoulli(p=0.4), 1.0, "'might' → 40% (lexicon v1.3)")],
+        "event[].occurs",
+        STUDY,
+        [(Bernoulli(p=0.4), 1.0, "'might' → 40% (lexicon v1.3)")],
         [E("s0016", "She might study overseas one day.")],
         interpretation="'Might' reads as about a 40% chance that Kagiso studies overseas.",
         hedges=(("might", 0.6),),
-        normalization={"form": {"type": "PROBABILITY_EVENT", "event": "study offshore", "likelihood_word": "might"}, "lexicon_version": "1.3"},
+        normalization={
+            "form": {"type": "PROBABILITY_EVENT", "event": "study offshore", "likelihood_word": "might"},
+            "lexicon_version": "1.3",
+        },
     )
     scores[fid] = (0.81, False, 0.064, "Moves the success odds by about 6 points.")
     fid = c.add(
-        "event[].year", STUDY, [(Discrete(support=[2037, 2038, 2039], weights=[0.25, 0.5, 0.25]), 1.0, "Kagiso turns 19 in 2038")],
+        "event[].year",
+        STUDY,
+        [(Discrete(support=[2037, 2038, 2039], weights=[0.25, 0.5, 0.25]), 1.0, "Kagiso turns 19 in 2038")],
         [E("s0016", "She might study overseas one day.")],
         interpretation="'One day' is placed at Kagiso's tertiary start: she turns 19 in 2038, give or take a year.",
         status="implied",
     )
     scores[fid] = (0.72, False, 0.009, None)
     fid = c.add(
-        "event[].cashImpact", STUDY, [(Triangular(low=-1_150_000, mode=-900_000, high=-700_000), 1.0, "three years at about R300,000 more than studying locally")],
+        "event[].cashImpact",
+        STUDY,
+        [(Triangular(low=-1_150_000, mode=-900_000, high=-700_000), 1.0, "three years at about R300,000 more than studying locally")],
         [E("s0017", "over there it's more like four-fifty.")],
         interpretation="Studying in the UK would cost about R300,000 a year more than locally, for three years.",
         status="implied",
@@ -537,13 +613,17 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
 
     # Retirement savings: the RA value is contradicted
     fid = c.add(
-        "retirementFunds[].value", RA, [(Triangular(low=315_000, mode=350_000, high=385_000), 1.0, "Thabo: 'about three-fifty, I think'")],
+        "retirementFunds[].value",
+        RA,
+        [(Triangular(low=315_000, mode=350_000, high=385_000), 1.0, "Thabo: 'about three-fifty, I think'")],
         [E("s0019", "The RA is sitting at about three-fifty, I think.")],
         interpretation="Thabo puts the retirement annuity at about R350,000.",
         hedges=(("about", 0.1), ("I think", 0.3)),
     )
     c.add(
-        "retirementFunds[].value", RA, [(Triangular(low=266_000, mode=280_000, high=294_000), 1.0, "Lerato: 'more like two-eighty', from the statement")],
+        "retirementFunds[].value",
+        RA,
+        [(Triangular(low=266_000, mode=280_000, high=294_000), 1.0, "Lerato: 'more like two-eighty', from the statement")],
         [E("s0020", "No, it's more like two-eighty. I saw the statement last month.", "contradicts")],
         interpretation="Lerato contradicts him from last month's statement: about R280,000.",
         status="contradicted",
@@ -563,23 +643,57 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
 
     # The bond: one figure, two scales
     fid = c.add(
-        "liabilities[].balance", BOND,
-        [(Point(value=1_850_000), 0.86, "'eighteen fifty' read as R1,850,000"), (Point(value=185_000), 0.14, "'eighteen fifty' read as R185,000")],
+        "liabilities[].balance",
+        BOND,
+        [
+            (Point(value=1_850_000), 0.86, "'eighteen fifty' read as R1,850,000"),
+            (Point(value=185_000), 0.14, "'eighteen fifty' read as R185,000"),
+        ],
         [E("s0022", "We still owe about eighteen fifty on the bond.")],
         interpretation="'Eighteen fifty' most likely means R1,850,000, as on file; R185,000 is the other well-formed reading.",
         hedges=(("about", 0.1),),
-        normalization={"form": {"type": "AMOUNT_APPROX", "value": 1850, "approx_word": "about"}, "scale_readings": [[1_850_000, 0.86], [185_000, 0.14]], "scale_ambiguous": True},
+        normalization={
+            "form": {"type": "AMOUNT_APPROX", "value": 1850, "approx_word": "about"},
+            "scale_readings": [[1_850_000, 0.86], [185_000, 0.14]],
+            "scale_ambiguous": True,
+        },
     )
     scores[fid] = (0.74, False, 0.31, "Read as R185,000, Thabo's life cover shortfall would fall by about R830,000.")
 
     # New group disability cover: a new policy row
-    fid = c.add("policies[].type", DISABILITY, [(Point(value="disability-lump"), 1.0, "'disability cover through work'")], [E("s0023", "I took out disability cover through work in August.")], interpretation="New lump-sum disability cover through Thabo's employer, taken out in August.")
+    fid = c.add(
+        "policies[].type",
+        DISABILITY,
+        [(Point(value="disability-lump"), 1.0, "'disability cover through work'")],
+        [E("s0023", "I took out disability cover through work in August.")],
+        interpretation="New lump-sum disability cover through Thabo's employer, taken out in August.",
+    )
     scores[fid] = (0.86, False, 0.05, "A new policy: it counts towards Thabo's disability need.")
-    fid = c.add("policies[].lifeAssured", DISABILITY, [(Point(value="client"), 1.0, "'I took out'")], [E("s0023", "I took out disability cover through work in August.")], interpretation="Thabo is the life assured.")
+    fid = c.add(
+        "policies[].lifeAssured",
+        DISABILITY,
+        [(Point(value="client"), 1.0, "'I took out'")],
+        [E("s0023", "I took out disability cover through work in August.")],
+        interpretation="Thabo is the life assured.",
+    )
     scores[fid] = (0.9, False, 0.004, None)
-    fid = c.add("policies[].isGroup", DISABILITY, [(Point(value=True), 1.0, "'through work'")], [E("s0023", "disability cover through work")], interpretation="'Through work' means an employer group scheme.", status="implied")
+    fid = c.add(
+        "policies[].isGroup",
+        DISABILITY,
+        [(Point(value=True), 1.0, "'through work'")],
+        [E("s0023", "disability cover through work")],
+        interpretation="'Through work' means an employer group scheme.",
+        status="implied",
+    )
     scores[fid] = (0.84, False, 0.01, None)
-    fid = c.add("policies[].insurer", DISABILITY, [(Point(value="Employer group scheme"), 1.0, "'through work'")], [E("s0023", "disability cover through work")], interpretation="The insurer is whoever underwrites the employer's group scheme.", status="implied")
+    fid = c.add(
+        "policies[].insurer",
+        DISABILITY,
+        [(Point(value="Employer group scheme"), 1.0, "'through work'")],
+        [E("s0023", "disability cover through work")],
+        interpretation="The insurer is whoever underwrites the employer's group scheme.",
+        status="implied",
+    )
     scores[fid] = (0.8, False, 0.001, None)
     c.op(
         "MARK_UNKNOWN",
@@ -600,7 +714,9 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
 
     # Krugerrands: a new asset and a term nobody has resolved
     fid = c.add(
-        "assets[].type", KRUGER, [(Point(value="other"), 1.0, "'Krugerrands': not in the catalogue, filed as Other")],
+        "assets[].type",
+        KRUGER,
+        [(Point(value="other"), 1.0, "'Krugerrands': not in the catalogue, filed as Other")],
         [E("s0025", "I bought a few Krugerrands.")],
         interpretation="'Krugerrands' matched nothing in the catalogue or the glossary with enough confidence, so the asset is filed as Other until the term is confirmed.",
         term_resolution={
@@ -608,18 +724,44 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
             "status": "unresolved",
             "fallback": "other",
             "candidates": [
-                {"canonical_name": "Krugerrand gold bullion coins", "product_type": "other", "provider": "", "source": "product_catalogue", "score": 0.74},
-                {"canonical_name": "Krugerrand-linked exchange traded fund", "product_type": "shares", "provider": "", "source": "web:etfsa.co.za", "score": 0.38},
+                {
+                    "canonical_name": "Krugerrand gold bullion coins",
+                    "product_type": "other",
+                    "provider": "",
+                    "source": "product_catalogue",
+                    "score": 0.74,
+                },
+                {
+                    "canonical_name": "Krugerrand-linked exchange traded fund",
+                    "product_type": "shares",
+                    "provider": "",
+                    "source": "web:etfsa.co.za",
+                    "score": 0.38,
+                },
             ],
         },
     )
     scores[fid] = (0.69, False, 0.07, "The asset type decides whether it counts as liquid in the estate.")
-    fid = c.add("assets[].description", KRUGER, [(Point(value="Krugerrands in the home safe"), 1.0, "Thabo's words")], [E("s0025", "They're in the safe at home")], interpretation="Krugerrand coins kept in the safe at home.")
+    fid = c.add(
+        "assets[].description",
+        KRUGER,
+        [(Point(value="Krugerrands in the home safe"), 1.0, "Thabo's words")],
+        [E("s0025", "They're in the safe at home")],
+        interpretation="Krugerrand coins kept in the safe at home.",
+    )
     scores[fid] = (0.9, True, 0.0, None)
-    fid = c.add("assets[].owner", KRUGER, [(Point(value="client"), 1.0, "'I bought'")], [E("s0025", "I bought a few Krugerrands.")], interpretation="Thabo bought them, so they are his.")
+    fid = c.add(
+        "assets[].owner",
+        KRUGER,
+        [(Point(value="client"), 1.0, "'I bought'")],
+        [E("s0025", "I bought a few Krugerrands.")],
+        interpretation="Thabo bought them, so they are his.",
+    )
     scores[fid] = (0.82, False, 0.002, None)
     fid = c.add(
-        "assets[].value", KRUGER, [(Triangular(low=42_000, mode=60_000, high=78_000), 1.0, "'maybe sixty thousand worth'")],
+        "assets[].value",
+        KRUGER,
+        [(Triangular(low=42_000, mode=60_000, high=78_000), 1.0, "'maybe sixty thousand worth'")],
         [E("s0025", "maybe sixty thousand worth.")],
         interpretation="About R60,000; 'maybe' widens the range to 30% either side.",
         hedges=(("maybe", 0.6),),
@@ -629,16 +771,28 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
     # Estate: new wills and guardians
     for person, prob, prio in (("client", 0.93, 0.001), ("spouse", 0.95, 0.02)):
         fid = c.add(
-            "estate.{p}.hasWill", person, [(Point(value="yes"), 1.0, "'We signed new wills in June, both of us'")],
+            "estate.{p}.hasWill",
+            person,
+            [(Point(value="yes"), 1.0, "'We signed new wills in June, both of us'")],
             [E("s0027", "We signed new wills in June, both of us, with the attorney.")],
-            interpretation=("Lerato now has a will: they both signed new wills in June." if person == "spouse" else "Thabo signed a new will in June."),
+            interpretation=(
+                "Lerato now has a will: they both signed new wills in June." if person == "spouse" else "Thabo signed a new will in June."
+            ),
         )
         why = "Lerato's estate no longer devolves under the Intestate Succession Act." if person == "spouse" else None
         scores[fid] = (prob, False, prio, why)
-        fid = c.add("estate.{p}.willDate", person, [(JUNE_2026, 1.0, "'in June'")], [E("s0027", "We signed new wills in June")], interpretation="Signed in June 2026; the day was not given.")
+        fid = c.add(
+            "estate.{p}.willDate",
+            person,
+            [(JUNE_2026, 1.0, "'in June'")],
+            [E("s0027", "We signed new wills in June")],
+            interpretation="Signed in June 2026; the day was not given.",
+        )
         scores[fid] = (0.86, True, 0.0, None)
         fid = c.add(
-            "estate.{p}.guardianNominated", person, [(Point(value="yes"), 1.0, "'Yes, my sister Palesa.'")],
+            "estate.{p}.guardianNominated",
+            person,
+            [(Point(value="yes"), 1.0, "'Yes, my sister Palesa.'")],
             [E("s0029", "Yes, my sister Palesa."), E("s0028", "Did you name a guardian for the children?", "context")],
             interpretation="The new wills name Lerato's sister Palesa as guardian of the children.",
         )
@@ -646,16 +800,30 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
 
     # Budget, family support and smoking
     fid = c.add(
-        "expenses.items[]", "groceries", [(Triangular(low=9_900, mode=11_000, high=12_100), 1.0, "'More like eleven now'")],
+        "expenses.items[]",
+        "groceries",
+        [(Triangular(low=9_900, mode=11_000, high=12_100), 1.0, "'More like eleven now'")],
         [E("s0031", "More like eleven now, with the prices."), E("s0030", "still about nine thousand a month?", "context")],
         interpretation="Groceries are now about R11,000 a month, up from R9,000.",
         hedges=(("more like", 0.25),),
     )
     scores[fid] = (0.87, False, 0.007, "Adds R2,000 a month to essential spending.")
-    fid = c.add("dependants[].monthlySupport", MMABATHO, [(Point(value=3_500), 1.0, "'three and a half thousand a month, same as before'")], [E("s0032", "three and a half thousand a month, same as before.")], interpretation="Support for Thabo's mother is unchanged at R3,500 a month.")
+    fid = c.add(
+        "dependants[].monthlySupport",
+        MMABATHO,
+        [(Point(value=3_500), 1.0, "'three and a half thousand a month, same as before'")],
+        [E("s0032", "three and a half thousand a month, same as before.")],
+        interpretation="Support for Thabo's mother is unchanged at R3,500 a month.",
+    )
     scores[fid] = (0.95, True, 0.001, None)
     for person in ("client", "spouse"):
-        fid = c.add("{p}.smoker", person, [(Point(value=False), 1.0, "'neither of us smokes'")], [E("s0034", "neither of us smokes.")], interpretation="Neither of them smokes.")
+        fid = c.add(
+            "{p}.smoker",
+            person,
+            [(Point(value=False), 1.0, "'neither of us smokes'")],
+            [E("s0034", "neither of us smokes.")],
+            interpretation="Neither of them smokes.",
+        )
         scores[fid] = (0.96, True, 0.0, None)
 
     profile = c.apply()
@@ -671,7 +839,9 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
         voi: dict[str, Any] = {"priority": prio}
         if why:
             voi["why_text"] = why
-        profile = annotate(profile, fid, p_correct=p, p_raw=round(min(0.99, p + 0.05), 2), auto_accepted=auto, review_priority=prio, voi=voi)
+        profile = annotate(
+            profile, fid, p_correct=p, p_raw=round(min(0.99, p + 0.05), 2), auto_accepted=auto, review_priority=prio, voi=voi
+        )
     profile = profile.model_copy(update={"blocking_flags": blocking_flags(c), "open_questions": followups(c)})
     return profile, tr, prior
 
@@ -679,14 +849,24 @@ def build_profile() -> tuple[Profile, Transcript, F.FnaDocument]:
 def blocking_flags(c: Call) -> list[BlockingFlag]:
     f = fact_id_for
     return [
-        BlockingFlag(flag_id="flag-ra-contradicted", kind="tier_a_contradicted", fact_id=f("retirementFunds[].value", RA), message="Thabo said about R350,000 and Lerato about R280,000 for the retirement annuity."),
+        BlockingFlag(
+            flag_id="flag-ra-contradicted",
+            kind="tier_a_contradicted",
+            fact_id=f("retirementFunds[].value", RA),
+            message="Thabo said about R350,000 and Lerato about R280,000 for the retirement annuity.",
+        ),
         BlockingFlag(
             flag_id="flag-bond-scale",
             kind="scale_ambiguous",
             fact_id=f("liabilities[].balance", BOND),
             message="'Eighteen fifty' could be R1,850,000 or R185,000: the top reading carries 86% of the weight, below the 90% needed.",
         ),
-        BlockingFlag(flag_id="flag-disability-cover", kind="tier_a_missing", fact_id=f("policies[].cover", DISABILITY), message="Thabo has new group disability cover, but the lump sum was not given."),
+        BlockingFlag(
+            flag_id="flag-disability-cover",
+            kind="tier_a_missing",
+            fact_id=f("policies[].cover", DISABILITY),
+            message="Thabo has new group disability cover, but the lump sum was not given.",
+        ),
         BlockingFlag(
             flag_id="flag-krugerrands",
             kind="unresolved_term",

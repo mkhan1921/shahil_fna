@@ -26,15 +26,15 @@ PIPELINE = HERE.parent
 REPO = PIPELINE.parent
 sys.path.insert(0, str(PIPELINE))
 
-from advisor_intel import llm  # noqa: E402
-from advisor_intel.models.forecast import ForecastResult  # noqa: E402
-from advisor_intel.models.review import ReviewBundle, ReviewPackage  # noqa: E402
-from advisor_intel.models.runs import VersionPins  # noqa: E402
-from advisor_intel.pipeline import CallInput, process_call  # noqa: E402
-from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS  # noqa: E402
-from advisor_intel.testing.fakes import scripted_model  # noqa: E402
-from advisor_intel.testing.oracle import Oracle  # noqa: E402
-from advisor_intel.testing.transcripts import ingested_transcript  # noqa: E402
+from advisor_intel import llm
+from advisor_intel.models.forecast import ForecastResult
+from advisor_intel.models.review import ReviewBundle, ReviewPackage
+from advisor_intel.models.runs import VersionPins
+from advisor_intel.pipeline import CallInput, process_call
+from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS
+from advisor_intel.testing.fakes import scripted_model
+from advisor_intel.testing.oracle import Oracle
+from advisor_intel.testing.transcripts import ingested_transcript
 
 CALL_ID = "call-scripted-review"
 ANCHOR = date(2026, 10, 15)
@@ -56,7 +56,9 @@ async def build() -> ReviewPackage:
         raise RuntimeError("the pipeline produced no median document")
     # A new client's file gets a fresh id and timestamps; fix them so the fixture is reproducible.
     stamp = f"{ANCHOR.isoformat()}T09:00:00.000Z"
-    document = res.document.model_copy(update={"id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"advisor-intel/{CALL_ID}/document")), "createdAt": stamp, "updatedAt": stamp})
+    document = res.document.model_copy(
+        update={"id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"advisor-intel/{CALL_ID}/document")), "createdAt": stamp, "updatedAt": stamp}
+    )
     bundle = ReviewBundle(
         call_id=res.call_id,
         run_id=res.run_id,

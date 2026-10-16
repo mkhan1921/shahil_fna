@@ -14,7 +14,7 @@ Facts use the system's conventions, so scorers can join them to extracted facts 
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 import numpy as np
 from pydantic import BaseModel, Field, model_validator
@@ -41,7 +41,7 @@ class GoldRange(BaseModel):
     p90: float
 
     @model_validator(mode="after")
-    def _ordered(self) -> "GoldRange":
+    def _ordered(self) -> GoldRange:
         if not (self.p10 <= self.p50 <= self.p90):
             raise ValueError(f"quantiles must be ordered, got {self.p10}, {self.p50}, {self.p90}")
         if self.low is not None and self.high is not None and self.low > self.high:
@@ -61,14 +61,14 @@ class GoldOptions(BaseModel):
     options: list[GoldOption] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def _weights(self) -> "GoldOptions":
+    def _weights(self) -> GoldOptions:
         total = sum(o.weight for o in self.options)
         if abs(total - 1) > 1e-4:
             raise ValueError(f"option weights must sum to 1, got {total}")
         return self
 
 
-GoldValue = Annotated[Union[GoldPoint, GoldRange, GoldOptions], Field(discriminator="kind")]
+GoldValue = Annotated[GoldPoint | GoldRange | GoldOptions, Field(discriminator="kind")]
 
 
 class GoldQuantity(BaseModel):
@@ -119,7 +119,7 @@ class GoldFact(BaseModel):
     note: str = ""
 
     @model_validator(mode="after")
-    def _status_rules(self) -> "GoldFact":
+    def _status_rules(self) -> GoldFact:
         if self.fact_id.split("#", 1)[0] != self.slot_id:
             raise ValueError(f"fact id {self.fact_id} does not match slot {self.slot_id}")
         if self.status in ("stated", "implied", "contradicted"):
@@ -155,7 +155,7 @@ class GoldAnnotation(BaseModel):
     facts: list[GoldFact] = []
 
     @model_validator(mode="after")
-    def _unique(self) -> "GoldAnnotation":
+    def _unique(self) -> GoldAnnotation:
         ids = [f.fact_id for f in self.facts]
         dupes = sorted({i for i in ids if ids.count(i) > 1})
         if dupes:

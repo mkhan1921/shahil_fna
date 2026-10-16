@@ -28,9 +28,9 @@ REPO = PIPELINE.parent
 FIXTURES = REPO / "tests" / "fixtures"
 sys.path.insert(0, str(PIPELINE / "scripts"))
 
-import export_review_schemas  # noqa: E402
-import make_pipeline_review_package  # noqa: E402
-import make_review_fixture  # noqa: E402
+import export_review_schemas
+import make_pipeline_review_package
+import make_review_fixture
 
 
 @pytest.fixture(scope="module")
@@ -50,13 +50,17 @@ def test_the_sidecar_model_describes_what_sidecar_emits(demo):
 
 def test_the_exported_schemas_are_current():
     for name, doc in export_review_schemas.documents().items():
-        assert (export_review_schemas.OUT / name).read_text() == export_review_schemas.render(doc), f"{name} is stale: run scripts/export_review_schemas.py"
+        assert (export_review_schemas.OUT / name).read_text() == export_review_schemas.render(doc), (
+            f"{name} is stale: run scripts/export_review_schemas.py"
+        )
 
 
 def test_the_demo_package_is_current_and_valid():
     pkg = make_review_fixture.build_package()
     for path, compact in make_review_fixture.OUTPUTS:
-        assert path.read_text() == make_review_fixture.render(pkg, compact), f"{path.relative_to(REPO)} is stale: run scripts/make_review_fixture.py"
+        assert path.read_text() == make_review_fixture.render(pkg, compact), (
+            f"{path.relative_to(REPO)} is stale: run scripts/make_review_fixture.py"
+        )
     bundle = ReviewPackage.model_validate(pkg).bundle
     Sidecar.model_validate(bundle.sidecar)
     assert bundle.sidecar["last_seq"] > 0 and bundle.prior_document is not None
@@ -64,13 +68,15 @@ def test_the_demo_package_is_current_and_valid():
 
 async def test_the_pipeline_package_is_what_process_call_produces():
     pkg = await make_pipeline_review_package.build()
-    assert make_pipeline_review_package.OUTPUT.read_text() == make_pipeline_review_package.render(pkg), "run scripts/make_pipeline_review_package.py"
+    assert make_pipeline_review_package.OUTPUT.read_text() == make_pipeline_review_package.render(pkg), (
+        "run scripts/make_pipeline_review_package.py"
+    )
     side = Sidecar.model_validate(pkg.bundle.sidecar)
     assert side.fields["income.client.grossMonthly"].derivation == "gross_from_net"
 
 
 def test_the_apps_review_result_replays_onto_the_profile(demo):
-    profile, _, prior = demo
+    profile, _, _ = demo
     result = ReviewResult.model_validate_json((FIXTURES / "review_result.json").read_text())
     assert (result.call_id, result.run_id, result.base_profile_version) == (profile.call_id, profile.run_id, profile.version)
     assert result.submitted and result.ops and all(op.actor == "reviewer" for op in result.ops)
@@ -88,7 +94,9 @@ def test_the_apps_review_result_replays_onto_the_profile(demo):
 def test_the_replayed_profile_materialises_to_the_file_the_app_saved(demo):
     profile, _, prior = demo
     result = ReviewResult.model_validate_json((FIXTURES / "review_result.json").read_text())
-    reviewed = binding.materialise(apply_state_ops(profile, result.ops).profile, "median", base=prior, catalog=load_catalog(profile.schema_version))
+    reviewed = binding.materialise(
+        apply_state_ops(profile, result.ops).profile, "median", base=prior, catalog=load_catalog(profile.schema_version)
+    )
     got = reviewed.model_dump(mode="json")
     saved = json.loads((FIXTURES / "reviewed_document.json").read_text())
     for doc in (got, saved):

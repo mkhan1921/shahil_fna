@@ -30,13 +30,13 @@ OUT = REPO / "lib" / "review" / "schema"
 if str(PIPELINE) not in sys.path:
     sys.path.insert(0, str(PIPELINE))
 
-from pydantic.json_schema import models_json_schema  # noqa: E402
+from pydantic.json_schema import models_json_schema
 
-from advisor_intel.evals.annotation import GoldAnnotation  # noqa: E402
-from advisor_intel.extract.reducer import PAYLOADS  # noqa: E402
-from advisor_intel.models.review import ReviewBundle, ReviewPackage, ReviewResult  # noqa: E402
-from advisor_intel.models.sidecar import Sidecar  # noqa: E402
-from advisor_intel.schema.slots import load_catalog  # noqa: E402
+from advisor_intel.evals.annotation import GoldAnnotation
+from advisor_intel.extract.reducer import PAYLOADS
+from advisor_intel.models.review import ReviewBundle, ReviewPackage, ReviewResult
+from advisor_intel.models.sidecar import Sidecar
+from advisor_intel.schema.slots import load_catalog
 
 SLOT_KEYS = (
     "slot_id",
@@ -68,7 +68,10 @@ def _slots() -> dict[str, Any]:
     cat = load_catalog()
     return {
         "version": cat.version,
-        "groups": {g.name: {"name": g.name, "description": g.description, "list_entity": g.list_entity, "family": g.family} for g in cat.groups.values()},
+        "groups": {
+            g.name: {"name": g.name, "description": g.description, "list_entity": g.list_entity, "family": g.family}
+            for g in cat.groups.values()
+        },
         "slots": [{k: v for k, v in s.model_dump(mode="json").items() if k in SLOT_KEYS} for s in cat.slots],
     }
 
