@@ -21,6 +21,9 @@ agent_inputs           the harness's ``AgentInputs`` (call_id, run_id, transcrip
 agent_services         ``(*, glossary_store) -> HarnessServices``: every installed stage behind the agent's tools
 run_agent              ``async (inputs, *, services, checkpoints: CheckpointStore, heartbeat) -> AgentResult``
                        with ``.outcome: AgentOutcome``, ``.profile: Profile``, ``.followups`` (§13.2)
+verify_after_agent     ``async (profile, *, transcript, discourse, pins, catalog, run_id, calibrator, conformal, settings)
+                       -> Stage5Result`` with ``.profile``: the checks after the agent, then scoring (§9)
+conformal_thresholds   the conformal thresholds model (``model_validate`` of stored thresholds, §9.5)
 run_voi_and_followups  ``async (profile, *, catalog, pins, pos_runs, analyse, transcript, settings, base_document,
                        seed) -> VoiOutput`` with ``.profile``, ``.followups``, ``.flags`` (§10)
 sensitivity_runs       ``(profile, fact_ids, *, n_paths, seed, base_document) -> {fact_id: row}``: the forecast
@@ -68,6 +71,8 @@ ENTRYPOINTS: dict[str, str] = {
     "agent_inputs": "advisor_intel.harness.deps:AgentInputs",
     "agent_services": "advisor_intel.harness.services:default_services",
     "run_agent": "advisor_intel.harness.run:run_agent",
+    "verify_after_agent": "advisor_intel.verify.services:verify_after_agent",
+    "conformal_thresholds": "advisor_intel.verify.conformal:ConformalThresholds",
     "run_voi_and_followups": "advisor_intel.voi.run:run_voi_and_followups",
     "sensitivity_runs": "advisor_intel.forecast.sensitivity:sensitivity_runs",
     "fna_analyse": "advisor_intel.fna_engine.analysis:analyse",

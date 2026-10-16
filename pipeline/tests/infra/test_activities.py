@@ -34,7 +34,7 @@ from advisor_intel.models.forecast import ForecastResult
 from advisor_intel.models.profile import StateOp
 from advisor_intel.models.runs import AgentOutcome, CallArgs, FollowupAnswer, ReviewSubmission, Stage, VersionPins
 from advisor_intel.notify.notifier import Notification
-from advisor_intel.storage import CallRecord, GlossaryEntry, PostgresGlossaryStore, Store, SyncGlossaryStore
+from advisor_intel.storage import CalibratorRecord, CallRecord, GlossaryEntry, PostgresGlossaryStore, Store, SyncGlossaryStore
 from advisor_intel.workflows import contracts as C
 
 from .factories import GROSS, RET_AGE, flagged, make_transcript, sample_document, with_call_facts
@@ -56,6 +56,8 @@ class Fakes:
         self.role_review = False
         self.ingest_meta: CallMeta | None = None
         self.sensitivity_base: list[Any] = []
+        self.verified_with: tuple[Any, Any] | None = None
+        self.verify_failures = 0
 
     def count(self, name: str) -> None:
         self.calls[name] = self.calls.get(name, 0) + 1
@@ -93,6 +95,15 @@ class Fakes:
         profile = with_call_facts(inputs.profile)
         followups = flagged(profile).open_questions if self.agent_followups else []
         return SimpleNamespace(outcome=AgentOutcome(turns=3), profile=profile, followups=followups)
+
+    async def verify_after(self, profile, *, transcript, discourse, pins, catalog, run_id, calibrator, conformal, settings):
+        self.count("verify")
+        if self.verify_failures:
+            self.verify_failures -= 1
+            raise RuntimeError("verifier timed out")
+        assert transcript.segment("s0002").rewritten_text and discourse.rewrites and run_id == profile.run_id
+        self.verified_with = (calibrator, conformal)
+        return SimpleNamespace(profile=annotate(profile, RET_AGE, p_correct=0.91, p_raw=0.88))
 
     def sensitivity(self, profile, fact_ids, *, n_paths=1000, seed, base_document=None):
         self.sensitivity_base.append(base_document)
@@ -156,6 +167,7 @@ class Fakes:
             "run_discourse": self.discourse,
             "agent_services": lambda *, glossary_store: {"glossary_store": glossary_store},
             "run_agent": self.agent,
+            "verify_after_agent": self.verify_after,
             "run_voi_and_followups": self.voi,
             "sensitivity_runs": self.sensitivity,
             "fna_analyse": lambda doc, *, today: {"needs": {"retirement": "shortfall"}, "as_of": today.isoformat()},
@@ -283,12 +295,37 @@ async def test_agent_resumes_from_its_checkpoint_after_a_crash(ctx):
     profile = await ctx.store.load_profile(RUN)
     assert profile.facts[RET_AGE].status == "stated" and profile.facts[RET_AGE].prior_value is not None
     assert [q.followup_id for q in profile.open_questions] == ["fu.retirement_age"]  # the agent's drafts, until VOI
+    # Stage 5 ran after the loop on the cold-start calibrator, without thresholds (nothing auto-accepted).
+    assert profile.facts[RET_AGE].p_correct == 0.91 and ctx.fakes.verified_with == (None, None)
     assert await ctx.objects.exists(f"profiles/{RUN}/v{profile.version}.json")
     # Done is done: a later attempt returns the recorded outcome without running the agent.
     assert (await e.run(ctx.acts.run_agent, stage_in())).turns == 3 and ctx.fakes.calls["agent"] == 2
     # A reset (a new execution) runs the agent again, from a clean checkpoint.
     await env(execution="exec-2").run(ctx.acts.run_agent, stage_in())
     assert ctx.fakes.resumed_from[-1] == 0
+
+
+async def test_checks_after_the_agent_use_the_pinned_calibrator_and_retry_without_the_loop(ctx):
+    e = env()
+    await e.run(ctx.acts.ingest_audio, stage_in())
+    await e.run(ctx.acts.run_discourse, stage_in())
+    artifact = await ctx.objects.put_bytes("calibration/calibrators/cal-3.bin", FakeCalibrator("cal-3").to_bytes())
+    thresholds = await ctx.objects.put_json("calibration/conformal/cal-3/c1.json", Thresholds(version="c1", enabled=True, tau_pooled=0.9))
+    await ctx.store.register_calibrator(
+        CalibratorRecord(version="cal-3", artifact_uri=artifact, metrics={"thresholds_uri": thresholds}, promoted=True)
+    )
+    ctx.acts.stages.overrides.update(calibrator_type=FakeCalibrator, conformal_thresholds=Thresholds)
+    pins = VersionPins(calibrator_version="cal-3")
+    ctx.fakes.verify_failures = 1
+    with pytest.raises(RuntimeError, match="verifier timed out"):
+        await e.run(ctx.acts.run_agent, stage_in(versions=pins))
+    outcome = await e.run(ctx.acts.run_agent, stage_in(versions=pins))  # the retry runs the checks, not the loop again
+    assert outcome.turns == 3 and ctx.fakes.calls["agent"] == 1 and ctx.fakes.calls["verify"] == 2
+    calibrator, conformal = ctx.fakes.verified_with
+    assert calibrator.version == "cal-3" and conformal.enabled and conformal.tau_pooled == 0.9
+    with pytest.raises(ApplicationError, match="not in the registry") as ei:
+        await env(execution="exec-2").run(ctx.acts.run_agent, stage_in(versions=VersionPins(calibrator_version="cal-404")))
+    assert ei.value.non_retryable
 
 
 async def test_voi_saves_followups_flags_and_a_role_review_flag(ctx):
@@ -410,7 +447,7 @@ async def test_followup_answer_goes_through_the_reducer_once(ctx):
     assert out.applied == 1 and not out.duplicate
     profile = await ctx.store.load_profile(RUN)
     fact = profile.facts[RET_AGE]
-    assert any(e.segment_id == "followup:fu.retirement_age" for e in fact.evidence) and len(fact.hypotheses) == 2
+    assert any(e.segment_id == "fu-fu.retirement_age" for e in fact.evidence) and len(fact.hypotheses) == 2
     assert profile.ops_log[-1].payload["source"] == "followup"
     assert (await ctx.store.get_followup(RUN, "fu.retirement_age")).status == "answered"
     dup = await env().run(ctx.acts.intake_followup_answer, inp)

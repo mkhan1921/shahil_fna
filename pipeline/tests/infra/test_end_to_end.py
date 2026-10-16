@@ -147,7 +147,7 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
                 assert (await store.get_forecast(run_id, mode="final")) is not None
                 events = [e.action for e in await store.review_events(run_id=run_id)]
                 assert sorted(events[:2]) == ["accept", "clear_flag"] and events[-1] == "submit"
-                assert fakes.calls == {"ingest": 1, "discourse": 1, "agent": 1, "voi": 1, "forecast": 3, "extract_followup": 1}
+                assert fakes.calls == {"ingest": 1, "discourse": 1, "agent": 1, "verify": 1, "voi": 1, "forecast": 3, "extract_followup": 1}
 
                 # An answer after completion goes to FollowupIntakeWorkflow, which re-runs the final forecast.
                 late = await c.post("/calls/call-e2e/followups/fu.retirement_age/answer", json={"text": "We now think sixty-four"})
@@ -219,10 +219,12 @@ async def test_rerun_by_reset_rewinds_to_the_stage_and_reuses_earlier_outputs(st
                 assert bad.status_code == 422
 
 
+@pytest.mark.slow
 async def test_a_scripted_call_through_the_merged_stage_code(store, objects, temporal_bin):
     """The stage code as merged, under Temporal: scripted stage 1, discourse, the agent harness (the oracle's
-    extractions, Postgres checkpoints, the practice glossary), the review and the meeting note. Stages not merged
-    here (VOI, the forecast) are skipped as in the in-process runner."""
+    extractions, Postgres checkpoints, the practice glossary), the checks and scoring after it, VOI with the
+    forecast's sensitivity runs, the forecasts, the review and the meeting note. A stage whose package is not
+    installed is skipped, as in the in-process runner."""
     oracle = Oracle(await ingested_transcript(SAMPLE_CALL, call_id="call-real"), SAMPLE_OBJECTS, SAMPLE_GOLD)
     pins = VersionPins(reasoning_model=llm.register_local_model("oracle-e2e", scripted_model(oracle.handler)))
 
@@ -274,6 +276,26 @@ async def test_a_scripted_call_through_the_merged_stage_code(store, objects, tem
                     execution = (await gateway.describe(run_id)).execution_run_id
                     cp = await PostgresCheckpointStore(store, scope=execution).load(run_id)
                     assert cp is not None and cp.turn >= 3 and cp.messages and cp.harness_state["plan"]
+                    # Stage 5 scored the call's facts with the cold-start calibrator (§9.4).
+                    profile = (await c.get("/calls/call-real/profile")).json()
+                    scored = [f for f in profile["facts"].values() if f["source"] == "call"]
+                    assert scored and all(f["p_correct"] is not None for f in scored)
+                    # The adviser settles every blocking flag VOI raised (§10.3), then submits.
+                    flags = [f for f in bundle["blocking_flags"] if not f["cleared"]]
+                    if flags:
+                        assert (await c.post("/calls/call-real/submit", json={"reviewer_id": "adv-1"})).status_code == 409
+                        at = "2026-10-16T10:00:00Z"
+                        clear = [
+                            {
+                                "flag_id": f["flag_id"],
+                                "resolution": "marked_unknown" if f["kind"] == "tier_a_missing" else "accepted",
+                                "reviewer_id": "adv-1",
+                                "at": at,
+                            }
+                            for f in flags
+                        ]
+                        ops = await c.post("/calls/call-real/ops", json={"reviewer_id": "adv-1", "ops": [], "flag_clearances": clear})
+                        assert ops.status_code == 200 and ops.json()["open_flags"] == [], ops.text
                     s = await c.post("/calls/call-real/submit", json={"reviewer_id": "adv-1"})
                     assert s.status_code == 200, s.text
 
@@ -281,8 +303,10 @@ async def test_a_scripted_call_through_the_merged_stage_code(store, objects, tem
                         v = (await c.get("/calls/call-real")).json()
                         return v if v.get("workflow_status") in ("COMPLETED", "FAILED") else None
 
-                    done = await _until(complete, timeout=60)
+                    done = await _until(complete, timeout=120)
                     assert done["state"] == "COMPLETE"
+                    final = await store.get_forecast(run_id, mode="final")
+                    assert (final is None) == (not StageFunctions().available("run_forecast"))
                     export = (await c.get("/calls/call-real/fna")).json()
                     assert ExportFile.model_validate(export["fna"]).document.income["spouse"].grossMonthly == 35_000
                     version, note = await store.latest_note(run_id)

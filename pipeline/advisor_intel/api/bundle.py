@@ -9,7 +9,7 @@ from typing import Any
 
 from .. import binding
 from ..activities.keys import ingest_key
-from ..activities.pipeline import answer_segment, dump
+from ..activities.pipeline import dump
 from ..activities.stages import StageFunctions
 from ..config import Settings
 from ..models.fna import FnaDocument
@@ -22,6 +22,7 @@ from ..schema.slots import load_catalog
 from ..storage.objects import ObjectStore
 from ..storage.records import CallRecord, RunRecord
 from ..storage.store import Store
+from ..voi.intake import answer_transcript, append_answer
 
 log = logging.getLogger(__name__)
 
@@ -95,11 +96,10 @@ async def build_bundle(
     if transcript is None:
         raise NotReady(f"call {call.call_id} has no transcript yet")
     answered = [r for r in await store.list_followups(run.workflow_id) if r.answer is not None]
-    if answered:
-        # Follow-up answers are evidence too (§10.6): give the overlay their segments.
-        transcript = transcript.model_copy(
-            update={"segments": [*transcript.segments, *(answer_segment(r.answer) for r in answered if r.answer)]}
-        )
+    for r in answered:  # follow-up answers are evidence too (§10.6): their segments follow the call's end
+        assert r.answer is not None
+        answer = answer_transcript(r.answer, r.followup, call_id=call.call_id, anchor_date=transcript.anchor_date)
+        transcript = append_answer(transcript, answer)
     prior = await prior_document(store, call)
     catalog = load_catalog(profile.schema_version)
     median = binding.materialise(profile, "median", base=prior, catalog=catalog)

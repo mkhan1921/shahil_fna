@@ -42,8 +42,8 @@ from ..models.facts import Provenance
 from ..models.fna import FnaDocument
 from ..models.forecast import ForecastResult
 from ..models.profile import BlockingFlag, FollowUp, Profile, StateOp
-from ..models.runs import AgentOutcome, FollowupAnswer, VersionPins
-from ..models.transcript import Segment, Transcript, Word
+from ..models.runs import AgentOutcome, VersionPins
+from ..models.transcript import Transcript
 from ..note import MeetingNote, apply_note, generate_note, update_note
 from ..notify import Notifier, ReviewSummary, compose
 from ..review_actions import apply_reviewer_ops, change_summary
@@ -54,6 +54,7 @@ from ..storage.objects import ObjectStore, safe_segment
 from ..storage.records import CallRecord, ReviewEvent, RunRecord
 from ..storage.store import Store
 from ..telemetry import run_context
+from ..voi.intake import answer_transcript
 from ..workflows.contracts import (
     APPLY_REVIEW,
     INGEST_AUDIO,
@@ -86,6 +87,7 @@ log = logging.getLogger(__name__)
 
 COLLAPSE_PRIORITY = 0.005  # §10.3: auto-accepted facts below this priority are collapsed in review
 SAST = ZoneInfo("Africa/Johannesburg")
+COLD_START = "cold-start"  # the calibrator version before any is trained (VersionPins.calibrator_version)
 
 
 def input_error(message: str) -> ApplicationError:
@@ -116,22 +118,6 @@ def call_date(call: CallRecord) -> date:
 def forecast_seed(run_id: str) -> int:
     """A deterministic seed per run (§13.1: pure numpy, deterministic seed per run)."""
     return int(hashlib.sha256(run_id.encode()).hexdigest()[:8], 16)
-
-
-def answer_segment(answer: FollowupAnswer, n: int = 0) -> Segment:
-    """A follow-up answer as a one-segment transcript turn by the client (§10.6)."""
-    words = [Word(text=w, t_start=float(i), t_end=float(i) + 0.5, conf=1.0) for i, w in enumerate(answer.text.split())]
-    return Segment(
-        segment_id=f"followup:{answer.followup_id}" + (f":{n}" if n else ""),
-        speaker_label="followup",
-        speaker_role="client_primary",
-        role_conf=1.0,
-        diarization_conf=1.0,
-        t_start=0.0,
-        t_end=words[-1].t_end if words else 0.0,
-        words=words,
-        text=answer.text,
-    )
 
 
 def with_rewrites(transcript: Transcript, discourse: DiscourseOutput | None) -> Transcript:
@@ -392,60 +378,135 @@ class PipelineActivities:
                 raise input_error(f"call {args.call_id} has no discourse output; run from the discourse stage")
             doc, crm = await self._prior(call)
             catalog = self._catalog(pins)
-            provenance = Provenance(
-                run_id=inp.run_id,
-                schema_version=catalog.version,
-                lexicon_version=pins.lexicon_version,
-                calibrator_version=pins.calibrator_version,
-                extractor_model=pins.reasoning_model,
-                extractor_prompt_version=pins.prompt_versions.get("extract_slot_group", ""),
-            )
-            profile = binding.load_prior(
-                doc,
-                crm,
-                call_id=args.call_id,
-                run_id=inp.run_id,
-                anchor_date=transcript.anchor_date,
-                catalog=catalog,
-                provenance=provenance,
-            )
-            budgets = self.settings.budgets.scaled(transcript.duration / 60.0)
-            if args.budget_usd is not None:
-                budgets = budgets.model_copy(update={"usd_cap": args.budget_usd})
-            inputs = self.stages.get("agent_inputs")(
-                call_id=args.call_id,
-                run_id=inp.run_id,
-                transcript=with_rewrites(transcript, discourse),
-                discourse=discourse,
-                profile=profile,
-                pins=pins,
-                budgets=budgets,
-                quality=transcript.quality,
-                crm=crm,
-                glossary=glossary_lines(await PostgresGlossaryStore(self.store.db).entries()),
-                base_document=doc,
-                call_minutes=transcript.duration / 60.0,
-            )
-            checkpoints = PostgresCheckpointStore(self.store, scope=scope)
-            # The harness heartbeats every node; the background beat covers one long model request.
-            async with heartbeating("agent"):
-                result = await invoke(
-                    self.stages.get("run_agent"),
-                    inputs,
-                    services=self._agent_services(),
-                    checkpoints=checkpoints,
-                    heartbeat=activity.heartbeat,
+            transcript = with_rewrites(transcript, discourse)
+            # The agent loop's result is recorded on its own, so a retry of the checks after it does not rerun the loop.
+            loop_key = run_key("agent_loop", inp.run_id, pins, execution=scope)
+            looped = await self.store.get_stage_output(args.call_id, "agent_loop", loop_key)
+            if looped is not None:
+                outcome = AgentOutcome.model_validate(looped.output["outcome"])
+                profile = await self.store.load_profile(inp.run_id, int(looped.output["profile_version"]))
+                if profile is None:
+                    raise input_error(f"run {inp.run_id} lost profile version {looped.output['profile_version']}")
+            else:
+                outcome, profile = await self._agent_loop(inp, transcript, discourse, doc, crm, catalog, scope)
+                await self.store.put_stage_output(
+                    args.call_id,
+                    "agent_loop",
+                    loop_key,
+                    inp.run_id,
+                    {"outcome": outcome.model_dump(mode="json"), "profile_version": profile.version},
+                    pins.model_dump(mode="json"),
                 )
-            outcome = AgentOutcome.model_validate(dump(result.outcome))
-            agent_profile = Profile.model_validate(dump(result.profile))
-            followups = [FollowUp.model_validate(dump(q)) for q in getattr(result, "followups", None) or []]
-            if followups:  # the agent's drafts stand until VOI ranks them (§10.5)
-                agent_profile = agent_profile.model_copy(update={"open_questions": followups})
-            await self._save_new_profile(agent_profile)
+            # Stage 5 after the agent (§9): the omission check, re-checks of facts changed since the agent's
+            # checks, then calibration with the run's pinned calibrator and conformal auto-accept.
+            verify_after = self.stages.optional("verify_after_agent")
+            if verify_after is not None:
+                calibrator, conformal = await self._calibration(pins.calibrator_version)
+                async with heartbeating("verify"):
+                    checked = await invoke(
+                        verify_after,
+                        profile,
+                        transcript=transcript,
+                        discourse=discourse,
+                        pins=pins,
+                        catalog=catalog,
+                        run_id=inp.run_id,
+                        calibrator=calibrator,
+                        conformal=conformal,
+                        settings=self.settings,
+                    )
+                await self._save_new_profile(Profile.model_validate(dump(checked.profile)))
+            else:
+                log.warning("run %s: verification is not installed in this worker; facts are not scored", inp.run_id)
             await self.store.put_stage_output(
                 args.call_id, "agent", key, inp.run_id, outcome.model_dump(mode="json"), pins.model_dump(mode="json")
             )
             return outcome
+
+    async def _agent_loop(
+        self,
+        inp: StageInput,
+        transcript: Transcript,
+        discourse: DiscourseOutput,
+        doc: FnaDocument | None,
+        crm: CrmRecord | None,
+        catalog: Catalog,
+        scope: str,
+    ) -> tuple[AgentOutcome, Profile]:
+        """The orchestrator over the client's prior profile (§13.2), checkpointed per turn; returns its saved profile."""
+        args, pins = inp.args, inp.args.versions
+        provenance = Provenance(
+            run_id=inp.run_id,
+            schema_version=catalog.version,
+            lexicon_version=pins.lexicon_version,
+            calibrator_version=pins.calibrator_version,
+            extractor_model=pins.reasoning_model,
+            extractor_prompt_version=pins.prompt_versions.get("extract_slot_group", ""),
+        )
+        prior = binding.load_prior(
+            doc,
+            crm,
+            call_id=args.call_id,
+            run_id=inp.run_id,
+            anchor_date=transcript.anchor_date,
+            catalog=catalog,
+            provenance=provenance,
+        )
+        budgets = self.settings.budgets.scaled(transcript.duration / 60.0)
+        if args.budget_usd is not None:
+            budgets = budgets.model_copy(update={"usd_cap": args.budget_usd})
+        inputs = self.stages.get("agent_inputs")(
+            call_id=args.call_id,
+            run_id=inp.run_id,
+            transcript=transcript,
+            discourse=discourse,
+            profile=prior,
+            pins=pins,
+            budgets=budgets,
+            quality=transcript.quality,
+            crm=crm,
+            glossary=glossary_lines(await PostgresGlossaryStore(self.store.db).entries()),
+            base_document=doc,
+            call_minutes=transcript.duration / 60.0,
+        )
+        checkpoints = PostgresCheckpointStore(self.store, scope=scope)
+        # The harness heartbeats every node; the background beat covers one long model request.
+        async with heartbeating("agent"):
+            result = await invoke(
+                self.stages.get("run_agent"),
+                inputs,
+                services=self._agent_services(),
+                checkpoints=checkpoints,
+                heartbeat=activity.heartbeat,
+            )
+        outcome = AgentOutcome.model_validate(dump(result.outcome))
+        profile = Profile.model_validate(dump(result.profile))
+        followups = [FollowUp.model_validate(dump(q)) for q in getattr(result, "followups", None) or []]
+        if followups:  # the agent's drafts stand until VOI ranks them (§10.5)
+            profile = profile.model_copy(update={"open_questions": followups})
+        return outcome, await self._save_new_profile(profile)
+
+    async def _calibration(self, version: str) -> tuple[Any, Any]:
+        """The run's pinned calibrator and conformal thresholds from the registry and object storage (§9.4–9.5).
+
+        Before any calibrator is trained (``cold-start``) both may be None: the cold-start identity scores the
+        facts and nothing is auto-accepted. Any other version must be in the registry.
+        """
+        rows = {r.slot_group: r for r in await self.store.calibrators(version=version)}
+        pooled = rows.get("*")
+        if pooled is None:
+            if version != COLD_START:
+                raise input_error(f"calibrator {version!r} is not in the registry")
+            return None, None
+        calibrator = None
+        if pooled.artifact_uri:
+            calibrator = self.stages.get("calibrator_type").from_bytes(await self.objects.get_bytes(pooled.artifact_uri))
+        conformal = None
+        if pooled.metrics.get("thresholds_uri"):
+            conformal = self.stages.get("conformal_thresholds").model_validate(
+                await self.objects.get_json(pooled.metrics["thresholds_uri"])
+            )
+        return calibrator, conformal
 
     def _agent_services(self) -> Any:
         """Every installed stage behind the agent's tools, with the practice glossary in Postgres (§8.5, §13.3)."""
@@ -636,14 +697,9 @@ class PipelineActivities:
                 raise input_error(f"run {inp.run_id} has no follow-up {a.followup_id}")
             await self.store.record_followup_answer(inp.run_id, a)
             profile = await self._run_profile(inp.run_id, inp.args.call_id)
-            segment = answer_segment(a)
-            transcript = Transcript(
-                call_id=inp.args.call_id,
-                anchor_date=profile.anchor_date,
-                segments=[segment],
-                asr_provider="followup",
-                asr_model_version="text",
-            )
+            # The answer as a one-segment transcript by the client, segment ``fu-<followup id>`` (§10.6).
+            transcript = answer_transcript(a, rec.followup, call_id=inp.args.call_id, anchor_date=profile.anchor_date)
+            segment = transcript.segments[0]
             async with heartbeating("followup_intake"):
                 raw = await invoke(
                     self.stages.get("extract_followup"), profile, transcript, followup=rec.followup, pins=pins, catalog=self._catalog(pins)

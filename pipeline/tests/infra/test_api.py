@@ -293,7 +293,8 @@ async def test_review_bundle(api):
     assert b["median_document"]["retirement"]["client"]["retirementAge"] == 62
     assert b["prior_document"]["retirement"]["client"]["retirementAge"] == 65
     assert b["sidecar"]["fields"]["retirement.client.retirementAge"]["change"] == "changed"
-    assert [s["segment_id"] for s in b["transcript"]["segments"]][-1] == "followup:fu.retirement_age"
+    answer = b["transcript"]["segments"][-1]
+    assert answer["segment_id"] == "fu-fu.retirement_age" and answer["t_start"] > b["transcript"]["segments"][-2]["t_end"]
     assert b["audio_url"] == "http://test/calls/call-1/audio"
     assert b["followups"][0]["status"] == "answered" and b["blocking_flags"][0]["kind"] == "tier_a_contradicted"
     assert b["preview_forecast"]["pos"] == 0.71 and b["attribution_text"].startswith(

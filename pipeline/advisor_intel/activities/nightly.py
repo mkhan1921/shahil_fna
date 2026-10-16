@@ -55,13 +55,12 @@ from ..workflows.contracts import (
     NightlyWindow,
 )
 from .keys import digest
-from .pipeline import dump
+from .pipeline import COLD_START, dump
 from .stages import StageFunctions, heartbeat, heartbeating, invoke
 
 log = logging.getLogger(__name__)
 
 LABELS_PREFIX = "calibration/labels/"
-COLD_START = "cold-start"  # the calibrator version before any labels (VersionPins.calibrator_version)
 ERROR_ACTIONS = ("reject", "reattribute", "add")
 
 

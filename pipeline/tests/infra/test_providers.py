@@ -61,16 +61,27 @@ async def test_stage_functions_resolve_lazily_and_overrides_win():
     assert StageFunctions().optional("no_such_entry") is None
 
 
-def test_the_integrated_stage_entry_points_resolve():
-    """Every entry whose package is merged here resolves to its canonical home."""
-    stages = StageFunctions()
-    for name in ("ingest_call", "run_discourse", "agent_inputs", "agent_services", "run_agent", "fna_analyse", "extract_followup",
-                 "load_lexicon", "lexicon_edit_pair", "propose_lexicon_fit"):  # fmt: skip
-        assert stages.available(name), ENTRYPOINTS[name]
+def test_every_entry_point_whose_package_is_installed_resolves():
+    """A renamed stage function fails here, not in a worker; a package not merged into this checkout is skipped."""
+    import importlib
+
+    missing = []
+    for name, target in ENTRYPOINTS.items():
+        module, _, attr = target.partition(":")
+        try:
+            mod = importlib.import_module(module)
+        except ModuleNotFoundError as e:
+            assert e.name and module.startswith(e.name), f"{name}: {target} fails to import: {e}"
+            continue
+        if not hasattr(mod, attr):
+            missing.append(f"{name}: {target}")
+    assert not missing
+    for name in ("ingest_call", "run_discourse", "agent_inputs", "agent_services", "run_agent", "extract_followup", "fna_analyse"):
+        assert StageFunctions().available(name), ENTRYPOINTS[name]
     from advisor_intel.extract.followup import extract_followup_ops
     from advisor_intel.harness.deps import AgentInputs
 
-    assert stages.get("agent_inputs") is AgentInputs and stages.get("extract_followup") is extract_followup_ops
+    assert StageFunctions().get("agent_inputs") is AgentInputs and StageFunctions().get("extract_followup") is extract_followup_ops
 
 
 def test_cache_keys_follow_the_stage_pins_and_seeds_match_the_in_process_runner():
