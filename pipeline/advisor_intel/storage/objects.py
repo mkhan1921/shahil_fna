@@ -193,6 +193,23 @@ class LocalObjectStore(ObjectStore):
         await asyncio.to_thread(shutil.copyfile, src, dest)
         return dest
 
+    async def put_file(self, key: str, path: Path, *, content_type: str | None = None) -> str:
+        dest = self._path(key)
+
+        def copy() -> None:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=f".{dest.name}.", suffix=".tmp")
+            os.close(fd)
+            try:
+                shutil.copyfile(path, tmp)
+                os.replace(tmp, dest)
+            except BaseException:
+                Path(tmp).unlink(missing_ok=True)
+                raise
+
+        await asyncio.to_thread(copy)
+        return self.uri_for(key)
+
 
 class S3ObjectStore(ObjectStore):
     """Objects in one S3 bucket under an optional prefix; URIs are ``s3://bucket/prefix/key``."""
@@ -227,6 +244,12 @@ class S3ObjectStore(ObjectStore):
     async def put_bytes(self, key: str, data: bytes, *, content_type: str | None = None) -> str:
         extra = {"ContentType": content_type} if content_type else {}
         await asyncio.to_thread(self.client.put_object, Bucket=self.bucket, Key=self._object_key(key), Body=data, **extra)
+        return self.uri_for(key)
+
+    async def put_file(self, key: str, path: Path, *, content_type: str | None = None) -> str:
+        """Upload a file with boto3's managed transfer (multipart for large recordings, nothing held in memory)."""
+        extra = {"ExtraArgs": {"ContentType": content_type}} if content_type else {}
+        await asyncio.to_thread(self.client.upload_file, str(path), self.bucket, self._object_key(key), **extra)
         return self.uri_for(key)
 
     async def get_bytes(self, uri_or_key: str) -> bytes:

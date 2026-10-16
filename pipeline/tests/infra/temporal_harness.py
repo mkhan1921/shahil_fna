@@ -172,12 +172,12 @@ async def temporal_env(temporal_bin: str, objects: Any = None, *, threshold: int
 
 
 @contextlib.asynccontextmanager
-async def running_worker(client: Client, mocks: MockActivities, *, versioned: bool = True) -> AsyncIterator[str]:
+async def running_worker(client: Client, mocks: MockActivities) -> AsyncIterator[str]:
+    """A versioned worker (its build made current) running every workflow over the mocks."""
     task_queue = f"tq-{uuid.uuid4().hex[:8]}"
-    cfg = deployment_config(enabled=versioned, build=f"test-{uuid.uuid4().hex[:6]}") if versioned else None
+    cfg = deployment_config(build=f"test-{uuid.uuid4().hex[:6]}")
     async with Worker(client, task_queue=task_queue, workflows=ALL_WORKFLOWS, activities=mocks.build(), deployment_config=cfg):
-        if cfg is not None:
-            await set_current_version(client, cfg.version)
+        await set_current_version(client, cfg.version)
         yield task_queue
 
 

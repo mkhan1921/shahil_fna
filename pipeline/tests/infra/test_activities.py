@@ -67,10 +67,10 @@ class Fakes:
 
     async def ingest(self, audio, meta, *, asr, diarizer, role_agent_pins, second_pass=None, prior_fna=None, crm_names=None):
         self.count("ingest")
-        assert audio.read_bytes() == b"RIFF-call-audio" and meta["call_id"] == "call-1" and asr == "asr" and diarizer == "diarizer"
+        assert audio.read_bytes() == b"RIFF-call-audio" and meta["advisor_id"] == "adv-1" and asr == "asr" and diarizer == "diarizer"
         assert prior_fna is not None and prior_fna.client.firstName == "Thabo"
         await asyncio.sleep(0.05)
-        t = make_transcript("call-1", role_agent_pins.asr_model_version)
+        t = make_transcript(meta["call_id"], role_agent_pins.asr_model_version)
         if self.role_review:
             t = t.model_copy(update={"quality": t.quality.model_copy(update={"role_review_needed": True})})
         return t

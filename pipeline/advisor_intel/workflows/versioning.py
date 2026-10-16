@@ -5,9 +5,13 @@ else the CI commit, else a hash of the loaded code). ``CallPipelineWorkflow`` is
 call waiting for review moves to the new build; every worker change must replay recorded
 histories (CI replay test). The short workflows are PINNED to the build they started on.
 
+Workers are always versioned: a workflow that declares a versioning behavior cannot complete a task
+on an unversioned worker, so there is no switch to turn versioning off.
+
 A new build receives work only once it is the deployment's current version: the deploy pipeline
-sets it (``temporal worker deployment set-current-version``), or the worker does at start-up when
-``ADVISOR_INTEL_SET_CURRENT_VERSION=true`` (single-build environments, development).
+sets it (``temporal worker deployment set-current-version``, or ramps it), or the worker does at
+start-up when ``ADVISOR_INTEL_SET_CURRENT_VERSION=true`` (the default in local, dev and test
+environments, where one build runs at a time).
 """
 
 from __future__ import annotations
@@ -55,10 +59,8 @@ def deployment_version(build: str | None = None) -> WorkerDeploymentVersion:
     return WorkerDeploymentVersion(deployment_name=os.environ.get("ADVISOR_INTEL_DEPLOYMENT_NAME", DEPLOYMENT_NAME), build_id=build or build_id())
 
 
-def deployment_config(*, enabled: bool | None = None, build: str | None = None) -> WorkerDeploymentConfig | None:
-    """The worker's deployment config, or None when versioning is switched off (``ADVISOR_INTEL_WORKER_VERSIONING=false``)."""
-    if not (_flag("ADVISOR_INTEL_WORKER_VERSIONING", True) if enabled is None else enabled):
-        return None
+def deployment_config(*, build: str | None = None) -> WorkerDeploymentConfig:
+    """The worker's deployment config: this build in the ``advisor-intel`` deployment, PINNED unless a workflow says otherwise."""
     return WorkerDeploymentConfig(version=deployment_version(build), use_worker_versioning=True, default_versioning_behavior=VersioningBehavior.PINNED)
 
 
@@ -89,5 +91,6 @@ async def set_current_version(client: Client, version: WorkerDeploymentVersion, 
     )
 
 
-def should_set_current_version() -> bool:
-    return _flag("ADVISOR_INTEL_SET_CURRENT_VERSION", False)
+def should_set_current_version(env: str = "production") -> bool:
+    """Whether the worker makes its own build current at start-up (default: only in local, dev and test environments)."""
+    return _flag("ADVISOR_INTEL_SET_CURRENT_VERSION", env in ("local", "dev", "development", "test"))
