@@ -20,6 +20,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, WithJsonSchema
 from pydantic_ai import Agent, NativeOutput
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from rank_bm25 import BM25Okapi
 
 from .. import llm
@@ -150,8 +151,13 @@ async def propose(catalog: Catalog, discourse: DiscourseOutput, transcript: Tran
         return {}, "", usage
     prompt = pinned("planner", pins.prompt_versions)
     out_model = _proposal_model(catalog.group_names())
-    result = await planner_agent.run(_brief(catalog, discourse, transcript, profile), model=rm.model, model_settings=rm.settings,
-                                     instructions=prompt.text, output_type=NativeOutput(out_model))
+    try:
+        result = await planner_agent.run(_brief(catalog, discourse, transcript, profile), model=rm.model, model_settings=rm.settings,
+                                         instructions=prompt.text, output_type=NativeOutput(out_model))
+    except UnexpectedModelBehavior as e:
+        # The proposal only orders work within a tier; the enforced plan does not depend on it.
+        usage["requests"] = 1
+        return {}, f"Deterministic plan (the planner's proposal was unusable: {str(e)[:120]}).", usage
     usage.update(requests=result.usage.requests, input_tokens=result.usage.input_tokens or 0, output_tokens=result.usage.output_tokens or 0)
     pri = {g.slot_group: max(1, int(g.priority)) for g in result.output.order}  # type: ignore[attr-defined]
     return pri, result.output.rationale, usage  # type: ignore[attr-defined]
