@@ -87,3 +87,11 @@ async def run_discourse(
         rewrite_rejections=rejected,
         usage=usage,
     )
+
+
+def with_rewrites(transcript: Transcript, discourse: DiscourseOutput | None) -> Transcript:
+    """Stage 2's self-contained rewrites on the segments, for the agent and verification (the original text is never overwritten, §6)."""
+    if discourse is None or not discourse.rewrites:
+        return transcript
+    segs = [s.model_copy(update={"rewritten_text": discourse.rewrites.get(s.segment_id, s.rewritten_text)}) for s in transcript.segments]
+    return transcript.model_copy(update={"segments": segs})

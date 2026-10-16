@@ -72,6 +72,46 @@ uses the pinned ASR provider and diarizer.
 `tests/test_extract_e2e.py` and `tests/test_pipeline.py` run the sample call end to end with the
 gold-call oracle standing in for the model.
 
+## Durable runs: Temporal, Postgres and the API (spec §13–14)
+
+Production runs go through Temporal: `CallPipelineWorkflow` runs ingestion, discourse, the agent (one
+heartbeating activity with per-turn checkpoints in Postgres), stage 5's post-agent checks, VOI, the preview
+forecast and the meeting note, then waits for the adviser's review and the follow-up answers. Nightly
+workflows retrain the calibrator, refit conformal thresholds and propose lexicon changes.
+
+```bash
+export ADVISOR_INTEL_DATABASE_URL=postgresql://localhost:5432/advisor_intel
+export ADVISOR_INTEL_TEMPORAL_ADDRESS=localhost:7233        # Temporal Cloud: also ADVISOR_INTEL_TEMPORAL_API_KEY (turns TLS on)
+export ADVISOR_INTEL_OBJECT_STORE_URI=file:///srv/advisor-intel/objects   # or s3://bucket/prefix with AWS credentials
+export ADVISOR_INTEL_API_TOKEN=change-me                    # the bearer token the FNA app's review client sends
+.venv/bin/python -m advisor_intel.storage.migrate up
+.venv/bin/python -m advisor_intel.worker                    # workflows, activities and the nightly schedules
+.venv/bin/python -m advisor_intel.api.app                   # calls, review bundle, reviewer ops, submit, /fna
+```
+
+`ADVISOR_INTEL_PINS=test` runs every model role on offline stubs. `POST /calls` takes audio, or a scripted call
+as JSON (`{script, script_roles}`). The tests under `tests/infra` start a Temporal dev server
+(`pipeline/.tools/temporal` or `TEMPORAL_CLI_PATH`) and a throwaway PostgreSQL (`initdb` on the path,
+`ADVISOR_INTEL_PG_BIN`, or `ADVISOR_INTEL_TEST_DATABASE_URL`); they skip when those are missing.
+
+## Models, credentials and data
+
+Every setting reads `ADVISOR_INTEL_<NAME>` or `<NAME>` from the environment. Model roles are Pydantic AI
+model strings: `ADVISOR_INTEL_MODEL_FRONTIER`, `_REASONING`, `_VERIFIER` (a different family from the
+extractor), `_SMALL` and `_SECONDARY` (the fallback provider), with the providers' own keys
+(`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`).
+
+| Needs | For |
+| --- | --- |
+| Model API keys | real extraction, verification, follow-up drafting and the meeting note (tests use fakes and the gold-call oracle) |
+| `ASSEMBLYAI_API_KEY` / `DEEPGRAM_API_KEY` / `SPEECHMATICS_API_KEY`, `PYANNOTEAI_API_KEY` | recorded calls (ASR and diarization); `VLLM_BASE_URL` / `PARAKEET_BASE_URL` for self-hosted ASR, the second pass and MiniCheck |
+| Temporal Cloud, Postgres, S3 | durable production runs |
+| `BRAINTRUST_API_KEY` | tracing, datasets and the experiment CI gate |
+| `ADVISOR_INTEL_SMTP_*`, `ADVISOR_INTEL_NOTIFY_WEBHOOK_URL` | adviser notifications |
+| Reviewed gold calls | the calibrator (50 labelled calls warm, 300 to promote) and conformal auto-accept (50 calibration calls; until then nothing is auto-accepted) |
+| The investment team's CMA and return history | the forecast's market model (`forecast/cma/2026Q4.yaml` is a placeholder) |
+| GPUs or a Tinker-compatible API | the fine-tuning (M6) and RL (M7) tracks |
+
 ## The review overlay's contract (spec §11)
 
 The FNA app reviews a call against JSON Schemas exported from these models (`lib/review/schema/`):

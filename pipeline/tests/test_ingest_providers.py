@@ -16,6 +16,8 @@ def test_asr_follows_the_pins():
     assert isinstance(build_asr(VersionPins(asr_provider="deepgram", asr_model_version="nova-3"), s), DeepgramASR)
     with pytest.raises(ProviderConfigError):
         build_asr(VersionPins(asr_provider="nope"), s)
+    with pytest.raises(ProviderConfigError, match="speechmatics_api_key"):  # a missing key fails before any audio is sent
+        build_asr(VersionPins(asr_provider="speechmatics", asr_model_version="enhanced"), s)
 
 
 def test_diarizer_needs_a_pyannote_key_for_shared_channels():

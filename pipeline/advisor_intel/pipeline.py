@@ -28,7 +28,7 @@ from pydantic import BaseModel
 
 from . import binding
 from .config import Settings, get_settings
-from .discourse.run import run_discourse
+from .discourse.run import run_discourse, with_rewrites
 from .harness.deps import AgentInputs, HarnessServices
 from .harness.run import run_agent
 from .models.crm import CrmRecord
@@ -181,6 +181,7 @@ async def process_call(
     prior = binding.load_prior(doc, call.crm, call_id=call.call_id, run_id=run_id, anchor_date=transcript.anchor_date, catalog=catalog,
                                provenance=provenance)
     discourse = call.discourse or await run_discourse(transcript, prior=prior, crm=call.crm, pins=pins, catalog=catalog)
+    transcript = with_rewrites(transcript, discourse)  # the agent and verification read stage 2's rewrites beside the words
 
     inputs = AgentInputs(call_id=call.call_id, run_id=run_id, transcript=transcript, discourse=discourse, profile=prior, pins=pins,
                          budgets=settings.budgets, quality=transcript.quality, crm=call.crm, glossary=call.glossary, base_document=doc,

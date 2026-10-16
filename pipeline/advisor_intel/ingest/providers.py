@@ -27,9 +27,18 @@ class ProviderConfigError(AsrError):
     """A provider is unknown or missing its credentials (not worth retrying)."""
 
 
+ASR_CREDENTIAL = {"assemblyai": "assemblyai_api_key", "deepgram": "deepgram_api_key", "speechmatics": "speechmatics_api_key",
+                  "granite": "vllm_base_url", "parakeet": "parakeet_base_url"}
+
+
 def build_asr(pins: VersionPins, settings: Settings | None = None) -> ASRProvider:
+    """The pinned ASR adapter; a missing key or endpoint fails here, before any audio is sent."""
+    s = settings or get_settings()
+    needed = ASR_CREDENTIAL.get(pins.asr_provider)
+    if needed and not getattr(s, needed, None):
+        raise ProviderConfigError(f"ASR provider {pins.asr_provider!r} needs settings.{needed} (environment {needed.upper()})")
     try:
-        return asr_from_pins(pins, settings or get_settings())
+        return asr_from_pins(pins, s)
     except AsrError as e:
         raise ProviderConfigError(str(e)) from e
 

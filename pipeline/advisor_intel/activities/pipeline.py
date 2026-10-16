@@ -37,6 +37,7 @@ from .. import binding
 from ..config import Settings
 from ..extract.reducer import apply_state_ops
 from ..models.crm import CrmRecord
+from ..discourse.run import with_rewrites
 from ..models.entities import DiscourseOutput
 from ..models.facts import Provenance
 from ..models.fna import FnaDocument
@@ -118,14 +119,6 @@ def call_date(call: CallRecord) -> date:
 def forecast_seed(run_id: str) -> int:
     """A deterministic seed per run (§13.1: pure numpy, deterministic seed per run)."""
     return int(hashlib.sha256(run_id.encode()).hexdigest()[:8], 16)
-
-
-def with_rewrites(transcript: Transcript, discourse: DiscourseOutput | None) -> Transcript:
-    """Stage 2's self-contained rewrites on the segments (the original text is never overwritten, §6)."""
-    if discourse is None or not discourse.rewrites:
-        return transcript
-    segs = [s.model_copy(update={"rewritten_text": discourse.rewrites.get(s.segment_id, s.rewritten_text)}) for s in transcript.segments]
-    return transcript.model_copy(update={"segments": segs})
 
 
 class PipelineActivities:
