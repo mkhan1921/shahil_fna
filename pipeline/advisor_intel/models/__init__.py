@@ -41,7 +41,9 @@ from .extraction import (
 )
 from .facts import Attribution, Evidence, Fact, FactStatus, Hedge, Hypothesis, Provenance, ReviewState
 from .forecast import ForecastResult
+from .crm import CrmPerson, CrmProduct, CrmRecord
 from .profile import BlockingFlag, FollowUp, Profile, StateOp
+from .review import FlagClearance, FollowupEdit, ReviewBundle, ReviewPackage, ReviewResult, TermConfirmation
 from .runs import AgentOutcome, CallArgs, CallResult, FollowupAnswer, ReviewSubmission, RunState, Stage, VersionPins
 from .transcript import NumericSpan, QualityReport, Reading, RoleAssignment, Segment, Transcript, Word
 
