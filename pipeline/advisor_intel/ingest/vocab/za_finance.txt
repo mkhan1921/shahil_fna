@@ -1,0 +1,107 @@
+# Custom ASR vocabulary for South African financial advice calls (spec §5.4), passed to every ASR call.
+# One term per line. "term | sounds like | sounds like" adds pronunciations for providers that take them.
+# [section] lines set the phrase kind: products and regime terms, then institutions.
+# Client-specific names (people, businesses, properties) are added per call from the CRM and prior FNA.
+
+[products]
+retirement annuity
+RA | are ay
+preservation fund
+pension preservation fund
+provident preservation fund
+provident fund
+pension fund
+umbrella fund
+living annuity
+life annuity
+guaranteed annuity
+TFSA | tee eff ess ay
+tax-free savings
+tax-free savings account
+two-pot
+two-pot system
+savings pot
+savings component
+retirement pot
+retirement component
+vested pot
+vested component
+Regulation 28 | regulation twenty eight
+endowment
+sinking fund
+unit trust
+collective investment scheme
+ETF | ee tee eff
+exchange traded fund
+offshore allowance
+discretionary investment
+money market
+income protection
+disability cover
+dread disease
+severe illness cover
+life cover
+funeral cover
+gap cover
+medical aid
+key person cover
+buy and sell agreement
+drawdown rate
+section 10C | section ten c
+capital gains tax
+estate duty
+executor's fees
+marital regime
+in community of property
+antenuptial contract | ante nuptial contract
+accrual system
+matric
+bond
+home loan
+vehicle finance
+
+[institutions]
+SARS | sars
+JSE | jay ess ee
+FSCA | eff ess see ay
+ASISA | a sisa
+Allan Gray
+Coronation
+Ninety One
+Investec
+Old Mutual
+Sanlam
+Glacier
+Discovery
+Liberty
+Momentum
+Metropolitan
+PSG | pee ess gee
+Stanlib
+10X | ten ex
+Sygnia
+Satrix
+Nedgroup Investments
+M&G Investments | em and gee
+Prudential
+Foord
+Truffle
+Fairtree
+Camissa
+Marriott
+PPS | pee pee ess
+Hollard
+BrightRock
+Assupol
+1Life | one life
+Clientèle | clientele
+OUTsurance | out surance
+Absa
+FNB | eff en bee
+Standard Bank
+Nedbank
+Capitec
+EasyEquities | easy equities
+Alexander Forbes
+Bonitas
+GEPF | gee ee pee eff
