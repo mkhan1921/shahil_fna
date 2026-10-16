@@ -651,31 +651,34 @@ def topic_recall(system: SystemCallOutput, gold: GoldCall) -> MetricResult:
     return ratio(hits, total, misses)
 
 
-_ASR_METRIC_NAMES: dict[str, tuple[str, ...]] = {
-    "numeric_wer": ("numeric_wer", "wer_numeric", "numeric_token_wer"),
-    "der": ("der", "diarization_error_rate"),
-    "role_accuracy": ("role_accuracy", "speaker_role_accuracy"),
-}
+def _turns(transcript: Any, turn_type: Any) -> list[Any]:
+    return [turn_type(speaker=s.speaker_label, start=float(s.t_start), end=float(s.t_end)) for s in transcript.segments]
 
 
 def asr_metrics(reference: Any, hypothesis: Any) -> dict[str, float | None]:
-    """Numeric-token WER, DER and speaker-role accuracy, passed through from ``advisor_intel.ingest.metrics``
-    (§15.3 ASR and diarization rows). Empty when ingestion is not installed."""
+    """The §15.3 ASR and diarization rows for one call, from ``advisor_intel.ingest.metrics``: numeric-token WER of
+    the ASR transcript's text against the human transcript's, DER of its speaker turns against the human turns,
+    and the share of human speech time whose ASR segment carries the gold role. Both arguments are
+    ``Transcript``s (the professional ``human`` one is the reference). Empty when ingestion is not installed."""
     import importlib
 
     try:
-        mod = importlib.import_module("advisor_intel.ingest.metrics")
+        metrics = importlib.import_module("advisor_intel.ingest.metrics")
+        types = importlib.import_module("advisor_intel.ingest.types")
     except ImportError:
         return {}
-    out: dict[str, float | None] = {}
-    for name, candidates in _ASR_METRIC_NAMES.items():
-        fn = next((getattr(mod, c) for c in candidates if callable(getattr(mod, c, None))), None)
-        if fn is None:
-            out[name] = None
-            continue
-        v = fn(reference, hypothesis)
-        out[name] = None if v is None else float(v)
-    return out
+    if not getattr(reference, "segments", None) or not getattr(hypothesis, "segments", None):
+        return {"numeric_wer": None, "der": None, "role_accuracy": None}
+    ref_text = " ".join(s.text for s in reference.segments)
+    hyp_text = " ".join(s.text for s in hypothesis.segments)
+    wer = metrics.numeric_wer(ref_text, hyp_text)
+    diar = metrics.der(_turns(reference, types.SpeakerTurn), _turns(hypothesis, types.SpeakerTurn))
+    gold_roles = [(float(s.t_start), float(s.t_end), s.speaker_role) for s in reference.segments if s.speaker_role != "unknown"]
+    return {
+        "numeric_wer": float(wer.wer),
+        "der": float(diar.der),
+        "role_accuracy": float(metrics.speaker_role_accuracy(gold_roles, hypothesis)) if gold_roles else None,
+    }
 
 
 # --------------------------------------------------------------------------- calibration and conformal summaries

@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 
 from advisor_intel.evals.datasets import stage12_builder
-from advisor_intel.evals.extraction_eval import NOTE_ENV, braintrust_eval
+from advisor_intel.evals.extraction_eval import NOTE_ENV, braintrust_eval, gold_transcript_lookup
 from advisor_intel.evals.scorers import forecast_gold_pos
 from advisor_intel.evals.synthetic import SYNTHETIC_DATASET
 
@@ -31,5 +31,6 @@ braintrust_eval(
     experiment_name=os.environ.get("ADVISOR_INTEL_EVAL_EXPERIMENT") or None,
     build=stage12_builder(),
     gold_pos=forecast_gold_pos(),
+    reference_transcript=gold_transcript_lookup(),  # the human transcripts: the ASR and diarization rows' reference (§15.3)
     note=os.environ.get(NOTE_ENV) != "0",
 )

@@ -148,6 +148,39 @@ def test_braintrust_eval_runs_offline_and_the_reporter_gates(world, monkeypatch,
     monkeypatch.setenv(E.BASELINE_ENV, str(world["tmp"] / "missing.json"))
     assert reporter.report_run([rep], False, False) is True  # no baseline: nothing to gate
     assert "gate skipped" in capsys.readouterr().out
+    # under ``braintrust eval --jsonl`` (the eval action) the reporter prints the summary as one JSON line, as the default one does
+    import json
+
+    reporter.report_eval(None, result, False, True)
+    line = capsys.readouterr().out.strip().splitlines()[-1]
+    printed = json.loads(line)
+    assert printed["scores"] and printed["report"].endswith("advisor-extraction-synthetic-calls-latest.json")
+    assert printed["summary_scores"]["ece"] == pytest.approx(rep.summary["ece"])
+
+
+def test_the_asr_rows_use_the_gold_human_transcript_as_reference(world):
+    """An ASR-transcript run is scored for numeric WER, DER and role accuracy against the call's human transcript
+    from gold-transcripts; a human-transcript run, or a call without one, is not."""
+    from advisor_intel.evals.datasets import GOLD_CALLS, sync_gold, sync_transcripts
+
+    call = world["calls"][0]
+    gold = call.gold.model_copy(update={"source": "real", "call_id": "real-0"})
+    human = call.transcript().model_copy(update={"call_id": "real-0"})
+    asr_t = human.model_copy(update={"segments": [s.model_copy(update={"speaker_role": "advisor"}) for s in human.segments]})
+    sync_gold([gold], store=world["store"])
+    sync_transcripts([human], store=world["store"], kind="human")
+    sync_transcripts([asr_t], store=world["store"], kind="asr")
+    lookup = E.gold_transcript_lookup(world["store"])
+    assert lookup("real-0") == human and lookup("nope") is None
+    fake = FakePipeline({"real-0": gold}.__getitem__)
+    E.configure(runner=fake, pins=VersionPins(), cache=world["cache"], build=stage12_builder(store=world["store"], discourse=False))
+    E.configure(reference_transcript=lookup)
+    by_kind = {c["input"]["transcript_kind"]: c for c in E.eval_cases(GOLD_CALLS, store=world["store"])}
+    asr_out = E.run_stages_3_to_6_from_cache(by_kind["asr"]["input"], by_kind["asr"]["metadata"])
+    human_out = E.run_stages_3_to_6_from_cache(by_kind["human"]["input"], by_kind["human"]["metadata"])
+    assert asr_out["transcript_metrics"]["numeric_wer"] == 0.0 and asr_out["transcript_metrics"]["der"] == 0.0
+    assert asr_out["transcript_metrics"]["role_accuracy"] < 1.0  # every ASR segment carries the advisor role
+    assert human_out["transcript_metrics"] == {}
 
 
 async def test_the_default_runner_writes_the_meeting_note(monkeypatch):

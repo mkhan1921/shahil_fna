@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sys
-import types
 from datetime import date
 from pathlib import Path
 
@@ -353,21 +351,60 @@ def test_discourse_metrics():
     assert (t.hits, t.total) == (2, 3)
 
 
-def test_asr_metrics_pass_through_from_ingest(monkeypatch):
+def _transcript(turns, call_id="c"):
+    """(speaker_label, role, t_start, t_end, text) → a Transcript."""
+    from advisor_intel.models.transcript import Segment, Transcript, Word
+
+    segs = [
+        Segment(
+            segment_id=f"s{i}",
+            speaker_label=label,
+            speaker_role=role,
+            t_start=t0,
+            t_end=t1,
+            text=text,
+            words=[Word(text=w, t_start=t0, t_end=t0 + 0.1, conf=0.9) for w in text.split()],
+        )
+        for i, (label, role, t0, t1, text) in enumerate(turns)
+    ]
+    return Transcript(call_id=call_id, anchor_date=date(2026, 10, 15), segments=segs, asr_provider="x", asr_model_version="1")
+
+
+def test_asr_metrics_compare_the_asr_transcript_with_the_human_one():
+    """§15.3 ASR and diarization rows: numeric-token WER, DER and role accuracy from ``ingest.metrics`` on two
+    transcripts. The human transcript is the reference; the ASR one misreads a number and gives one segment to the
+    wrong speaker and role."""
     if importlib.util.find_spec("advisor_intel.ingest") is None:
         assert S.asr_metrics(None, None) == {}
-    fake = types.ModuleType("advisor_intel.ingest.metrics")
-    fake.numeric_wer = lambda ref, hyp: 0.06
-    fake.der = lambda ref, hyp: 0.08
-    fake.role_accuracy = lambda ref, hyp: 0.99
-    pkg = types.ModuleType("advisor_intel.ingest")
-    pkg.metrics = fake
-    monkeypatch.setitem(sys.modules, "advisor_intel.ingest", pkg)
-    monkeypatch.setitem(sys.modules, "advisor_intel.ingest.metrics", fake)
-    assert S.asr_metrics("ref", "hyp") == {"numeric_wer": 0.06, "der": 0.08, "role_accuracy": 0.99}
-    out = SystemCallOutput(call_id="c", transcript_metrics={"numeric_wer": 0.06, "der": 0.08, "role_accuracy": 0.99})
-    m = S.item_metrics(out, GoldCall(call_id="c", anchor_date=date(2026, 1, 1)))
-    assert m["numeric_word_accuracy"].value == pytest.approx(0.94) and m["diarization_accuracy"].value == pytest.approx(0.92)
+        pytest.skip("ingestion is not installed")
+    from advisor_intel.ingest import metrics as IM
+
+    human = _transcript(
+        [
+            ("spk_0", "advisor", 0.0, 2.0, "What do you earn each month?"),
+            ("spk_1", "client_primary", 2.0, 5.0, "About forty thousand rand a month."),
+            ("spk_0", "advisor", 5.0, 6.0, "Thanks."),
+        ]
+    )
+    asr = _transcript(
+        [
+            ("spk_0", "advisor", 0.0, 2.0, "What do you earn each month?"),
+            ("spk_0", "advisor", 2.0, 5.0, "About fourteen thousand rand a month."),  # misheard, and the wrong speaker and role
+            ("spk_0", "advisor", 5.0, 6.0, "Thanks."),
+        ]
+    )
+    m = S.asr_metrics(human, asr)
+    assert set(m) == {"numeric_wer", "der", "role_accuracy"}
+    assert m["role_accuracy"] == pytest.approx(3.0 / 6.0)  # 6 s of gold speech; the 3 s client turn carries the advisor role
+    ref_text, hyp_text = " ".join(s.text for s in human.segments), " ".join(s.text for s in asr.segments)
+    assert 0 < m["numeric_wer"] < 1 and m["numeric_wer"] == pytest.approx(IM.numeric_wer(ref_text, hyp_text).wer)
+    assert 0 < m["der"] == pytest.approx(3.0 / 6.0, abs=0.1)  # 3 s attributed to the wrong speaker, inside the ±0.25 s collars
+    assert S.asr_metrics(human, human) == {"numeric_wer": 0.0, "der": 0.0, "role_accuracy": 1.0}
+    assert S.asr_metrics(human, _transcript([])) == {"numeric_wer": None, "der": None, "role_accuracy": None}
+    out = SystemCallOutput(call_id="c", transcript_metrics=m)
+    im = S.item_metrics(out, GoldCall(call_id="c", anchor_date=date(2026, 1, 1)))
+    assert im["numeric_word_accuracy"].value == pytest.approx(1 - m["numeric_wer"]) and im["role_accuracy"].value == pytest.approx(0.5)
+    assert im["diarization_accuracy"].value == pytest.approx(1 - m["der"])
 
 
 def test_operations_metrics():
