@@ -37,7 +37,8 @@ BAND_WORDS = {"early": "early", "mid": "mid", "middle": "mid", "late": "late", "
 BAND_OFFSETS = {"early": 1.5, "mid": 5.0, "late": 8.5, "": 4.5}
 TEEN_BANDS = {"early teens": 14.0, "mid teens": 15.5, "late teens": 18.0, "teens": 16.0}
 AGE_PREFIXES = {"aged": "", "age": "", "turning": "turning", "turns": "turning", "turned": "turned", "ouderdom": ""}
-AGE_SUFFIXES = (" years old", " year old", " years", " yrs", " yrs old", " years of age", " jaar oud", " jaar")
+# Bare "years" / "jaar" is left out on purpose: "eight years" is far more often a duration than an age.
+AGE_SUFFIXES = (" years old", " year old", " yrs old", " years of age", " jaar oud")
 GRADE_WORDS = ("grade", "graad")
 MATRIC_WORDS = ("matric", "matriek", "matriculating")
 

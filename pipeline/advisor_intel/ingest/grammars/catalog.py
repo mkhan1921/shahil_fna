@@ -119,7 +119,7 @@ PROVIDERS: tuple[Provider, ...] = (
     Provider("Hollard", ("hollard",)),
     Provider("BrightRock", ("brightrock", "bright rock")),
     Provider("Assupol", ("assupol",)),
-    Provider("1Life", ("1life", "one life")),
+    Provider("1Life", ("1life",)),  # "one life" is left out: it would swallow the count in "one life policy"
     Provider("Clientèle", ("clientele", "clientèle")),
     Provider("OUTsurance", ("outsurance", "out surance")),
     Provider("Absa", ("absa",)),

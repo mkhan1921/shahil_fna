@@ -92,6 +92,7 @@ class Settings(BaseModel):
     speechmatics_api_key: str | None = None
     pyannote_api_key: str | None = None
     vllm_base_url: str | None = None  # self-hosted second pass, MiniCheck, fine-tuned extractor
+    parakeet_base_url: str | None = None  # self-hosted Parakeet + TurboBias gateway (ASR bake-off, constrained second pass)
     web_search_allowlist: list[str] = [
         "sars.gov.za",
         "fsca.co.za",
@@ -132,6 +133,7 @@ def get_settings() -> Settings:
         ("speechmatics_api_key", "SPEECHMATICS_API_KEY"),
         ("pyannote_api_key", "PYANNOTEAI_API_KEY"),
         ("vllm_base_url", "VLLM_BASE_URL"),
+        ("parakeet_base_url", "PARAKEET_BASE_URL"),
         ("api_token", "API_TOKEN"),
     ):
         v = _env(name)

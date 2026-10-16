@@ -343,7 +343,8 @@ cases:
   - {text: "middel veertigs", kind: age, values: [45], exact: true, key: mid forties}
   - {text: "vyftigs", kind: age, values: [54.5], exact: true}
   - {text: "veertig jaar oud", kind: age, values: [40], exact: true}
-  - {text: "sestig jaar", kind: age, values: [60], exact: true}
+  - {text: "sestig jaar", kind: age, accepted: false}  # bare "jaar"/"years" is a duration, not an age
+  - {text: "eight years", kind: age, accepted: false}
   - {text: "vyf-en-sestig", kind: age, values: [65], exact: true}
   - {text: "two hundred", kind: age, accepted: false}
   - {text: "grade thirteen", kind: age, accepted: false}
