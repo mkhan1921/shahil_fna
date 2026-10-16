@@ -2,11 +2,11 @@
 
 When the advisor records a client's answer, it becomes a one-segment transcript attributed to
 ``client_primary`` (``asr_provider="followup"``, segment id ``fu-<followup id>``), which the same value
-extraction reads through the injected ``extract`` callable — in production
-``extract.followup.extract_followup_answer`` with the run's catalog, pins and run id bound. Its ops carry
+extraction reads through the injected ``extract(profile, followup, transcript)`` callable — in production
+``functools.partial(extract.followup.followup_ops, catalog=…, pins=…, run_id=…)``. Its ops carry
 ``source="followup"``; they go through the reducer, the follow-up is marked answered, and the answer
-segment is appended to the call transcript so its evidence quotes resolve in the review overlay. The
-workflow then re-runs the forecast.
+segment is appended to the call transcript (``append_answer``) so its evidence quotes resolve in the
+review overlay. The workflow then re-runs the forecast.
 """
 
 from __future__ import annotations

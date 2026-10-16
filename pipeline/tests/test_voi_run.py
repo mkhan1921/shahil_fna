@@ -5,7 +5,10 @@ from __future__ import annotations
 import functools
 import json
 import re
+import threading
 from datetime import date
+
+from pydantic import BaseModel
 
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
@@ -130,10 +133,11 @@ async def test_stage6_end_to_end():
         i.priority for i in out.priorities if i.fact_id == inc.fact_id
     )
     assert inc.voi["I_extract"] == 0.3 * 0.1  # (1 − p_correct)·|PoS(f) − PoS(prior)|
-    assert len(out.followups) <= 8 and out.drafted_by == "model"
+    assert 0 < len(out.drafted) <= 8 and out.drafted_by == "model"
     assert len(out.review_list) <= 15
-    statuses = {q.followup_id: q.status for q in out.profile.open_questions}
-    assert statuses["fu_old"] == "answered" and sum(1 for s in statuses.values() if s == "open") == len(out.followups)
+    assert out.followups == out.profile.open_questions  # what a caller writes back keeps the answered one
+    statuses = {q.followup_id: q.status for q in out.followups}
+    assert statuses["fu_old"] == "answered" and sum(1 for s in statuses.values() if s == "open") == len(out.drafted)
     kinds = {f.kind for f in out.flags}
     assert "status_flip" in kinds and all(not f.cleared for f in out.flags)
     assert out.profile.blocking_flags == out.flags
@@ -159,4 +163,41 @@ async def test_settings_override_the_default_weights_and_caps():
             base_document=doc,
         )
     assert all(it.priority == it.forced for it in out.priorities)
-    assert len(out.followups) <= 2
+    assert len(out.drafted) <= 2
+
+
+class ForecastRow(BaseModel):
+    """The shape of ``forecast.sensitivity.SensitivityRow``: the ends are ``pos_low`` / ``pos_high``."""
+
+    pos_base: float
+    pos_low: float
+    pos_high: float
+    pos_prior: float | None = None
+
+
+async def test_the_runner_call_binds_today_and_reads_forecast_rows():
+    prof, doc = _profile()
+    seen: dict[str, object] = {}
+
+    def sensitivity_runs(profile, fact_ids, *, n_paths=1000, seed, base_document=None):
+        seen.update(base_document=base_document, seed=seed, thread=threading.current_thread() is threading.main_thread())
+        return {fid: ForecastRow(pos_base=0.7, pos_low=0.6, pos_high=0.8, pos_prior=0.5) for fid in fact_ids}
+
+    def analyse(document, *, today=None):
+        seen["today"] = today
+        return fna_analyse(document, today=today)
+
+    with followup_agent.override(model=_drafter()):
+        out = await run_voi_and_followups(
+            prof,
+            catalog=CATALOG,
+            pins=VersionPins(),
+            pos_runs=sensitivity_runs,
+            analyse=analyse,
+            transcript=None,
+            base_document=doc,
+            seed=7,
+        )
+    assert seen == {"base_document": doc, "seed": 7, "thread": False, "today": ANCHOR}
+    inc = next(r for r in out.sensitivity if r.fact_id == "income.{p}.grossMonthly#client")
+    assert round(inc.i_pos, 9) == 0.2 and round(inc.i_extract, 9) == 0.06

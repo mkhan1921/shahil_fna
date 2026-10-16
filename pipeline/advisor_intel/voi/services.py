@@ -7,30 +7,21 @@ its state, and ``draft_followups`` reads it back to decide the actions and draft
 ``run_voi_and_followups`` activity after the agent recomputes everything, flags included.
 
 ``analyse`` may take a ``today`` keyword (the FNA engine's ``analyse(doc, today=…)``): it is then bound to
-the call's anchor date.
+the call's anchor date. ``pos_runs`` (the forecast's ``sensitivity_runs``) gets the run's prior FNA as
+``base_document``.
 """
 
 from __future__ import annotations
 
-import functools
-import inspect
 from typing import Any, Callable
 
 from ..models.profile import Profile
 from .clarify import clarify_all
 from .followups import draft_followups
 from .priority import PriorityItem, annotate_priorities, prioritise
-from .sensitivity import Analyse, PosRuns, sensitivity
+from .sensitivity import PosRuns, bind_today, sensitivity
 
-
-def bind_today(analyse: Callable[..., Any] | None, profile: Profile) -> Analyse | None:
-    if analyse is None:
-        return None
-    try:
-        params = inspect.signature(analyse).parameters
-    except (TypeError, ValueError):
-        return analyse
-    return functools.partial(analyse, today=profile.anchor_date) if "today" in params else analyse
+__all__ = ["bind_today", "followups_service", "sensitivity_service"]
 
 
 def sensitivity_service(*, pos_runs: PosRuns | None, analyse: Callable[..., Any] | None) -> Callable[..., Any]:

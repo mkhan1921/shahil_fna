@@ -4,7 +4,13 @@ Sensitivity runs (PoS through the injected ``pos_runs``, FNA through the injecte
 and the advisor's ``why`` lines on each fact → the §10.4 action per fact → follow-up questions for the
 client (at most 8) → blocking flags. Facts are only annotated (``reducer.annotate``); the follow-ups and
 flags are written to ``Profile.open_questions`` and ``Profile.blocking_flags``, keeping follow-ups already
-asked or answered and every flag decision the reviewer made.
+asked or answered and every flag decision the reviewer made. ``VoiOutput.followups`` and ``.flags`` are
+exactly those two lists (so a caller may write them back); ``.drafted`` holds this round's new questions.
+
+The in-process runner and the activity call it as ``await run_voi_and_followups(profile, catalog=…,
+pins=…, pos_runs=forecast.sensitivity.sensitivity_runs, analyse=fna_engine.analysis.analyse,
+transcript=…, settings=…, base_document=<prior FnaDocument>, seed=<per-run seed>)``; ``analyse`` is
+bound to the call's anchor date unless the caller bound ``today`` itself.
 
 Weights, the collapse threshold and the caps are the spec defaults (w_c = 1, w_e = 2, 0.005, 8 follow-ups,
 top 15 review items). A deployment can override them through attributes on ``settings``
@@ -29,15 +35,16 @@ from .clarify import ClarifyDecision, clarify_all
 from .flags import compute_flags, merge_flags
 from .followups import MAX_QUESTIONS, draft_followups
 from .priority import COLLAPSE_BELOW, REVIEW_TOP, W_CONTENT, W_EXTRACT, PriorityItem, annotate_priorities, prioritise, review_list
-from .sensitivity import N_PATHS, Analyse, Extremes, PosRuns, SensitivityRow, get_field, sensitivity
+from .sensitivity import N_PATHS, Analyse, Extremes, PosRuns, SensitivityRow, bind_today, get_field, sensitivity
 
 log = logging.getLogger(__name__)
 
 
 class VoiOutput(BaseModel):
     profile: Profile
-    followups: list[FollowUp] = []
-    flags: list[BlockingFlag] = []
+    followups: list[FollowUp] = []  # = profile.open_questions: earlier asked/answered ones, then this round's
+    drafted: list[FollowUp] = []  # this round's new questions (status "open")
+    flags: list[BlockingFlag] = []  # = profile.blocking_flags
     priorities: list[PriorityItem] = []
     sensitivity: list[SensitivityRow] = []
     decisions: dict[str, ClarifyDecision] = {}
@@ -83,6 +90,7 @@ async def run_voi_and_followups(
     """Stage 6 for one call (see the module docstring)."""
     settings = settings or get_settings()
     catalog = catalog or load_catalog(profile.schema_version)
+    analyse = bind_today(analyse, profile)
     w_c = float(_setting(settings, "voi_w_content", W_CONTENT))
     w_e = float(_setting(settings, "voi_w_extract", W_EXTRACT))
     threshold = float(_setting(settings, "voi_threshold", COLLAPSE_BELOW))
@@ -114,7 +122,8 @@ async def run_voi_and_followups(
     profile = profile.model_copy(update={"open_questions": questions, "blocking_flags": flags})
     return VoiOutput(
         profile=profile,
-        followups=drafted.followups,
+        followups=questions,
+        drafted=drafted.followups,
         flags=flags,
         priorities=items,
         sensitivity=rows,

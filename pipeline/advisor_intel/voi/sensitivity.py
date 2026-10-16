@@ -17,13 +17,21 @@ value); for categorical and boolean facts they are the outcomes that carry at le
 the two most different outcomes standing in for q10/q90. A caller can pass the forecast engine's own
 ``fact_extremes`` so both views move the fact to the same ends.
 
-``analyse(doc)`` may return the engine's ``Analysis`` model or a plain dict of the same shape. Bind
-``today`` before passing it in: ``functools.partial(fna_engine.analysis.analyse, today=anchor)``.
+``pos_runs(profile, fact_ids, *, n_paths, seed[, base_document])`` is the forecast's
+``forecast.sensitivity.sensitivity_runs``: per fact id a row (model or dict) with ``pos_base``, the two
+ends as ``pos_q10``/``pos_q90`` or ``pos_low``/``pos_high``, and ``pos_prior``. It is given only facts in
+the profile, receives ``base_document`` when it takes it (and a partial has not bound it), and a plain
+function runs in a worker thread so the CPU-bound runs do not hold up the event loop.
+
+``analyse(doc)`` may return the engine's ``Analysis`` model or a plain dict of the same shape; a ``today``
+keyword it takes is bound to the call's anchor date (``bind_today``) unless the caller bound it already.
 """
 
 from __future__ import annotations
 
+import asyncio
 import copy
+import functools
 import inspect
 import logging
 import math
@@ -221,8 +229,28 @@ def candidates(profile: Profile, catalog: Catalog, *, include_missing: bool = Tr
 
 
 def trusted(fact: Fact) -> bool:
-    """Values the forecast samples as given (§12.2): prior FNA, CRM, defaults, the reviewer's, or reviewed facts."""
-    return fact.source in ("prior_fna", "crm", "fna_default", "reviewer") or fact.review.status in ("accepted", "edited")
+    """Values the forecast samples as given (§12.2): reviewed or auto-accepted facts, and the prior FNA, CRM, defaults or reviewer's."""
+    return (
+        fact.review.status in ("accepted", "edited") or fact.auto_accepted or fact.source in ("prior_fna", "crm", "fna_default", "reviewer")
+    )
+
+
+def takes_keyword(fn: Callable[..., Any], name: str) -> bool:
+    """Whether ``fn`` accepts the keyword ``name`` that a ``functools.partial`` has not already bound."""
+    if isinstance(fn, functools.partial) and name in fn.keywords:
+        return False
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def bind_today(analyse: Callable[..., Any] | None, profile: Profile) -> Analyse | None:
+    """The FNA engine bound to the call's anchor date when it takes ``today`` (needs are as of the call, §12.7)."""
+    if analyse is None or not takes_keyword(analyse, "today"):
+        return analyse
+    return functools.partial(analyse, today=profile.anchor_date)
 
 
 def fact_ends(fact: Fact, slot: SlotDef, *, min_mass: float = MIN_OUTCOME_MASS) -> list[Any]:
@@ -269,20 +297,40 @@ def _with_value(doc: dict[str, Any], path: str, slot: SlotDef, value: Any) -> Fn
 # --------------------------------------------------------------------------- the runs
 
 
-async def _call_pos_runs(pos_runs: PosRuns, profile: Profile, fact_ids: list[str], n_paths: int, seed: int) -> Mapping[str, Any]:
-    out = pos_runs(profile, fact_ids, n_paths=n_paths, seed=seed)
-    if inspect.isawaitable(out):
-        out = await out
+async def _call_pos_runs(
+    pos_runs: PosRuns, profile: Profile, fact_ids: list[str], n_paths: int, seed: int, base_document: FnaDocument | None
+) -> Mapping[str, Any]:
+    kw: dict[str, Any] = {"n_paths": n_paths, "seed": seed}
+    if base_document is not None and takes_keyword(pos_runs, "base_document"):
+        kw["base_document"] = base_document
+    if inspect.iscoroutinefunction(pos_runs):
+        out = await pos_runs(profile, fact_ids, **kw)
+    else:  # the forecast's reduced runs are CPU-bound: keep them off the event loop
+        out = await asyncio.to_thread(pos_runs, profile, fact_ids, **kw)
+        if inspect.isawaitable(out):
+            out = await out
     return out or {}
 
 
-def _num(row: Any, key: str) -> float | None:
-    v = get_field(row, key)
-    try:
-        x = float(v)
-    except (TypeError, ValueError):
-        return None
-    return x if math.isfinite(x) else None
+def _num(row: Any, *keys: str) -> float | None:
+    """The first of ``keys`` the row holds as a finite number."""
+    for key in keys:
+        v = get_field(row, key)
+        try:
+            x = float(v)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(x):
+            return x
+    return None
+
+
+def _distinct(ends: Iterable[Any]) -> list[Any]:
+    out: list[Any] = []
+    for v in ends:
+        if v is not None and v not in out:
+            out.append(v)
+    return out
 
 
 def fna_view(base: Mapping[str, NeedPoint], ends: Sequence[Mapping[str, NeedPoint]]) -> tuple[float, bool, list[str], str | None, float]:
@@ -337,7 +385,7 @@ async def sensitivity(
     real = [f.fact_id for f, _, virtual in cands if not virtual]
     if pos_runs is not None and real:
         try:
-            table = await _call_pos_runs(pos_runs, profile, real, n_paths, seed)
+            table = await _call_pos_runs(pos_runs, profile, real, n_paths, seed, base_document)
         except Exception as e:  # noqa: BLE001 - the FNA view still ranks if the forecast fails
             log.warning("sensitivity runs failed: %s", e)
             table = {}
@@ -345,7 +393,8 @@ async def sensitivity(
             r, row = rows[fid], table.get(fid)
             if row is None:
                 continue
-            r.pos_base, r.pos_q10, r.pos_q90, r.pos_prior = (_num(row, k) for k in ("pos_base", "pos_q10", "pos_q90", "pos_prior"))
+            r.pos_base, r.pos_prior = _num(row, "pos_base"), _num(row, "pos_prior")
+            r.pos_q10, r.pos_q90 = _num(row, "pos_q10", "pos_low"), _num(row, "pos_q90", "pos_high")
             if r.pos_q10 is not None and r.pos_q90 is not None:
                 r.i_pos = abs(r.pos_q90 - r.pos_q10)
             if r.pos_base is not None and r.pos_prior is not None:
@@ -369,7 +418,7 @@ async def sensitivity(
             if path is None:
                 r.note = "not in the FnaDocument: PoS view only"
                 continue
-            ends = list(extremes(f, slot)) if extremes is not None else fact_ends(f, slot)
+            ends = _distinct(extremes(f, slot)) if extremes is not None else fact_ends(f, slot)
             if len(ends) < 2:
                 r.note = "no spread to move across"
                 continue

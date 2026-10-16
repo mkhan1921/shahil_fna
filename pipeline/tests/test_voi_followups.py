@@ -12,7 +12,7 @@ from advisor_intel.models.dists import Categorical, Triangular
 from advisor_intel.models.runs import VersionPins
 from advisor_intel.schema.compiler import anthropic_schema, check_limits, openai_schema, schema_stats
 from advisor_intel.voi.clarify import ClarifyDecision
-from advisor_intel.voi.followups import Drafts, banned_terms, client_label, draft_followups, followup_agent
+from advisor_intel.voi.followups import Drafts, FollowupItem, banned_terms, client_label, draft_followups, followup_agent, template_question
 from advisor_intel.voi.priority import PriorityItem
 
 from .verify_factories import CATALOG, ProfileBuilder, ev, qty
@@ -173,6 +173,23 @@ async def test_templates_when_the_model_is_a_stub():
     assert age_q.startswith("Roughly where would you put your target retirement age: closer to 60 or to 64, or somewhere in between?")
     assert by_fact[ids["emp"]].question.startswith("Which of these best describes your spouse's employment type:")
     assert all(not banned_terms(f.question) for f in res.followups)
+    # a field with no value is asked open: its population prior is not quoted back to the client
+    item = FollowupItem(
+        item_id="i9",
+        fact_id="retirement.{p}.retirementAge#spouse",
+        slot_id="retirement.{p}.retirementAge",
+        instance="spouse",
+        group="retirement",
+        label="your spouse's target retirement age",
+        question="",
+        current="nothing yet",
+        status="missing",
+        forms=["AGE"],
+    )
+    assert template_question(item, None, CATALOG.slot("retirement.{p}.retirementAge")) == (
+        "Roughly what range would you put on your spouse's target retirement age?",
+        "AGE",
+    )
 
 
 def test_banned_terms_and_labels():

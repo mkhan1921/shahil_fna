@@ -224,3 +224,37 @@ async def test_candidates_include_missing_tier_a_fields_and_forecast_only_slots(
     missing = rows["retirement.{p}.retirementAge#client"]  # a tier A field the call never filled
     assert missing.virtual and missing.reasons == ["tier A", "missing"] and missing.i_fna > 0  # moved across its population prior
     assert "{p}.occupation#client" not in rows  # text slots have no VOI
+
+
+async def test_auto_accepted_facts_carry_no_extraction_risk_and_only_profile_facts_reach_the_forecast():
+    from advisor_intel.extract.reducer import annotate
+
+    b = ProfileBuilder()
+    inc = b.add("income.{p}.grossMonthly", "client", money(45000))
+    p = annotate(b.build(), inc, p_correct=0.6, auto_accepted=True)  # §12.2: the forecast samples it as given
+    asked: list[str] = []
+
+    def pos_runs(profile, fact_ids, *, n_paths, seed):
+        asked.extend(fact_ids)
+        unknown = [fid for fid in fact_ids if fid not in profile.facts]
+        if unknown:  # as forecast.sensitivity.sensitivity_runs does
+            raise KeyError(unknown[0])
+        return {fid: {"pos_base": 0.7, "pos_q10": 0.7, "pos_q90": 0.7, "pos_prior": 0.5} for fid in fact_ids}
+
+    rows = {r.fact_id: r for r in await sensitivity(p, catalog=CATALOG, pos_runs=pos_runs)}
+    assert any(r.virtual for r in rows.values()) and asked == [inc]
+    assert rows[inc].p_correct == 1.0 and rows[inc].pos_prior == 0.5 and rows[inc].i_extract == 0.0
+
+
+async def test_engine_extremes_without_a_value_or_a_spread_leave_the_fna_view_out():
+    b = ProfileBuilder()
+    ra = b.add("retirement.{p}.retirementAge", "client", qty(Triangular(low=55, mode=60, high=65), "age"))
+    inc = b.add("income.{p}.grossMonthly", "client", money(45000))
+    p = b.build()
+
+    def extremes(fact, slot):  # forecast.sensitivity.fact_extremes gives (None, None) for a fact with no value
+        return (57, 63) if fact.fact_id == ra else (None, None)
+
+    rows = {r.fact_id: r for r in await sensitivity(p, catalog=CATALOG, analyse=_stub_analyse, extremes=extremes, include_missing=False)}
+    assert rows[ra].ends == [57, 63] and rows[ra].i_fna == pytest.approx(0.6)
+    assert rows[inc].ends == [] and rows[inc].note == "no spread to move across"

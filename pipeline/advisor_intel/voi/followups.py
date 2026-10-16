@@ -243,17 +243,22 @@ def _fmt(x: float, q: Quantity | None, slot: SlotDef) -> str:
 
 
 def template_question(it: FollowupItem, fact: Fact | None, slot: SlotDef) -> tuple[str, str]:
-    """(question, answer form) built from the schema: a range or a choice, never a point."""
-    dist = fact.value.dist if fact is not None and fact.value is not None else slot.population_prior
+    """(question, answer form) built from the schema: a range or a choice, never a point.
+
+    A field with no value is asked open (a range is still what we ask for): quoting its slot's population
+    prior back to the client would only anchor the answer.
+    """
     q = fact.value if fact is not None else None
+    dist = q.dist if q is not None else None
+    prior = slot.population_prior  # orders the choices of a categorical field with no value
     label = it.label
     if slot.value_type in ("boolean", "probability"):
         return f"Could you confirm {label}: is it yes or no?", "BOOLEAN" if "BOOLEAN" in it.forms else it.forms[0]
     if slot.categories:
         cats = [c for c in slot.categories if c]
-        if dist is not None:
+        if (dist or prior) is not None:
             try:
-                probs = stats.categorical_probs(dist)
+                probs = stats.categorical_probs(dist or prior)
                 cats = sorted(cats, key=lambda c: -probs.get(c, 0.0))
             except TypeError:
                 pass
