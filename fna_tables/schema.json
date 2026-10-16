@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SARS tables for one year of assessment",
+  "description": "One file per tax year (za_<yyyy>_<yy>.json), read by lib/fna/tax.ts and pipeline/advisor_intel/fna_engine/tables.py. Amounts are in rand; rates are decimals (0.18 = 18%).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "taxYear",
+    "label",
+    "period",
+    "startDate",
+    "endDate",
+    "status",
+    "brackets",
+    "rebates",
+    "thresholds",
+    "medicalCredits",
+    "retirementDeduction",
+    "cgt",
+    "tfsa",
+    "uif",
+    "interestExemption",
+    "estateDuty",
+    "retirementLumpSum",
+    "withdrawalLumpSum",
+    "donations",
+    "savingsWithdrawal",
+    "livingAnnuity",
+    "sources"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "taxYear": { "type": "string", "pattern": "^[0-9]{4}/[0-9]{2}$", "description": "Year of assessment, e.g. 2026/27." },
+    "label": { "type": "string", "minLength": 1 },
+    "period": { "type": "string", "minLength": 1 },
+    "startDate": { "type": "string", "format": "date", "description": "First day of the year of assessment (1 March)." },
+    "endDate": { "type": "string", "format": "date", "description": "Last day of the year of assessment; age for the rebates is measured on this date." },
+    "status": { "enum": ["confirmed", "provisional"] },
+    "brackets": { "$ref": "#/$defs/brackets", "description": "Income tax brackets with cumulative base tax (s5 rates)." },
+    "rebates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "tertiary"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/rand" },
+        "secondary": { "$ref": "#/$defs/rand", "description": "Added from age 65." },
+        "tertiary": { "$ref": "#/$defs/rand", "description": "Added from age 75." }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["under65", "age65to74", "age75plus"],
+      "properties": {
+        "under65": { "$ref": "#/$defs/rand" },
+        "age65to74": { "$ref": "#/$defs/rand" },
+        "age75plus": { "$ref": "#/$defs/rand" }
+      }
+    },
+    "medicalCredits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["main", "firstDependant", "additional"],
+      "description": "s6A medical scheme fees tax credit, per month.",
+      "properties": {
+        "main": { "$ref": "#/$defs/rand" },
+        "firstDependant": { "$ref": "#/$defs/rand" },
+        "additional": { "$ref": "#/$defs/rand" }
+      }
+    },
+    "retirementDeduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rate", "cap"],
+      "description": "s11F deduction: rate of the greater of remuneration and taxable income, capped per year.",
+      "properties": {
+        "rate": { "$ref": "#/$defs/rate" },
+        "cap": { "$ref": "#/$defs/rand" }
+      }
+    },
+    "cgt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inclusionRate", "annualExclusion", "deathExclusion", "primaryResidence"],
+      "properties": {
+        "inclusionRate": { "$ref": "#/$defs/rate" },
+        "annualExclusion": { "$ref": "#/$defs/rand" },
+        "deathExclusion": { "$ref": "#/$defs/rand", "description": "Exclusion in the year of death." },
+        "primaryResidence": { "$ref": "#/$defs/rand", "description": "Primary residence gain exclusion." }
+      }
+    },
+    "tfsa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["annual", "lifetime"],
+      "properties": {
+        "annual": { "$ref": "#/$defs/rand" },
+        "lifetime": { "$ref": "#/$defs/rand" }
+      }
+    },
+    "uif": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rate", "ceilingMonthly"],
+      "description": "Employee UIF contribution on remuneration up to the monthly ceiling.",
+      "properties": {
+        "rate": { "$ref": "#/$defs/rate" },
+        "ceilingMonthly": { "$ref": "#/$defs/rand" }
+      }
+    },
+    "interestExemption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["under65", "over65"],
+      "properties": {
+        "under65": { "$ref": "#/$defs/rand" },
+        "over65": { "$ref": "#/$defs/rand" }
+      }
+    },
+    "estateDuty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["abatement", "rateLow", "threshold", "rateHigh"],
+      "properties": {
+        "abatement": { "$ref": "#/$defs/rand", "description": "s4A abatement (portable to a surviving spouse)." },
+        "rateLow": { "$ref": "#/$defs/rate" },
+        "threshold": { "$ref": "#/$defs/rand", "description": "Dutiable amount taxed at rateLow; the excess at rateHigh." },
+        "rateHigh": { "$ref": "#/$defs/rate" }
+      }
+    },
+    "retirementLumpSum": { "$ref": "#/$defs/brackets", "description": "Retirement and death lump-sum table (cumulative over all lump sums)." },
+    "withdrawalLumpSum": { "$ref": "#/$defs/brackets", "description": "Pre-retirement withdrawal lump-sum table." },
+    "donations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["annualExemption", "rateLow", "threshold", "rateHigh", "source"],
+      "properties": {
+        "annualExemption": { "$ref": "#/$defs/rand" },
+        "rateLow": { "$ref": "#/$defs/rate" },
+        "threshold": { "$ref": "#/$defs/rand", "description": "Cumulative taxable donations taxed at rateLow; the excess at rateHigh." },
+        "rateHigh": { "$ref": "#/$defs/rate" },
+        "source": { "type": "string" }
+      }
+    },
+    "savingsWithdrawal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["perTaxYear", "minimum", "source"],
+      "description": "Two-pot savings component withdrawals, taxed at the member's marginal rate.",
+      "properties": {
+        "perTaxYear": { "type": "integer", "minimum": 0 },
+        "minimum": { "$ref": "#/$defs/rand" },
+        "source": { "type": "string" }
+      }
+    },
+    "livingAnnuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minDrawdown", "maxDrawdown", "source"],
+      "description": "Allowed annual drawdown band, as a share of capital.",
+      "properties": {
+        "minDrawdown": { "$ref": "#/$defs/rate" },
+        "maxDrawdown": { "$ref": "#/$defs/rate" },
+        "source": { "type": "string" }
+      }
+    },
+    "sources": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Cited in the report appendix." }
+  },
+  "$defs": {
+    "rand": { "type": "number", "minimum": 0 },
+    "rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "bracket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "base", "rate"],
+      "properties": {
+        "from": { "$ref": "#/$defs/rand", "description": "Lower bound; the bracket applies to amounts above it." },
+        "base": { "$ref": "#/$defs/rand", "description": "Tax on an amount equal to `from`." },
+        "rate": { "$ref": "#/$defs/rate" }
+      }
+    },
+    "brackets": {
+      "type": "array",
+      "minItems": 1,
+      "prefixItems": [{ "$ref": "#/$defs/bracket", "properties": { "from": { "const": 0 }, "base": { "const": 0 } } }],
+      "items": { "$ref": "#/$defs/bracket" }
+    }
+  }
+}
