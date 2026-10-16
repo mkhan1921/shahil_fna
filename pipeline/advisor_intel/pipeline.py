@@ -174,8 +174,10 @@ async def process_call(
     analyse = functools.partial(engine, today=transcript.anchor_date) if engine is not None else None  # needs as of the call date
     voi = _optional("advisor_intel.voi.run", "run_voi_and_followups")
     if voi is not None:
-        out = await voi(profile, catalog=catalog, pins=pins, pos_runs=_optional("advisor_intel.forecast.sensitivity", "sensitivity_runs"),
-                        analyse=analyse, transcript=transcript, settings=settings, base_document=doc, seed=forecast_seed(run_id))
+        runs = _optional("advisor_intel.forecast.sensitivity", "sensitivity_runs")
+        pos_runs = functools.partial(runs, base_document=doc) if runs is not None else None  # the forecast sees the prior file too
+        out = await voi(profile, catalog=catalog, pins=pins, pos_runs=pos_runs, analyse=analyse, transcript=transcript, settings=settings,
+                        base_document=doc, seed=forecast_seed(run_id))
         profile, followups, flags = out.profile, list(out.followups), list(out.flags)
     else:
         skipped.append("voi")
