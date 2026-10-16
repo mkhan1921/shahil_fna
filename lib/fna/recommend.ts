@@ -11,7 +11,8 @@ import type { FnaDocument, PersonKey, Recommendation } from './types';
 const roundUp = (n: number, step: number) => Math.ceil(n / step) * step;
 const r = (n: number) => `R${Math.round(n).toLocaleString('en-ZA')}`;
 
-export const draftRecommendations = (doc: FnaDocument, a: Analysis): Recommendation[] => {
+/** `now` dates the education rationale; pass the date given to `analyse` for repeatable output. */
+export const draftRecommendations = (doc: FnaDocument, a: Analysis, now: Date = new Date()): Recommendation[] => {
   const out: Recommendation[] = [];
   const table = getTaxTable(doc.assumptions.taxYear);
 
@@ -155,7 +156,7 @@ export const draftRecommendations = (doc: FnaDocument, a: Analysis): Recommendat
           amount: roundUp(e.monthlyRequired, 100),
           premiumMonthly: roundUp(e.monthlyRequired, 100),
           premiumEscalation: doc.assumptions.cpi,
-          rationale: `${e.name}’s tertiary education will cost about ${r(e.capitalAtStart)} from ${new Date().getFullYear() + Math.round(e.yearsToTertiary)}. Saving ${r(roundUp(e.monthlyRequired, 100))} p.m. (escalating with inflation) closes the projected shortfall. A tax-free savings account (R${table.tfsa.annual.toLocaleString('en-ZA')} a year limit) avoids tax on growth.`,
+          rationale: `${e.name}’s tertiary education will cost about ${r(e.capitalAtStart)} from ${now.getFullYear() + Math.round(e.yearsToTertiary)}. Saving ${r(roundUp(e.monthlyRequired, 100))} p.m. (escalating with inflation) closes the projected shortfall. A tax-free savings account (R${table.tfsa.annual.toLocaleString('en-ZA')} a year limit) avoids tax on growth.`,
         }),
       );
     }

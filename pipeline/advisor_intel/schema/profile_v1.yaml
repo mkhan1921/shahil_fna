@@ -5,7 +5,7 @@ generated_from:
   lib/fna/types.ts: bf3d5105e8e470f0
   lib/fna/catalog.ts: 95b65676b45bf74c
   lib/fna/riskProfile.ts: 7597a0046748e433
-  pipeline/advisor_intel/schema/annotations.yaml: 2f193af37915b633
+  pipeline/advisor_intel/schema/annotations.yaml: f73c6d8f4ce84e8d
 groups:
   people:
     name: people
@@ -1108,11 +1108,13 @@ slots:
   - AMOUNT_RANGE
   - AMOUNT_BOUND
   - AMOUNT_VAGUE
+  - AMOUNT_RELATIVE
   bounds:
   - 0.0
   - 20000000.0
   question: What bonus or 13th cheque does this person receive per year?
-  extraction_hints: []
+  extraction_hints:
+  - 'A 13th cheque is one month''s salary: AMOUNT_RELATIVE to income.{p}.grossMonthly with the words as said.'
   depends_on: []
   fna_default: 0
   population_prior:

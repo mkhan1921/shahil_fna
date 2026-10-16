@@ -1,0 +1,64 @@
+{
+  "$schema": "./schema.json",
+  "schemaVersion": 1,
+  "taxYear": "2026/27",
+  "label": "2026/27",
+  "period": "1 March 2026 – 28 February 2027",
+  "startDate": "2026-03-01",
+  "endDate": "2027-02-28",
+  "status": "confirmed",
+  "brackets": [
+    { "from": 0, "base": 0, "rate": 0.18 },
+    { "from": 245100, "base": 44118, "rate": 0.26 },
+    { "from": 383100, "base": 79998, "rate": 0.31 },
+    { "from": 530200, "base": 125599, "rate": 0.36 },
+    { "from": 695800, "base": 185215, "rate": 0.39 },
+    { "from": 887000, "base": 259783, "rate": 0.41 },
+    { "from": 1878600, "base": 666339, "rate": 0.45 }
+  ],
+  "rebates": { "primary": 17820, "secondary": 9765, "tertiary": 3249 },
+  "thresholds": { "under65": 99000, "age65to74": 153250, "age75plus": 171300 },
+  "medicalCredits": { "main": 376, "firstDependant": 376, "additional": 254 },
+  "retirementDeduction": { "rate": 0.275, "cap": 430000 },
+  "cgt": { "inclusionRate": 0.4, "annualExclusion": 50000, "deathExclusion": 440000, "primaryResidence": 3000000 },
+  "tfsa": { "annual": 46000, "lifetime": 500000 },
+  "uif": { "rate": 0.01, "ceilingMonthly": 17712 },
+  "interestExemption": { "under65": 23800, "over65": 34500 },
+  "estateDuty": { "abatement": 3500000, "rateLow": 0.2, "threshold": 30000000, "rateHigh": 0.25 },
+  "retirementLumpSum": [
+    { "from": 0, "base": 0, "rate": 0 },
+    { "from": 550000, "base": 0, "rate": 0.18 },
+    { "from": 770000, "base": 39600, "rate": 0.27 },
+    { "from": 1155000, "base": 143550, "rate": 0.36 }
+  ],
+  "withdrawalLumpSum": [
+    { "from": 0, "base": 0, "rate": 0 },
+    { "from": 27500, "base": 0, "rate": 0.18 },
+    { "from": 726000, "base": 125730, "rate": 0.27 },
+    { "from": 1089000, "base": 223740, "rate": 0.36 }
+  ],
+  "donations": {
+    "annualExemption": 150000,
+    "rateLow": 0.2,
+    "threshold": 30000000,
+    "rateHigh": 0.25,
+    "source": "SARS — Donations tax: https://www.sars.gov.za/types-of-tax/donations-tax/"
+  },
+  "savingsWithdrawal": {
+    "perTaxYear": 1,
+    "minimum": 2000,
+    "source": "Two-pot retirement system (from 1 September 2024): one savings withdrawal benefit per tax year, at least R2,000, taxed at the member's marginal rate"
+  },
+  "livingAnnuity": {
+    "minDrawdown": 0.025,
+    "maxDrawdown": 0.175,
+    "source": "Income Tax Act, s1 definition of “living annuity”: annual drawdown of 2.5%–17.5% of capital"
+  },
+  "sources": [
+    "SARS — Rates of Tax for Individuals: https://www.sars.gov.za/tax-rates/income-tax/rates-of-tax-for-individuals/",
+    "SARS — Budget 2026 Tax Guide: https://www.sars.gov.za/wp-content/uploads/Docs/Budget/Budget2026/Budget-tax-guide-2026-online-version-for-printing.pdf",
+    "National Treasury — 2026 Budget Review, Chapter 4: https://www.treasury.gov.za/documents/National%20Budget/2026/review/Chapter%204.pdf",
+    "SARS — Retirement lump sum benefits: https://www.sars.gov.za/tax-rates/income-tax/retirement-lump-sum-benefits/",
+    "SARS — Estate duty: https://www.sars.gov.za/types-of-tax/estate-duty/"
+  ]
+}
