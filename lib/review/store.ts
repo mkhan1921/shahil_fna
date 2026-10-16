@@ -6,6 +6,7 @@
 import { deleteSetting, getSetting, listSettings, putSetting } from '../store/db';
 import type { AnnotationSession } from './annotate';
 import { DEFAULT_API_SETTINGS, type ReviewApiSettings } from './api';
+import { householdName } from './labels';
 import { SUMMARY_PREFIX, type SessionSummary } from './listing';
 import { buildQueue, progress } from './queue';
 import { openFlags, type ReviewSession } from './session';
@@ -14,18 +15,12 @@ const REVIEW = 'review:';
 const ANNOTATION = 'annotation:';
 const API = 'review-api';
 
-const household = (s: ReviewSession) => {
-  const d = s.working;
-  const names = [d.client.firstName, d.household.includeSpouse ? d.spouse.firstName : ''].filter(Boolean);
-  return names.length ? `${names.join(' & ')} ${d.client.surname}`.trim() : 'Unnamed client';
-};
-
 export const summariseSession = (s: ReviewSession): SessionSummary => {
   const p = progress(s, buildQueue(s));
   return {
     callId: s.callId,
     docId: s.docId,
-    household: household(s),
+    household: householdName(s.working),
     callDate: s.bundle.transcript.anchor_date || s.bundle.sidecar.anchor_date,
     createdAt: s.createdAt,
     submittedAt: s.submittedAt,

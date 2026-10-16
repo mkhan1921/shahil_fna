@@ -7,8 +7,9 @@
  * The keyboard flow matches the sheet: Enter accepts and moves to the next undecided item, Tab moves
  * on without deciding, Shift goes back.
  */
-import type { BlockingFlag, FlagKind } from './types';
+import { formatIn } from './dist';
 import { isDecided, isReviewItem, openFlags, type ReviewFact, type ReviewSession } from './session';
+import type { BlockingFlag, FlagKind } from './types';
 
 /** Facts below half a point of success probability, and auto-accepted, are collapsed (§10.3). */
 export const COLLAPSE_PRIORITY = 0.005;
@@ -104,6 +105,25 @@ export const nextEntry = (s: ReviewSession, order: string[], current: string | n
   return null;
 };
 
+/** The queue entry a fact is reviewed under: its flag's entry while a flag is open on it, else its own. */
+export const entryOf = (s: ReviewSession, order: string[], factId: string): string | null =>
+  order.find((e) => e.startsWith('flag:') && entryFact(s, e)?.factId === factId) ?? (order.includes(factId) ? factId : null);
+
+/**
+ * Where the queue goes after a decision on `factId` made at `from`: the next undecided entry,
+ * wrapping round to the first; never the fact just decided (it is still undecided in `s`, the
+ * review as it was before the decision). Null when nothing is left to decide.
+ */
+export const nextUndecided = (s: ReviewSession, order: string[], from: string | null, factId: string | null): string | null => {
+  const skip = (e: string | null) => e !== null && (e === from || (factId !== null && entryFact(s, e)?.factId === factId));
+  let e = nextEntry(s, order, from, { undecided: true });
+  while (skip(e)) e = nextEntry(s, order, e, { undecided: true });
+  if (e) return e;
+  e = nextEntry(s, order, null, { undecided: true });
+  while (skip(e)) e = nextEntry(s, order, e, { undecided: true });
+  return e;
+};
+
 export type QueueKey = 'accept' | 'next' | 'prev' | 'edit' | 'reject' | 'unknown' | 'play' | 'close';
 
 /** The queue's keys: Enter accepts and moves on, Tab moves on, Shift goes back, E edits, R rejects, U marks unknown, P plays. */
@@ -151,4 +171,71 @@ export const progress = (s: ReviewSession, q: Queue = buildQueue(s)): Progress =
   const all = [...q.flags.map((f) => f.fact).filter((f): f is ReviewFact => !!f), ...q.needs, ...q.quick];
   const needs = [...q.flags.map((f) => f.fact).filter((f): f is ReviewFact => !!f), ...q.needs];
   return { total: all.length, decided: all.filter(isDecided).length, needs: needs.length, needsDecided: needs.filter(isDecided).length };
+};
+
+/* ------------------------------------------------------------------ */
+/* Badges on the sheet (§11.1)                                         */
+/* ------------------------------------------------------------------ */
+
+export type BadgeKind = 'new' | 'changed' | 'confirmed' | 'assumed' | 'unknown' | 'removed';
+
+export interface FieldBadge {
+  kind: BadgeKind;
+  /** Short badge text. */
+  label: string;
+  /** What the badge means for this field, for its tooltip and screen readers. */
+  title: string;
+  /** The value before the call, struck through beside a change. */
+  prior: string | null;
+  decision: 'accepted' | 'edited' | 'rejected' | 'auto' | null;
+  flagged: boolean;
+}
+
+/** The value before the call in the field's own unit ("R95,000", "65"). */
+export const priorShown = (f: ReviewFact): string | null => (f.prior && typeof f.prior.point === 'number' ? formatIn(f.prior, f.prior.point) : f.priorText);
+
+const kindOf = (f: ReviewFact): [BadgeKind, string] => {
+  if (f.origin === 'reviewer') return ['new', 'Added'];
+  if (f.change === 'removed') return ['removed', 'Removed'];
+  if (f.status === 'contradicted') return ['unknown', 'Contradicted'];
+  if (f.status === 'explicitly_unknown') return ['unknown', 'Unknown'];
+  if (f.source === 'fna_default') return ['assumed', 'Assumed'];
+  if (f.source === 'crm' && f.status === 'not_discussed') return ['assumed', 'From CRM'];
+  if (f.change === 'changed') return ['changed', 'Changed'];
+  if (f.change === 'confirmed') return ['confirmed', 'Confirmed'];
+  if (f.change === 'new') return ['new', 'New'];
+  return ['confirmed', 'Kept'];
+};
+
+/** How the sheet badges a fact: new, changed (with the prior value struck), confirmed or assumed, and the reviewer's decision. */
+export const badgeOf = (s: ReviewSession, f: ReviewFact): FieldBadge | null => {
+  if (!isReviewItem(f)) return null;
+  const [kind, label] = kindOf(f);
+  const value = f.quantity ? f.valueText : f.status === 'explicitly_unknown' ? 'not known' : 'not discussed';
+  const prior = priorShown(f);
+  const what: Record<BadgeKind, string> = {
+    new: f.origin === 'reviewer' ? `Added by you: ${value}` : `New from the call: ${value}`,
+    changed: `Changed in the call: ${prior ?? 'blank'} → ${value}`,
+    confirmed: label === 'Kept' ? `The call kept ${value}` : `Confirmed in the call: ${value}`,
+    assumed: f.source === 'crm' ? `From the CRM, not discussed in the call: ${value}` : `Not discussed: the FNA default ${value} is assumed`,
+    unknown: f.status === 'contradicted' ? `The call contradicts itself: ${value}` : 'The client said they do not know',
+    removed: `Removed in the call (was ${prior ?? 'blank'})`,
+  };
+  const confidence = f.origin === 'pipeline' && f.source !== 'fna_default' ? ` · ${pBand(f.pCorrect)} confidence` : '';
+  const decision = f.review.status === 'accepted' || f.review.status === 'edited' || f.review.status === 'rejected' ? f.review.status : f.autoAccepted ? 'auto' : null;
+  return {
+    kind,
+    label,
+    title: `${what[kind]}${confidence}`,
+    prior: kind === 'changed' || kind === 'removed' ? prior : null,
+    decision,
+    flagged: s.flags.some((x) => !x.cleared && x.fact_id === f.factId),
+  };
+};
+
+/** The badge on the sheet field at a concrete path (null where no reviewable fact stands). */
+export const badgeAt = (s: ReviewSession, path: string): FieldBadge | null => {
+  const id = s.pathIndex[path];
+  const f = id ? s.facts[id] : undefined;
+  return f ? badgeOf(s, f) : null;
 };

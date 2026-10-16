@@ -7,7 +7,17 @@
 import type { Analysis, NeedResult, Status } from '../fna/analysis';
 import type { PersonKey } from '../fna/types';
 import { pyPercent } from './dist';
-import type { ForecastResult } from './types';
+import type { ForecastResult, ReviewBundle } from './types';
+
+/**
+ * A review analyses the client as at the call — noon on its date — so ages and terms match the
+ * forecast run and the review reads the same whichever day it is done.
+ */
+export const callDate = (b: Pick<ReviewBundle, 'transcript' | 'sidecar'>): Date => {
+  const day = b.transcript.anchor_date || b.sidecar.anchor_date;
+  const at = new Date(`${day}T12:00:00`);
+  return Number.isNaN(at.getTime()) ? new Date() : at;
+};
 
 export type NeedArea = 'life' | 'disability' | 'income-protection' | 'severe-illness' | 'funeral' | 'estate' | 'retirement' | 'education' | 'emergency';
 

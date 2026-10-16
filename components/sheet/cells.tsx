@@ -10,6 +10,7 @@
  */
 import { Plus, X } from 'lucide-react';
 import { useState, type CSSProperties, type ReactNode } from 'react';
+import { FieldMark, PriorValue, useFieldMark } from '../review/overlay';
 import { cx } from '../ui';
 
 const cellStyle = (span: number): CSSProperties =>
@@ -97,23 +98,40 @@ export function PairHead({ children, right }: { children: ReactNode; right?: Rea
 
 const labelText = 'text-[11px] font-medium leading-[13px] text-[#5b6b7e]';
 
-function Cell({ label, span = 3, children, hint, tone, need, className }: { label: ReactNode; span?: number; children: ReactNode; hint?: ReactNode; tone?: 'error'; need?: boolean; className?: string }) {
+/** Where a review overlay marks a cell: the FnaDocument path the cell edits ("income.client.grossMonthly"). */
+type Bound = { path?: string };
+
+function Cell({
+  label,
+  span = 3,
+  children,
+  hint,
+  tone,
+  need,
+  className,
+  path,
+}: { label: ReactNode; span?: number; children: ReactNode; hint?: ReactNode; tone?: 'error'; need?: boolean; className?: string } & Bound) {
+  const { mark, current, open } = useFieldMark(path);
   return (
     <label
+      data-path={path}
       className={cx(
         'group sheet-cell relative flex min-h-[40px] min-w-0 flex-col justify-center bg-white px-2 pb-1 pt-[3px] focus-within:bg-[#eaf3fb] focus-within:shadow-[inset_2px_0_0_var(--color-brand-2)]',
         tone === 'error' && 'bg-critical-soft',
+        current && 'z-10 bg-[#fff8e6] shadow-[inset_0_0_0_2px_var(--color-brand-2)]',
         className,
       )}
       style={cellStyle(span)}
     >
-      {/* One clipped line: a hint that doesn't fit beside the label wraps out of view. */}
-      <span className={cx('flex h-[13px] flex-wrap items-baseline gap-x-2 overflow-hidden group-focus-within:text-brand-2', labelText)}>
-        <span className="max-w-full truncate">
+      {/* One clipped line: a hint that doesn't fit beside the label wraps out of view. In a review the badge takes the hint's place. */}
+      <span className={cx('flex h-[13px] items-baseline gap-x-1.5 overflow-hidden group-focus-within:text-brand-2', mark ? 'flex-nowrap' : 'flex-wrap gap-x-2', labelText)}>
+        {mark && <FieldMark mark={mark} onOpen={open} />}
+        <span className={cx('truncate', mark ? 'min-w-0' : 'max-w-full')}>
           {need && <NeedDot />}
           {label}
         </span>
-        {hint && <span className="ml-auto whitespace-nowrap font-normal text-faint">{hint}</span>}
+        {mark?.prior && <PriorValue text={mark.prior} />}
+        {!mark && hint && <span className="ml-auto whitespace-nowrap font-normal text-faint">{hint}</span>}
       </span>
       {children}
     </label>
@@ -133,6 +151,7 @@ export function TextC({
   inputMode,
   id,
   need,
+  path,
 }: {
   label: ReactNode;
   value: string;
@@ -146,17 +165,17 @@ export function TextC({
   inputMode?: 'numeric' | 'text' | 'email' | 'tel';
   id?: string;
   need?: boolean;
-}) {
+} & Bound) {
   return (
-    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined} need={need}>
+    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined} need={need} path={path}>
       <input id={id} type={type} className={input} value={value ?? ''} placeholder={placeholder} maxLength={maxLength} inputMode={inputMode} onChange={(e) => onChange(e.target.value)} />
     </Cell>
   );
 }
 
-export function AreaC({ label, value, onChange, span = 12, placeholder, rows = 1, need }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; placeholder?: string; rows?: number; need?: boolean }) {
+export function AreaC({ label, value, onChange, span = 12, placeholder, rows = 1, need, path }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; placeholder?: string; rows?: number; need?: boolean } & Bound) {
   return (
-    <Cell label={label} span={span} need={need}>
+    <Cell label={label} span={span} need={need} path={path}>
       <textarea
         className={cx(input, 'resize-y py-0')}
         rows={Math.max(rows, (value?.split('\n').length ?? 1) || 1)}
@@ -168,9 +187,9 @@ export function AreaC({ label, value, onChange, span = 12, placeholder, rows = 1
   );
 }
 
-export function DateC({ label, value, onChange, span = 2, hint, error, need }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; hint?: ReactNode; error?: boolean; need?: boolean }) {
+export function DateC({ label, value, onChange, span = 2, hint, error, need, path }: { label: ReactNode; value: string; onChange: (v: string) => void; span?: number; hint?: ReactNode; error?: boolean; need?: boolean } & Bound) {
   return (
-    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined} need={need}>
+    <Cell label={label} span={span} hint={hint} tone={error ? 'error' : undefined} need={need} path={path}>
       <input type="date" max="2100-12-31" className={cx(input, 'tabular')} value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
     </Cell>
   );
@@ -185,6 +204,7 @@ export function SelectC<T extends string>({
   placeholder,
   hint,
   need,
+  path,
 }: {
   label: ReactNode;
   value: T;
@@ -194,10 +214,10 @@ export function SelectC<T extends string>({
   placeholder?: string;
   hint?: ReactNode;
   need?: boolean;
-}) {
+} & Bound) {
   const list = Array.isArray(options) ? options : (Object.entries(options) as [T, string][]).map(([v, l]) => ({ value: v, label: l }));
   return (
-    <Cell label={label} span={span} hint={hint} need={need}>
+    <Cell label={label} span={span} hint={hint} need={need} path={path}>
       <select className={cx(input, '-ml-1 cursor-pointer appearance-none bg-no-repeat pr-4')} value={value} onChange={(e) => onChange(e.target.value as T)} style={{ backgroundImage: CARET, backgroundPosition: 'right 0 center' }}>
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {list.map((o) => (
@@ -213,11 +233,12 @@ export function SelectC<T extends string>({
 const CARET = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2398a4b3' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`;
 
 /** Yes/No as a select — faster than a toggle from the keyboard (type Y or N). */
-export function YesNoC({ label, value, onChange, span = 1, yes = 'Yes', no = 'No' }: { label: ReactNode; value: boolean; onChange: (v: boolean) => void; span?: number; yes?: string; no?: string }) {
+export function YesNoC({ label, value, onChange, span = 1, yes = 'Yes', no = 'No', path }: { label: ReactNode; value: boolean; onChange: (v: boolean) => void; span?: number; yes?: string; no?: string } & Bound) {
   return (
     <SelectC
       label={label}
       span={span}
+      path={path}
       value={value ? 'y' : 'n'}
       onChange={(v) => onChange(v === 'y')}
       options={[
@@ -350,9 +371,9 @@ function NumberInput({
   );
 }
 
-export function MoneyC({ label, value, onChange, span = 2, hint, suffix, need }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; hint?: ReactNode; suffix?: string; need?: boolean }) {
+export function MoneyC({ label, value, onChange, span = 2, hint, suffix, need, path }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; hint?: ReactNode; suffix?: string; need?: boolean } & Bound) {
   return (
-    <Cell label={label} span={span} hint={hint} need={need}>
+    <Cell label={label} span={span} hint={hint} need={need} path={path}>
       <NumberInput value={value} onChange={(v) => onChange(v ?? 0)} prefix="R" suffix={suffix} min={0} />
     </Cell>
   );
@@ -366,17 +387,17 @@ export function NullMoneyC({ label, value, onChange, span = 2, hint }: { label: 
   );
 }
 
-export function PctC({ label, value, onChange, span = 1, decimals = 1, hint }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; decimals?: number; hint?: ReactNode }) {
+export function PctC({ label, value, onChange, span = 1, decimals = 1, hint, path }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; decimals?: number; hint?: ReactNode } & Bound) {
   return (
-    <Cell label={label} span={span} hint={hint}>
+    <Cell label={label} span={span} hint={hint} path={path}>
       <NumberInput value={value} onChange={(v) => onChange(v ?? 0)} suffix="%" scale={100} decimals={decimals} />
     </Cell>
   );
 }
 
-export function NumC({ label, value, onChange, span = 1, suffix, min, max, hint, plain }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; suffix?: string; min?: number; max?: number; hint?: ReactNode; plain?: boolean }) {
+export function NumC({ label, value, onChange, span = 1, suffix, min, max, hint, plain, path }: { label: ReactNode; value: number; onChange: (v: number) => void; span?: number; suffix?: string; min?: number; max?: number; hint?: ReactNode; plain?: boolean } & Bound) {
   return (
-    <Cell label={label} span={span} hint={hint}>
+    <Cell label={label} span={span} hint={hint} path={path}>
       <NumberInput value={value} onChange={(v) => onChange(v ?? 0)} suffix={suffix} decimals={1} min={min} max={max} plain={plain} />
     </Cell>
   );

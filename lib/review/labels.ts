@@ -37,6 +37,12 @@ export const rowLabel = (container: string, row: Row | undefined): string => {
 
 export const firstName = (doc: FnaDocument, key: 'client' | 'spouse') => doc[key].firstName || (key === 'client' ? 'Client' : 'Spouse');
 
+/** "Thabo & Lerato Mokoena". */
+export const householdName = (doc: FnaDocument): string => {
+  const names = [doc.client.firstName, doc.household.includeSpouse ? doc.spouse.firstName : ''].filter(Boolean);
+  return names.length ? `${names.join(' & ')} ${doc.client.surname}`.trim() : 'Unnamed client';
+};
+
 /** Who or what a fact is about: a person's first name, a row's label, an event's name; empty for household fields. */
 export const factSubject = (session: ReviewSession, f: Pick<ReviewFact, 'slotId' | 'instanceKey' | 'path'>): string => {
   const slot = slotById(f.slotId);
