@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 
 from advisor_intel.forecast import fna_engine_analyse, fna_engine_bands, return_model_check, run_forecast
-from advisor_intel.forecast.config import ModeSettings, load_config
+from advisor_intel.forecast.config import ModeSettings, load_cma, load_config
+from advisor_intel.forecast.mapper import build_plan
 from advisor_intel.forecast.run import wilson_interval
 from advisor_intel.forecast.sampling import derive_seed
 from advisor_intel.forecast.tax import FnaEngineTaxModel, default_tax_model
@@ -97,6 +98,19 @@ def test_path_count_rises_until_the_interval_is_two_points_wide(household):
     assert r.n_paths > 300 and r.pos_ci[1] - r.pos_ci[0] <= 0.02
     capped = run_forecast(prof, base_document=doc, config=cfg.with_(n_paths_max=600), tax_model=TAX, seed=5, n_paths=300)
     assert capped.n_paths == 600 and capped.pos_ci[1] - capped.pos_ci[0] > 0.02
+
+
+def test_the_market_covers_the_longest_lived_path(household):
+    """An uncertain date of birth: the youngest of all the paths sets the horizon, not a sample of them."""
+    prof, doc = household
+    prof, _ = add_fact(prof, "{p}.dateOfBirth", "client.dateOfBirth", Triangular(low=1955.0, mode=1986.0, high=2001.0), instance="client",
+                       unit="date", p_correct=0.5)
+    plan = build_plan(prof, base_document=doc, config=CFG, cma=load_cma())
+    u = plan.uniforms(4, 1_000, matrix="main")
+    years = plan.realise(u, TAX).n_years
+    assert years > plan.realise(u.take(np.arange(64)), TAX).n_years  # the first paths alone would fall short
+    r = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=4)  # attribution mixes draws across matrices too
+    assert r.n_paths == 1_000 and len(r.ages) == years + 1 and all(len(v) == years for v in r.retirement_income_bands.values())
 
 
 def test_overrides_move_a_fact_for_what_if_runs(household):

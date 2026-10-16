@@ -7,8 +7,8 @@ import re
 import numpy as np
 import pytest
 
-from advisor_intel.forecast import attribution_sentence
-from advisor_intel.forecast.attribution import attribute, shapley_market, sobol_groups, top_drivers
+from advisor_intel.forecast import attribution, attribution_sentence
+from advisor_intel.forecast.attribution import attribute, correlation_ratio, shapley_market, sobol_groups, top_drivers
 from advisor_intel.forecast.config import ModeSettings, load_cma, load_config
 from advisor_intel.forecast.mapper import build_plan
 from advisor_intel.forecast.run import Forecaster
@@ -85,6 +85,28 @@ def test_top_drivers_rank_a_wide_fact_above_a_narrow_one():
     drivers = dict(top_drivers(fc, design, limit=5))
     assert set(drivers) == {wide, narrow}
     assert drivers[wide] > 0.5 and drivers[narrow] < 0.05
+
+
+def test_the_driver_screen_keeps_the_dominant_fact(monkeypatch):
+    doc = sample_document()
+    prof, wide = add_fact(prior_profile(doc), "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=55, mode=62, high=70),
+                          instance="client", unit="age", review="accepted")
+    prof, _ = add_fact(prof, "income.{p}.grossMonthly", "income.client.grossMonthly", Triangular(low=99_000, mode=100_000, high=101_000),
+                       instance="client", period="monthly", review="accepted")
+    fc = forecaster(prof, doc, ZERO)
+    _, design = sobol_groups(fc, 15, 1_000)
+    monkeypatch.setattr(attribution, "DRIVER_MARGIN", 0)  # one pick-freeze run for two candidates: the screen decides
+    drivers = top_drivers(fc, design, limit=1)
+    assert [f for f, _ in drivers] == [wide] and drivers[0][1] > 0.5
+
+
+def test_correlation_ratio_is_the_share_explained_by_the_groups():
+    rng = np.random.default_rng(0)
+    g = rng.integers(0, 10, 5_000)
+    assert abs(correlation_ratio(g, rng.standard_normal(5_000))) < 0.01  # no effect: about zero after the adjustment
+    assert correlation_ratio(g, g.astype(float)) == pytest.approx(1.0)
+    half = g + rng.standard_normal(5_000) * np.sqrt(8.25)  # Var(g) = (10² − 1) / 12 = 8.25: half the variance
+    assert correlation_ratio(g, half) == pytest.approx(0.5, abs=0.03)
 
 
 def test_attribution_sentence():

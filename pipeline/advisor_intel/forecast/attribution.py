@@ -14,7 +14,9 @@ is continuous and better behaved than the 0/1 success flag.
 First-order Sobol indices per group use the pick-freeze (Saltelli 2010) estimator with two independent input
 matrices A and B of N paths: S_g = mean((Y_A − mean Y)(Y_B^(g←A) − Y_B)) / Var(Y), where Y_B^(g←A) uses B's
 inputs except group g, taken from A. Cost (2 + 3)·N path evaluations; ``interaction = 1 − ΣS``.
-``top_drivers`` reuses A and B with one tier A fact's C and E draws taken from A.
+``top_drivers`` reuses A and B with one tier A fact's C and E draws taken from A. When a profile has many
+random tier A facts, a given-data estimate from the A and B runs already made (the share of Var(Y) explained
+by each fact's realised value) picks the candidates that get a pick-freeze run.
 
 Asset-class returns are correlated, so first-order indices would misattribute variance between them; within M
 the split uses Shapley effects (Song, Nelson & Staum 2016, random permutations, one outer and three inner
@@ -30,12 +32,14 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .config import ModeSettings
+from .mapper import Draw
 from .returns import PLAYERS, MarketModel, MarketShocks
 from .run import Forecaster
 from .sampling import Uniforms, stream
 
 GROUPS: dict[str, str] = {"M": "market", "C": "client_content", "E": "extraction"}
-DRIVER_SCREEN = 3  # evaluate at most this many times the reported number of drivers, screened by rank correlation
+DRIVER_MARGIN = 5  # pick-freeze runs for the reported number of drivers plus this many screened candidates
+SCREEN_BINS = 32  # equal-count bins of a numeric fact's value in the given-data screen
 
 
 @dataclass
@@ -66,7 +70,6 @@ class SobolDesign:
     y_b: np.ndarray
     mean: float
     variance: float
-    n_years: int
 
 
 def _years(fc: Forecaster, *uniforms: Uniforms) -> int:
@@ -77,7 +80,9 @@ def sobol_groups(fc: Forecaster, seed: int, n: int) -> tuple[dict[str, float], S
     """First-order Sobol indices of M, C and E on the funded ratio (§12.5), and the design for the drivers."""
     u_a = fc.uniforms(seed, n, matrix="A")
     u_b = fc.uniforms(seed, n, matrix="B")
-    years = _years(fc, u_a, u_b)
+    # A mix of A's and B's draws (one fact's age from A, another's from B) can outlive both, so the market is
+    # drawn for the longest horizon any path can have; each evaluation uses only the years its inputs need.
+    years = fc.config.max_years
     m_a = fc.shocks(seed, n, years, matrix="A")
     m_b = fc.shocks(seed, n, years, matrix="B")
     facts = list(u_a.facts)
@@ -88,15 +93,14 @@ def sobol_groups(fc: Forecaster, seed: int, n: int) -> tuple[dict[str, float], S
             (u_b, m_a),  # market from A
             (u_b.swap(u_a, content=facts), m_b),  # client content from A
             (u_b.swap(u_a, extraction=facts), m_b),  # extraction indicators from A
-        ],
-        years,
+        ]
     )
     pooled = np.concatenate([y_a, y_b])
     mean = float(pooled.mean())
     var = float(pooled.var(ddof=1)) if pooled.size > 1 else 0.0
     raw = {"market": pick_freeze(y_a, y_b, y_m, mean, var), "client_content": pick_freeze(y_a, y_b, y_c, mean, var),
            "extraction": pick_freeze(y_a, y_b, y_e, mean, var)}
-    return raw, SobolDesign(u_a, u_b, m_a, m_b, y_a, y_b, mean, var, years)  # type: ignore[arg-type]
+    return raw, SobolDesign(u_a, u_b, m_a, m_b, y_a, y_b, mean, var)  # type: ignore[arg-type]
 
 
 def top_drivers(fc: Forecaster, design: SobolDesign, *, limit: int) -> list[tuple[str, float]]:
@@ -104,18 +108,51 @@ def top_drivers(fc: Forecaster, design: SobolDesign, *, limit: int) -> list[tupl
     candidates = [f for f in fc.plan.tier_a_random() if f in design.u_a.facts]
     if not candidates or design.variance <= 0 or limit <= 0:
         return []
-    budget = max(limit * DRIVER_SCREEN, limit)
+    budget = limit + DRIVER_MARGIN
     if len(candidates) > budget:
-        # Screen by rank correlation of the funded ratio with the fact's own uniforms (a lower bound on S_f).
-        ranks = np.argsort(np.argsort(design.y_a)) / max(len(design.y_a) - 1, 1)
+        y = np.concatenate([design.y_a, design.y_b])
+        plan = fc.plan
+
         def score(fid: str) -> float:
-            u = design.u_a.facts[fid]
-            return max(abs(np.corrcoef(ranks, u.c1)[0, 1]), abs(np.corrcoef(ranks, u.e1)[0, 1]), abs(np.corrcoef(ranks, u.c2)[0, 1]))
-        candidates = sorted(candidates, key=lambda f: (-np.nan_to_num(score(f)), f))[:budget]
-    ys = fc.funded_batch([(design.u_b.swap(design.u_a, content=[f], extraction=[f]), design.m_b) for f in candidates], design.n_years)
+            s = plan.samplers[fid]
+            a, b = (s.draw(u.facts[fid], plan.spot) for u in (design.u_a, design.u_b))
+            net = None if a.net is None or b.net is None else np.concatenate([a.net, b.net])
+            return correlation_ratio(_value_groups(Draw(np.concatenate([a.values, b.values]), net=net)), y)
+
+        candidates = sorted(candidates, key=lambda f: (-score(f), f))[:budget]
+    ys = fc.funded_batch([(design.u_b.swap(design.u_a, content=[f], extraction=[f]), design.m_b) for f in candidates])
     out = [(f, max(0.0, round(pick_freeze(design.y_a, design.y_b, y, design.mean, design.variance), 6))) for f, y in zip(candidates, ys)]
     out.sort(key=lambda kv: (-kv[1], kv[0]))
     return out[:limit]
+
+
+def _value_groups(draw: Draw, bins: int = SCREEN_BINS) -> np.ndarray:
+    """Paths grouped by a fact's realised value: one group per label or value, else equal-count bins of the number;
+    split by the gross/net coin when the amount's basis was drawn."""
+    x = np.asarray(draw.values)
+    _, groups, counts = np.unique(x.astype(str) if x.dtype == object else x, return_inverse=True, return_counts=True)
+    if x.dtype != object and len(counts) > bins:
+        below = np.cumsum(counts) - counts  # paths with a smaller value; equal values stay in one bin
+        groups = (below * bins // len(x))[groups]
+    groups = groups.astype(np.int64)
+    if draw.net is not None:
+        groups = groups * 2 + np.asarray(draw.net, dtype=np.int64)
+    return groups
+
+
+def correlation_ratio(groups: np.ndarray, y: np.ndarray) -> float:
+    """Share of Var(y) explained by the group means, adjusted for the number of groups (given-data first-order index)."""
+    n = len(y)
+    counts = np.bincount(groups)
+    used = counts > 0
+    k = int(used.sum())
+    total = float(np.sum((y - y.mean()) ** 2))
+    if total <= 0 or k < 2 or n <= k:
+        return 0.0
+    means = np.bincount(groups, weights=y)[used] / counts[used]
+    between = float(np.sum(counts[used] * (means - y.mean()) ** 2))
+    eta2 = between / total
+    return eta2 - (k - 1) / (n - k) * (1.0 - eta2)  # unbiased under no effect, so it can be slightly negative
 
 
 def shapley_market(fc: Forecaster, seed: int, settings: ModeSettings) -> tuple[dict[str, float], dict[str, float]]:

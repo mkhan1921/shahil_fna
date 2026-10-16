@@ -104,6 +104,10 @@ def concat_uniforms(parts: Sequence[Uniforms]) -> Uniforms:
 
 
 def concat_shocks(parts: Sequence[MarketShocks | BootstrapShocks], n_years: int) -> MarketShocks | BootstrapShocks:
+    """The first ``n_years`` years of several shock blocks, stacked along the path axis."""
+    short = min(p.n_years for p in parts)
+    if short < n_years:
+        raise ValueError(f"market shocks cover {short} years; the plan needs {n_years}")
     if isinstance(parts[0], BootstrapShocks):
         return BootstrapShocks(np.concatenate([p.idx[:, : 12 * n_years] for p in parts]))  # type: ignore[union-attr]
     return MarketShocks(
@@ -143,19 +147,25 @@ class Forecaster:
         return self.market_model.realise(shocks)  # type: ignore[arg-type]
 
     def evaluate(self, uniforms: Uniforms, shocks: MarketShocks | BootstrapShocks, *, plan: ForecastPlan | None = None) -> Evaluation:
-        plan = plan or self.plan
-        inp = plan.realise(uniforms, self.tax)
-        market = self.realise_market(shocks)
-        if market.n_years < inp.n_years:
-            raise ValueError(f"market shocks cover {market.n_years} years; the plan needs {inp.n_years}")
+        return self.evaluate_inputs((plan or self.plan).realise(uniforms, self.tax), shocks)
+
+    def evaluate_inputs(self, inp: ForecastInput, shocks: MarketShocks | BootstrapShocks) -> Evaluation:
+        """Simulate realised inputs on the first ``inp.n_years`` years of ``shocks`` (which may cover more)."""
+        if shocks.n_years < inp.n_years:
+            raise ValueError(f"market shocks cover {shocks.n_years} years; the plan needs {inp.n_years}")
+        market = self.realise_market(shocks.head(inp.n_years))
         return Evaluation(inp, market, simulate(inp, market, config=self.config, cma=self.cma, tax_model=self.tax))
 
     def evaluate_market_paths(self, uniforms: Uniforms, market: MarketPaths, *, plan: ForecastPlan | None = None) -> Evaluation:
         inp = (plan or self.plan).realise(uniforms, self.tax)
         return Evaluation(inp, market, simulate(inp, market, config=self.config, cma=self.cma, tax_model=self.tax))
 
-    def funded_batch(self, items: Sequence[tuple[Uniforms, MarketShocks | BootstrapShocks]], n_years: int) -> list[np.ndarray]:
-        """Funded ratios for several (uniforms, shocks) pairs, evaluated in as few engine calls as possible."""
+    def funded_batch(self, items: Sequence[tuple[Uniforms, MarketShocks | BootstrapShocks]]) -> list[np.ndarray]:
+        """Funded ratios for several (uniforms, shocks) pairs, evaluated in as few engine calls as possible.
+
+        Each batch uses the years its realised inputs need, so every block of shocks must cover the longest
+        horizon any of its draws can give (``ForecastConfig.max_years`` always does).
+        """
         out: list[np.ndarray] = []
         group: list[tuple[Uniforms, MarketShocks | BootstrapShocks]] = []
         size = 0
@@ -164,7 +174,8 @@ class Forecaster:
             nonlocal group, size
             if not group:
                 return
-            ev = self.evaluate(concat_uniforms([u for u, _ in group]), concat_shocks([s for _, s in group], n_years))
+            inp = self.plan.realise(concat_uniforms([u for u, _ in group]), self.tax)
+            ev = self.evaluate_inputs(inp, concat_shocks([s for _, s in group], inp.n_years))
             y = ev.result.funded_ratio
             i = 0
             for u, _ in group:
@@ -181,12 +192,11 @@ class Forecaster:
         return out
 
     def run(self, seed: int, n_paths: int, *, plan: ForecastPlan | None = None) -> Evaluation:
-        """The main simulation: ``n_paths`` paths from the run seed (matrix ``main``)."""
+        """The main simulation: ``n_paths`` paths from the run seed (matrix ``main``), the market drawn for as many
+        years as the longest-lived path needs."""
         plan = plan or self.plan
-        u = plan.uniforms(seed, n_paths, matrix="main")
-        years = plan.realise(u.take(np.arange(min(n_paths, 64))), self.tax).n_years
-        shocks = self.shocks(seed, n_paths, years, matrix="main")
-        return self.evaluate(u, shocks, plan=plan)
+        inp = plan.realise(plan.uniforms(seed, n_paths, matrix="main"), self.tax)
+        return self.evaluate_inputs(inp, self.shocks(seed, n_paths, inp.n_years, matrix="main"))
 
 
 # --------------------------------------------------------------------------- results

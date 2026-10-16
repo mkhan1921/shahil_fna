@@ -48,8 +48,16 @@ class MarketShocks:
     def n_paths(self) -> int:
         return int(self.z.shape[1])
 
+    @property
+    def n_years(self) -> int:
+        return int(self.z.shape[2])
+
     def take(self, rows: np.ndarray) -> MarketShocks:
         return MarketShocks(self.z[:, rows], self.chi2[rows], self.e[rows])
+
+    def head(self, n_years: int) -> MarketShocks:
+        """The first ``n_years`` years (views; draws are the same whatever the horizon they were made for)."""
+        return MarketShocks(self.z[:, :, :n_years], self.chi2[:, :n_years], self.e[:, :n_years])
 
 
 @dataclass
@@ -335,8 +343,15 @@ class BootstrapShocks:
     def n_paths(self) -> int:
         return int(self.idx.shape[0])
 
+    @property
+    def n_years(self) -> int:
+        return int(self.idx.shape[1]) // 12
+
     def take(self, rows: np.ndarray) -> BootstrapShocks:
         return BootstrapShocks(self.idx[rows])
+
+    def head(self, n_years: int) -> BootstrapShocks:
+        return BootstrapShocks(self.idx[:, : 12 * n_years])
 
 
 class StationaryBlockBootstrap:
