@@ -104,7 +104,7 @@ def _instructions(deps: ExtractionDeps, stage: str) -> tuple[str, str]:
 async def _run(agent: Agent, deps: ExtractionDeps, model_type: type[BaseModel], prompt: str, instructions: str, usage: Usage, out: "GroupExtraction | None" = None) -> Any:
     """One stage call. Output that still fails schema validation after the agent's own retries, a
     refusal or a truncated response comes back as ``None`` (a retryable failure, §4.4 rule 6)."""
-    rm = llm.for_role("reasoning", deps.pins, thinking=True)
+    rm = llm.for_role(deps.role, deps.pins, thinking=deps.role == "reasoning")  # type: ignore[arg-type]
     try:
         result = await agent.run(prompt, model=rm.model, model_settings=rm.settings, instructions=instructions,
                                  output_type=NativeOutput(model_type), usage_limits=SUBAGENT_LIMITS)

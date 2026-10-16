@@ -81,6 +81,8 @@ class ExtractionDeps:
     crm: CrmRecord | None = None
     glossary: list[str] = field(default_factory=list)  # confirmed practice terms, one line each (§8.5)
     entities: dict[str, Entity] = field(default_factory=dict)  # the working registry (discourse + new objects)
+    role: str = "reasoning"  # extraction always runs on the reasoning model; consistency probes use "small" (§9.1b)
+    segment_order: list[str] | None = None  # a probe's reordered window (§9.1b varies wording and order)
 
     def __post_init__(self) -> None:
         if not self.entities:
@@ -110,7 +112,7 @@ class ExtractionDeps:
 
     def window(self) -> list[Segment]:
         idx = self.transcript.index()
-        return [idx[s] for s in self.task.segment_ids if s in idx]
+        return [idx[s] for s in (self.segment_order or self.task.segment_ids) if s in idx]
 
     def window_ids(self) -> set[str]:
         return set(self.task.segment_ids)
