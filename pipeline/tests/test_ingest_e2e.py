@@ -314,3 +314,23 @@ async def test_ingest_call_on_mono_audio_maps_provider_times_back_to_the_call(tm
     assert t.asr_model_version == "general-nova-3:2025-04" and t.asr_provider == "deepgram"
     amounts = {s.surface: {r.value for r in s.readings} for s in t.numeric_spans if s.kind == "amount"}
     assert {250.0, 250_000.0, 2_500_000.0} <= amounts["two fifty"] and 1_500.0 in amounts["fifteen hundred a month"]
+
+
+@pytest.mark.parametrize("kind", ["silence", "hold_music"])
+async def test_ingest_call_without_speech_skips_the_provider_and_routes_to_manual(tmp_path, kind):
+    body = hold_music(8, seed=5) if kind == "hold_music" else np.zeros(8 * SR, np.float32)
+    x = np.concatenate([np.zeros(SR, np.float32), body]) + noise(9, seed=6)
+    path = tmp_path / f"{kind}.wav"
+    sf.write(path, x, SR)
+    requests: list[httpx.Request] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        requests.append(req)
+        return httpx.Response(500)
+
+    asr = DeepgramASR(api_key="k", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    diarizer = FakeDiarizer([])
+    t = await ingest_call(path, meta_for(f"call-{kind}", ANCHOR), asr=asr, diarizer=diarizer, role_agent_pins=VersionPins())
+    assert not requests and not diarizer.calls  # nothing was sent to the provider or the diarizer
+    assert t.segments == [] and t.numeric_spans == [] and t.call_id == f"call-{kind}" and t.asr_provider == "deepgram"
+    assert t.quality.failed and t.quality.n_speakers == 0 and t.quality.cap_p_correct and t.quality.banners

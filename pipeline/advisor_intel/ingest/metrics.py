@@ -153,19 +153,19 @@ def der(
     skip_overlap: bool = False,
 ) -> DerResult:
     end = max([t.end for t in [*reference, *hypothesis]], default=0.0)
-    n = int(math.ceil(end / frame)) + 1
+    n = math.ceil(end / frame) + 1
     ref_spk = sorted({t.speaker for t in reference})
     hyp_spk = sorted({t.speaker for t in hypothesis})
     R = np.zeros((len(ref_spk), n), dtype=bool)
     H = np.zeros((len(hyp_spk), n), dtype=bool)
     scored = np.ones(n, dtype=bool)
     for t in reference:
-        R[ref_spk.index(t.speaker), int(round(t.start / frame)) : int(round(t.end / frame))] = True
+        R[ref_spk.index(t.speaker), round(t.start / frame) : round(t.end / frame)] = True
         if collar > 0:
             for b in (t.start, t.end):
-                scored[max(0, int(round((b - collar) / frame))) : int(round((b + collar) / frame))] = False
+                scored[max(0, round((b - collar) / frame)) : round((b + collar) / frame)] = False
     for t in hypothesis:
-        H[hyp_spk.index(t.speaker), int(round(t.start / frame)) : int(round(t.end / frame))] = True
+        H[hyp_spk.index(t.speaker), round(t.start / frame) : round(t.end / frame)] = True
     if skip_overlap:
         scored &= R.sum(axis=0) <= 1
     Rs, Hs = R[:, scored], H[:, scored]

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import pytest
 
 from advisor_intel.ingest.segmentation import LabeledWord, crosstalk_seconds, segment_words
@@ -48,7 +50,7 @@ def test_long_runs_split_before_30_seconds_at_a_sentence_end_not_inside_a_number
     assert all(s.t_end - s.t_start <= 30.0 for s in segs)
     assert sum(len(s.words) for s in segs) == len(texts)
     assert segs[0].text.endswith("rand.")  # the break falls after a sentence end
-    for a, b in zip(segs, segs[1:]):
+    for a, b in pairwise(segs):
         assert not (a.words[-1].text in ("two", "thousand") and b.words[0].text in ("thousand", "rand."))
 
 

@@ -64,7 +64,7 @@ class AsrAudio:
         return [(s, e) for s, e in out if e > s]
 
     def clip(self, t0: float, t1: float, channel: int | None = None) -> np.ndarray:
-        a, b = int(round(t0 * self.sample_rate)), int(round(t1 * self.sample_rate))
+        a, b = round(t0 * self.sample_rate), round(t1 * self.sample_rate)
         src = self.samples if channel is None else self.channel(channel)
         return src[..., max(0, a) : max(a, b)]
 

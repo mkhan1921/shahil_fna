@@ -58,7 +58,7 @@ def test_speech_map_round_trips_call_time():
     assert m.to_call(99.0) == 21.5
     x = np.arange(25 * 100, dtype=np.float32)
     out = m.compact(x, 100)
-    assert out.size == int(round(m.compact_duration * 100))
+    assert out.size == round(m.compact_duration * 100)
     assert out[0] == 200.0 and out[300 + 30] == 1000.0
     stereo = m.compact(np.stack([x, -x]), 100)
     assert stereo.shape == (2, out.size) and np.array_equal(stereo[1], -out)

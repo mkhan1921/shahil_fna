@@ -35,7 +35,7 @@ def transcript(*segments: Segment) -> Transcript:
 
 
 def test_amount_age_and_product_spans_with_readings_and_candidates():
-    s = seg("s0001", "spk_1", 0.0, "We put two fifty into the Allan Gray RA and I'm fifty two".split())
+    s = seg("s0001", "spk_1", 0.0, ["We", "put", "two", "fifty", "into", "the", "Allan", "Gray", "RA", "and", "I'm", "fifty", "two"])
     t = annotate_transcript(transcript(s))
     kinds = [(n.span_id, n.kind, n.surface) for n in t.numeric_spans]
     assert kinds == [("n0001", "amount", "two fifty"), ("n0002", "product", "Allan Gray RA"), ("n0003", "age", "fifty two")]
@@ -151,7 +151,7 @@ def test_kind_follows_the_words_around_the_number(text: str, kind: str, value: f
 
 
 def test_crosstalk_over_a_span_and_client_product_names():
-    a = seg("s0001", "spk_0", 0.0, "and what is the Highveld Logistics Pension Fund worth".split())
+    a = seg("s0001", "spk_0", 0.0, ["and", "what", "is", "the", "Highveld", "Logistics", "Pension", "Fund", "worth"])
     b = seg("s0002", "spk_1", 1.4, ["about", "one", "point", "three", "million"], step=0.3)
     t = annotate_transcript(
         transcript(a, b), extra_products=[ProductName("Highveld Logistics Pension Fund", "pension", "Employer umbrella fund")]

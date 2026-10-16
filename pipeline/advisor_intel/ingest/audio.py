@@ -59,8 +59,8 @@ class PreparedAudio:
 
     def clip(self, t0: float, t1: float, channel: int | None = None) -> np.ndarray:
         """Samples between two call times (clamped), from one channel or the mono mix."""
-        a = max(0, int(round(t0 * self.sample_rate)))
-        b = min(self.samples.shape[1], int(round(t1 * self.sample_rate)))
+        a = max(0, round(t0 * self.sample_rate))
+        b = min(self.samples.shape[1], round(t1 * self.sample_rate))
         src = self.mono() if channel is None or channel >= self.n_channels else self.samples[channel]
         return src[a : max(a, b)].copy()
 

@@ -142,10 +142,7 @@ async def assemble(
     if second_pass is not None:
         transcript = await run_second_pass(transcript, second_pass, audio=audio, extra_products=extra_products)
     transcript.quality = quality_report(
-        transcript.segments,
-        transcript.numeric_spans,
-        asr_alternatives=alternatives,
-        role_conf={k: v for k, v in assignment.confidence.items()},
+        transcript.segments, transcript.numeric_spans, asr_alternatives=alternatives, role_conf=dict(assignment.confidence)
     )
     return transcript
 
@@ -168,6 +165,18 @@ async def ingest_call(
     prepared = preprocess(audio)
     regions = speech_regions(prepared, vad_config or VadConfig())
     smap = SpeechMap(tuple(union_regions(regions)))
+    if not smap.regions:  # silence or music only: nothing to transcribe; the quality report routes it to manual
+        empty = Transcript(
+            call_id=meta.call_id,
+            anchor_date=meta.anchor,
+            language=meta.language,
+            segments=[],
+            asr_provider=asr.name,
+            asr_model_version=asr.model_version,
+            channel_layout=prepared.layout,
+        )
+        empty.quality = quality_report([], [])
+        return empty
     compact = AsrAudio(
         samples=smap.compact(prepared.samples, prepared.sample_rate),
         sample_rate=prepared.sample_rate,

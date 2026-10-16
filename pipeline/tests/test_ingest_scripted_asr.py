@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import pytest
 
 from advisor_intel.ingest.asr import ASRProvider, NoiseConfig, ScriptedASR, ScriptedCall, ScriptTurn
@@ -44,7 +46,7 @@ async def test_words_timing_markup_and_reference():
     assert res.time_base == "call" and res.alternatives_available and res.provider == "scripted"
     words = res.words
     assert all(w.t_end > w.t_start for w in words)
-    assert all(a.t_start <= b.t_start for a, b in zip(words, words[1:]))
+    assert all(a.t_start <= b.t_start for a, b in pairwise(words))
     texts = [w.text for w in words]
     assert "fifteen." in texts and "fifty." not in texts  # the markup mishearing
     fifteen = words[texts.index("fifteen.")]

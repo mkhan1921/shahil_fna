@@ -120,7 +120,7 @@ def amount_spoken_forms(value: float, *, max_forms: int = 8) -> list[str]:
 
 def age_spoken_forms(age: float) -> list[str]:
     """60 → ['sixty']; 65 → ['sixty five']."""
-    return [int_to_words(int(round(age)))]
+    return [int_to_words(round(age))]
 
 
 def written_amount(value: float, currency: str | None = "ZAR") -> str:

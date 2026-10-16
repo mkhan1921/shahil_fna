@@ -1,11 +1,14 @@
 """Numeric and product spans (§5.3): find amount, age and product mentions and attach their grammar readings.
 
 For each segment the finder looks at every word's 1-best spoken form *and* its alternatives, so a number
-heard only in the alternatives ("for" / "four" thousand) is still found. Runs of number-ish words are cut
-into the longest windows a grammar accepts; each window's lattice (1-best plus ``Word.alts``) is composed
-with the grammar and every accepted path is kept. The provider's own ITN (``Word.text`` when ``raw_spoken``
-is set) is parsed too and kept as one more candidate (20 % of the mass), never alone: a span whose spoken
-form no grammar path accepts is ``accepted=False`` and flagged ``low_asr`` for the second pass (§5.6).
+heard only in the alternatives ("for" / "four" thousand) is still found; a weak alternative may sit inside
+a span but cannot start or end one. Each run of number-ish words is cut into grammar-accepted windows by a
+small dynamic programme that covers the most number words with the fewest windows, never leaves a scale
+word orphaned after its number and never splits "fifty | five". Each window's lattice (1-best plus
+``Word.alts``) is composed with the grammar and every accepted path is kept. The provider's own ITN
+(``Word.text`` when ``raw_spoken`` is set) is parsed too and kept as one more candidate (20 % of the
+mass), never alone: a span whose spoken form no grammar path accepts is ``accepted=False`` and flagged
+``low_asr`` for the second pass (§5.6).
 
 Product spans are found first, so "regulation twenty eight" and "ten x" are products, not amounts. Numbers
 that are years ("in twenty nineteen"), counts and durations ("two kids", "eight years") or clock times
@@ -231,11 +234,12 @@ COUNT_NOUNS = frozenset(
 )
 TIME_PREV = frozenset({"at", "by", "till", "until", "from", "before", "after", "om"})
 TIME_NEXT = frozenset({"am", "pm", "o'clock", "oclock", "uur"})
-HOUR_WORDS = frozenset([*"one two three four five six seven eight nine ten eleven twelve".split(), *(str(h) for h in range(1, 13))])
-MINUTE_WORDS = frozenset(
-    "oh zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
-    "eighteen nineteen twenty thirty forty fifty quarter half".split()
-) | {f"{m:02d}" for m in range(60)}
+_CLOCK_HOURS = ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve")
+HOUR_WORDS = frozenset([*_CLOCK_HOURS, *(str(h) for h in range(1, 13))])
+MINUTE_WORDS = frozenset([
+    "oh", "zero", *_CLOCK_HOURS, "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty",
+    "forty", "fifty", "quarter", "half",
+]) | {f"{m:02d}" for m in range(60)}  # fmt: skip
 
 
 @dataclass
@@ -488,9 +492,9 @@ def _skip_amount(toks: Sequence[Tok], i: int, j: int, res: GrammarResult) -> boo
     return j - i == 1 and bool(literal) and float(literal[0].value) < 10  # "one more thing", "two of them": counts, pronouns
 
 
-_UNITS = frozenset("one two three four five six seven eight nine".split())
-_TEENS = frozenset("ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split())
-_DECADES = frozenset("twenty thirty forty fifty sixty seventy eighty ninety".split())
+_UNITS = frozenset(["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"])
+_TEENS = frozenset(["ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"])
+_DECADES = frozenset(["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"])
 
 
 def spoken_year_positions(toks: Sequence[Tok]) -> set[int]:

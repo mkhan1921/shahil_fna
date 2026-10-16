@@ -105,8 +105,8 @@ def frame_features(x: np.ndarray, sr: int, cfg: VadConfig = DEFAULT_VAD) -> VadF
     flux = np.zeros(n)
     if n > lag:
         flux[lag:] = 1.0 - np.sum(spectra[lag:] * spectra[:-lag], axis=1)
-    win = max(4, int(round(cfg.window_s / cfg.hop_s)))
-    fwin = max(4, int(round(cfg.flux_window_s / cfg.hop_s)))
+    win = max(4, round(cfg.window_s / cfg.hop_s))
+    fwin = max(4, round(cfg.flux_window_s / cfg.hop_s))
     # Mean spectral change over the window, counting active frames only (pauses inside speech would dilute it).
     act = active.astype(float)
     flux_mean = _moving_mean(flux * act, fwin) / np.maximum(_moving_mean(act, fwin), 1e-9)
@@ -136,7 +136,7 @@ def frame_features(x: np.ndarray, sr: int, cfg: VadConfig = DEFAULT_VAD) -> VadF
 
 
 def _hysteresis(speech: np.ndarray, cfg: VadConfig) -> list[tuple[int, int]]:
-    hang = int(round(cfg.hangover_s / cfg.hop_s))
+    hang = round(cfg.hangover_s / cfg.hop_s)
     regions, start, run, silent = [], None, 0, 0
     last_speech = -1
     for i, s in enumerate(speech):
@@ -247,12 +247,12 @@ class SpeechMap:
     def compact(self, samples: np.ndarray, sr: int) -> np.ndarray:
         """Cut the regions out of (channels, n) samples and join them with silence."""
         x = samples if samples.ndim == 2 else samples[None, :]
-        gap = np.zeros((x.shape[0], int(round(self.gap_s * sr))), dtype=x.dtype)
+        gap = np.zeros((x.shape[0], round(self.gap_s * sr)), dtype=x.dtype)
         pieces = []
         for i, (s, e) in enumerate(self.regions):
             if i:
                 pieces.append(gap)
-            pieces.append(x[:, int(round(s * sr)) : int(round(e * sr))])
+            pieces.append(x[:, round(s * sr) : round(e * sr)])
         out = np.concatenate(pieces, axis=1) if pieces else np.zeros((x.shape[0], 0), dtype=x.dtype)
         return out if samples.ndim == 2 else out[0]
 
