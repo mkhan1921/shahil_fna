@@ -9,6 +9,7 @@ import type { Person, PersonKey, ScopeArea } from '@/lib/fna/types';
 import { money, pct } from '@/lib/format';
 import { firstNameOf, hasSpouse, people } from '../shared';
 import { AddRow, AreaC, Cells, CheckC, DateC, Filler, Item, MoneyC, NullMoneyC, NumC, Pair, PairHead, ReadC, Section, SelectC, Sub, TextC, YesNoC } from '../cells';
+import { CornerMark } from '../../review/overlay';
 import { focusRow } from '../focus';
 import type { SectionProps } from '../types';
 
@@ -31,10 +32,10 @@ export function EngagementSection({ doc, update }: SectionProps) {
         <SelectC label="Meeting" value={e.meetingType} onChange={(v) => set('meetingType', v)} options={{ 'in-person': 'In person', virtual: 'Video', telephonic: 'Telephone' }} span={2} />
         <SelectC label="Advice type" value={e.adviceType} onChange={(v) => set('adviceType', v)} options={{ comprehensive: 'Comprehensive FNA', limited: 'Limited advice' }} span={2} />
         <SelectC label="PEP / DPIP" value={e.pepStatus} onChange={(v) => set('pepStatus', v)} options={{ no: 'No', yes: 'Yes', unknown: 'Not screened' }} span={2} />
-        <TextC label="Reason for meeting" value={e.reasonForAdvice} onChange={(v) => set('reasonForAdvice', v)} span={4} placeholder="Annual review, new baby, new bond…" />
-        <AreaC label="Client objectives (own words)" value={e.clientObjectives} onChange={(v) => set('clientObjectives', v)} span={6} need={!e.clientObjectives.trim()} />
-        <AreaC label="Concerns & priorities" value={e.clientConcerns} onChange={(v) => set('clientConcerns', v)} span={3} />
-        <AreaC label="Other advisers (attorney, accountant…)" value={e.otherAdvisers} onChange={(v) => set('otherAdvisers', v)} span={3} />
+        <TextC label="Reason for meeting" value={e.reasonForAdvice} path="engagement.reasonForAdvice" onChange={(v) => set('reasonForAdvice', v)} span={4} placeholder="Annual review, new baby, new bond…" />
+        <AreaC label="Client objectives (own words)" value={e.clientObjectives} path="engagement.clientObjectives" onChange={(v) => set('clientObjectives', v)} span={6} need={!e.clientObjectives.trim()} />
+        <AreaC label="Concerns & priorities" value={e.clientConcerns} path="engagement.clientConcerns" onChange={(v) => set('clientConcerns', v)} span={3} />
+        <AreaC label="Other advisers (attorney, accountant…)" value={e.otherAdvisers} path="engagement.otherAdvisers" onChange={(v) => set('otherAdvisers', v)} span={3} />
       </Cells>
       <Sub>Scope — areas analysed</Sub>
       <Cells>
@@ -89,7 +90,7 @@ export function EngagementSection({ doc, update }: SectionProps) {
 /* People                                                              */
 /* ================================================================== */
 
-function PersonCells({ person, set, firstId }: { person: Person; set: (fn: (p: Person) => void) => void; firstId?: string }) {
+function PersonCells({ pk, person, set, firstId }: { pk: PersonKey; person: Person; set: (fn: (p: Person) => void) => void; firstId?: string }) {
   const parsed = person.idNumber ? parseSaId(person.idNumber) : null;
   const age = ageOn(person.dateOfBirth);
   const badId = !!parsed && !parsed.valid && person.idNumber.length >= 13;
@@ -118,20 +119,20 @@ function PersonCells({ person, set, firstId }: { person: Person; set: (fn: (p: P
         }
         span={3.75}
       />
-      <DateC label="Born" value={person.dateOfBirth} onChange={(v) => set((p) => void (p.dateOfBirth = v))} span={3} error={mismatch} need={!person.dateOfBirth} hint={age !== null ? `${age} · ANB ${ageNextBirthday(person.dateOfBirth)}` : undefined} />
+      <DateC label="Born" value={person.dateOfBirth} path={`${pk}.dateOfBirth`} onChange={(v) => set((p) => void (p.dateOfBirth = v))} span={3} error={mismatch} need={!person.dateOfBirth} hint={age !== null ? `${age} · ANB ${ageNextBirthday(person.dateOfBirth)}` : undefined} />
       <SelectC label="Gender" value={person.gender} onChange={(v) => set((p) => void (p.gender = v))} options={GENDER} placeholder="—" span={1.75} need={!person.gender} />
-      <YesNoC label="Smoker" value={person.smoker} onChange={(v) => set((p) => void (p.smoker = v))} span={1.5} />
+      <YesNoC label="Smoker" value={person.smoker} path={`${pk}.smoker`} onChange={(v) => set((p) => void (p.smoker = v))} span={1.5} />
       <TextC label="Passport" value={person.passportNumber} onChange={(v) => set((p) => void (p.passportNumber = v))} span={2} />
-      <SelectC label="Employment" value={person.employmentType} onChange={(v) => set((p) => void (p.employmentType = v))} options={EMPLOYMENT_TYPE} span={4} />
-      <TextC label="Occupation & duties" value={person.occupation} onChange={(v) => set((p) => void (p.occupation = v))} span={4} />
-      <TextC label="Employer / business" value={person.employer} onChange={(v) => set((p) => void (p.employer = v))} span={4} />
+      <SelectC label="Employment" value={person.employmentType} path={`${pk}.employmentType`} onChange={(v) => set((p) => void (p.employmentType = v))} options={EMPLOYMENT_TYPE} span={4} />
+      <TextC label="Occupation & duties" value={person.occupation} path={`${pk}.occupation`} onChange={(v) => set((p) => void (p.occupation = v))} span={4} />
+      <TextC label="Employer / business" value={person.employer} path={`${pk}.employer`} onChange={(v) => set((p) => void (p.employer = v))} span={4} />
       <SelectC label="Qualification" value={person.educationLevel} onChange={(v) => set((p) => void (p.educationLevel = v))} options={EDUCATION_LEVELS.map((x) => ({ value: x, label: x }))} placeholder="—" span={4} />
       <TextC label="Mobile" type="tel" value={person.mobile} onChange={(v) => set((p) => void (p.mobile = v))} span={3} />
       <TextC label="Email" type="email" value={person.email} onChange={(v) => set((p) => void (p.email = v))} span={5} />
       <TextC label="Tax number" value={person.taxNumber} onChange={(v) => set((p) => void (p.taxNumber = v))} span={3} />
       <TextC label="Nationality" value={person.nationality} onChange={(v) => set((p) => void (p.nationality = v))} span={3} />
-      <AreaC label="Health & medical history (special info)" value={person.healthNotes} onChange={(v) => set((p) => void (p.healthNotes = v))} span={6} />
-      <AreaC label="Hazardous pursuits & travel" value={person.hazardousPursuits} onChange={(v) => set((p) => void (p.hazardousPursuits = v))} span={6} />
+      <AreaC label="Health & medical history (special info)" value={person.healthNotes} path={`${pk}.healthNotes`} onChange={(v) => set((p) => void (p.healthNotes = v))} span={6} />
+      <AreaC label="Hazardous pursuits & travel" value={person.hazardousPursuits} path={`${pk}.hazardousPursuits`} onChange={(v) => set((p) => void (p.hazardousPursuits = v))} span={6} />
     </Cells>
   );
 }
@@ -145,7 +146,7 @@ export function PeopleSection({ doc, update }: SectionProps) {
     <Section id="people" n={2} title="Client & family" right={<span>{doc.dependants.length} dependant{doc.dependants.length === 1 ? '' : 's'}</span>}>
       <Cells>
         <SelectC
-          label="Marital status"
+          label="Marital status" path="household.maritalStatus"
           value={h.maritalStatus}
           onChange={(v) =>
             update((d) => {
@@ -158,9 +159,9 @@ export function PeopleSection({ doc, update }: SectionProps) {
           options={MARITAL_STATUS}
           span={2}
         />
-        {h.maritalStatus === 'married' && <SelectC label="Marital regime" value={h.maritalRegime} onChange={(v) => update((d) => void (d.household.maritalRegime = v))} options={MARITAL_REGIME} span={3} />}
-        {partnered && <DateC label="Date married" value={h.dateOfMarriage} onChange={(v) => update((d) => void (d.household.dateOfMarriage = v))} span={2} />}
-        {partnered && <YesNoC label="Analyse spouse" value={h.includeSpouse} onChange={(v) => update((d) => void (d.household.includeSpouse = v))} span={1} />}
+        {h.maritalStatus === 'married' && <SelectC label="Marital regime" value={h.maritalRegime} path="household.maritalRegime" onChange={(v) => update((d) => void (d.household.maritalRegime = v))} options={MARITAL_REGIME} span={3} />}
+        {partnered && <DateC label="Date married" value={h.dateOfMarriage} path="household.dateOfMarriage" onChange={(v) => update((d) => void (d.household.dateOfMarriage = v))} span={2} />}
+        {partnered && <YesNoC label="Analyse spouse" value={h.includeSpouse} path="household.includeSpouse" onChange={(v) => update((d) => void (d.household.includeSpouse = v))} span={1} />}
         <TextC label="Street address" value={h.physicalAddress} onChange={(v) => update((d) => void (d.household.physicalAddress = v))} span={4} />
         <TextC label="Suburb / city" value={h.city} onChange={(v) => update((d) => void (d.household.city = v))} span={2} />
         <SelectC label="Province" value={h.province} onChange={(v) => update((d) => void (d.household.province = v))} options={PROVINCES.map((p) => ({ value: p, label: p }))} placeholder="—" span={2} />
@@ -175,12 +176,12 @@ export function PeopleSection({ doc, update }: SectionProps) {
       <Pair>
         <div>
           <PairHead right={spouse ? undefined : partnered ? 'Set “Analyse spouse” to Yes to add the spouse' : 'Married or partnered? Change marital status to add a spouse'}>Client</PairHead>
-          <PersonCells person={doc.client} set={(fn) => update((d) => fn(d.client))} firstId="client-first-name" />
+          <PersonCells pk="client" person={doc.client} set={(fn) => update((d) => fn(d.client))} firstId="client-first-name" />
         </div>
         {spouse && (
           <div>
             <PairHead>{h.maritalStatus === 'life-partner' ? 'Partner' : 'Spouse'}</PairHead>
-            <PersonCells person={doc.spouse} set={(fn) => update((d) => fn(d.spouse))} />
+            <PersonCells pk="spouse" person={doc.spouse} set={(fn) => update((d) => fn(d.spouse))} />
           </div>
         )}
       </Pair>
@@ -192,9 +193,9 @@ export function PeopleSection({ doc, update }: SectionProps) {
         const child = dep.relationship === 'child';
         return (
           <Item key={dep.id} id={dep.id} n={i + 1} lock={4} onRemove={() => update((d) => void d.dependants.splice(i, 1))}>
-            <TextC label="Name" value={dep.name} onChange={(v) => set((x) => void (x.name = v))} span={3} />
+            <TextC label="Name" value={dep.name} path={`dependants[${dep.id}].name`} onChange={(v) => set((x) => void (x.name = v))} span={3} />
             <SelectC
-              label="Relationship"
+              label="Relationship" path={`dependants[${dep.id}].relationship`}
               value={dep.relationship}
               onChange={(v) =>
                 set((x) => {
@@ -208,31 +209,31 @@ export function PeopleSection({ doc, update }: SectionProps) {
               options={RELATIONSHIP}
               span={2}
             />
-            <DateC label="Born" value={dep.dateOfBirth} onChange={(v) => set((x) => void (x.dateOfBirth = v))} span={2} hint={age !== null ? `age ${age}` : undefined} />
-            <SelectC label="Gender" value={dep.gender} onChange={(v) => set((x) => void (x.gender = v))} options={GENDER} placeholder="—" span={1} />
+            <DateC label="Born" value={dep.dateOfBirth} path={`dependants[${dep.id}].dateOfBirth`} onChange={(v) => set((x) => void (x.dateOfBirth = v))} span={2} hint={age !== null ? `age ${age}` : undefined} />
+            <SelectC label="Gender" value={dep.gender} path={`dependants[${dep.id}].gender`} onChange={(v) => set((x) => void (x.gender = v))} options={GENDER} placeholder="—" span={1} />
             {child ? (
-              <NumC label="Until age" value={dep.dependencyEndAge} onChange={(v) => set((x) => void (x.dependencyEndAge = v))} suffix="yrs" min={0} max={40} span={1} />
+              <NumC label="Until age" value={dep.dependencyEndAge} path={`dependants[${dep.id}].dependencyEndAge`} onChange={(v) => set((x) => void (x.dependencyEndAge = v))} suffix="yrs" min={0} max={40} span={1} />
             ) : (
               <>
-                <MoneyC label="Support p.m." value={dep.monthlySupport} onChange={(v) => set((x) => void (x.monthlySupport = v))} span={1} />
-                <NumC label="For" value={dep.supportYears} onChange={(v) => set((x) => void (x.supportYears = v))} suffix="yrs" min={0} max={60} span={1} />
+                <MoneyC label="Support p.m." value={dep.monthlySupport} path={`dependants[${dep.id}].monthlySupport`} onChange={(v) => set((x) => void (x.monthlySupport = v))} span={1} />
+                <NumC label="For" value={dep.supportYears} path={`dependants[${dep.id}].supportYears`} onChange={(v) => set((x) => void (x.supportYears = v))} suffix="yrs" min={0} max={60} span={1} />
               </>
             )}
-            <YesNoC label="Special" value={dep.specialNeeds} onChange={(v) => set((x) => void (x.specialNeeds = v))} span={1} />
+            <YesNoC label="Special" value={dep.specialNeeds} path={`dependants[${dep.id}].specialNeeds`} onChange={(v) => set((x) => void (x.specialNeeds = v))} span={1} />
             {child && (
               <>
-                <SelectC label="Schooling" value={dep.schoolType} onChange={(v) => set((x) => void (x.schoolType = v))} options={{ none: 'None / done', public: 'Public', private: 'Independent' }} span={2} />
-                <MoneyC label="School fees p.a." value={dep.schoolFeesAnnual} onChange={(v) => set((x) => void (x.schoolFeesAnnual = v))} span={2} />
-                <YesNoC label="Tertiary" value={dep.tertiary} onChange={(v) => set((x) => void (x.tertiary = v))} span={1} />
+                <SelectC label="Schooling" value={dep.schoolType} path={`dependants[${dep.id}].schoolType`} onChange={(v) => set((x) => void (x.schoolType = v))} options={{ none: 'None / done', public: 'Public', private: 'Independent' }} span={2} />
+                <MoneyC label="School fees p.a." value={dep.schoolFeesAnnual} path={`dependants[${dep.id}].schoolFeesAnnual`} onChange={(v) => set((x) => void (x.schoolFeesAnnual = v))} span={2} />
+                <YesNoC label="Tertiary" value={dep.tertiary} path={`dependants[${dep.id}].tertiary`} onChange={(v) => set((x) => void (x.tertiary = v))} span={1} />
                 {dep.tertiary && (
                   <>
-                    <NumC label="From age" value={dep.tertiaryStartAge} onChange={(v) => set((x) => void (x.tertiaryStartAge = v))} min={15} max={40} span={1} />
-                    <NumC label="Years" value={dep.tertiaryYears} onChange={(v) => set((x) => void (x.tertiaryYears = v))} min={1} max={8} span={1} />
-                    <MoneyC label="Cost p.a. (today)" value={dep.tertiaryCostAnnual} onChange={(v) => set((x) => void (x.tertiaryCostAnnual = v))} span={2} hint="~R150k" />
+                    <NumC label="From age" value={dep.tertiaryStartAge} path={`dependants[${dep.id}].tertiaryStartAge`} onChange={(v) => set((x) => void (x.tertiaryStartAge = v))} min={15} max={40} span={1} />
+                    <NumC label="Years" value={dep.tertiaryYears} path={`dependants[${dep.id}].tertiaryYears`} onChange={(v) => set((x) => void (x.tertiaryYears = v))} min={1} max={8} span={1} />
+                    <MoneyC label="Cost p.a. (today)" value={dep.tertiaryCostAnnual} path={`dependants[${dep.id}].tertiaryCostAnnual`} onChange={(v) => set((x) => void (x.tertiaryCostAnnual = v))} span={2} hint="~R150k" />
                   </>
                 )}
-                <MoneyC label="Saved for education" value={dep.educationSavings} onChange={(v) => set((x) => void (x.educationSavings = v))} span={1.5} />
-                <MoneyC label="Saving p.m." value={dep.educationSavingsMonthly} onChange={(v) => set((x) => void (x.educationSavingsMonthly = v))} span={1.5} />
+                <MoneyC label="Saved for education" value={dep.educationSavings} path={`dependants[${dep.id}].educationSavings`} onChange={(v) => set((x) => void (x.educationSavings = v))} span={1.5} />
+                <MoneyC label="Saving p.m." value={dep.educationSavingsMonthly} path={`dependants[${dep.id}].educationSavingsMonthly`} onChange={(v) => set((x) => void (x.educationSavingsMonthly = v))} span={1.5} />
               </>
             )}
           </Item>
@@ -288,14 +289,14 @@ export function IncomeSection({ doc, update, analysis }: SectionProps) {
             <div key={k}>
               <PairHead right={`Marginal ${pct(r.tax.marginalRate)} · effective ${pct(r.tax.effectiveRate, 1)}`}>{firstNameOf(doc, k)}</PairHead>
               <Cells>
-                <MoneyC label="Gross salary / income p.m." value={inc.grossMonthly} onChange={(v) => set((x) => void (x.grossMonthly = v))} span={4} need={k === 'client' && !inc.grossMonthly && !inc.otherTaxableMonthly} />
-                <MoneyC label="Annual bonus" value={inc.annualBonus} onChange={(v) => set((x) => void (x.annualBonus = v))} span={4} />
-                <MoneyC label="Other taxable p.m." value={inc.otherTaxableMonthly} onChange={(v) => set((x) => void (x.otherTaxableMonthly = v))} span={4} hint="rental, annuity" />
-                <MoneyC label="Non-taxable p.m." value={inc.nonTaxableMonthly} onChange={(v) => set((x) => void (x.nonTaxableMonthly = v))} span={4} />
-                <MoneyC label="Medical aid via payroll" value={inc.medicalAidPayrollMonthly} onChange={(v) => set((x) => void (x.medicalAidPayrollMonthly = v))} span={4} />
-                <NumC label="Medical members" value={inc.medicalSchemeMembers} onChange={(v) => set((x) => void (x.medicalSchemeMembers = Math.round(v)))} min={0} max={12} span={2} hint="s6A" />
-                <YesNoC label="UIF" value={inc.uifApplies} onChange={(v) => set((x) => void (x.uifApplies = v))} span={2} />
-                <MoneyC label="Other payroll deductions" value={inc.otherPayrollDeductionsMonthly} onChange={(v) => set((x) => void (x.otherPayrollDeductionsMonthly = v))} span={4} />
+                <MoneyC label="Gross salary / income p.m." value={inc.grossMonthly} path={`income.${k}.grossMonthly`} onChange={(v) => set((x) => void (x.grossMonthly = v))} span={4} need={k === 'client' && !inc.grossMonthly && !inc.otherTaxableMonthly} />
+                <MoneyC label="Annual bonus" value={inc.annualBonus} path={`income.${k}.annualBonus`} onChange={(v) => set((x) => void (x.annualBonus = v))} span={4} />
+                <MoneyC label="Other taxable p.m." value={inc.otherTaxableMonthly} path={`income.${k}.otherTaxableMonthly`} onChange={(v) => set((x) => void (x.otherTaxableMonthly = v))} span={4} hint="rental, annuity" />
+                <MoneyC label="Non-taxable p.m." value={inc.nonTaxableMonthly} path={`income.${k}.nonTaxableMonthly`} onChange={(v) => set((x) => void (x.nonTaxableMonthly = v))} span={4} />
+                <MoneyC label="Medical aid via payroll" value={inc.medicalAidPayrollMonthly} path={`income.${k}.medicalAidPayrollMonthly`} onChange={(v) => set((x) => void (x.medicalAidPayrollMonthly = v))} span={4} />
+                <NumC label="Medical members" value={inc.medicalSchemeMembers} path={`income.${k}.medicalSchemeMembers`} onChange={(v) => set((x) => void (x.medicalSchemeMembers = Math.round(v)))} min={0} max={12} span={2} hint="s6A" />
+                <YesNoC label="UIF" value={inc.uifApplies} path={`income.${k}.uifApplies`} onChange={(v) => set((x) => void (x.uifApplies = v))} span={2} />
+                <MoneyC label="Other payroll deductions" value={inc.otherPayrollDeductionsMonthly} path={`income.${k}.otherPayrollDeductionsMonthly`} onChange={(v) => set((x) => void (x.otherPayrollDeductionsMonthly = v))} span={4} />
                 <NullMoneyC label="PAYE per payslip" value={inc.payeOverrideMonthly} onChange={(v) => set((x) => void (x.payeOverrideMonthly = v))} span={4} hint="blank = estimate" />
                 <ReadC label="Retirement (payroll)" value={money(r.retirementPayrollMonthly)} span={4} />
                 <ReadC label="PAYE + UIF" value={money(r.payeMonthly + r.uifMonthly)} span={4} />
@@ -367,6 +368,7 @@ export function BudgetSection({ doc, update, analysis }: SectionProps) {
               {items.map((item) => (
                 <MoneyC
                   key={item.key}
+                  path={`expenses.items[${item.key}]`}
                   label={item.label}
                   span={2}
                   value={doc.expenses.items[item.key] ?? 0}
@@ -379,7 +381,8 @@ export function BudgetSection({ doc, update, analysis }: SectionProps) {
                 />
               ))}
               {custom.map(({ c, idx }) => (
-                <div key={c.id} className="sheet-cell flex bg-white" style={{ ['--b' as string]: `${(2 / 12) * 100}%`, ['--g' as string]: 2 }}>
+                <div key={c.id} data-path={`expenses.custom[${c.id}].amount`} className="sheet-cell relative flex bg-white" style={{ ['--b' as string]: `${(2 / 12) * 100}%`, ['--g' as string]: 2 }}>
+                  <CornerMark path={`expenses.custom[${c.id}].amount`} />
                   <input
                     className="w-1/2 min-w-0 border-r border-line bg-transparent px-2 text-[12px] outline-none focus:bg-[#eaf3fb]"
                     placeholder="Item"

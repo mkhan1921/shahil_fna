@@ -44,8 +44,13 @@ A financial needs analysis (FNA) and record-of-advice tool for South African fin
   - The levers include cover amounts and premiums, retirement age, income and saving, saving for studies and goals, goal dates, emergency savings, spending, and debts settled from the bonus.
   - "What have we agreed?" lists the changes by question, with their cost. The plan is saved beside the client file, never inside it, until the adviser adds it to the record of advice. The recommendations are then added as "pending" for the client to accept.
   - Full screen and keyboard shortcuts (← → between leaves, F full screen, H hide the levers) are built in.
+- **Call reviews.** What the Advisor Call Intelligence pipeline (`pipeline/`) heard in a client call is proposed on the client's own sheet (`/review?call=…`), and nothing reaches the client's file until the adviser submits the review.
+  - Every field the call touched carries a badge: new, changed (with the value before the call struck through), confirmed or assumed. Its popover shows the value as a phrase with its spread, who said it, how sure the system is, the quotes (each plays the recording from 2 seconds before), and what the system took them to mean.
+  - A queue beside the sheet puts blocking flags first, then "Needs you" and "Check quickly". Enter accepts and moves on, Tab skips, E edits, R rejects with a reason, U marks unknown. An impact strip shows what each decision does to every need, beside the forecast's chance of success.
+  - Reviews arrive as files (a review package, or a client file with its sidecar) or, if the practice turns it on in Settings, from the pipeline's review API. Use "Load demo review" on the client list to try one.
+  - Annotate mode (`/annotate`) lets an annotator record the facts of a call from its transcript alone, for the evaluation set.
 - **Privacy-first storage.**
-  - Client files are stored only in the browser (IndexedDB), and nothing is sent to a server.
+  - Client files are stored only in the browser (IndexedDB), and nothing is sent to a server. The one exception is opt-in: a practice that turns on the review API sends call reviews to the address it configures.
   - Exports can be encrypted with AES-256-GCM (password-derived key, PBKDF2-SHA256, 310k iterations). Use them for backups and FAIS/FICA five-year retention.
 
 ## Calculation basis

@@ -32,15 +32,15 @@ export function GoalsSection({ doc, update, analysis }: SectionProps) {
             <div key={k}>
               <PairHead right={<StatusPill status={r.status} />}>{firstNameOf(doc, k)}</PairHead>
               <Cells>
-                <NumC label="Retire at" value={g.retirementAge} onChange={(v) => set((x) => void (x.retirementAge = v))} min={40} max={80} span={2} />
-                <NumC label="Plan to age" value={g.planningAge} onChange={(v) => set((x) => void (x.planningAge = v))} min={70} max={110} span={2} hint="90 M / 95 F" />
-                <SelectC label="Target as" value={g.targetMode} onChange={(v) => set((x) => void (x.targetMode = v))} options={{ percent: '% of income', amount: 'Rand amount' }} span={3} />
+                <NumC label="Retire at" value={g.retirementAge} path={`retirement.${k}.retirementAge`} onChange={(v) => set((x) => void (x.retirementAge = v))} min={40} max={80} span={2} />
+                <NumC label="Plan to age" value={g.planningAge} path={`retirement.${k}.planningAge`} onChange={(v) => set((x) => void (x.planningAge = v))} min={70} max={110} span={2} hint="90 M / 95 F" />
+                <SelectC label="Target as" value={g.targetMode} path={`retirement.${k}.targetMode`} onChange={(v) => set((x) => void (x.targetMode = v))} options={{ percent: '% of income', amount: 'Rand amount' }} span={3} />
                 {g.targetMode === 'percent' ? (
-                  <PctC label="Replacement ratio" value={g.targetPercent} onChange={(v) => set((x) => void (x.targetPercent = v))} decimals={0} span={2} />
+                  <PctC label="Replacement ratio" value={g.targetPercent} path={`retirement.${k}.targetPercent`} onChange={(v) => set((x) => void (x.targetPercent = v))} decimals={0} span={2} />
                 ) : (
-                  <MoneyC label="Income p.m. (today)" value={g.targetMonthly} onChange={(v) => set((x) => void (x.targetMonthly = v))} span={2} />
+                  <MoneyC label="Income p.m. (today)" value={g.targetMonthly} path={`retirement.${k}.targetMonthly`} onChange={(v) => set((x) => void (x.targetMonthly = v))} span={2} />
                 )}
-                <MoneyC label="Other income p.m." value={g.otherIncomeMonthly} onChange={(v) => set((x) => void (x.otherIncomeMonthly = v))} span={3} hint="rental, DB pension" />
+                <MoneyC label="Other income p.m." value={g.otherIncomeMonthly} path={`retirement.${k}.otherIncomeMonthly`} onChange={(v) => set((x) => void (x.otherIncomeMonthly = v))} span={3} hint="rental, DB pension" />
                 <ReadC label="Target p.m." value={money(r.targetMonthlyToday)} span={3} />
                 <ReadC label="Projected capital (today)" value={money(r.projectedCapitalReal)} span={3} />
                 <ReadC label="Required (today)" value={money(r.requiredCapitalReal)} span={3} />
@@ -85,13 +85,13 @@ export function GoalsSection({ doc, update, analysis }: SectionProps) {
         const set = (fn: (x: typeof g) => void) => update((d) => fn(d.goals[i]));
         return (
           <Item key={g.id} id={g.id} n={i + 1} onRemove={() => update((d) => void d.goals.splice(i, 1))}>
-            <TextC label="Goal" value={g.name} onChange={(v) => set((x) => void (x.name = v))} span={3} />
-            {ownerOptions(doc).length > 1 && <SelectC label="For" value={g.owner} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={1} />}
-            <MoneyC label="Cost (today)" value={g.cost} onChange={(v) => set((x) => void (x.cost = v))} span={2} />
-            <NumC label="Target year" value={g.targetYear} onChange={(v) => set((x) => void (x.targetYear = Math.round(v)))} min={2000} max={2100} span={1} plain />
-            <SelectC label="Priority" value={g.priority} onChange={(v) => set((x) => void (x.priority = v))} options={{ high: 'High', medium: 'Medium', low: 'Low' }} span={1} />
-            <MoneyC label="Saved" value={g.existingSavings} onChange={(v) => set((x) => void (x.existingSavings = v))} span={1} />
-            <MoneyC label="Saving p.m." value={g.monthlyContribution} onChange={(v) => set((x) => void (x.monthlyContribution = v))} span={1} />
+            <TextC label="Goal" value={g.name} path={`goals[${g.id}].name`} onChange={(v) => set((x) => void (x.name = v))} span={3} />
+            {ownerOptions(doc).length > 1 && <SelectC label="For" value={g.owner} path={`goals[${g.id}].owner`} onChange={(v) => set((x) => void (x.owner = v))} options={ownerOptions(doc)} span={1} />}
+            <MoneyC label="Cost (today)" value={g.cost} path={`goals[${g.id}].cost`} onChange={(v) => set((x) => void (x.cost = v))} span={2} />
+            <NumC label="Target year" value={g.targetYear} path={`goals[${g.id}].targetYear`} onChange={(v) => set((x) => void (x.targetYear = Math.round(v)))} min={2000} max={2100} span={1} plain />
+            <SelectC label="Priority" value={g.priority} path={`goals[${g.id}].priority`} onChange={(v) => set((x) => void (x.priority = v))} options={{ high: 'High', medium: 'Medium', low: 'Low' }} span={1} />
+            <MoneyC label="Saved" value={g.existingSavings} path={`goals[${g.id}].existingSavings`} onChange={(v) => set((x) => void (x.existingSavings = v))} span={1} />
+            <MoneyC label="Saving p.m." value={g.monthlyContribution} path={`goals[${g.id}].monthlyContribution`} onChange={(v) => set((x) => void (x.monthlyContribution = v))} span={1} />
             {r && <ReadC label="Future cost · extra p.m." value={`${money(r.futureCost)} · ${r.monthlyRequired > 0 ? money(r.monthlyRequired) : 'on track'}`} tone={r.monthlyRequired > 0 ? 'bad' : 'good'} span={2} />}
           </Item>
         );
@@ -131,24 +131,24 @@ export function EstateSection({ doc, update, analysis }: SectionProps) {
                 {firstNameOf(doc, k)}
               </PairHead>
               <Cells>
-                <SelectC label="Valid will" value={e.hasWill} onChange={(v) => set((x) => void (x.hasWill = v))} options={{ yes: 'Yes', no: 'No', unsure: 'Unsure' }} span={2} need={e.hasWill === 'unsure'} />
+                <SelectC label="Valid will" value={e.hasWill} path={`estate.${k}.hasWill`} onChange={(v) => set((x) => void (x.hasWill = v))} options={{ yes: 'Yes', no: 'No', unsure: 'Unsure' }} span={2} need={e.hasWill === 'unsure'} />
                 {e.hasWill === 'yes' && (
                   <>
-                    <DateC label="Will signed" value={e.willDate} onChange={(v) => set((x) => void (x.willDate = v))} span={3} />
-                    <TextC label="Will kept at" value={e.willLocation} onChange={(v) => set((x) => void (x.willLocation = v))} span={3} />
-                    <TextC label="Executor" value={e.executor} onChange={(v) => set((x) => void (x.executor = v))} span={4} />
+                    <DateC label="Will signed" value={e.willDate} path={`estate.${k}.willDate`} onChange={(v) => set((x) => void (x.willDate = v))} span={3} />
+                    <TextC label="Will kept at" value={e.willLocation} path={`estate.${k}.willLocation`} onChange={(v) => set((x) => void (x.willLocation = v))} span={3} />
+                    <TextC label="Executor" value={e.executor} path={`estate.${k}.executor`} onChange={(v) => set((x) => void (x.executor = v))} span={4} />
                   </>
                 )}
                 {e.hasWill === 'no' && <ReadC label="Intestate" value="Estate devolves under the Intestate Succession Act" tone="bad" span={10} />}
-                {minors && <SelectC label="Guardian nominated" value={e.guardianNominated} onChange={(v) => set((x) => void (x.guardianNominated = v))} options={{ yes: 'Yes', no: 'No', na: 'N/A' }} span={3} />}
-                <YesNoC label="Trust" value={e.hasTrust} onChange={(v) => set((x) => void (x.hasTrust = v))} span={1} />
-                {e.hasTrust && <TextC label="Trust details" value={e.trustNotes} onChange={(v) => set((x) => void (x.trustNotes = v))} span={4} />}
-                <MoneyC label="Funeral cost" value={e.funeralCost} onChange={(v) => set((x) => void (x.funeralCost = v))} span={2} />
-                <MoneyC label="Cash bequests" value={e.cashBequests} onChange={(v) => set((x) => void (x.cashBequests = v))} span={2} />
-                {accrual && <MoneyC label="Accrual start value" value={e.accrualCommencementValue} onChange={(v) => set((x) => void (x.accrualCommencementValue = v))} span={3} hint="per ANC" />}
-                {widowed && <MoneyC label="Ported abatement (s4A)" value={e.portedAbatement} onChange={(v) => set((x) => void (x.portedAbatement = v))} span={3} />}
-                <MoneyC label="Extra need p.m. on death" value={e.additionalIncomeNeedMonthly} onChange={(v) => set((x) => void (x.additionalIncomeNeedMonthly = v))} span={3} hint="childcare" />
-                <MoneyC label="Other capital on death" value={e.additionalCapitalNeed} onChange={(v) => set((x) => void (x.additionalCapitalNeed = v))} span={3} />
+                {minors && <SelectC label="Guardian nominated" value={e.guardianNominated} path={`estate.${k}.guardianNominated`} onChange={(v) => set((x) => void (x.guardianNominated = v))} options={{ yes: 'Yes', no: 'No', na: 'N/A' }} span={3} />}
+                <YesNoC label="Trust" value={e.hasTrust} path={`estate.${k}.hasTrust`} onChange={(v) => set((x) => void (x.hasTrust = v))} span={1} />
+                {e.hasTrust && <TextC label="Trust details" value={e.trustNotes} path={`estate.${k}.trustNotes`} onChange={(v) => set((x) => void (x.trustNotes = v))} span={4} />}
+                <MoneyC label="Funeral cost" value={e.funeralCost} path={`estate.${k}.funeralCost`} onChange={(v) => set((x) => void (x.funeralCost = v))} span={2} />
+                <MoneyC label="Cash bequests" value={e.cashBequests} path={`estate.${k}.cashBequests`} onChange={(v) => set((x) => void (x.cashBequests = v))} span={2} />
+                {accrual && <MoneyC label="Accrual start value" value={e.accrualCommencementValue} path={`estate.${k}.accrualCommencementValue`} onChange={(v) => set((x) => void (x.accrualCommencementValue = v))} span={3} hint="per ANC" />}
+                {widowed && <MoneyC label="Ported abatement (s4A)" value={e.portedAbatement} path={`estate.${k}.portedAbatement`} onChange={(v) => set((x) => void (x.portedAbatement = v))} span={3} />}
+                <MoneyC label="Extra need p.m. on death" value={e.additionalIncomeNeedMonthly} path={`estate.${k}.additionalIncomeNeedMonthly`} onChange={(v) => set((x) => void (x.additionalIncomeNeedMonthly = v))} span={3} hint="childcare" />
+                <MoneyC label="Other capital on death" value={e.additionalCapitalNeed} path={`estate.${k}.additionalCapitalNeed`} onChange={(v) => set((x) => void (x.additionalCapitalNeed = v))} span={3} />
                 <AreaC label="Estate notes" value={e.notes} onChange={(v) => set((x) => void (x.notes = v))} span={12} />
                 <ReadC label="Gross estate" value={money(r.grossEstate)} span={3} />
                 <ReadC label="Estate duty" value={money(r.estateDuty)} span={3} tone={r.estateDuty > 0 ? 'bad' : undefined} />
@@ -193,6 +193,7 @@ export function RiskSection({ doc, update, analysis }: SectionProps) {
         {RISK_QUESTIONS.map((q, qi) => (
           <SelectC
             key={q.id}
+            path={`riskProfile.answers[${q.id}]`}
             span={6}
             label={`${qi + 1}. ${q.question}`}
             hint={q.dimension}

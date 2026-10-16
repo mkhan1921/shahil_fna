@@ -62,7 +62,44 @@ export const saveDocument = async (doc: FnaDocument): Promise<void> => {
 export const deleteDocument = async (id: string): Promise<void> => {
   await run(DOCS, 'readwrite', (s) => s.delete(id));
   await run(SETTINGS, 'readwrite', (s) => s.delete(`plan:${id}`));
+  // Call reviews and annotations of this client go with the client file: they hold its transcript and figures.
+  for (const { value } of await listSettings<{ docId?: string; callId?: string }>('review-summary:')) {
+    if (value?.docId !== id || !value.callId) continue;
+    await run(SETTINGS, 'readwrite', (s) => s.delete(`review:${value.callId}`));
+    await run(SETTINGS, 'readwrite', (s) => s.delete(`review-summary:${value.callId}`));
+    for (const { key } of await listSettings(`annotation:${value.callId}:`)) await run(SETTINGS, 'readwrite', (s) => s.delete(key));
+  }
+  for (const { key, value } of await listSettings<{ annotation?: { prior_document_id?: string | null } }>('annotation:'))
+    if (value?.annotation?.prior_document_id === id) await run(SETTINGS, 'readwrite', (s) => s.delete(key));
   notify();
+};
+
+/*
+ * Working state kept beside the client files in the settings store, keyed by a prefix:
+ * `plan:<doc id>` (planning sessions), `review:<call id>` with `review-summary:<call id>` and
+ * `annotation:<call id>:<annotator>` (Advisor Call Intelligence reviews and gold annotations),
+ * `review-api` (the opt-in API settings).
+ */
+export const getSetting = async <T>(key: string): Promise<T | undefined> => run<T | undefined>(SETTINGS, 'readonly', (s) => s.get(key) as IDBRequest<T | undefined>);
+
+export const putSetting = async (key: string, value: unknown): Promise<void> => {
+  await run(SETTINGS, 'readwrite', (s) => s.put(value, key));
+  notify();
+};
+
+export const deleteSetting = async (key: string): Promise<void> => {
+  await run(SETTINGS, 'readwrite', (s) => s.delete(key));
+  notify();
+};
+
+/** Every setting whose key starts with `prefix`. */
+export const listSettings = async <T>(prefix: string): Promise<{ key: string; value: T }[]> => {
+  const range = IDBKeyRange.bound(prefix, `${prefix}￿`);
+  const [keys, values] = await Promise.all([
+    run<IDBValidKey[]>(SETTINGS, 'readonly', (s) => s.getAllKeys(range)),
+    run<T[]>(SETTINGS, 'readonly', (s) => s.getAll(range) as IDBRequest<T[]>),
+  ]);
+  return keys.map((key, i) => ({ key: String(key), value: values[i] }));
 };
 
 export const getPractice = async (): Promise<PracticeProfile> => {

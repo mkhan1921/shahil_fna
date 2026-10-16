@@ -1,0 +1,3620 @@
+{
+  "version": "profile_v1",
+  "groups": {
+    "people": {
+      "name": "people",
+      "description": "Each person's date of birth, work, health and smoking status.",
+      "list_entity": null,
+      "family": "household"
+    },
+    "household": {
+      "name": "household",
+      "description": "Marital status and regime, and whether the spouse is part of the plan.",
+      "list_entity": null,
+      "family": "household"
+    },
+    "dependants": {
+      "name": "dependants",
+      "description": "Children, parents and others who depend on the household, and how long.",
+      "list_entity": "dependant",
+      "family": "household"
+    },
+    "education": {
+      "name": "education",
+      "description": "Schooling and tertiary plans for each dependant, and money already saved for them.",
+      "list_entity": "dependant",
+      "family": "household"
+    },
+    "income": {
+      "name": "income",
+      "description": "Each person's salary, bonus, other income and payroll deductions.",
+      "list_entity": null,
+      "family": "income_expenses"
+    },
+    "income_changes": {
+      "name": "income_changes",
+      "description": "Expected changes to a person's income (promotion, retrenchment, going part-time). Forecast only.",
+      "list_entity": "income_change",
+      "family": "income_expenses"
+    },
+    "expenses": {
+      "name": "expenses",
+      "description": "Monthly living expenses, classified into the FNA expense catalog, plus anything that fits no catalog line.",
+      "list_entity": "expense",
+      "family": "income_expenses"
+    },
+    "retirement_funds": {
+      "name": "retirement_funds",
+      "description": "Pension, provident, preservation funds, retirement annuities and annuities in payment.",
+      "list_entity": "fund",
+      "family": "assets_liabilities"
+    },
+    "assets": {
+      "name": "assets",
+      "description": "Property, vehicles, cash, investments, business interests and what each is earmarked for.",
+      "list_entity": "asset",
+      "family": "assets_liabilities"
+    },
+    "liabilities": {
+      "name": "liabilities",
+      "description": "Home loans, vehicle finance, cards, loans and other debt.",
+      "list_entity": "liability",
+      "family": "assets_liabilities"
+    },
+    "policies": {
+      "name": "policies",
+      "description": "Life, disability, income protection, severe illness, funeral and family income cover.",
+      "list_entity": "policy",
+      "family": "policies_cover"
+    },
+    "policy_terms": {
+      "name": "policy_terms",
+      "description": "Waiting periods, benefit terms, definitions and escalations of existing policies.",
+      "list_entity": "policy",
+      "family": "policies_cover"
+    },
+    "retirement": {
+      "name": "retirement",
+      "description": "When each person wants to retire, the income they want then, and other retirement income.",
+      "list_entity": null,
+      "family": "goals"
+    },
+    "goals": {
+      "name": "goals",
+      "description": "Other savings goals (travel, a car, a deposit, a wedding) with cost, timing and savings.",
+      "list_entity": "goal",
+      "family": "goals"
+    },
+    "estate": {
+      "name": "estate",
+      "description": "Wills, executors, guardians, trusts and funeral cost.",
+      "list_entity": null,
+      "family": "policies_cover"
+    },
+    "estate_needs": {
+      "name": "estate_needs",
+      "description": "Extra capital or income the family would need on death, bequests, accrual and ported abatement.",
+      "list_entity": null,
+      "family": "policies_cover"
+    },
+    "risk_profile": {
+      "name": "risk_profile",
+      "description": "The eight investor risk questions (tolerance and capacity).",
+      "list_entity": null,
+      "family": "goals"
+    },
+    "engagement": {
+      "name": "engagement",
+      "description": "Why the client came for advice, their objectives and concerns, in their own words.",
+      "list_entity": null,
+      "family": "goals"
+    },
+    "events": {
+      "name": "events",
+      "description": "Uncertain future events with a cash impact (offshore study, inheritance, property sale, emigration). Forecast only.",
+      "list_entity": "event",
+      "family": "goals"
+    }
+  },
+  "slots": [
+    {
+      "slot_id": "{p}.dateOfBirth",
+      "fna_path": "{p}.dateOfBirth",
+      "group": "people",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "date",
+      "fna_unit": "date",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        1920.0,
+        2026.0
+      ],
+      "question": "What is this person's date of birth, or their age today?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Date of birth"
+    },
+    {
+      "slot_id": "{p}.employmentType",
+      "fna_path": "{p}.employmentType",
+      "group": "people",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "salaried",
+        "self-employed",
+        "commission",
+        "contract",
+        "retired",
+        "unemployed",
+        "student"
+      ],
+      "bounds": null,
+      "question": "How does this person earn their income (salaried, self-employed, commission, contract, retired, not working, student)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Employment type"
+    },
+    {
+      "slot_id": "{p}.smoker",
+      "fna_path": "{p}.smoker",
+      "group": "people",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Does this person smoke (including vaping or occasional cigars)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Smoker"
+    },
+    {
+      "slot_id": "{p}.occupation",
+      "fna_path": "{p}.occupation",
+      "group": "people",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What is this person's occupation or job title?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Occupation"
+    },
+    {
+      "slot_id": "{p}.employer",
+      "fna_path": "{p}.employer",
+      "group": "people",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Who does this person work for?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Employer"
+    },
+    {
+      "slot_id": "{p}.healthNotes",
+      "fna_path": "{p}.healthNotes",
+      "group": "people",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What health conditions, treatments or medical history did the person mention?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Health notes"
+    },
+    {
+      "slot_id": "{p}.hazardousPursuits",
+      "fna_path": "{p}.hazardousPursuits",
+      "group": "people",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Does the person take part in hazardous sports, pursuits or travel (diving, motor racing, flying, high-risk countries)?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Hazardous pursuits"
+    },
+    {
+      "slot_id": "household.maritalStatus",
+      "fna_path": "household.maritalStatus",
+      "group": "household",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "single",
+        "married",
+        "life-partner",
+        "divorced",
+        "widowed"
+      ],
+      "bounds": null,
+      "question": "What is the client's marital status (single, married, life partner, divorced, widowed)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Marital status"
+    },
+    {
+      "slot_id": "household.maritalRegime",
+      "fna_path": "household.maritalRegime",
+      "group": "household",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "icop",
+        "anc-accrual",
+        "anc-no-accrual",
+        "customary",
+        "foreign",
+        "na"
+      ],
+      "bounds": null,
+      "question": "If married, under which marital regime (in community of property, antenuptial contract with or without accrual, customary, foreign)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Marital regime"
+    },
+    {
+      "slot_id": "household.includeSpouse",
+      "fna_path": "household.includeSpouse",
+      "group": "household",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Is the spouse or partner part of this plan (are both people being advised together)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Include spouse"
+    },
+    {
+      "slot_id": "household.dateOfMarriage",
+      "fna_path": "household.dateOfMarriage",
+      "group": "household",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "date",
+      "fna_unit": "date",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        1950.0,
+        2026.0
+      ],
+      "question": "When did the couple marry?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Date of marriage"
+    },
+    {
+      "slot_id": "dependants[].name",
+      "fna_path": "dependants[].name",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What is this dependant's name?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Name"
+    },
+    {
+      "slot_id": "dependants[].relationship",
+      "fna_path": "dependants[].relationship",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "child",
+        "parent",
+        "sibling",
+        "other"
+      ],
+      "bounds": null,
+      "question": "How is this dependant related to the client (child, parent, sibling, other)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Relationship"
+    },
+    {
+      "slot_id": "dependants[].dateOfBirth",
+      "fna_path": "dependants[].dateOfBirth",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "date",
+      "fna_unit": "date",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        1925.0,
+        2027.0
+      ],
+      "question": "What is this dependant's date of birth, or their age today?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Date of birth"
+    },
+    {
+      "slot_id": "dependants[].gender",
+      "fna_path": "dependants[].gender",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "male",
+        "female",
+        ""
+      ],
+      "bounds": null,
+      "question": "Is this dependant male or female, if it is clear from the conversation ('my daughter', 'he')?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Gender"
+    },
+    {
+      "slot_id": "dependants[].specialNeeds",
+      "fna_path": "dependants[].specialNeeds",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Does this dependant have special needs that mean lifelong support?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Special needs"
+    },
+    {
+      "slot_id": "dependants[].dependencyEndAge",
+      "fna_path": "dependants[].dependencyEndAge",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "age",
+      "fna_unit": "age",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        100.0
+      ],
+      "question": "Until what age will this dependant rely on the household financially?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Dependency end age"
+    },
+    {
+      "slot_id": "dependants[].monthlySupport",
+      "fna_path": "dependants[].monthlySupport",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        200000.0
+      ],
+      "question": "How much does the household pay each month to support this dependant (parents and other non-children)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Monthly support"
+    },
+    {
+      "slot_id": "dependants[].supportYears",
+      "fna_path": "dependants[].supportYears",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "years",
+      "fna_unit": "years",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        60.0
+      ],
+      "question": "For how many more years will this support be needed?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Support years"
+    },
+    {
+      "slot_id": "dependants[].notes",
+      "fna_path": "dependants[].notes",
+      "group": "dependants",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Anything else said about this dependant that matters for the plan?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Notes"
+    },
+    {
+      "slot_id": "dependants[].schoolType",
+      "fna_path": "dependants[].schoolType",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "none",
+        "public",
+        "private"
+      ],
+      "bounds": null,
+      "question": "Does this child attend (or will attend) a public or private school, or no school?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "School type"
+    },
+    {
+      "slot_id": "dependants[].schoolFeesAnnual",
+      "fna_path": "dependants[].schoolFeesAnnual",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_annual",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        600000.0
+      ],
+      "question": "What are this child's school fees per year, including extra costs, in today's money?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "School fees annual"
+    },
+    {
+      "slot_id": "dependants[].tertiary",
+      "fna_path": "dependants[].tertiary",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Is this dependant expected to study after school (university, college)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Tertiary"
+    },
+    {
+      "slot_id": "dependants[].tertiaryStartAge",
+      "fna_path": "dependants[].tertiaryStartAge",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "age",
+      "fna_unit": "age",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        15.0,
+        40.0
+      ],
+      "question": "At what age will this dependant start tertiary study?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Tertiary start age"
+    },
+    {
+      "slot_id": "dependants[].tertiaryYears",
+      "fna_path": "dependants[].tertiaryYears",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "years",
+      "fna_unit": "years",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        1.0,
+        10.0
+      ],
+      "question": "For how many years will this dependant study?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Tertiary years"
+    },
+    {
+      "slot_id": "dependants[].tertiaryCostAnnual",
+      "fna_path": "dependants[].tertiaryCostAnnual",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_annual",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        3000000.0
+      ],
+      "question": "What will tertiary study cost per year (tuition, books, residence), in today's money?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Tertiary cost annual"
+    },
+    {
+      "slot_id": "dependants[].educationSavings",
+      "fna_path": "dependants[].educationSavings",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        20000000.0
+      ],
+      "question": "How much has already been saved for this dependant's education?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Education savings"
+    },
+    {
+      "slot_id": "dependants[].educationSavingsMonthly",
+      "fna_path": "dependants[].educationSavingsMonthly",
+      "group": "education",
+      "cardinality": "per_entity",
+      "entity_type": "dependant",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        200000.0
+      ],
+      "question": "How much goes into education savings for this dependant each month?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Education savings monthly"
+    },
+    {
+      "slot_id": "income.{p}.grossMonthly",
+      "fna_path": "income.{p}.grossMonthly",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        3000000.0
+      ],
+      "question": "What is this person's gross monthly salary, including fixed taxable allowances?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Gross monthly"
+    },
+    {
+      "slot_id": "income.{p}.annualBonus",
+      "fna_path": "income.{p}.annualBonus",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_annual",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        20000000.0
+      ],
+      "question": "What bonus or 13th cheque does this person receive per year?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Annual bonus"
+    },
+    {
+      "slot_id": "income.{p}.otherTaxableMonthly",
+      "fna_path": "income.{p}.otherTaxableMonthly",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        2000000.0
+      ],
+      "question": "What other taxable income does this person receive each month (rental, commission, freelance, annuity)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Other taxable monthly"
+    },
+    {
+      "slot_id": "income.{p}.nonTaxableMonthly",
+      "fna_path": "income.{p}.nonTaxableMonthly",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        1000000.0
+      ],
+      "question": "What non-taxable income does this person receive each month (maintenance received, income protection benefits)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Non taxable monthly"
+    },
+    {
+      "slot_id": "income.{p}.medicalAidPayrollMonthly",
+      "fna_path": "income.{p}.medicalAidPayrollMonthly",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        100000.0
+      ],
+      "question": "How much medical aid is deducted from this person's salary each month?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Medical aid payroll monthly"
+    },
+    {
+      "slot_id": "income.{p}.medicalSchemeMembers",
+      "fna_path": "income.{p}.medicalSchemeMembers",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "count",
+      "fna_unit": "count",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "bounds": null,
+      "question": "How many people are on this person's medical scheme (for the medical tax credit)?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "int",
+      "label": "Medical scheme members"
+    },
+    {
+      "slot_id": "income.{p}.otherPayrollDeductionsMonthly",
+      "fna_path": "income.{p}.otherPayrollDeductionsMonthly",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000.0
+      ],
+      "question": "What other deductions come off this person's payslip each month (union, group risk, staff loans)?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Other payroll deductions monthly"
+    },
+    {
+      "slot_id": "income.{p}.uifApplies",
+      "fna_path": "income.{p}.uifApplies",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Does UIF apply to this person (an employee)?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Uif applies"
+    },
+    {
+      "slot_id": "income.{p}.businessGrowthRate",
+      "fna_path": "income.{p}.businessGrowthRate",
+      "group": "income",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "rate",
+      "fna_unit": "decimal",
+      "allowed_dists": [
+        "point",
+        "normal",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        -0.5,
+        1.0
+      ],
+      "question": "For a business owner, how do they expect the business's profit to grow each year, after inflation?",
+      "sensitivity_tier": "B",
+      "exported": false,
+      "store_as": "value",
+      "label": "Business growth rate"
+    },
+    {
+      "slot_id": "income.{p}.expectedChange[].description",
+      "fna_path": "income.{p}.expectedChange[].description",
+      "group": "income_changes",
+      "cardinality": "list",
+      "entity_type": "income_change",
+      "policy": "open_list",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What change to this person's income is expected (promotion, retrenchment, going part-time, a new job)?",
+      "sensitivity_tier": "C",
+      "exported": false,
+      "store_as": "value",
+      "label": "Description"
+    },
+    {
+      "slot_id": "income.{p}.expectedChange[].occurs",
+      "fna_path": "income.{p}.expectedChange[].occurs",
+      "group": "income_changes",
+      "cardinality": "list",
+      "entity_type": "income_change",
+      "policy": "open_list",
+      "value_type": "probability",
+      "fna_unit": "probability",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "How likely is this income change to happen?",
+      "sensitivity_tier": "A",
+      "exported": false,
+      "store_as": "value",
+      "label": "Occurs"
+    },
+    {
+      "slot_id": "income.{p}.expectedChange[].year",
+      "fna_path": "income.{p}.expectedChange[].year",
+      "group": "income_changes",
+      "cardinality": "list",
+      "entity_type": "income_change",
+      "policy": "open_list",
+      "value_type": "year",
+      "fna_unit": "year",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        2026.0,
+        2080.0
+      ],
+      "question": "In which year would the income change take effect?",
+      "sensitivity_tier": "B",
+      "exported": false,
+      "store_as": "value",
+      "label": "Year"
+    },
+    {
+      "slot_id": "income.{p}.expectedChange[].newGrossMonthly",
+      "fna_path": "income.{p}.expectedChange[].newGrossMonthly",
+      "group": "income_changes",
+      "cardinality": "list",
+      "entity_type": "income_change",
+      "policy": "open_list",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        3000000.0
+      ],
+      "question": "What would the person's gross monthly income be after the change, in today's money?",
+      "sensitivity_tier": "A",
+      "exported": false,
+      "store_as": "value",
+      "label": "New gross monthly"
+    },
+    {
+      "slot_id": "expenses.items[]",
+      "fna_path": "expenses.items[]",
+      "group": "expenses",
+      "cardinality": "list",
+      "entity_type": "expense",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        1000000.0
+      ],
+      "question": "How much does the household spend each month on this catalog line, in today's money?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Items"
+    },
+    {
+      "slot_id": "expenses.custom[].label",
+      "fna_path": "expenses.custom[].label",
+      "group": "expenses",
+      "cardinality": "list",
+      "entity_type": "expense",
+      "policy": "open_list",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What is this expense that fits no catalog line?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Label"
+    },
+    {
+      "slot_id": "expenses.custom[].category",
+      "fna_path": "expenses.custom[].category",
+      "group": "expenses",
+      "cardinality": "list",
+      "entity_type": "expense",
+      "policy": "open_list",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "housing",
+        "transport",
+        "household",
+        "communication",
+        "insurance",
+        "medical",
+        "children",
+        "personal",
+        "family",
+        "other"
+      ],
+      "bounds": null,
+      "question": "Which expense category does it belong to?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Category"
+    },
+    {
+      "slot_id": "expenses.custom[].amount",
+      "fna_path": "expenses.custom[].amount",
+      "group": "expenses",
+      "cardinality": "list",
+      "entity_type": "expense",
+      "policy": "open_list",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        1000000.0
+      ],
+      "question": "How much is it per month, in today's money?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Amount"
+    },
+    {
+      "slot_id": "expenses.custom[].essential",
+      "fna_path": "expenses.custom[].essential",
+      "group": "expenses",
+      "cardinality": "list",
+      "entity_type": "expense",
+      "policy": "open_list",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Is it an essential expense (it would continue in hard times)?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Essential"
+    },
+    {
+      "slot_id": "retirementFunds[].type",
+      "fna_path": "retirementFunds[].type",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "pension",
+        "provident",
+        "retirement-annuity",
+        "preservation-pension",
+        "preservation-provident",
+        "living-annuity",
+        "life-annuity"
+      ],
+      "bounds": null,
+      "question": "What kind of retirement fund is this (pension, provident, retirement annuity, preservation fund, living annuity, life annuity)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Type"
+    },
+    {
+      "slot_id": "retirementFunds[].owner",
+      "fna_path": "retirementFunds[].owner",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "client",
+        "spouse"
+      ],
+      "bounds": null,
+      "question": "Whose fund is this (client or spouse)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Owner"
+    },
+    {
+      "slot_id": "retirementFunds[].provider",
+      "fna_path": "retirementFunds[].provider",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Which company administers this fund?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Provider"
+    },
+    {
+      "slot_id": "retirementFunds[].name",
+      "fna_path": "retirementFunds[].name",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What do they call this fund (product or scheme name)?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Name"
+    },
+    {
+      "slot_id": "retirementFunds[].value",
+      "fna_path": "retirementFunds[].value",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        200000000.0
+      ],
+      "question": "What is the fund worth today (all components)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Value"
+    },
+    {
+      "slot_id": "retirementFunds[].savingsPot",
+      "fna_path": "retirementFunds[].savingsPot",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        20000000.0
+      ],
+      "question": "What is the balance of the two-pot savings component (included in the fund value)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Savings pot"
+    },
+    {
+      "slot_id": "retirementFunds[].employeeMonthly",
+      "fna_path": "retirementFunds[].employeeMonthly",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000.0
+      ],
+      "question": "How much does the member contribute to this fund each month?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Employee monthly"
+    },
+    {
+      "slot_id": "retirementFunds[].employerMonthly",
+      "fna_path": "retirementFunds[].employerMonthly",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000.0
+      ],
+      "question": "How much does the employer contribute to this fund each month (retirement funding portion)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Employer monthly"
+    },
+    {
+      "slot_id": "retirementFunds[].drawdownRate",
+      "fna_path": "retirementFunds[].drawdownRate",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "span_normalise",
+      "value_type": "rate",
+      "fna_unit": "decimal",
+      "allowed_dists": [
+        "point",
+        "normal",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.025,
+        0.175
+      ],
+      "question": "For a living annuity, what share of the capital is drawn as income each year?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Drawdown rate"
+    },
+    {
+      "slot_id": "retirementFunds[].beneficiariesNominated",
+      "fna_path": "retirementFunds[].beneficiariesNominated",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Have beneficiaries been nominated on this fund?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Beneficiaries nominated"
+    },
+    {
+      "slot_id": "retirementFunds[].viaPayroll",
+      "fna_path": "retirementFunds[].viaPayroll",
+      "group": "retirement_funds",
+      "cardinality": "per_entity",
+      "entity_type": "fund",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Is the member contribution deducted through payroll?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Via payroll"
+    },
+    {
+      "slot_id": "assets[].type",
+      "fna_path": "assets[].type",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "primary-residence",
+        "residential-property",
+        "commercial-property",
+        "vehicle",
+        "personal-effects",
+        "cash",
+        "money-market",
+        "unit-trust",
+        "shares",
+        "tfsa",
+        "endowment",
+        "offshore",
+        "business-interest",
+        "loan-account",
+        "crypto",
+        "other"
+      ],
+      "bounds": null,
+      "question": "What kind of asset is this (home, other property, vehicle, cash, money market, unit trusts, shares, TFSA, endowment, offshore, business interest, loan account, crypto, other)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Type"
+    },
+    {
+      "slot_id": "assets[].owner",
+      "fna_path": "assets[].owner",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "client",
+        "spouse",
+        "joint"
+      ],
+      "bounds": null,
+      "question": "Who owns this asset (client, spouse or jointly)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Owner"
+    },
+    {
+      "slot_id": "assets[].description",
+      "fna_path": "assets[].description",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "How do they describe this asset ('the flat in Sea Point', 'my Discovery unit trusts')?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Description"
+    },
+    {
+      "slot_id": "assets[].provider",
+      "fna_path": "assets[].provider",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Which bank, asset manager or platform holds this asset?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Provider"
+    },
+    {
+      "slot_id": "assets[].value",
+      "fna_path": "assets[].value",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "What is this asset worth today?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Value"
+    },
+    {
+      "slot_id": "assets[].earmark",
+      "fna_path": "assets[].earmark",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "general",
+        "emergency",
+        "retirement",
+        "education",
+        "goal"
+      ],
+      "bounds": null,
+      "question": "What is this asset set aside for (general, emergency, retirement, education, a goal)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Earmark"
+    },
+    {
+      "slot_id": "assets[].baseCost",
+      "fna_path": "assets[].baseCost",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "What did they pay for this asset (base cost for capital gains tax)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Base cost"
+    },
+    {
+      "slot_id": "assets[].monthlyContribution",
+      "fna_path": "assets[].monthlyContribution",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        1000000.0
+      ],
+      "question": "How much is added to this asset each month?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Monthly contribution"
+    },
+    {
+      "slot_id": "assets[].monthlyIncome",
+      "fna_path": "assets[].monthlyIncome",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        2000000.0
+      ],
+      "question": "What income does this asset produce each month (rental, dividends)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Monthly income"
+    },
+    {
+      "slot_id": "assets[].bequeathToSpouse",
+      "fna_path": "assets[].bequeathToSpouse",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Does this asset go to the surviving spouse on death (per the will)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Bequeath to spouse"
+    },
+    {
+      "slot_id": "assets[].notes",
+      "fna_path": "assets[].notes",
+      "group": "assets",
+      "cardinality": "per_entity",
+      "entity_type": "asset",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Anything else said about this asset that matters for the plan?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Notes"
+    },
+    {
+      "slot_id": "liabilities[].type",
+      "fna_path": "liabilities[].type",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "home-loan",
+        "vehicle-finance",
+        "personal-loan",
+        "credit-card",
+        "store-card",
+        "overdraft",
+        "student-loan",
+        "business-loan",
+        "tax",
+        "other"
+      ],
+      "bounds": null,
+      "question": "What kind of debt is this (home loan, vehicle finance, personal loan, credit card, store card, overdraft, student loan, business loan, tax, other)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Type"
+    },
+    {
+      "slot_id": "liabilities[].owner",
+      "fna_path": "liabilities[].owner",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "client",
+        "spouse",
+        "joint"
+      ],
+      "bounds": null,
+      "question": "Whose debt is this (client, spouse or joint)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Owner"
+    },
+    {
+      "slot_id": "liabilities[].lender",
+      "fna_path": "liabilities[].lender",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Who is the lender?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Lender"
+    },
+    {
+      "slot_id": "liabilities[].description",
+      "fna_path": "liabilities[].description",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "How do they describe this debt?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Description"
+    },
+    {
+      "slot_id": "liabilities[].balance",
+      "fna_path": "liabilities[].balance",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        200000000.0
+      ],
+      "question": "How much is still owed on this debt?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Balance"
+    },
+    {
+      "slot_id": "liabilities[].monthlyRepayment",
+      "fna_path": "liabilities[].monthlyRepayment",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        2000000.0
+      ],
+      "question": "What is the monthly repayment on this debt?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Monthly repayment"
+    },
+    {
+      "slot_id": "liabilities[].interestRate",
+      "fna_path": "liabilities[].interestRate",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "span_normalise",
+      "value_type": "rate",
+      "fna_unit": "decimal",
+      "allowed_dists": [
+        "point",
+        "normal",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        0.6
+      ],
+      "question": "What interest rate is charged on this debt (per year)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Interest rate"
+    },
+    {
+      "slot_id": "liabilities[].creditLifeCover",
+      "fna_path": "liabilities[].creditLifeCover",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Is this debt covered by credit life or bond protection that settles it on death?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Credit life cover"
+    },
+    {
+      "slot_id": "liabilities[].settleOnDeath",
+      "fna_path": "liabilities[].settleOnDeath",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Should this debt be settled from capital on death?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Settle on death"
+    },
+    {
+      "slot_id": "liabilities[].settleOnDisability",
+      "fna_path": "liabilities[].settleOnDisability",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Should this debt be settled from capital on disability?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Settle on disability"
+    },
+    {
+      "slot_id": "liabilities[].linkedAssetId",
+      "fna_path": "liabilities[].linkedAssetId",
+      "group": "liabilities",
+      "cardinality": "per_entity",
+      "entity_type": "liability",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Which asset does this debt finance (the home for a bond, the car for vehicle finance)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Linked asset id"
+    },
+    {
+      "slot_id": "policies[].type",
+      "fna_path": "policies[].type",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "life",
+        "disability-lump",
+        "income-protection",
+        "severe-illness",
+        "funeral",
+        "family-income"
+      ],
+      "bounds": null,
+      "question": "What kind of cover is this (life, lump-sum disability, income protection, severe illness, funeral, family income benefit)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Type"
+    },
+    {
+      "slot_id": "policies[].lifeAssured",
+      "fna_path": "policies[].lifeAssured",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "client",
+        "spouse"
+      ],
+      "bounds": null,
+      "question": "Whose life does this policy cover (client or spouse)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Life assured"
+    },
+    {
+      "slot_id": "policies[].insurer",
+      "fna_path": "policies[].insurer",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Which insurer issued this policy?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Insurer"
+    },
+    {
+      "slot_id": "policies[].cover",
+      "fna_path": "policies[].cover",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "What is the lump-sum cover amount (life, disability, severe illness, funeral)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Cover"
+    },
+    {
+      "slot_id": "policies[].monthlyBenefit",
+      "fna_path": "policies[].monthlyBenefit",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        5000000.0
+      ],
+      "question": "What is the monthly benefit (income protection, family income benefit)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Monthly benefit"
+    },
+    {
+      "slot_id": "policies[].beneficiary",
+      "fna_path": "policies[].beneficiary",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "estate",
+        "spouse",
+        "children",
+        "trust",
+        "other",
+        "business"
+      ],
+      "bounds": null,
+      "question": "Who is the nominated beneficiary (estate, spouse, children, trust, other, business)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Beneficiary"
+    },
+    {
+      "slot_id": "policies[].isGroup",
+      "fna_path": "policies[].isGroup",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Is this an employer group scheme benefit rather than a personal policy?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Is group"
+    },
+    {
+      "slot_id": "policies[].premiumMonthly",
+      "fna_path": "policies[].premiumMonthly",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000.0
+      ],
+      "question": "What is the monthly premium?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Premium monthly"
+    },
+    {
+      "slot_id": "policies[].notes",
+      "fna_path": "policies[].notes",
+      "group": "policies",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Anything else said about this policy that matters for the plan?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Notes"
+    },
+    {
+      "slot_id": "policies[].waitingPeriodMonths",
+      "fna_path": "policies[].waitingPeriodMonths",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "months",
+      "fna_unit": "months",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        24.0
+      ],
+      "question": "For income protection, what is the waiting period before the benefit pays, in months?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Waiting period months"
+    },
+    {
+      "slot_id": "policies[].benefitToAge",
+      "fna_path": "policies[].benefitToAge",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "age",
+      "fna_unit": "age",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        100.0
+      ],
+      "question": "Until what age does the income benefit pay (0 for a temporary benefit)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Benefit to age"
+    },
+    {
+      "slot_id": "policies[].benefitTermYears",
+      "fna_path": "policies[].benefitTermYears",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "years",
+      "fna_unit": "years",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        50.0
+      ],
+      "question": "For a family income benefit, for how many years is the income paid?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Benefit term years"
+    },
+    {
+      "slot_id": "policies[].accelerated",
+      "fna_path": "policies[].accelerated",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Is this disability or severe illness benefit accelerated from the life cover (paying it reduces the life cover)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Accelerated"
+    },
+    {
+      "slot_id": "policies[].definition",
+      "fna_path": "policies[].definition",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "own-occupation",
+        "suited-occupation",
+        "any-occupation",
+        "functional",
+        "activities-of-daily-living"
+      ],
+      "bounds": null,
+      "question": "For disability cover, which definition applies (own occupation, suited occupation, any occupation, functional, activities of daily living)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Definition"
+    },
+    {
+      "slot_id": "policies[].premiumEscalation",
+      "fna_path": "policies[].premiumEscalation",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "rate",
+      "fna_unit": "decimal",
+      "allowed_dists": [
+        "point",
+        "normal",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        0.3
+      ],
+      "question": "By how much does the premium increase each year?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Premium escalation"
+    },
+    {
+      "slot_id": "policies[].coverEscalation",
+      "fna_path": "policies[].coverEscalation",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "rate",
+      "fna_unit": "decimal",
+      "allowed_dists": [
+        "point",
+        "normal",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        0.3
+      ],
+      "question": "By how much does the cover increase each year?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Cover escalation"
+    },
+    {
+      "slot_id": "policies[].inceptionDate",
+      "fna_path": "policies[].inceptionDate",
+      "group": "policy_terms",
+      "cardinality": "per_entity",
+      "entity_type": "policy",
+      "policy": "span_normalise",
+      "value_type": "date",
+      "fna_unit": "date",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        1960.0,
+        2027.0
+      ],
+      "question": "When did this policy start?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Inception date"
+    },
+    {
+      "slot_id": "retirement.{p}.retirementAge",
+      "fna_path": "retirement.{p}.retirementAge",
+      "group": "retirement",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "age",
+      "fna_unit": "age",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        40.0,
+        80.0
+      ],
+      "question": "At what age does this person intend or expect to stop full-time work? Include stated, implied and ranges. Note who proposed the number.",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Retirement age"
+    },
+    {
+      "slot_id": "retirement.{p}.planningAge",
+      "fna_path": "retirement.{p}.planningAge",
+      "group": "retirement",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "age",
+      "fna_unit": "age",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        70.0,
+        110.0
+      ],
+      "question": "To what age should the plan fund retirement income (life expectancy to plan for)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Planning age"
+    },
+    {
+      "slot_id": "retirement.{p}.targetMode",
+      "fna_path": "retirement.{p}.targetMode",
+      "group": "retirement",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "percent",
+        "amount"
+      ],
+      "bounds": null,
+      "question": "Is the retirement income goal stated as a share of current income (percent) or as a monthly amount?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Target mode"
+    },
+    {
+      "slot_id": "retirement.{p}.targetPercent",
+      "fna_path": "retirement.{p}.targetPercent",
+      "group": "retirement",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "rate",
+      "fna_unit": "decimal",
+      "allowed_dists": [
+        "point",
+        "normal",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.1,
+        2.0
+      ],
+      "question": "What share of current gross income does this person want in retirement?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Target percent"
+    },
+    {
+      "slot_id": "retirement.{p}.targetMonthly",
+      "fna_path": "retirement.{p}.targetMonthly",
+      "group": "retirement",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        2000000.0
+      ],
+      "question": "What monthly income does this person want in retirement, in today's money?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Target monthly"
+    },
+    {
+      "slot_id": "retirement.{p}.otherIncomeMonthly",
+      "fna_path": "retirement.{p}.otherIncomeMonthly",
+      "group": "retirement",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        2000000.0
+      ],
+      "question": "What other monthly income will this person have in retirement (rental, a spouse's pension), in today's money?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Other income monthly"
+    },
+    {
+      "slot_id": "goals[].name",
+      "fna_path": "goals[].name",
+      "group": "goals",
+      "cardinality": "list",
+      "entity_type": "goal",
+      "policy": "open_list",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What is the goal (overseas trip, new car, deposit on a house, wedding)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Name"
+    },
+    {
+      "slot_id": "goals[].cost",
+      "fna_path": "goals[].cost",
+      "group": "goals",
+      "cardinality": "list",
+      "entity_type": "goal",
+      "policy": "open_list",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "What will the goal cost, in today's money?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Cost"
+    },
+    {
+      "slot_id": "goals[].targetYear",
+      "fna_path": "goals[].targetYear",
+      "group": "goals",
+      "cardinality": "list",
+      "entity_type": "goal",
+      "policy": "open_list",
+      "value_type": "year",
+      "fna_unit": "year",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        2026.0,
+        2100.0
+      ],
+      "question": "In which year do they want to reach the goal?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Target year"
+    },
+    {
+      "slot_id": "goals[].existingSavings",
+      "fna_path": "goals[].existingSavings",
+      "group": "goals",
+      "cardinality": "list",
+      "entity_type": "goal",
+      "policy": "open_list",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "How much is already saved towards this goal?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Existing savings"
+    },
+    {
+      "slot_id": "goals[].monthlyContribution",
+      "fna_path": "goals[].monthlyContribution",
+      "group": "goals",
+      "cardinality": "list",
+      "entity_type": "goal",
+      "policy": "open_list",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        1000000.0
+      ],
+      "question": "How much is saved towards this goal each month?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Monthly contribution"
+    },
+    {
+      "slot_id": "goals[].priority",
+      "fna_path": "goals[].priority",
+      "group": "goals",
+      "cardinality": "list",
+      "entity_type": "goal",
+      "policy": "open_list",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "bounds": null,
+      "question": "How important is this goal to them (high, medium, low)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Priority"
+    },
+    {
+      "slot_id": "goals[].owner",
+      "fna_path": "goals[].owner",
+      "group": "goals",
+      "cardinality": "list",
+      "entity_type": "goal",
+      "policy": "open_list",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "client",
+        "spouse",
+        "joint"
+      ],
+      "bounds": null,
+      "question": "Whose goal is it (client, spouse or joint)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Owner"
+    },
+    {
+      "slot_id": "estate.{p}.hasWill",
+      "fna_path": "estate.{p}.hasWill",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "yes",
+        "no",
+        "unsure"
+      ],
+      "bounds": null,
+      "question": "Does this person have a valid will (yes, no, unsure)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Has will"
+    },
+    {
+      "slot_id": "estate.{p}.willDate",
+      "fna_path": "estate.{p}.willDate",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "date",
+      "fna_unit": "date",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        1950.0,
+        2027.0
+      ],
+      "question": "When was the will signed or last updated?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Will date"
+    },
+    {
+      "slot_id": "estate.{p}.willLocation",
+      "fna_path": "estate.{p}.willLocation",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Where is the original will kept?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Will location"
+    },
+    {
+      "slot_id": "estate.{p}.executor",
+      "fna_path": "estate.{p}.executor",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Who is nominated as executor?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Executor"
+    },
+    {
+      "slot_id": "estate.{p}.guardianNominated",
+      "fna_path": "estate.{p}.guardianNominated",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "yes",
+        "no",
+        "na"
+      ],
+      "bounds": null,
+      "question": "Has a guardian been nominated for minor children (yes, no, not applicable)?",
+      "sensitivity_tier": "A",
+      "exported": true,
+      "store_as": "value",
+      "label": "Guardian nominated"
+    },
+    {
+      "slot_id": "estate.{p}.hasTrust",
+      "fna_path": "estate.{p}.hasTrust",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "boolean",
+      "value_type": "boolean",
+      "fna_unit": "boolean",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Does this person have (or plan in the will) a trust?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Has trust"
+    },
+    {
+      "slot_id": "estate.{p}.trustNotes",
+      "fna_path": "estate.{p}.trustNotes",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What was said about the trust (type, trustees, assets)?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Trust notes"
+    },
+    {
+      "slot_id": "estate.{p}.funeralCost",
+      "fna_path": "estate.{p}.funeralCost",
+      "group": "estate",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        2000000.0
+      ],
+      "question": "What would this person's funeral cost?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Funeral cost"
+    },
+    {
+      "slot_id": "estate.{p}.additionalIncomeNeedMonthly",
+      "fna_path": "estate.{p}.additionalIncomeNeedMonthly",
+      "group": "estate_needs",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand_monthly",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        1000000.0
+      ],
+      "question": "What extra monthly income would the family need if this person died (childcare, help at home), in today's money?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Additional income need monthly"
+    },
+    {
+      "slot_id": "estate.{p}.additionalCapitalNeed",
+      "fna_path": "estate.{p}.additionalCapitalNeed",
+      "group": "estate_needs",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "What other lump sums would be needed on this person's death (business debt, a bequest to charity)?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Additional capital need"
+    },
+    {
+      "slot_id": "estate.{p}.cashBequests",
+      "fna_path": "estate.{p}.cashBequests",
+      "group": "estate_needs",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "What specific cash bequests does the will leave?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Cash bequests"
+    },
+    {
+      "slot_id": "estate.{p}.accrualCommencementValue",
+      "fna_path": "estate.{p}.accrualCommencementValue",
+      "group": "estate_needs",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        500000000.0
+      ],
+      "question": "For a marriage with accrual, what was this person's net estate at the start of the marriage?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Accrual commencement value"
+    },
+    {
+      "slot_id": "estate.{p}.portedAbatement",
+      "fna_path": "estate.{p}.portedAbatement",
+      "group": "estate_needs",
+      "cardinality": "per_person",
+      "entity_type": null,
+      "policy": "span_normalise",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        0.0,
+        3500000.0
+      ],
+      "question": "Is there unused estate duty abatement ported from a predeceased spouse, and how much?",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "value",
+      "label": "Ported abatement"
+    },
+    {
+      "slot_id": "riskProfile.answers[horizon]",
+      "fna_path": "riskProfile.answers[horizon]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "Within 1 year",
+        "1 – 3 years",
+        "3 – 5 years",
+        "5 – 10 years",
+        "More than 10 years"
+      ],
+      "bounds": null,
+      "question": "When will you need to start drawing on the majority of this money? Options: Within 1 year; 1 – 3 years; 3 – 5 years; 5 – 10 years; More than 10 years.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: horizon"
+    },
+    {
+      "slot_id": "riskProfile.answers[income-stability]",
+      "fna_path": "riskProfile.answers[income-stability]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "Very insecure / no regular income",
+        "Somewhat insecure (commission, contract)",
+        "Reasonably secure",
+        "Secure",
+        "Very secure, with other income sources"
+      ],
+      "bounds": null,
+      "question": "How secure is your current and future income? Options: Very insecure / no regular income; Somewhat insecure (commission, contract); Reasonably secure; Secure; Very secure, with other income sources.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: income stability"
+    },
+    {
+      "slot_id": "riskProfile.answers[emergency]",
+      "fna_path": "riskProfile.answers[emergency]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "Less than 1 month",
+        "1 – 3 months",
+        "3 – 6 months",
+        "6 – 12 months",
+        "More than 12 months"
+      ],
+      "bounds": null,
+      "question": "If you lost your income, how long could you cover your expenses from savings (excluding retirement funds)? Options: Less than 1 month; 1 – 3 months; 3 – 6 months; 6 – 12 months; More than 12 months.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: emergency"
+    },
+    {
+      "slot_id": "riskProfile.answers[proportion]",
+      "fna_path": "riskProfile.answers[proportion]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "More than 75%",
+        "50% – 75%",
+        "25% – 50%",
+        "10% – 25%",
+        "Less than 10%"
+      ],
+      "bounds": null,
+      "question": "What proportion of your total investable assets does this investment represent? Options: More than 75%; 50% – 75%; 25% – 50%; 10% – 25%; Less than 10%.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: proportion"
+    },
+    {
+      "slot_id": "riskProfile.answers[knowledge]",
+      "fna_path": "riskProfile.answers[knowledge]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "None — I have only used bank savings",
+        "Limited — some unit trusts or a retirement annuity",
+        "Moderate — I understand how markets and asset classes work",
+        "Good — I actively follow and manage investments",
+        "Advanced — professional or extensive experience"
+      ],
+      "bounds": null,
+      "question": "How would you describe your investment knowledge and experience? Options: None — I have only used bank savings; Limited — some unit trusts or a retirement annuity; Moderate — I understand how markets and asset classes work; Good — I actively follow and manage investments; Advanced — professional or extensive experience.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: knowledge"
+    },
+    {
+      "slot_id": "riskProfile.answers[objective]",
+      "fna_path": "riskProfile.answers[objective]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "Protect my capital — I cannot accept losses",
+        "Mostly stability, with some growth",
+        "A balance of growth and stability",
+        "Mostly growth, accepting short-term volatility",
+        "Maximum long-term growth"
+      ],
+      "bounds": null,
+      "question": "Which statement best describes your main investment objective? Options: Protect my capital — I cannot accept losses; Mostly stability, with some growth; A balance of growth and stability; Mostly growth, accepting short-term volatility; Maximum long-term growth.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: objective"
+    },
+    {
+      "slot_id": "riskProfile.answers[drawdown]",
+      "fna_path": "riskProfile.answers[drawdown]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "Sell everything immediately",
+        "Sell some to limit further losses",
+        "Do nothing and wait for recovery",
+        "Stay invested and review with my adviser",
+        "Invest more while prices are low"
+      ],
+      "bounds": null,
+      "question": "Your R100,000 investment falls to R80,000 in a market crash. What would you do? Options: Sell everything immediately; Sell some to limit further losses; Do nothing and wait for recovery; Stay invested and review with my adviser; Invest more while prices are low.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: drawdown"
+    },
+    {
+      "slot_id": "riskProfile.answers[tradeoff]",
+      "fna_path": "riskProfile.answers[tradeoff]",
+      "group": "risk_profile",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "categorical",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "R99,000 to R107,000",
+        "R94,000 to R112,000",
+        "R88,000 to R118,000",
+        "R80,000 to R126,000",
+        "R70,000 to R140,000"
+      ],
+      "bounds": null,
+      "question": "Which range of one-year outcomes on R100,000 would you be most comfortable with? Options: R99,000 to R107,000; R94,000 to R112,000; R88,000 to R118,000; R80,000 to R126,000; R70,000 to R140,000.",
+      "sensitivity_tier": "B",
+      "exported": true,
+      "store_as": "index",
+      "label": "Risk: tradeoff"
+    },
+    {
+      "slot_id": "engagement.reasonForAdvice",
+      "fna_path": "engagement.reasonForAdvice",
+      "group": "engagement",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Why did the client come for advice now? Quote their own words.",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Reason for advice"
+    },
+    {
+      "slot_id": "engagement.clientObjectives",
+      "fna_path": "engagement.clientObjectives",
+      "group": "engagement",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What does the client want to achieve? Quote their own words.",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Client objectives"
+    },
+    {
+      "slot_id": "engagement.clientConcerns",
+      "fna_path": "engagement.clientConcerns",
+      "group": "engagement",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What worries the client about their finances? Quote their own words.",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Client concerns"
+    },
+    {
+      "slot_id": "engagement.otherAdvisers",
+      "fna_path": "engagement.otherAdvisers",
+      "group": "engagement",
+      "cardinality": "one",
+      "entity_type": null,
+      "policy": "text",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "Which other advisers (attorneys, accountants, other planners) does the client use?",
+      "sensitivity_tier": "C",
+      "exported": true,
+      "store_as": "value",
+      "label": "Other advisers"
+    },
+    {
+      "slot_id": "event[].description",
+      "fna_path": "event[].description",
+      "group": "events",
+      "cardinality": "list",
+      "entity_type": "event",
+      "policy": "open_list",
+      "value_type": "text",
+      "fna_unit": "text",
+      "allowed_dists": [
+        "point"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "What uncertain future event with a cash impact was mentioned (offshore study, inheritance, property sale, emigration, a large purchase)?",
+      "sensitivity_tier": "C",
+      "exported": false,
+      "store_as": "value",
+      "label": "Description"
+    },
+    {
+      "slot_id": "event[].kind",
+      "fna_path": "event[].kind",
+      "group": "events",
+      "cardinality": "list",
+      "entity_type": "event",
+      "policy": "open_list",
+      "value_type": "category",
+      "fna_unit": "category",
+      "allowed_dists": [
+        "point",
+        "categorical",
+        "mixture"
+      ],
+      "categories": [
+        "education-offshore",
+        "inheritance",
+        "property-sale",
+        "business-sale",
+        "large-purchase",
+        "emigration",
+        "health",
+        "family-support",
+        "other"
+      ],
+      "bounds": null,
+      "question": "Which kind of event is it?",
+      "sensitivity_tier": "B",
+      "exported": false,
+      "store_as": "value",
+      "label": "Kind"
+    },
+    {
+      "slot_id": "event[].occurs",
+      "fna_path": "event[].occurs",
+      "group": "events",
+      "cardinality": "list",
+      "entity_type": "event",
+      "policy": "open_list",
+      "value_type": "probability",
+      "fna_unit": "probability",
+      "allowed_dists": [
+        "point",
+        "bernoulli",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": null,
+      "question": "How likely is the event, in the client's words ('she might go overseas', 'we'll definitely sell')?",
+      "sensitivity_tier": "A",
+      "exported": false,
+      "store_as": "value",
+      "label": "Occurs"
+    },
+    {
+      "slot_id": "event[].year",
+      "fna_path": "event[].year",
+      "group": "events",
+      "cardinality": "list",
+      "entity_type": "event",
+      "policy": "open_list",
+      "value_type": "year",
+      "fna_unit": "year",
+      "allowed_dists": [
+        "point",
+        "discrete",
+        "triangular",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        2026.0,
+        2100.0
+      ],
+      "question": "In which year would it happen?",
+      "sensitivity_tier": "B",
+      "exported": false,
+      "store_as": "value",
+      "label": "Year"
+    },
+    {
+      "slot_id": "event[].cashImpact",
+      "fna_path": "event[].cashImpact",
+      "group": "events",
+      "cardinality": "list",
+      "entity_type": "event",
+      "policy": "open_list",
+      "value_type": "amount",
+      "fna_unit": "rand",
+      "allowed_dists": [
+        "point",
+        "triangular",
+        "lognormal",
+        "discrete",
+        "mixture"
+      ],
+      "categories": null,
+      "bounds": [
+        -500000000.0,
+        500000000.0
+      ],
+      "question": "What would it cost (negative) or bring in (positive), in today's money?",
+      "sensitivity_tier": "A",
+      "exported": false,
+      "store_as": "value",
+      "label": "Cash impact"
+    }
+  ]
+}

@@ -20,6 +20,7 @@ import { useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ExportDialog from '@/components/ExportDialog';
 import Modal from '@/components/Modal';
+import CallReviews from '@/components/review/CallReviews';
 import { Badge, Button, Callout, Card, EmptyState, TextField, cx } from '@/components/ui';
 import { analyse, personName } from '@/lib/fna/analysis';
 import { newDocument, normaliseDocument, uid } from '@/lib/fna/defaults';
@@ -164,6 +165,8 @@ export default function ClientsPage() {
             </Link>
           </Callout>
         )}
+
+        <CallReviews />
 
         <Card>
           <div className="flex items-center gap-3 border-b border-line px-4 py-3">
