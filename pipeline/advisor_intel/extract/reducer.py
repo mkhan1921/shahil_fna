@@ -375,6 +375,8 @@ def _apply_one(facts: dict[str, Fact], op: StateOp) -> str | None:
             v = getattr(payload, k)
             if v is not None:
                 updates[k] = v
+        if op.actor == "deriver" and payload.reason:
+            updates["derivation"] = payload.reason  # the rule that changed the value (§7.6)
         if payload.review is not None:
             base = updates.get("review", f.review)
             keep = {k: getattr(base, k) for k in ("original_value", "original_status") if getattr(base, k) is not None}

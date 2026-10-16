@@ -63,7 +63,7 @@ def _merge_registry(inputs: AgentInputs) -> Profile:
 async def run_agent(
     inputs: AgentInputs,
     *,
-    services: HarnessServices,
+    services: HarnessServices | None = None,
     checkpoints: CheckpointStore | None = None,
     heartbeat: Callable[[Any], None] | None = None,
     on_profile: ProfileSink | None = None,
@@ -71,6 +71,10 @@ async def run_agent(
 ) -> AgentResult:
     """Run the orchestrator to Finish (or to a spent budget). With ``checkpoint_profile=False`` the
     caller persists the profile through ``on_profile`` and passes the latest one in ``inputs`` on resume."""
+    if services is None:  # every installed stage (the Temporal activity passes none)
+        from .services import default_services
+
+        services = default_services()
     checkpoints = checkpoints or InMemoryCheckpointStore()
     catalog = load_catalog(inputs.pins.schema_version)
     budgets = inputs.budgets.scaled(inputs.call_minutes or inputs.transcript.duration / 60)

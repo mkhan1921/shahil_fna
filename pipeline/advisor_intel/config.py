@@ -56,7 +56,12 @@ class Budgets(BaseModel):
     tool_result_chars: int = 6000
     get_segments_chars: int = 20000
 
+    scaled_for_minutes: float | None = None  # set by ``scaled``: budgets are scaled to a call once
+
     def scaled(self, call_minutes: float) -> "Budgets":
+        """Budgets for a call of this length (per hour of call, at least one hour). Scaling twice is a no-op."""
+        if self.scaled_for_minutes is not None:
+            return self
         f = max(1.0, call_minutes / 60.0)
         return self.model_copy(
             update={
@@ -64,6 +69,7 @@ class Budgets(BaseModel):
                 "tool_calls": int(self.tool_calls * f),
                 "total_tokens": int(self.total_tokens * f),
                 "usd_cap": self.usd_cap * f,
+                "scaled_for_minutes": call_minutes,
             }
         )
 
