@@ -107,12 +107,12 @@ describe('badges on the sheet', () => {
       { type: 'accept', factId: F.income },
       { type: 'edit', factId: F.groceries, value: { mode: 'point', value: 10500 } },
       { type: 'reject', factId: F.krugerValue, reason: 'misheard' },
-      { type: 'addFact', slotId: 'expenses.items[]', to: { kind: 'instance', instance: 'transport' }, value: { mode: 'point', value: 4200 } },
+      { type: 'addFact', slotId: 'expenses.items[]', to: { kind: 'instance', instance: 'fuel' }, value: { mode: 'point', value: 4200 } },
     );
     expect(badgeAt(after, 'income.client.grossMonthly')).toMatchObject({ decision: 'accepted', flagged: false });
     expect(badgeOf(after, after.facts[F.groceries])?.decision).toBe('edited');
     expect(badgeOf(after, after.facts[F.krugerValue])?.decision).toBe('rejected');
-    expect(badgeAt(after, 'expenses.items[transport]')).toMatchObject({ kind: 'new', label: 'Added', decision: 'accepted' });
+    expect(badgeAt(after, 'expenses.items[fuel]')).toMatchObject({ kind: 'new', label: 'Added', decision: 'accepted' });
   });
 });
 

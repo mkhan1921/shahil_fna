@@ -21,7 +21,7 @@ const review = () => {
   const act = (...actions: ReviewAction[]) => {
     for (const a of actions) s = applyAction(s, a, at(minute++));
   };
-  const seg = bundle.transcript.segments.find((x) => x.segment_id === 's0031')!;
+  const seg = bundle.transcript.segments.find((x) => x.segment_id === 's0005')!;
   act(
     // The flags first.
     { type: 'accept', factId: F.income },
@@ -36,12 +36,15 @@ const review = () => {
     { type: 'reattributeSpeaker', factId: F.target, attribution: 'advisor_confirmed_by_client' },
     { type: 'setStatus', factId: F.schoolType, status: 'implied', value: { mode: 'options', options: [{ value: 'private', weight: 70 }, { value: 'public', weight: 30 }] } },
     { type: 'removeRow', factId: 'liabilities[].type#liability.credit_card_3', note: 'Paid off in August' },
+    // Facts the call missed: one the reviewer knows, one quoted from the call.
+    { type: 'addFact', slotId: 'expenses.items[]', to: { kind: 'instance', instance: 'fuel' }, value: { mode: 'point', value: 4_200 } },
     {
       type: 'addFact',
-      slotId: 'expenses.items[]',
-      to: { kind: 'instance', instance: 'transport' },
-      value: { mode: 'point', value: 4_200 },
-      evidence: [evidenceFromSpan(bundle.transcript, 's0031', 0, seg.text.indexOf(','))],
+      slotId: '{p}.employer',
+      to: { kind: 'instance', instance: 'spouse' },
+      value: { mode: 'point', value: 'Brightwater' },
+      attribution: 'advisor_confirmed_by_client',
+      evidence: [evidenceFromSpan(bundle.transcript, 's0005', seg.text.indexOf('still at Brightwater'), seg.text.indexOf('still at Brightwater') + 20, 'context'), evidenceFromSpan(bundle.transcript, 's0006', 0, 12)],
     },
     { type: 'addFact', slotId: 'goals[].name', to: { kind: 'new-row' }, value: { mode: 'point', value: 'Kitchen renovation' } },
     { type: 'followup', change: { action: 'reword', followupId: 'fu-ra-statement', question: 'Please send Thabo’s latest retirement annuity statement.' } },

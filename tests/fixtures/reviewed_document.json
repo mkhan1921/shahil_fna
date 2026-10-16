@@ -37,7 +37,7 @@
   "healthNotes": "",
   "hazardousPursuits": "",
   "occupation": "HR business partner",
-  "employer": "Brightwater Retail Group",
+  "employer": "Brightwater",
   "employmentType": "salaried",
   "educationLevel": "Honours / postgraduate diploma",
   "email": "lerato@example.co.za",
@@ -147,7 +147,7 @@
    "security": 550,
    "domestic": 2600,
    "maintenance": 600,
-   "fuel": 4800,
+   "fuel": 4200,
    "vehicle-maintenance": 600,
    "tolls-parking": 500,
    "tracking": 250,
@@ -172,8 +172,7 @@
    "holidays": 800,
    "family-support": 3500,
    "donations": 500,
-   "bank-fees": 350,
-   "transport": 4200
+   "bank-fees": 350
   },
   "custom": []
  },

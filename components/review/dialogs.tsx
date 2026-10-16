@@ -7,7 +7,8 @@
 import { CheckCircle2, Download, ExternalLink, MessageSquarePlus, Plus, Send, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { CATALOG, categoryLabel, groupLabel, slotById, type SlotDef } from '@/lib/review/catalog';
+import { EXPENSE_ITEMS } from '@/lib/fna/catalog';
+import { CATALOG, categoryLabel, fieldLabel, groupLabel, slotById, type SlotDef } from '@/lib/review/catalog';
 import { pyPercent } from '@/lib/review/dist';
 import { factTitle, instanceChoices, type InstanceChoice } from '@/lib/review/labels';
 import { buildQueue } from '@/lib/review/queue';
@@ -296,10 +297,26 @@ export function TermDialog({ session, fact, onClose, dispatch }: { session: Revi
 /* Adding a fact the call missed (§11.2 "Add fact")                    */
 /* ------------------------------------------------------------------ */
 
-const slotTitle = (slot: SlotDef) => `${CATALOG.groups[slot.group]?.name ?? groupLabel(slot.group)} · ${slot.label}`;
+const slotTitle = (slot: SlotDef) => `${groupLabel(slot.group)} · ${fieldLabel(slot, null)}`;
 
-/** Slots a reviewer can add: every FNA field, and forecast-only fields that belong to a person. */
-const ADDABLE = CATALOG.slots.filter((s) => s.exported || s.cardinality === 'per_person');
+interface Pick {
+  slot: SlotDef;
+  /** Budget lines are picked by name: the instance comes with the pick. */
+  choice: InstanceChoice | null;
+  title: string;
+}
+
+/**
+ * What a reviewer can add: every FNA field, and forecast-only fields that belong to a person.
+ * Each budget line is its own pick ("Budget · Fuel"), so it is found by its name.
+ */
+const PICKS: Pick[] = CATALOG.slots
+  .filter((s) => s.exported || s.cardinality === 'per_person')
+  .flatMap((slot): Pick[] =>
+    slot.slot_id === 'expenses.items[]'
+      ? EXPENSE_ITEMS.map((e) => ({ slot, choice: { instance: e.key, label: e.label }, title: `Budget · ${e.label}` }))
+      : [{ slot, choice: null, title: slotTitle(slot) }],
+  );
 
 export function AddFactDialog({
   session,
@@ -327,7 +344,7 @@ export function AddFactDialog({
   const needsInstance = !!slot && slot.cardinality !== 'one';
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return ADDABLE.filter((s) => !q || slotTitle(s).toLowerCase().includes(q) || s.question.toLowerCase().includes(q)).slice(0, 60);
+    return PICKS.filter((p) => !q || p.title.toLowerCase().includes(q) || (!p.choice && p.slot.question.toLowerCase().includes(q))).slice(0, 60);
   }, [query]);
 
   const reset = () => {
@@ -356,11 +373,18 @@ export function AddFactDialog({
               </label>
               <input id="add-fact-search" autoFocus className="control h-8 min-h-0 px-2 py-1 text-[13px]" placeholder="Search: retirement age, bond, school fees…" value={query} onChange={(e) => setQuery(e.target.value)} />
               <ul className="max-h-72 overflow-y-auto rounded-md border border-line">
-                {matches.map((s) => (
-                  <li key={s.slot_id}>
-                    <button type="button" onClick={() => setSlotId(s.slot_id)} className="block w-full px-2.5 py-1 text-left text-[12.5px] hover:bg-brand-soft">
-                      <span className="text-ink">{slotTitle(s)}</span>
-                      {!s.exported && <span className="ml-1 text-[11px] text-muted">(forecast only)</span>}
+                {matches.map((p) => (
+                  <li key={`${p.slot.slot_id}#${p.choice?.instance ?? ''}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSlotId(p.slot.slot_id);
+                        setChoice(p.choice);
+                      }}
+                      className="block w-full px-2.5 py-1 text-left text-[12.5px] hover:bg-brand-soft"
+                    >
+                      <span className="text-ink">{p.title}</span>
+                      {!p.slot.exported && <span className="ml-1 text-[11px] text-muted">(forecast only)</span>}
                     </button>
                   </li>
                 ))}
@@ -370,7 +394,7 @@ export function AddFactDialog({
             <>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-[13.5px] font-semibold text-ink">{slotTitle(slot)}</div>
+                  <div className="text-[13.5px] font-semibold text-ink">{choice && slot.slot_id === 'expenses.items[]' ? `Budget · ${choice.label}` : slotTitle(slot)}</div>
                   <div className="text-[11.5px] text-muted">{slot.question}</div>
                 </div>
                 <button type="button" onClick={reset} className="text-[12px] font-semibold text-brand-2 hover:underline">

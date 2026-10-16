@@ -302,12 +302,12 @@
   },
   {
    "op": "ADD",
-   "fact_id": "expenses.items[]#transport",
-   "segment_id": "s0031",
+   "fact_id": "expenses.items[]#fuel",
+   "segment_id": null,
    "payload": {
     "slot_id": "expenses.items[]",
-    "instance_key": "transport",
-    "fna_path": "expenses.items[transport]",
+    "instance_key": "fuel",
+    "fna_path": "expenses.items[fuel]",
     "source": "reviewer",
     "status": "stated",
     "hypotheses": [
@@ -327,23 +327,10 @@
       "revises": false
      }
     ],
-    "evidence": [
-     {
-      "segment_id": "s0031",
-      "char_start": 0,
-      "char_end": 21,
-      "quote": "More like eleven now,",
-      "speaker_role": "client_secondary",
-      "t_start": 171.98,
-      "t_end": 173.42,
-      "asr_mean_conf": 0.775,
-      "role": "supports",
-      "aligner_score": null
-     }
-    ],
+    "evidence": [],
     "speaker_attribution": "client",
     "interpretation": "Added by the reviewer.",
-    "said": "More like eleven now,",
+    "said": "",
     "entity_refs": [],
     "provenance": {
      "run_id": "wf-call-2026-10-15-mokoena",
@@ -360,7 +347,7 @@
   },
   {
    "op": "CONFIRM",
-   "fact_id": "expenses.items[]#transport",
+   "fact_id": "expenses.items[]#fuel",
    "segment_id": null,
    "payload": {
     "evidence": [],
@@ -372,6 +359,93 @@
    },
    "actor": "reviewer",
    "seq": 434
+  },
+  {
+   "op": "ADD",
+   "fact_id": "{p}.employer#spouse",
+   "segment_id": "s0005",
+   "payload": {
+    "slot_id": "{p}.employer",
+    "instance_key": "spouse",
+    "fna_path": "spouse.employer",
+    "source": "reviewer",
+    "status": "stated",
+    "hypotheses": [
+     {
+      "value": {
+       "dist": {
+        "kind": "point",
+        "value": "Brightwater"
+       },
+       "unit": "none",
+       "period": "none",
+       "basis": "na",
+       "real_or_nominal": "na"
+      },
+      "weight": 1,
+      "rationale": "reviewer edit",
+      "revises": false
+     }
+    ],
+    "evidence": [
+     {
+      "segment_id": "s0005",
+      "char_start": 37,
+      "char_end": 58,
+      "quote": "still at Brightwater?",
+      "speaker_role": "advisor",
+      "t_start": 29.24,
+      "t_end": 30.46,
+      "asr_mean_conf": 0.752,
+      "role": "context",
+      "aligner_score": null
+     },
+     {
+      "segment_id": "s0006",
+      "char_start": 0,
+      "char_end": 12,
+      "quote": "Still there.",
+      "speaker_role": "client_secondary",
+      "t_start": 31.2,
+      "t_end": 31.9,
+      "asr_mean_conf": 0.73,
+      "role": "supports",
+      "aligner_score": null
+     }
+    ],
+    "speaker_attribution": "advisor_confirmed_by_client",
+    "interpretation": "Added by the reviewer.",
+    "said": "still at Brightwater?",
+    "entity_refs": [
+     "person.spouse"
+    ],
+    "provenance": {
+     "run_id": "wf-call-2026-10-15-mokoena",
+     "trace_id": "",
+     "extractor_model": "",
+     "extractor_prompt_version": "",
+     "calibrator_version": "cold-start-2026-10",
+     "lexicon_version": "1.3",
+     "schema_version": "profile_v1"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 435
+  },
+  {
+   "op": "CONFIRM",
+   "fact_id": "{p}.employer#spouse",
+   "segment_id": null,
+   "payload": {
+    "evidence": [],
+    "review": {
+     "status": "accepted",
+     "reviewer_id": "adviser-sipho",
+     "reviewed_at": "2026-10-16T09:42:00Z"
+    }
+   },
+   "actor": "reviewer",
+   "seq": 436
   },
   {
    "op": "ADD",
@@ -416,7 +490,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 435
+   "seq": 437
   },
   {
    "op": "CONFIRM",
@@ -427,11 +501,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:42:00Z"
+     "reviewed_at": "2026-10-16T09:43:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 436
+   "seq": 438
   },
   {
    "op": "ADD",
@@ -478,7 +552,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 437
+   "seq": 439
   },
   {
    "op": "CONFIRM",
@@ -489,11 +563,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:46:00Z"
+     "reviewed_at": "2026-10-16T09:47:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 438
+   "seq": 440
   },
   {
    "op": "UPDATE",
@@ -520,12 +594,12 @@
     "review": {
      "status": "edited",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:48:00Z",
+     "reviewed_at": "2026-10-16T09:49:00Z",
      "note": "edited in the sheet"
     }
    },
    "actor": "reviewer",
-   "seq": 439
+   "seq": 441
   },
   {
    "op": "CONFIRM",
@@ -536,11 +610,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 440
+   "seq": 442
   },
   {
    "op": "CONFIRM",
@@ -551,11 +625,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 441
+   "seq": 443
   },
   {
    "op": "CONFIRM",
@@ -566,11 +640,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 442
+   "seq": 444
   },
   {
    "op": "CONFIRM",
@@ -581,11 +655,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 443
+   "seq": 445
   },
   {
    "op": "CONFIRM",
@@ -596,11 +670,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 444
+   "seq": 446
   },
   {
    "op": "CONFIRM",
@@ -611,11 +685,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 445
+   "seq": 447
   },
   {
    "op": "CONFIRM",
@@ -626,11 +700,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 446
+   "seq": 448
   },
   {
    "op": "CONFIRM",
@@ -641,11 +715,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 447
+   "seq": 449
   },
   {
    "op": "CONFIRM",
@@ -656,11 +730,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 448
+   "seq": 450
   },
   {
    "op": "CONFIRM",
@@ -671,11 +745,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 449
+   "seq": 451
   },
   {
    "op": "CONFIRM",
@@ -686,11 +760,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 450
+   "seq": 452
   },
   {
    "op": "CONFIRM",
@@ -701,11 +775,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 451
+   "seq": 453
   },
   {
    "op": "CONFIRM",
@@ -716,11 +790,11 @@
     "review": {
      "status": "accepted",
      "reviewer_id": "adviser-sipho",
-     "reviewed_at": "2026-10-16T09:49:00Z"
+     "reviewed_at": "2026-10-16T09:50:00Z"
     }
    },
    "actor": "reviewer",
-   "seq": 452
+   "seq": 454
   }
  ],
  "flag_clearances": [
@@ -773,21 +847,21 @@
    "action": "reword",
    "question": "Please send Thabo’s latest retirement annuity statement.",
    "reviewer_id": "adviser-sipho",
-   "at": "2026-10-16T09:43:00Z"
+   "at": "2026-10-16T09:44:00Z"
   },
   {
    "followup_id": "fu-retirement-income",
    "action": "drop",
    "question": "How much of your current salary would you like to live on in retirement: about 60%, 70% or 80%?",
    "reviewer_id": "adviser-sipho",
-   "at": "2026-10-16T09:44:00Z"
+   "at": "2026-10-16T09:45:00Z"
   },
   {
    "followup_id": null,
    "action": "add",
    "question": "Has the new will been signed by both witnesses?",
    "reviewer_id": "adviser-sipho",
-   "at": "2026-10-16T09:45:00Z"
+   "at": "2026-10-16T09:46:00Z"
   }
  ],
  "term_confirmations": [

@@ -189,7 +189,7 @@ function AnnotatePopover({
       <header className="flex items-start justify-between gap-2 border-b border-line bg-wash px-3 py-2">
         <div className="min-w-0">
           <div className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted">
-            Tier {slot.sensitivity_tier} · {CATALOG.groups[slot.group]?.name ?? groupLabel(slot.group)}
+            Tier {slot.sensitivity_tier} · {groupLabel(slot.group)}
             {!slot.exported && ' · forecast only'}
           </div>
           <h2 className="truncate text-[14px] font-semibold text-ink">
@@ -469,7 +469,7 @@ function Annotating({ a, set, saveState, get }: { a: AnnotationSession; set: (a:
             <option value="">An event or income change…</option>
             {FORECAST_SLOTS.map((s) => (
               <option key={s.slot_id} value={s.slot_id}>
-                {CATALOG.groups[s.group]?.name ?? groupLabel(s.group)} · {s.label}
+                {groupLabel(s.group)} · {s.label}
               </option>
             ))}
           </select>
