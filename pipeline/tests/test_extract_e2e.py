@@ -1,4 +1,4 @@
-"""The sample call through the real harness, extraction stages, lexicon, reducer and derivations (oracle model)."""
+"""The sample call through ingestion, the real harness, extraction stages, lexicon, reducer and derivations (oracle model)."""
 
 from __future__ import annotations
 
@@ -18,13 +18,13 @@ from advisor_intel.models.runs import VersionPins
 from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS
 from advisor_intel.testing.fakes import scripted_model
 from advisor_intel.testing.oracle import Oracle
-from advisor_intel.testing.transcripts import transcript_from_turns
+from advisor_intel.testing.transcripts import ingested_transcript
 
 
 @pytest.fixture(scope="module")
 def run():
     async def go():
-        t = transcript_from_turns(SAMPLE_CALL)
+        t = await ingested_transcript(SAMPLE_CALL)  # scripted ASR, segmentation, grammar spans
         disc = await run_discourse(t)  # no prior file: the second client on the call becomes the spouse
         prof = Profile(call_id=t.call_id, run_id="wf-e2e", schema_version="profile_v1", anchor_date=t.anchor_date, entities=dict(disc.entities))
         oracle = Oracle(t, SAMPLE_OBJECTS, SAMPLE_GOLD)
@@ -74,8 +74,10 @@ def test_values_follow_the_lexicon_and_the_derivations(run):
     bonus = fact(run, "income.{p}.annualBonus#client")  # a thirteenth cheque: one month's gross pay
     assert bonus.value.basis == "gross" and bonus.value.period == "annual"
     assert stats.median(bonus.value.dist) == pytest.approx(stats.median(gross.value.dist), rel=0.08)
-    spouse = fact(run, "income.{p}.grossMonthly#spouse")
+    spouse = fact(run, "income.{p}.grossMonthly#spouse")  # 'thirty-five a month': 35 or 35 000 at ingestion
     assert spouse.value.dist.mode == 35_000 and spouse.value.period == "monthly"
+    span = next(s for s in run[0].numeric_spans if s.segment_id == spouse.evidence[0].segment_id and s.kind == "amount")
+    assert "scale_ambiguous" in span.flags and spouse.normalization["scale"]["grammar_readings"] == 2
     age = fact(run, "retirement.{p}.retirementAge#client")
     assert stats.median(age.value.dist) == 60 and max(stats.sample(age.value.dist, np.random.default_rng(1), 500)) == 62
     fees = fact(run, "dependants[].schoolFeesAnnual#@thandi")  # 'four thousand a month' into an annual field

@@ -46,3 +46,13 @@ def transcript_from_turns(turns: Sequence[Turn], *, call_id: str = "call-test", 
     roles = {s.speaker_label for s in segs}
     q = QualityReport(mean_word_conf=sum(s.mean_conf for s in segs) / max(1, len(segs)), low_asr_share=0.0, crosstalk_share=0.0, n_speakers=len(roles), role_conf_min=0.97)
     return Transcript(call_id=call_id, anchor_date=anchor, segments=segs, asr_provider="scripted", asr_model_version="scripted-1", quality=q)
+
+
+async def ingested_transcript(turns: Sequence[Turn], *, call_id: str = "call-test", anchor: date = date(2026, 10, 15), seed: int = 0,
+                              noise: object | None = None) -> Transcript:
+    """The same turns through stage 1 (scripted ASR, segmentation, spans and grammar readings, quality), roles from the script."""
+    from ..ingest import transcript_from_script_async
+    from ..ingest.asr.fake import ScriptedCall
+
+    script = ScriptedCall.parse("\n".join(f"{t[0]}: {t[1]}" for t in turns), roles={r: r for r in {t[0] for t in turns}})  # type: ignore[misc]
+    return await transcript_from_script_async(script, anchor, call_id=call_id, seed=seed, noise=noise, roles="script")  # type: ignore[arg-type]
