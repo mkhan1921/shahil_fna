@@ -54,6 +54,20 @@ result.sidecar       # probabilities and evidence per FnaDocument path
 result.followups, result.flags, result.forecast, result.note
 ```
 
+From the command line, a scripted call or a recording becomes the files the FNA app imports:
+
+```bash
+.venv/bin/python -m advisor_intel.pipeline --script call.txt --roles sipho=advisor,thabo=client_primary,lerato=client_secondary \
+    --prior thabo-before.json --date 2026-10-15 --out out/
+# out/export.json          the reviewed-median client file (shahil-fna format)
+# out/review_package.json  the review for the app's overlay (file exchange)
+# out/sidecar.json         probabilities and evidence per field
+```
+
+`--pins deployment` (the default) uses the configured models and needs their API keys; `--pins test`
+runs offline on fakes whose values are arbitrary (plumbing only). `--audio` takes a recording and
+uses the pinned ASR provider and diarizer.
+
 `process_cached_call(call, pins)` is the eval harness's task (stages 3–6 on cached stage 1–2 output).
 `tests/test_extract_e2e.py` and `tests/test_pipeline.py` run the sample call end to end with the
 gold-call oracle standing in for the model.

@@ -42,3 +42,22 @@ async def test_scripted_call_runs_every_installed_stage(oracle_pins):
     assert gross["status"] == "implied" and gross["derivation"] == "gross_from_net"
     assert fields["income.client.annualBonus"]["derivation"] == "gross_from_net"
     assert res.run_id.startswith("run-call-pipe-")
+
+
+def test_cli_writes_the_files_the_app_imports(tmp_path, oracle_pins, monkeypatch):
+    import json
+
+    from advisor_intel import pipeline as P
+
+    script = tmp_path / "call.txt"
+    script.write_text(SCRIPT)
+    monkeypatch.setattr(P, "deployment_pins", lambda settings=None: oracle_pins)
+    out = tmp_path / "out"
+    assert P.main(["--script", str(script), "--roles", ",".join(f"{k}={v}" for k, v in ROLES.items()), "--date", "2026-10-15",
+                   "--call-id", "call-pipe", "--out", str(out)]) == 0
+    export = json.loads((out / "export.json").read_text())
+    assert export["format"] == "shahil-fna" and export["document"]["income"]["spouse"]["grossMonthly"] == 35_000
+    pkg = json.loads((out / "review_package.json").read_text())
+    assert pkg["format"] == "advisor-intel-review" and pkg["bundle"]["state"] == "AWAITING_REVIEW"
+    assert pkg["bundle"]["sidecar"]["fields"]["income.spouse.grossMonthly"]["status"] == "stated"
+    assert json.loads((out / "sidecar.json").read_text())["format"] == "advisor-intel-sidecar"
