@@ -192,6 +192,14 @@ async def test_create_call_by_upload_or_uri(api):
     assert (await api.c.post("/calls", json={"call_id": "bad id!", "audio_uri": uri})).status_code == 422
 
 
+async def test_oversized_recordings_are_refused(api, monkeypatch):
+    monkeypatch.setenv("ADVISOR_INTEL_MAX_UPLOAD_MB", "1")
+    r = await api.c.post(
+        "/calls", files={"audio": ("big.wav", b"0" * (2**20 + 10), "audio/wav")}, data={"metadata": json.dumps({"call_id": "big"})}
+    )
+    assert r.status_code == 413 and await api.store.get_call("big") is None
+
+
 async def test_call_state_profile_and_forecast(api):
     profile = await seed_run(api)
     r = await api.c.get("/calls/call-1")

@@ -33,7 +33,7 @@ from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
 
-NotificationKind = Literal["review_ready", "review_reminder", "manual_review", "review_complete"]
+NotificationKind = Literal["review_ready", "review_reminder", "manual_review"]
 
 
 class Notification(BaseModel):

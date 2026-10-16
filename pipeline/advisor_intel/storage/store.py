@@ -264,9 +264,17 @@ class Store:
             return await self._load_profile(conn, run_id, version)
 
     async def update_profile(
-        self, run_id: str, fn: Callable[[Profile], tuple[Profile, T]] | Callable[[Profile], Awaitable[tuple[Profile, T]]]
+        self,
+        run_id: str,
+        fn: Callable[[Profile], tuple[Profile, T]] | Callable[[Profile], Awaitable[tuple[Profile, T]]],
+        *,
+        review_events: Callable[[T], list[ReviewEvent]] | None = None,
     ) -> tuple[Profile, T]:
-        """Read-modify-write the latest profile under the run's lock. ``fn`` returns (new profile, extra)."""
+        """Read-modify-write the latest profile under the run's lock. ``fn`` returns (new profile, extra).
+
+        ``review_events(extra)``, when given, names review events written in the same transaction, so
+        reviewer ops and the events that describe them are stored together or not at all (§11.2).
+        """
         async with self.db.transaction() as conn:
             await self._lock_run(conn, run_id)
             profile = await self._load_profile(conn, run_id, None)
@@ -277,6 +285,8 @@ class Store:
                 out = await out
             new, extra = out  # type: ignore[misc]
             saved = await self._save_profile(conn, new)
+            if review_events is not None:
+                await self._insert_review_events(conn, review_events(extra))
             return saved, extra
 
     async def profile_versions(self, run_id: str) -> list[ProfileVersionRecord]:
@@ -605,17 +615,23 @@ class Store:
         if not events:
             return 0
         async with self.db.connection() as conn:
-            async with conn.cursor() as c:
-                await c.executemany(
-                    """
-                    INSERT INTO review_events (workflow_id, fact_id, action, reason, reviewer_id, at, op_seq, profile_version, detail)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    [
-                        (e.workflow_id, e.fact_id, e.action, e.reason, e.reviewer_id, e.at, e.op_seq, e.profile_version, Jsonb(e.detail))
-                        for e in events
-                    ],
-                )
+            return await self._insert_review_events(conn, events)
+
+    @staticmethod
+    async def _insert_review_events(conn: Connection, events: list[ReviewEvent]) -> int:
+        if not events:
+            return 0
+        async with conn.cursor() as c:
+            await c.executemany(
+                """
+                INSERT INTO review_events (workflow_id, fact_id, action, reason, reviewer_id, at, op_seq, profile_version, detail)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                [
+                    (e.workflow_id, e.fact_id, e.action, e.reason, e.reviewer_id, e.at, e.op_seq, e.profile_version, Jsonb(e.detail))
+                    for e in events
+                ],
+            )
         return len(events)
 
     async def review_events(

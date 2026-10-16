@@ -84,6 +84,13 @@ from .temporal import ClientGateway, ResetRefused, TemporalGateway
 log = logging.getLogger(__name__)
 
 OPEN_ENVS = ("local", "test", "dev", "development")
+
+
+def max_upload_bytes() -> int:
+    """The largest recording ``POST /calls`` accepts (``ADVISOR_INTEL_MAX_UPLOAD_MB``, default 2048: a 90-minute stereo WAV is ~1 GB)."""
+    return int(os.environ.get("ADVISOR_INTEL_MAX_UPLOAD_MB", "2048")) * 2**20
+
+
 _OPS_BODY = TypeAdapter(list[StateOp] | ReviewActions)
 
 
@@ -205,18 +212,20 @@ async def apply_actions(d: ApiDeps, run: RunRecord, actions: ReviewActions, revi
         return cleared, (result, events + flag_events, unknown)
 
     try:
-        profile, (result, events, unknown) = await d.store.update_profile(run.workflow_id, fn)
+        # The ops and the review events describing them are written in one transaction.
+        profile, (result, events, unknown) = await d.store.update_profile(run.workflow_id, fn, review_events=lambda x: x[1])
     except LookupError as e:
         raise HTTPException(409, str(e)) from e
     for edit in actions.followup_edits:
         await d.store.apply_followup_edit(run.workflow_id, edit)
-    events += followup_edit_events(run.workflow_id, actions.followup_edits)
-    events += term_confirmation_events(run.workflow_id, actions.term_confirmations)
+    side = followup_edit_events(run.workflow_id, actions.followup_edits) + term_confirmation_events(
+        run.workflow_id, actions.term_confirmations
+    )
     if actions.term_confirmations:
         glossary = PostgresGlossaryStore(d.store.db)
         for c in actions.term_confirmations:
             await glossary.put(glossary_entry(c))
-    n = await d.store.record_review_events(events)
+    n = len(events) + await d.store.record_review_events(side)
     return OpsApplied(
         run_id=run.workflow_id,
         profile_version=profile.version,
@@ -290,11 +299,16 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
     upload: UploadFile | None = None
     try:
         if request.headers.get("content-type", "").startswith("multipart/form-data"):
+            limit = max_upload_bytes()
+            if int(request.headers.get("content-length") or 0) > limit:
+                raise HTTPException(413, f"the recording is larger than {limit // 2**20} MB")
             form = await request.form()
             meta = CallCreate.model_validate_json(str(form.get("metadata") or "{}"))
             audio = form.get("audio")
             if not isinstance(audio, UploadFile):
                 raise HTTPException(422, "multipart uploads need an 'audio' file field")
+            if (audio.size or 0) > limit:
+                raise HTTPException(413, f"the recording is larger than {limit // 2**20} MB")
             upload = audio
         else:
             meta = CallCreate.model_validate(await request.json())

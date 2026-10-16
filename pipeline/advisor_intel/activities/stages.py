@@ -53,6 +53,7 @@ from collections.abc import AsyncIterator, Callable, Mapping
 from typing import Any
 
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 ENTRYPOINTS: dict[str, str] = {
     "ingest_call": "advisor_intel.ingest.run:ingest_call",
@@ -76,8 +77,11 @@ ENTRYPOINTS: dict[str, str] = {
 }
 
 
-class StageUnavailable(RuntimeError):
-    """A stage's code is not installed in this worker."""
+class StageUnavailable(ApplicationError):
+    """A stage's code is not installed in this worker: not retried, since another attempt cannot fix it."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, type="StageUnavailable", non_retryable=True)
 
 
 class StageFunctions:

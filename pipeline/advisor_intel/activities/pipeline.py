@@ -480,29 +480,33 @@ class PipelineActivities:
             done = await self.store.get_stage_output(r.call_id, "review", key)
             if done is not None:
                 return ReviewOutcome.model_validate({**done.output, "cached": True})
-            applied = rejected = 0
-            events: list[ReviewEvent] = []
+            applied = rejected = n = 0
             if r.ops:
-                # File-exchange reviews carry their ops; API reviews wrote theirs through POST /ops already.
-                def fn(profile: Profile) -> tuple[Profile, Any]:
-                    result, evs = apply_reviewer_ops(profile, r.ops, reviewer_id=r.reviewer_id, at=r.submitted_at)
-                    return result.profile, (result, evs)
+                # File-exchange reviews carry their ops (API reviews wrote theirs through POST /ops). The ops
+                # are tagged with this submission, and they and their review events are written in one
+                # transaction, so a retry after a crash finds them applied and does not apply them twice.
+                tagged = [op.model_copy(update={"payload": {**op.payload, "batch": key}}) for op in r.ops]
 
-                profile, (result, events) = await self.store.update_profile(inp.run_id, fn)
-                applied, rejected = len(result.applied), len(result.rejected)
+                def fn(profile: Profile) -> tuple[Profile, tuple[list[ReviewEvent], int, int]]:
+                    if any(op.payload.get("batch") == key for op in profile.ops_log):
+                        return profile, ([], 0, 0)
+                    result, evs = apply_reviewer_ops(profile, tagged, reviewer_id=r.reviewer_id, at=r.submitted_at)
+                    return result.profile, (evs, len(result.applied), len(result.rejected))
+
+                profile, (events, applied, rejected) = await self.store.update_profile(inp.run_id, fn, review_events=lambda x: x[0])
+                n = len(events)
             else:
                 profile = await self._run_profile(inp.run_id, r.call_id)
-            events.append(
-                ReviewEvent(
+            if not any(e.action == "submit" and e.detail.get("key") == key for e in await self.store.review_events(run_id=inp.run_id)):
+                submit = ReviewEvent(
                     workflow_id=inp.run_id,
                     action="submit",
                     reviewer_id=r.reviewer_id,
                     at=r.submitted_at,
                     profile_version=profile.version,
-                    detail={"spot_check": r.spot_check, "submitted_version": r.profile_version},
+                    detail={"spot_check": r.spot_check, "submitted_version": r.profile_version, "key": key},
                 )
-            )
-            n = await self.store.record_review_events(events)
+                n += await self.store.record_review_events([submit])
             await self.store.freeze_profile(inp.run_id, profile.version, frozen_by=r.reviewer_id)
             await self.objects.put_json(f"profiles/{safe_segment(inp.run_id)}/v{profile.version}.json", profile)
             await self._save_reviewed_document(r.call_id, profile, note=None)
@@ -552,10 +556,12 @@ class PipelineActivities:
             ops = [StateOp.model_validate(dump(o)) for o in raw]
 
             def fn(p: Profile) -> tuple[Profile, Any]:
+                if any(op.payload.get("batch") == key for op in p.ops_log):
+                    return p, None  # an earlier attempt applied this answer
                 seq = p.next_seq()
                 ready = []
                 for i, op in enumerate(ops):
-                    payload = dict(op.payload)
+                    payload = {**op.payload, "batch": key}
                     if op.op == "ADD":
                         payload["source"] = "followup"
                     ready.append(
@@ -566,10 +572,10 @@ class PipelineActivities:
 
             profile, res = await self.store.update_profile(inp.run_id, fn)
             await self.store.set_followup_status(inp.run_id, a.followup_id, "answered")
-            out = IntakeOutcome(
-                followup_id=a.followup_id, profile_version=profile.version, applied=len(res.applied), rejected=len(res.rejected)
-            )
-            if res.rejected:
+            applied = len(res.applied) if res else sum(op.payload.get("batch") == key for op in profile.ops_log)
+            rejected = len(res.rejected) if res else 0
+            out = IntakeOutcome(followup_id=a.followup_id, profile_version=profile.version, applied=applied, rejected=rejected)
+            if res and res.rejected:
                 log.warning("follow-up %s: %d op(s) rejected: %s", a.followup_id, len(res.rejected), res.rejected[0].reason)
             await self.store.put_stage_output(inp.args.call_id, "intake", key, inp.run_id, out.model_dump(mode="json"))
             return out

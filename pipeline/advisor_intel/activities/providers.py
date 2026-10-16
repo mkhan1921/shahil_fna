@@ -16,12 +16,17 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from temporalio.exceptions import ApplicationError
+
 from ..config import Settings
 from ..models.runs import VersionPins
 
 
-class ProviderConfigError(RuntimeError):
-    """A provider is unknown, not installed, or missing its credentials."""
+class ProviderConfigError(ApplicationError):
+    """A provider is unknown, not installed, or missing its credentials: not retried."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, type="ProviderConfigError", non_retryable=True)
 
 
 @dataclass(frozen=True)

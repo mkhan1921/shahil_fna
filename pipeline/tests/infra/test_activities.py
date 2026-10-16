@@ -345,6 +345,27 @@ async def test_apply_review_with_file_exchange_ops(ctx):
     assert again.cached and len(await ctx.store.review_events(run_id=RUN)) == 3
 
 
+async def test_a_retry_after_a_crash_does_not_apply_ops_twice(ctx, pg_dsn):
+    """The ops were written but the attempt died before recording its output: the retry must not repeat them."""
+    import psycopg
+
+    await _through_forecast(ctx)
+    profile = await ctx.store.load_profile(RUN)
+    ops = make_ops(profile, [("CONFIRM", RET_AGE, None, {}, "reviewer")])
+    review = ReviewSubmission(call_id="call-1", reviewer_id="adv-1", profile_version=profile.version, submitted_at=NOW, ops=ops)
+    answer = FollowupAnswer(call_id="call-1", followup_id="fu.retirement_age", text="Sixty-three", answered_at=NOW)
+    await env().run(ctx.acts.intake_followup_answer, C.AnswerInput(run_id=RUN, args=CallArgs(call_id="call-1"), answer=answer))
+    await env().run(ctx.acts.apply_review, C.ReviewInput(run_id=RUN, review=review))
+    before = await ctx.store.load_profile(RUN)
+    async with await psycopg.AsyncConnection.connect(pg_dsn, autocommit=True) as conn:
+        await conn.execute("DELETE FROM stage_outputs WHERE stage IN ('review', 'intake')")  # the crash: no recorded outputs
+    out = await env().run(ctx.acts.apply_review, C.ReviewInput(run_id=RUN, review=review))
+    intake = await env().run(ctx.acts.intake_followup_answer, C.AnswerInput(run_id=RUN, args=CallArgs(call_id="call-1"), answer=answer))
+    after = await ctx.store.load_profile(RUN)
+    assert [o.seq for o in after.ops_log] == [o.seq for o in before.ops_log] and out.applied == 0 and intake.applied == 1
+    assert [e.action for e in await ctx.store.review_events(run_id=RUN)] == ["accept", "submit"]
+
+
 async def test_followup_answer_goes_through_the_reducer_once(ctx):
     await _through_forecast(ctx)
     answer = FollowupAnswer(call_id="call-1", followup_id="fu.retirement_age", text="Sixty-three is realistic", answered_at=NOW)

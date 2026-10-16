@@ -119,7 +119,7 @@ class ReviewOutcome(BaseModel):
     cached: bool = False
 
 
-NotifyKind = Literal["review_ready", "review_reminder", "manual_review", "review_complete"]
+NotifyKind = Literal["review_ready", "review_reminder", "manual_review"]
 
 
 class NotifyInput(BaseModel):

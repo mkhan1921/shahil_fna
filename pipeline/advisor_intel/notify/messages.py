@@ -52,7 +52,7 @@ def compose(
             lines.append(f"- The automatic pass ran out of budget; unfinished: {groups}. Those fields are marked in the review.")
         for b in s.banners:
             lines.append(f"- Call quality: {b}")
-    elif kind == "manual_review":
+    else:  # manual_review
         subject = f"Call with {client_label} needs manual handling"
         lines.append(
             f"The recording of the call with {client_label} could not be processed automatically (speaker detection outside 2–4 speakers)."
@@ -60,9 +60,6 @@ def compose(
         lines.append("Please capture this call's details manually.")
         for b in s.banners:
             lines.append(f"- Call quality: {b}")
-    else:
-        subject = f"Review complete for {client_label}"
-        lines.append(f"The reviewed FNA update for {client_label} is ready to import into the FNA app.")
     if url:
         lines.append("")
         lines.append(f"Open: {url}")
