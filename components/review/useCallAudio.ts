@@ -58,13 +58,21 @@ export function useCallAudio(url: string | null) {
         a.pause();
         return;
       }
-      a.currentTime = seekTime(e);
-      stopAt.current = stopTime(e);
-      setPlaying(key);
-      a.play().catch(() => {
-        setPlaying(null);
-        setError('The browser would not start the recording. Press play again.');
-      });
+      const start = () => {
+        a.currentTime = seekTime(e);
+        stopAt.current = stopTime(e);
+        setPlaying(key);
+        a.play().catch(() => {
+          setPlaying(null);
+          setError('The browser would not start the recording. Press play again.');
+        });
+      };
+      // Seeking needs the recording's metadata: wait for it the first time.
+      if (a.readyState >= 1) start();
+      else {
+        a.addEventListener('loadedmetadata', start, { once: true });
+        a.load();
+      }
     },
     [playing],
   );
