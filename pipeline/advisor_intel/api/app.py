@@ -45,6 +45,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import TypeAdapter, ValidationError
 from starlette.datastructures import UploadFile
+from temporalio.service import RPCError
 
 from .. import binding
 from ..activities.keys import ingest_key
@@ -77,8 +78,8 @@ from .schemas import (
     RerunRequest,
     RerunStarted,
     ReviewActions,
-    Submitted,
     SubmitRequest,
+    Submitted,
 )
 from .temporal import ClientGateway, ResetRefused, TemporalGateway
 
@@ -260,7 +261,6 @@ async def submit_review(
     if status is not None and status.state != RunState.AWAITING_REVIEW:
         raise HTTPException(409, f"run {run.workflow_id} is {status.state.value}, not waiting for review")
     at = _now()
-    await d.store.freeze_profile(run.workflow_id, profile.version, frozen_by=reviewer_id)
     review = ReviewSubmission(
         call_id=call.call_id,
         reviewer_id=reviewer_id,
@@ -268,8 +268,14 @@ async def submit_review(
         submitted_at=at,
         spot_check=spot if spot is not None else spot_check(run.workflow_id, d.settings.spot_check_rate),
     )
+    # Signal first, then freeze: if the run cannot take the signal nothing is frozen and the adviser can
+    # submit again; apply_review freezes the reviewed version itself in any case.
     with run_context(call_id=call.call_id, workflow_id=run.workflow_id, stage="review", pins=run.versions):
-        await d.temporal.signal_review(run.workflow_id, review)
+        try:
+            await d.temporal.signal_review(run.workflow_id, review)
+        except RPCError as e:
+            raise HTTPException(409, f"run {run.workflow_id} could not take the review: {e.message}") from e
+    await d.store.freeze_profile(run.workflow_id, profile.version, frozen_by=reviewer_id)
     await d.store.save_review_result(
         run.workflow_id,
         ReviewResult(

@@ -28,7 +28,8 @@ import threading
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, Any
 
-from opentelemetry import baggage, context as otel_context, propagate, trace
+from opentelemetry import baggage, propagate, trace
+from opentelemetry import context as otel_context
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, SpanExporter
