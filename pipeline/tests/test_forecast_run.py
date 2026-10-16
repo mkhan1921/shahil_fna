@@ -1,0 +1,121 @@
+"""run_forecast (spec §12.4, §12.6): determinism, the seed policy, Monte Carlo error and every result field."""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from advisor_intel.forecast import fna_engine_analyse, fna_engine_bands, return_model_check, run_forecast
+from advisor_intel.forecast.config import ModeSettings, load_config
+from advisor_intel.forecast.run import wilson_interval
+from advisor_intel.forecast.sampling import derive_seed
+from advisor_intel.forecast.tax import FnaEngineTaxModel, default_tax_model
+from advisor_intel.models.dists import Bernoulli, LogNormal, Triangular
+from tests.forecast_support import StubTaxModel, add_fact, point, prior_profile, sample_document
+from tests.test_forecast_returns import _synthetic_series
+
+SMALL = ModeSettings(n_paths=1_000, attribution_n=300, shapley_paths=120, shapley_contexts=12, shapley_permutations=14,
+                     shapley_inner=3, top_drivers=5, need_bands_k=12)
+CFG = load_config().with_(modes={"preview": SMALL, "final": SMALL.model_copy(update={"attribution_n": 400})}, pos_ci_max_width=1.0)
+TAX = StubTaxModel()
+
+
+@pytest.fixture(scope="module")
+def household():
+    doc = sample_document()
+    prof = prior_profile(doc)
+    prof, _ = add_fact(prof, "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=60, mode=63, high=66),
+                       instance="client", unit="age", p_correct=0.7)
+    prof, _ = add_fact(prof, "expenses.items[]", "expenses.items[groceries]", LogNormal(median=9_000, p10=7_000, p90=13_000),
+                       instance="groceries", period="monthly", p_correct=0.6)
+    neo = next(e for e in prof.entities.values() if e.canonical_name.startswith("Neo"))
+    common = {"instance": "event.offshore_1", "entity_refs": [neo.entity_id], "p_correct": 0.8}
+    prof, _ = add_fact(prof, "event[].occurs", "event[e1].occurs", Bernoulli(p=0.4), unit="none", **common)
+    prof, _ = add_fact(prof, "event[].cashImpact", "event[e1].cashImpact", point(-30_000), unit="USD", period="annual", **common)
+    prof, _ = add_fact(prof, "event[].kind", "event[e1].kind", point("education-offshore"), unit="none", **common)
+    return prof, doc
+
+
+def test_same_inputs_config_and_seed_give_identical_bytes(household):
+    prof, doc = household
+    a = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=7)
+    b = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=7)
+    assert a.model_dump_json() == b.model_dump_json()
+    c = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=8)
+    assert c.model_dump_json() != a.model_dump_json()
+
+
+def test_seed_is_derived_from_the_run_id_and_profile_version(household):
+    prof, doc = household
+    a = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX)
+    assert a.seed == derive_seed(prof.run_id, prof.version)
+    assert run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX).model_dump_json() == a.model_dump_json()
+    bumped = prof.model_copy(update={"version": prof.version + 1})
+    assert run_forecast(bumped, base_document=doc, config=CFG, tax_model=TAX).seed != a.seed
+
+
+def test_every_result_field_is_filled(household):
+    prof, doc = household
+    r = run_forecast(prof, base_document=doc, mode="final", config=CFG, tax_model=TAX, seed=3)
+    assert (r.run_id, r.profile_version, r.config_version, r.cma_version) == (prof.run_id, str(prof.version), "config_v1", "2026Q4")
+    assert r.n_paths == 1_000 and 0 < r.pos < 1 and r.pos_ci[0] <= r.pos <= r.pos_ci[1]
+    assert (r.pos_ci[0], r.pos_ci[1]) == pytest.approx(wilson_interval(round(r.pos * r.n_paths), r.n_paths), abs=1e-6)
+    assert len(r.goal_funding) == 2 and all(0 <= v <= 1 for v in r.goal_funding.values())
+    assert len(r.ages) == 61 and r.ages[0] == 40
+    assert set(r.net_worth_bands) == {"p10", "p25", "p50", "p75", "p90"} and all(len(v) == 61 for v in r.net_worth_bands.values())
+    bands = np.array([r.net_worth_bands[k] for k in ("p10", "p25", "p50", "p75", "p90")])
+    assert np.all(np.diff(bands, axis=0) >= 0)
+    assert r.net_worth_bands["p50"][0] == pytest.approx(4_920_000, rel=1e-6)
+    assert all(len(v) == 60 for v in r.retirement_income_bands.values())
+    assert r.shortfall["p_any"] == pytest.approx(1 - r.pos) and r.shortfall["p90_total_real"] >= 0
+    assert 0 <= r.liquidity_breach_prob <= 1
+    assert set(r.variance_attribution) == {"market", "client_content", "extraction", "interaction"}
+    assert r.variance_attribution["market"] > 0.3 and r.variance_attribution["extraction"] > 0
+    assert set(r.market_attribution) == {"za_equity", "za_bonds", "za_cash", "global_equity", "global_bonds", "fx", "inflation"}
+    assert sum(r.market_attribution.values()) == pytest.approx(r.variance_attribution["market"], abs=2e-3)
+    assert r.top_drivers and r.top_drivers[0][0] in prof.facts and r.top_drivers == sorted(r.top_drivers, key=lambda kv: -kv[1])
+    assert r.deterministic == {} and r.need_bands == {}  # no FNA hooks injected
+
+
+def test_fna_side_by_side_from_injected_hooks(household):
+    pytest.importorskip("advisor_intel.fna_engine", reason="the deterministic projection and need bands come from the ported FNA engine")
+    prof, doc = household
+    r = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=fna_engine_analyse, fna_bands=fna_engine_bands)
+    assert r.deterministic["client.retirementAge"] == 63  # the median document: retirement age at the fact's median
+    assert r.deterministic["client.projectedCapital"] > 0 and "spouse.depletionAge" in r.deterministic
+    assert {"client.life", "client.retirement", "education"} <= set(r.need_bands)
+    assert all(b["p10"] <= b["p50"] <= b["p90"] for b in r.need_bands.values())
+    called = {}
+    run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=lambda d: called.setdefault("doc", d) and {})
+    assert called["doc"].retirement["client"].retirementAge == 63  # one-argument hooks are called without today
+
+
+def test_path_count_rises_until_the_interval_is_two_points_wide(household):
+    prof, doc = household
+    cfg = CFG.with_(pos_ci_max_width=0.02, n_paths_max=20_000)
+    r = run_forecast(prof, base_document=doc, config=cfg, tax_model=TAX, seed=5, n_paths=300)
+    assert r.n_paths > 300 and r.pos_ci[1] - r.pos_ci[0] <= 0.02
+    capped = run_forecast(prof, base_document=doc, config=cfg.with_(n_paths_max=600), tax_model=TAX, seed=5, n_paths=300)
+    assert capped.n_paths == 600 and capped.pos_ci[1] - capped.pos_ci[0] > 0.02
+
+
+def test_overrides_move_a_fact_for_what_if_runs(household):
+    prof, doc = household
+    base = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=2)
+    early = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=2, overrides={"retirement.{p}.retirementAge#client": 55})
+    late = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=2, overrides={"retirement.client.retirementAge": 68})
+    assert early.pos < base.pos < late.pos
+
+
+def test_default_tax_model_is_the_fna_engine():
+    pytest.importorskip("advisor_intel.fna_engine", reason="the default tax model is the ported FNA engine")
+    m = default_tax_model("2026/27")
+    assert isinstance(m, FnaEngineTaxModel) and m.version == "fna_engine:2026/27"
+    assert default_tax_model("1999/00").version == "fna_engine:2026/27"  # unknown years fall back as the app does
+
+
+def test_return_model_check_compares_the_bootstrap_with_mvn(household):
+    prof, doc = household
+    out = return_model_check(prof, _synthetic_series(), base_document=doc, config=CFG, tax_model=TAX, seed=1, n_paths=500)
+    assert set(out) == {"pos_mvn", "pos_bootstrap", "gap_points"}
+    assert out["gap_points"] == pytest.approx(100 * abs(out["pos_mvn"] - out["pos_bootstrap"]), abs=1e-3)

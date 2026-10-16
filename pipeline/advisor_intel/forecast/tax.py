@@ -120,7 +120,11 @@ def gross_up_by_bisection(
 
 
 class FnaEngineTaxModel:
-    """SARS tax from ``advisor_intel.fna_engine.tax`` (§12.7), for the document's tax year."""
+    """SARS tax from ``advisor_intel.fna_engine.tax`` (§12.7), for the document's tax year.
+
+    The table is ``tables.table_for(tax_year)``, which falls back to the default year for an unknown one exactly
+    as the app and ``fna_engine.analysis.analyse`` do, so the forecast taxes with the table the adviser sees.
+    """
 
     def __init__(self, tax_year: str = "2026/27") -> None:
         try:
@@ -132,7 +136,7 @@ class FnaEngineTaxModel:
                 "installed; pass tax_model= explicitly"
             ) from e
         self._tax = fna_tax
-        self.table = fna_tables.get_table(tax_year)
+        self.table = fna_tables.table_for(tax_year)
         self.version = f"fna_engine:{self.table.taxYear}"
 
     def person_tax(

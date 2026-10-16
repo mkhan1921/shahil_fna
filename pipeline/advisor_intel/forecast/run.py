@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import inspect
 import math
 from dataclasses import dataclass
 from datetime import date
@@ -33,8 +34,33 @@ Z95 = 1.959963984540054
 BAND_QUANTILES = (10, 25, 50, 75, 90)
 MAX_BATCH_PATHS = 12_000  # paths per engine call when a batch is split
 
-FnaAnalyse = Callable[[F.FnaDocument, date], Any]
-FnaBands = Callable[[list[F.FnaDocument], date], dict[str, dict[str, float]]]
+FnaAnalyse = Callable[..., Any]  # fna_analyse(doc) or fna_analyse(doc, today=...)
+FnaBands = Callable[..., dict[str, dict[str, float]]]  # fna_bands(docs) or fna_bands(docs, today=...)
+
+
+def _call(fn: Callable[..., Any], arg: Any, today: date) -> Any:
+    """Call an injected FNA hook, passing the profile's anchor date as ``today`` when it takes one."""
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return fn(arg)
+    if "today" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return fn(arg, today=today)
+    return fn(arg)
+
+
+def fna_engine_analyse(doc: F.FnaDocument, *, today: date | None = None) -> Any:
+    """The ported FNA ``analyse`` (§12.7), for ``run_forecast(fna_analyse=...)``."""
+    from ..fna_engine import analyse  # noqa: PLC0415 - optional dependency of this package
+
+    return analyse(doc, today=today)
+
+
+def fna_engine_bands(docs: list[F.FnaDocument], *, today: date | None = None) -> dict[str, dict[str, float]]:
+    """p10/p50/p90 of every need's shortfall over materialised draws (§12.7), for ``run_forecast(fna_bands=...)``."""
+    from ..fna_engine import analyse_batch, need_bands  # noqa: PLC0415
+
+    return need_bands(analyse_batch(docs, today=today))
 
 
 def wilson_interval(successes: int, n: int, z: float = Z95) -> tuple[float, float]:
@@ -265,11 +291,12 @@ def run_forecast(
     attribution = attribute(fc, seed, settings)
 
     median_doc = F.FnaDocument.model_validate(plan.doc)
-    deterministic = deterministic_projection(fna_analyse(median_doc, profile.anchor_date)) if fna_analyse else {}
+    deterministic = deterministic_projection(_call(fna_analyse, median_doc, profile.anchor_date)) if fna_analyse else {}
     need_bands: dict[str, dict[str, float]] = {}
     if fna_bands is not None:
         docs = binding.materialise_draws(profile, settings.need_bands_k, seed=seed, base=base_document)
-        need_bands = {k: {q: round(float(v), 2) for q, v in sorted(d.items())} for k, d in sorted(fna_bands(docs, profile.anchor_date).items())}
+        bands = _call(fna_bands, docs, profile.anchor_date)
+        need_bands = {k: {q: round(float(v), 2) for q, v in sorted(d.items())} for k, d in sorted(bands.items())}
 
     return ForecastResult(
         run_id=profile.run_id,

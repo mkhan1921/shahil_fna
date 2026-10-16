@@ -418,55 +418,44 @@ class _Simulation:
             income_y = np.zeros(P)
             payroll_spend = np.zeros(P)
             extra_capacity = []
-            work_frac = []
+            years: list[dict[str, np.ndarray]] = []
             for j, pp in enumerate(self.people):
                 src = pp.src
                 flows = self._retirement_year(pp, t, j)
                 months = np.clip(pp.K - 12 * t, 0, 12)
                 fw = months / 12.0
-                work_frac.append(fw)
                 any_working |= months > 0
                 gross, bonus = self._earnings(src, t, xm)
-                other = src.other_taxable_monthly.at(xm)
-                nontax = src.non_taxable_monthly.at(xm)
                 grow_c = (1 + self.g_salary) ** t
-                c_payroll = src.contrib_payroll_monthly * grow_c
-                c_own = src.contrib_own_monthly * grow_c
-                c_employer = src.contrib_employer_monthly * grow_c
-                c_earmarked = src.contrib_earmarked_monthly * grow_c
-                drawn = flows["drawn"] / pm
-                need = flows["need"] / pm
-                rental = src.rental_monthly.at(xm) * 12
-                age = src.age0 + t + 0.5
-                tax = self.tax.person_tax(
-                    age=age,
-                    gross_monthly=gross * fw,
-                    annual_bonus=bonus * fw,
-                    other_taxable_monthly=other * fw + (rental + drawn) / 12,
-                    retirement_contributions_annual=(c_payroll + c_own + c_employer) * 12 * fw,
-                    employer_retirement_annual=c_employer * 12 * fw,
-                    medical_scheme_members=src.medical_members,
-                    uif_applies=src.uif & (months > 0),
-                )
-                earned = (gross * 12 + bonus + other * 12 + nontax * 12) * fw
-                deductions = (c_payroll + src.medical_payroll_monthly + src.other_payroll_monthly) * 12 * fw
-                inflow += earned + rental + drawn - tax.annual_tax - tax.monthly_uif * 12 - deductions
+                years.append({
+                    "fw": fw, "months": months, "gross": gross, "bonus": bonus, "other": src.other_taxable_monthly.at(xm),
+                    "nontax": src.non_taxable_monthly.at(xm), "c_payroll": src.contrib_payroll_monthly * grow_c,
+                    "c_own": src.contrib_own_monthly * grow_c, "c_employer": src.contrib_employer_monthly * grow_c,
+                    "c_earmarked": src.contrib_earmarked_monthly * grow_c, "drawn": flows["drawn"] / pm, "need": flows["need"] / pm,
+                    "headroom": flows["headroom"] / pm, "rental": src.rental_monthly.at(xm) * 12, "age": src.age0 + t + 0.5,
+                })
+            taxes, need_taxes = self._year_tax(years)
+            for j, (pp, y, tax, need_tax) in enumerate(zip(self.people, years, taxes, need_taxes)):
+                src = pp.src
+                fw = y["fw"]
+                earned = (y["gross"] * 12 + y["bonus"] + y["other"] * 12 + y["nontax"] * 12) * fw
+                deductions = (y["c_payroll"] + src.medical_payroll_monthly + src.other_payroll_monthly) * 12 * fw
+                annual_tax, uif = tax
+                inflow += earned + y["rental"] + y["drawn"] - annual_tax - uif * 12 - deductions
                 payroll_spend += (src.medical_payroll_monthly + src.other_payroll_monthly) * 12 * fw
-                # A retired person's target is a gross income (as in the FNA): their spending is the target after tax.
-                if need.any():
-                    need_tax = self.tax.person_tax(age=age, gross_monthly=np.zeros(P), other_taxable_monthly=need / 12,
-                                                   medical_scheme_members=src.medical_members, uif_applies=False).annual_tax
-                    need_net_total += need - need_tax
-                    need_gross_total += need
+                if need_tax is not None:
+                    # A retired person's target is a gross income (as in the FNA): their spending is the target after tax.
+                    need_net_total += y["need"] - need_tax
+                    need_gross_total += y["need"]
                 retired_months = 1.0 - fw
                 worker_share += src.share * (fw + retired_months * ~pp.has_target)
-                ret_vol.append((c_own + c_earmarked) * 12 * fw)
-                income_y += earned + rental - tax.annual_tax - tax.monthly_uif * 12 + c_employer * 12 * fw
-                extra_capacity.append((flows["headroom"] / pm, drawn + rental, age))
-                ret_income[:, t] += drawn + src.other_income_monthly * 12 * retired_months
+                ret_vol.append((y["c_own"] + y["c_earmarked"]) * 12 * fw)
+                income_y += earned + y["rental"] - annual_tax - uif * 12 + y["c_employer"] * 12 * fw
+                extra_capacity.append((y["headroom"], y["drawn"] + y["rental"], y["age"]))
+                ret_income[:, t] += y["drawn"] + src.other_income_monthly * 12 * retired_months
                 for prem in inp.premiums:
                     if prem.person == j:
-                        premiums += prem.monthly * (1 + prem.escalation) ** t / self.p_mid[:, t] * self.price[:, 0] * 12 * fw
+                        premiums += prem.monthly * (1 + prem.escalation) ** t / pm * 12 * fw
 
             # Household spending (today's money).
             child_on = (hh.children_end_step < 0) | (t < hh.children_end_step)
@@ -578,6 +567,38 @@ class _Simulation:
         )
 
     # ------------------------------------------------------------------ pieces
+
+    def _year_tax(self, years: list[dict[str, np.ndarray]]) -> tuple[list[tuple[np.ndarray, np.ndarray]], list[np.ndarray | None]]:
+        """Each person's tax for the year (salary, bonus, retirement and asset income) and the tax on each retiree's
+        target, in one call to the tax model: its fixed cost per call dominates small runs."""
+        P = self.P
+        rows: list[dict[str, np.ndarray]] = []
+        for pp, y in zip(self.people, years):
+            fw = y["fw"]
+            rows.append({
+                "age": y["age"], "gross_monthly": y["gross"] * fw, "annual_bonus": y["bonus"] * fw,
+                "other_taxable_monthly": y["other"] * fw + (y["rental"] + y["drawn"]) / 12,
+                "retirement_contributions_annual": (y["c_payroll"] + y["c_own"] + y["c_employer"]) * 12 * fw,
+                "employer_retirement_annual": y["c_employer"] * 12 * fw, "medical_scheme_members": pp.src.medical_members,
+                "uif_applies": pp.src.uif & (y["months"] > 0),
+            })
+        needs = [i for i, y in enumerate(years) if y["need"].any()]
+        zero = np.zeros(P)
+        for i in needs:
+            rows.append({
+                "age": years[i]["age"], "gross_monthly": zero, "annual_bonus": zero, "other_taxable_monthly": years[i]["need"] / 12,
+                "retirement_contributions_annual": zero, "employer_retirement_annual": zero,
+                "medical_scheme_members": self.people[i].src.medical_members, "uif_applies": np.zeros(P, dtype=bool),
+            })
+        args = {k: np.concatenate([r[k] for r in rows]) for k in rows[0]}  # every field is a (P,) array
+        out = self.tax.person_tax(**args)
+        tax = np.asarray(out.annual_tax, dtype=float).reshape(len(rows), P)
+        uif = np.asarray(out.monthly_uif, dtype=float).reshape(len(rows), P)
+        own = [(tax[i], uif[i]) for i in range(len(years))]
+        need_tax: list[np.ndarray | None] = [None] * len(years)
+        for k, i in enumerate(needs):
+            need_tax[i] = tax[len(years) + k]
+        return own, need_tax
 
     def _earnings(self, p: PersonIn, t: int, xm: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Real monthly gross pay and the annual bonus in year t (growth, then any income change)."""

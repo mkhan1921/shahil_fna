@@ -553,6 +553,10 @@ class ForecastPlan:
             samplers[fid] = _override(samplers[fid], value)
         return dataclasses.replace(self, samplers=samplers)
 
+    def with_samplers(self, samplers: dict[str, FactSampler]) -> "ForecastPlan":
+        """A copy with some samplers replaced (sensitivity runs move one fact at a time)."""
+        return dataclasses.replace(self, samplers={**self.samplers, **samplers})
+
     # ------------------------------------------------------------------ realisation
 
     def draws(self, uniforms: Uniforms) -> dict[str, Draw]:
@@ -1161,6 +1165,36 @@ class _Builder:
             out.append(EventIn(key=e.key, occurs=occurs, step=step, amount=amount, recurring=recurring,
                                essential=e.kind not in EVENT_DISCRETIONARY_KINDS))
         return out
+
+
+def concat_inputs(parts: list[ForecastInput]) -> ForecastInput:
+    """Several inputs with the same structure as one batch of paths (sensitivity variants run in one engine call)."""
+
+    def cat(values: list[Any], name: str = "") -> Any:
+        v0 = values[0]
+        if isinstance(v0, np.ndarray):
+            return np.concatenate(values)
+        if isinstance(v0, Money):
+            return Money(np.concatenate([v.fixed for v in values]), np.concatenate([v.linked for v in values]))
+        if dataclasses.is_dataclass(v0):
+            return type(v0)(**{f.name: cat([getattr(v, f.name) for v in values], f.name) for f in dataclasses.fields(v0)})
+        if isinstance(v0, list):
+            if any(len(v) != len(v0) for v in values):
+                raise ValueError(f"inputs differ in structure ({name})")
+            return [cat([v[i] for v in values], name) for i in range(len(v0))]
+        if isinstance(v0, dict):
+            return {k: cat([v[k] for v in values], k) for k in v0}
+        if name == "n":
+            return sum(values)
+        if name == "n_years":
+            return max(values)
+        if name == "primary_age_int":  # only labels the recorded ages
+            return v0
+        if any(v != v0 for v in values):
+            raise ValueError(f"inputs differ in {name}: {values[:3]}")
+        return v0
+
+    return cat(list(parts))
 
 
 def allocation_for_policy(cma: CMA, name: str) -> np.ndarray:

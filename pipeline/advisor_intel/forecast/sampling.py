@@ -87,10 +87,13 @@ class Uniforms:
 
 
 def fact_uniforms(seed: int, fact_id: str, n: int, *, matrix: str = "") -> FactUniforms:
-    """The uniforms of one fact for ``n`` paths; ``matrix`` names an independent input matrix (attribution)."""
-    gc = stream(seed, "content", matrix, fact_id)
-    ge = stream(seed, "extraction", matrix, fact_id)
-    return FactUniforms(gc.random(n), gc.random(n), ge.random(n), ge.random(n))
+    """The uniforms of one fact for ``n`` paths; ``matrix`` names an independent input matrix (attribution).
+
+    Each stream yields (path, component) pairs, so path p's draws are the same whatever ``n`` is.
+    """
+    c = np.ascontiguousarray(stream(seed, "content", matrix, fact_id).random((n, 2)).T)
+    e = np.ascontiguousarray(stream(seed, "extraction", matrix, fact_id).random((n, 2)).T)
+    return FactUniforms(c[0], c[1], e[0], e[1])
 
 
 # --------------------------------------------------------------------------- inverse CDF

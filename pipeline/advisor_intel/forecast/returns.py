@@ -151,16 +151,21 @@ class MarketModel:
         self.df = ft.df
         self.wmax = ft.max_multiplier
         self.w_norm = _w_norm(self.df, self.wmax) if self.fat else 1.0
-        a = cma.relative_returns
         self.fx_mu = np.log1p(config.fx_usdzar.drift_real) - 0.5 * self.fx_vol**2
-        kappa = np.array([self._log_mgf(s, 0.0, 0.0) for s in self.vols])
-        self.class_mu = np.log1p(a) - kappa  # E[exp(own-currency real log return)] = 1 + a
+        self.class_mu, self.class_mean = self._means(self.fat)
+        # The Gaussian version (unit multiplier, same covariance) for the Shapley split within M (§12.5).
+        self.class_mu_normal, self.class_mean_normal = self._means(False)
+
+    def _means(self, fat: bool) -> tuple[np.ndarray, np.ndarray]:
+        """Log drifts giving E[exp(own-currency real log return)] = 1 + a, and the expected rand gross return."""
+        a = self.cma.relative_returns
+        kappa = np.array([self._log_mgf(s, 0.0, 0.0, fat) for s in self.vols])
         fx_rho = self.corr[5, :5]
         mean = 1 + a
-        for i in np.flatnonzero(cma.is_global):
-            ratio = np.exp(self._log_mgf(self.vols[i], self.fx_vol, fx_rho[i]) - kappa[i])
+        for i in np.flatnonzero(self.cma.is_global):
+            ratio = np.exp(self._log_mgf(self.vols[i], self.fx_vol, fx_rho[i], fat) - kappa[i])
             mean[i] = (1 + a[i]) * np.exp(self.fx_mu) * ratio
-        self.class_mean = mean
+        return np.log1p(a) - kappa, mean
 
     # ------------------------------------------------------------------ the t multiplier
 
@@ -169,11 +174,11 @@ class MarketModel:
             return np.ones_like(chi2)
         return np.minimum(np.sqrt((self.df - 2) / chi2), self.wmax) / self.w_norm
 
-    def _log_mgf(self, s: float, v: float, rho: float) -> float:
+    def _log_mgf(self, s: float, v: float, rho: float, fat: bool) -> float:
         """ln E[exp(W s x + v y)] for standard normals x, y with correlation rho and the capped t multiplier W."""
         if s == 0 and v == 0:
             return 0.0
-        if not self.fat:
+        if not fat:
             return 0.5 * (s * s + 2 * s * v * rho + v * v)
 
         def g(q: float) -> float:
@@ -187,10 +192,17 @@ class MarketModel:
     # ------------------------------------------------------------------ draws
 
     def shocks(self, seed: int, n_paths: int, n_years: int, *, matrix: str = "") -> MarketShocks:
-        g = stream(seed, "market", matrix)
-        z = g.standard_normal((6, n_paths, n_years))
-        c = g.chisquare(self.df, (n_paths, n_years)) if self.config.fat_tails.enabled else np.full((n_paths, n_years), self.df)
-        e = g.standard_normal((n_paths, n_years))
+        """Market randomness from one stream per year, so path p in year t is the same whatever the path count or
+        horizon (common random numbers hold even when a sensitivity run changes the number of years)."""
+        z = np.empty((6, n_paths, n_years))
+        c = np.empty((n_paths, n_years))
+        e = np.empty((n_paths, n_years))
+        fat = self.config.fat_tails.enabled
+        for t in range(n_years):
+            block = stream(seed, "market", matrix, f"y{t}").standard_normal((n_paths, 7))
+            z[:, :, t] = block[:, :6].T
+            e[:, t] = block[:, 6]
+            c[:, t] = stream(seed, "market-tails", matrix, f"y{t}").chisquare(self.df, n_paths) if fat else self.df
         return MarketShocks(z, c, e)
 
     def players(self, shocks: MarketShocks) -> np.ndarray:
@@ -209,16 +221,24 @@ class MarketModel:
     def realise(self, shocks: MarketShocks) -> MarketPaths:
         return self.realise_players(self.players(shocks), shocks.chi2)
 
-    def realise_players(self, x: np.ndarray, chi2: np.ndarray) -> MarketPaths:
-        """A market from correlated player normals (7, P, T) and the t multiplier's chi-square draws (P, T)."""
-        w = self._w(chi2)
+    def realise_players(self, x: np.ndarray, chi2: np.ndarray | None) -> MarketPaths:
+        """A market from correlated player normals (7, P, T) and the t multiplier's chi-square draws (P, T).
+
+        ``chi2=None`` gives the Gaussian version (unit multiplier, same covariance, its own exact means).
+        """
+        gaussian = chi2 is None
+        mu = self.class_mu_normal if gaussian else self.class_mu
         fx_log = self.fx_vol * x[5]
         fx_log += self.fx_mu
         class_log = np.empty((N_CLASSES,) + fx_log.shape)
+        w = None if gaussian else self._w(chi2)  # type: ignore[arg-type]
         for k in range(N_CLASSES):
-            np.multiply(w, self.vols[k], out=class_log[k])
-            class_log[k] *= x[k]
-            class_log[k] += self.class_mu[k]
+            if w is None:
+                np.multiply(x[k], self.vols[k], out=class_log[k])
+            else:
+                np.multiply(w, self.vols[k], out=class_log[k])
+                class_log[k] *= x[k]
+            class_log[k] += mu[k]
             if self.cma.is_global[k]:
                 class_log[k] += fx_log
         infl = np.empty_like(fx_log)
@@ -227,7 +247,7 @@ class MarketModel:
         for t in range(fx_log.shape[1]):
             prev = self.cpi + self.phi * (prev - self.cpi) + shock[t]
             infl[:, t] = prev
-        return MarketPaths(class_log, infl, fx_log, self.class_mean.copy())
+        return MarketPaths(class_log, infl, fx_log, (self.class_mean_normal if gaussian else self.class_mean).copy())
 
     @functools.lru_cache(maxsize=128)
     def conditional(self, varied: frozenset[int]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
