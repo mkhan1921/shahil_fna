@@ -211,8 +211,8 @@ def to_fna_value(slot: SlotDef, dist: Dist, mode: Literal["median", "draw"], rng
     x = float(stats.sample(dist, rng, 1)[0]) if mode == "draw" else stats.median(dist)  # type: ignore[arg-type]
     if slot.value_type == "date":
         return stats.year_to_iso(x)
-    if isinstance(dist, Point):
-        return dist.value  # a certain value is written as it is: a prior 25.5 or a stated "sixty-two and a half" is never rounded
+    # Every numeric value is written at the field's grain (whole ages, years and months; cents; six decimals of a
+    # rate), Points included: VOI's sensitivity ends rely on whole ages, so a fractional prior age is rounded too.
     return _round(slot, x)
 
 
@@ -568,8 +568,11 @@ def describe_value(q: Quantity | None, *, money: bool | None = None) -> str:
         if q.unit == "pct":
             return f"{x * 100:.1f}%"
         if money:
-            return f"{sym}{x:,.0f}"
-        return f"{x:g}" if abs(x) < 1000 else f"{x:,.0f}"
+            return f"-{sym}{-x:,.0f}" if x < 0 else f"{sym}{x:,.0f}"
+        if abs(x) >= 1000:
+            return f"{x:,.0f}"
+        # Ages, years, months and counts: one decimal at most ("62.3"), none when whole ("62").
+        return f"{x:.1f}".removesuffix(".0")
 
     d = q.dist
     if isinstance(d, Point):

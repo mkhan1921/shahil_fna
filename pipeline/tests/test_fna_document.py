@@ -6,7 +6,9 @@ from typing import Any
 
 from advisor_intel.models.fna import ExportFile, FnaDocument
 
-VOLATILE = {"id", "createdAt", "updatedAt", "exportedAt"}
+# Clock-derived fields: ids and timestamps, and the meeting date newDocument() sets to the day it runs (the fixture
+# was exported on one day, the mirror is built on another).
+VOLATILE = {"id", "createdAt", "updatedAt", "exportedAt", "meetingDate"}
 
 
 def _strip(x: Any) -> Any:

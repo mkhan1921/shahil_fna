@@ -109,16 +109,18 @@ def test_median_and_draw_modes():
     assert np.std(draws) > 1.0
 
 
-def test_point_values_round_trip_unrounded():
-    # A certain value is written as it is; only the median of a spread is rounded to the field's grain.
-    doc = F.FnaDocument(dependants=[F.Dependant(dependencyEndAge=25.5, tertiaryStartAge=18)])
+def test_values_are_written_at_the_fields_grain():
+    # Whole ages and years, cents, six decimals of a rate: for spreads and for certain values alike (VOI's
+    # sensitivity ends depend on whole ages), so a fractional prior age does not survive a round trip.
+    doc = F.FnaDocument(dependants=[F.Dependant(dependencyEndAge=25.25, tertiaryStartAge=18)])
     prof = _load(doc)
-    assert binding.materialise(prof, "median").dependants[0].dependencyEndAge == 25.5
-    prof, _ = _add(prof, "retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", Point(value=62.5))
+    assert binding.materialise(prof, "median").dependants[0].dependencyEndAge == 25
+    prof, _ = _add(prof, "retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", Point(value=62.4))
     prof, _ = _add(prof, "retirement.{p}.planningAge", "client", "retirement.client.planningAge", Triangular(low=88, mode=92, high=97))
+    prof, _ = _add(prof, "income.{p}.grossMonthly", "client", "income.client.grossMonthly", Point(value=51234.5678), unit="ZAR", period="monthly")
     med = binding.materialise(prof, "median", base=doc)
-    assert med.retirement["client"].retirementAge == 62.5
-    assert med.retirement["client"].planningAge == 92 and isinstance(med.retirement["client"].planningAge, float)
+    assert med.retirement["client"].retirementAge == 62 and med.retirement["client"].planningAge == 92
+    assert med.income["client"].grossMonthly == 51234.57
 
 
 def test_new_documents_and_rows_are_dated_by_the_call_not_the_clock():
