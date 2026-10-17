@@ -77,7 +77,7 @@ class Store:
         self.db = db
 
     @classmethod
-    def from_dsn(cls, dsn: str, *, max_size: int = 10) -> "Store":
+    def from_dsn(cls, dsn: str, *, max_size: int = 10) -> Store:
         return cls(Database(dsn, max_size=max_size))
 
     async def close(self) -> None:
@@ -658,7 +658,7 @@ class Store:
             where.append("at < %s")
             params.append(until)
         async with self.db.connection() as conn:
-            cur = await conn.execute(f"SELECT * FROM review_events WHERE {' AND '.join(where)} ORDER BY at, id", params)  # noqa: S608 - fixed clauses
+            cur = await conn.execute(f"SELECT * FROM review_events WHERE {' AND '.join(where)} ORDER BY at, id", params)
             return [ReviewEvent.model_validate(r) for r in await cur.fetchall()]
 
     async def save_review_result(self, run_id: str, result: ReviewResult) -> int:
@@ -705,7 +705,7 @@ class Store:
         async with self.db.connection() as conn:
             cur = await conn.execute(
                 f"SELECT * FROM forecasts WHERE {' AND '.join(where)} ORDER BY profile_version DESC, created_at DESC LIMIT 1",
-                params,  # noqa: S608
+                params,
             )
             row = await cur.fetchone()
         return ForecastRecord.model_validate(row) if row else None
@@ -782,7 +782,7 @@ class Store:
         if promoted_only:
             where.append("promoted")
         async with self.db.connection() as conn:
-            cur = await conn.execute(f"SELECT * FROM calibrators WHERE {' AND '.join(where)} ORDER BY created_at DESC, slot_group", params)  # noqa: S608
+            cur = await conn.execute(f"SELECT * FROM calibrators WHERE {' AND '.join(where)} ORDER BY created_at DESC, slot_group", params)
             return [CalibratorRecord.model_validate(r) for r in await cur.fetchall()]
 
     async def current_calibrator_version(self) -> str | None:
