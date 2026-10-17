@@ -16,8 +16,9 @@ groups with fewer than six slots merge stages 2 and 3.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from pydantic import BaseModel
 from pydantic_ai import Agent, NativeOutput
@@ -58,9 +59,10 @@ class Usage:
         self.output_tokens += out
         self.cache_read_tokens += cache
         reported = getattr(run_usage, "cost", None)
-        self.cost_usd += llm.usage_cost_usd(model_name, input_tokens=inp, output_tokens=out, cache_read_tokens=cache, reported=float(reported) if reported else None)
+        self.cost_usd += llm.usage_cost_usd(model_name, input_tokens=inp, output_tokens=out, cache_read_tokens=cache,
+                                            cache_write_tokens=getattr(run_usage, "cache_write_tokens", 0) or 0, reported=float(reported) if reported else None)
 
-    def merge(self, other: "Usage") -> None:
+    def merge(self, other: Usage) -> None:
         for k in ("requests", "input_tokens", "output_tokens", "cache_read_tokens", "cost_usd"):
             setattr(self, k, getattr(self, k) + getattr(other, k))
 
@@ -101,7 +103,7 @@ def _instructions(deps: ExtractionDeps, stage: str) -> tuple[str, str]:
     return f"{stage_prompt.text}\n\n## Slot group: {deps.group}\n{block.text}", f"{stage}:{stage_prompt.version},{deps.group}:{block.version}"
 
 
-async def _run(agent: Agent, deps: ExtractionDeps, model_type: type[BaseModel], prompt: str, instructions: str, usage: Usage, out: "GroupExtraction | None" = None) -> Any:
+async def _run(agent: Agent, deps: ExtractionDeps, model_type: type[BaseModel], prompt: str, instructions: str, usage: Usage, out: GroupExtraction | None = None) -> Any:
     """One stage call. Output that still fails schema validation after the agent's own retries, a
     refusal or a truncated response comes back as ``None`` (a retryable failure, §4.4 rule 6)."""
     rm = llm.for_role(deps.role, deps.pins, thinking=deps.role == "reasoning")  # type: ignore[arg-type]

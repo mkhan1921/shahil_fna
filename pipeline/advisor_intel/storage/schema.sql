@@ -304,3 +304,9 @@ CREATE TABLE meeting_notes (
 -- The lexicon's glossary entries carry the catalogue kind of the resolved term (fund, policy,
 -- provider …) beside its FNA product type (§8.5); keys are the lexicon's canonical form.
 ALTER TABLE glossary ADD COLUMN kind text NOT NULL DEFAULT '';
+
+-- ===== 0004_notifications_run_index =====
+
+-- Notifications are read per run (the API's run view, the activity's duplicate check); the primary key
+-- is the idempotency key, so the per-run lookup needs its own index.
+CREATE INDEX IF NOT EXISTS notifications_run_idx ON notifications (workflow_id, created_at);

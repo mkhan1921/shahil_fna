@@ -8,8 +8,9 @@ working state. Values only change through ``HarnessDeps.apply``, which runs the 
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -68,7 +69,7 @@ class HarnessServices:
     sensitivity: ProfileFn | None = None
     followups: ProfileFn | None = None
     lookup_term: LookupFn | None = None
-    derive: Callable[[Profile, "HarnessDeps"], Awaitable[Profile]] | None = None
+    derive: Callable[[Profile, HarnessDeps], Awaitable[Profile]] | None = None
 
 
 ProfileSink = Callable[[Profile], Awaitable[None]]
@@ -114,9 +115,25 @@ class HarnessDeps:
         await self.set_profile(result.profile)
         return result
 
-    def add_usage(self, usage: dict[str, Any] | None) -> None:
-        if usage:
-            self.state.subagent_usage.add(usage)
+    def add_usage(self, usage: dict[str, Any] | None, *, role: str | None = None) -> None:
+        """Count a sub-agent's usage. One that reports tokens but no ``cost_usd`` is priced from the model
+        the given role runs on, so the USD cap covers every model (§13.6)."""
+        if not usage:
+            return
+        if role is not None and not usage.get("cost_usd") and (usage.get("input_tokens") or usage.get("output_tokens")):
+            from .. import llm
+
+            usage = {
+                **usage,
+                "cost_usd": llm.usage_cost_usd(
+                    llm.role_model_name(role, self.pins),  # type: ignore[arg-type]
+                    input_tokens=int(usage.get("input_tokens", 0) or 0),
+                    output_tokens=int(usage.get("output_tokens", 0) or 0),
+                    cache_read_tokens=int(usage.get("cache_read_tokens", 0) or 0),
+                    cache_write_tokens=int(usage.get("cache_write_tokens", 0) or 0),
+                ),
+            }
+        self.state.subagent_usage.add(usage)
 
     def brief(self) -> str:
         """The initial brief (§13.2): metadata, quality, registry summary, index counts, tier A slots and

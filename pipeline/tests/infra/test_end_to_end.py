@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import uuid
 
 import httpx
@@ -40,6 +41,41 @@ TOKEN = "e2e-token"
 
 async def _pins() -> VersionPins:
     return VersionPins()
+
+
+def _history_summary(history) -> dict:
+    """What the run's Temporal history records: activities in order, failures, retries, signals, payload sizes."""
+    from temporalio.api.enums.v1 import EventType as E
+
+    scheduled, failed, signals, timed_out = [], [], [], 0
+    attempts: dict[int, int] = {}
+    biggest = 0
+    for e in history.events:
+        if e.event_type == E.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+            scheduled.append(e.activity_task_scheduled_event_attributes.activity_type.name)
+            for p in e.activity_task_scheduled_event_attributes.input.payloads:
+                biggest = max(biggest, p.ByteSize())
+        elif e.event_type == E.EVENT_TYPE_ACTIVITY_TASK_STARTED:
+            a = e.activity_task_started_event_attributes
+            attempts[a.scheduled_event_id] = a.attempt
+        elif e.event_type == E.EVENT_TYPE_ACTIVITY_TASK_FAILED:
+            failed.append(e.activity_task_failed_event_attributes.failure.message)
+        elif e.event_type == E.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
+            timed_out += 1
+        elif e.event_type == E.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED:
+            signals.append(e.workflow_execution_signaled_event_attributes.signal_name)
+        elif e.event_type == E.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
+            for p in e.workflow_execution_completed_event_attributes.result.payloads:
+                biggest = max(biggest, p.ByteSize())
+    return {
+        "activities": scheduled,
+        "failed": failed,
+        "timed_out": timed_out,
+        "retried": sum(1 for a in attempts.values() if a > 1),
+        "signals": signals,
+        "events": len(history.events),
+        "largest_payload_bytes": biggest,
+    }
 
 
 async def _until(fn, *, timeout: float = 30.0, every: float = 0.2):
@@ -102,7 +138,8 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
 
                 view = await _until(state)
                 assert view["open_flags"] == 1 and view["quality"]["n_speakers"] == 2
-                assert notifier.sent and notifier.sent[0].kind == "review_ready"
+                await _until(lambda: asyncio.sleep(0, result=bool(notifier.sent)))  # the state flips before the notify activity runs
+                assert notifier.sent[0].kind == "review_ready"
                 bundle = (await c.get("/calls/call-e2e/review")).json()
                 assert bundle["median_document"]["retirement"]["client"]["retirementAge"] == 62 and bundle["preview_forecast"]["pos"] == 0.7
 
@@ -139,6 +176,17 @@ async def test_a_call_from_upload_to_reviewed_export(store, objects, temporal_bi
                 assert done["state"] == "COMPLETE"
                 result = await env.client.get_workflow_handle(run_id, result_type=CallResult).result()
                 assert result.pos == 0.7 and result.profile_version == done["profile_version"]
+                # The history (§13.1): every stage once, in order; the answer taken in during review with a preview
+                # forecast after it; no failed or timed-out activity attempt; payloads are ids and small outcomes.
+                hist = _history_summary(await env.client.get_workflow_handle(run_id).fetch_history())
+                print("\nhistory:", json.dumps(hist, indent=1))
+                assert hist["activities"] == [
+                    "ingest_audio", "run_discourse", "run_agent", "run_voi_and_followups", "run_forecast", "notify_advisor",
+                    "intake_followup_answer", "run_forecast", "apply_review", "render_meeting_note", "run_forecast",
+                ]  # fmt: skip
+                assert hist["failed"] == [] and hist["timed_out"] == 0 and hist["retried"] == 0
+                assert hist["signals"] == ["followup_answered", "review_submitted"]
+                assert hist["largest_payload_bytes"] < 4096
 
                 export = (await c.get("/calls/call-e2e/fna")).json()
                 doc = ExportFile.model_validate(export["file"]).document
@@ -257,11 +305,18 @@ async def test_a_scripted_call_through_the_merged_stage_code(store, objects, tem
                     assert r.status_code == 201, r.text
                     run_id = r.json()["workflow_id"]
 
+                    seen: list[str] = []
+
                     async def in_review():
                         v = (await c.get("/calls/call-real")).json()
+                        stage = f"{v.get('state')}/{(v.get('status') or {}).get('stage')}"
+                        if not seen or seen[-1] != stage:
+                            seen.append(stage)
+                            print(f"\n[{asyncio.get_running_loop().time():.0f}] {stage}", flush=True)
                         return v if v.get("state") in ("AWAITING_REVIEW", "FAILED") else None
 
-                    view = await _until(in_review, timeout=90)
+                    # The stage code runs for real here; a loaded CI machine needs minutes (ADVISOR_INTEL_E2E_WAIT_S overrides the default).
+                    view = await _until(in_review, timeout=float(os.environ.get("ADVISOR_INTEL_E2E_WAIT_S", "300")))
                     assert view["state"] == "AWAITING_REVIEW" and view["quality"]["n_speakers"] == 3
                     bundle = (await c.get("/calls/call-real/review")).json()
                     doc = bundle["median_document"]
@@ -312,5 +367,9 @@ async def test_a_scripted_call_through_the_merged_stage_code(store, objects, tem
                     version, note = await store.latest_note(run_id)
                     assert version == done["profile_version"] and note["sentences"]
                     assert notifier.sent and notifier.sent[0].kind == "review_ready"
+                    hist = _history_summary(await env.client.get_workflow_handle(run_id).fetch_history())
+                    print("\nhistory:", json.dumps(hist, indent=1))
+                    assert hist["failed"] == [] and hist["timed_out"] == 0 and hist["retried"] == 0, hist
+                    assert hist["activities"][:3] == ["ingest_audio", "run_discourse", "run_agent"] and hist["largest_payload_bytes"] < 4096
     finally:
         llm.unregister_local_model("oracle-e2e")

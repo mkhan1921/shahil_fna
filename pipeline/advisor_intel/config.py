@@ -9,10 +9,9 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
-
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 PIPELINE_DIR = Path(__file__).resolve().parent.parent
 REPO_DIR = PIPELINE_DIR.parent
@@ -25,6 +24,16 @@ def _env(name: str, default: str | None = None) -> str | None:
 def _flag(name: str, default: bool) -> bool:
     v = _env(name)
     return default if v is None else v.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _number(name: str, default: float | None = None) -> float | None:
+    v = _env(name)
+    if v is None or not v.strip():
+        return default
+    try:
+        return int(v) if v.strip().lstrip("-").isdigit() else float(v)
+    except ValueError as e:
+        raise ValueError(f"ADVISOR_INTEL_{name} must be a number, not {v!r}") from e
 
 
 class ModelRouting(BaseModel):
@@ -58,7 +67,7 @@ class Budgets(BaseModel):
 
     scaled_for_minutes: float | None = None  # set by ``scaled``: budgets are scaled to a call once
 
-    def scaled(self, call_minutes: float) -> "Budgets":
+    def scaled(self, call_minutes: float) -> Budgets:
         """Budgets for a call of this length (per hour of call, at least one hour). Scaling twice is a no-op."""
         if self.scaled_for_minutes is not None:
             return self
@@ -80,10 +89,10 @@ class Settings(BaseModel):
     object_store_uri: str = f"file://{PIPELINE_DIR / '.data' / 'objects'}"
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"
-    temporal_api_key: str | None = None
+    temporal_api_key: str | None = Field(default=None, repr=False)
     temporal_tls: bool = False
     task_queue: str = "advisor-intel"
-    braintrust_api_key: str | None = None
+    braintrust_api_key: str | None = Field(default=None, repr=False)
     braintrust_project: str = "advisor-intel"
     otlp_endpoint: str = "https://api.braintrust.dev/otel"
     models: ModelRouting = ModelRouting()
@@ -93,10 +102,11 @@ class Settings(BaseModel):
     min_conformal_calls: int = 50
     spot_check_rate: float = 0.1
     asr_provider: str = "assemblyai"
-    assemblyai_api_key: str | None = None
-    deepgram_api_key: str | None = None
-    speechmatics_api_key: str | None = None
-    pyannote_api_key: str | None = None
+    # Secrets never appear in a repr (a logged Settings shows them as elided).
+    assemblyai_api_key: str | None = Field(default=None, repr=False)
+    deepgram_api_key: str | None = Field(default=None, repr=False)
+    speechmatics_api_key: str | None = Field(default=None, repr=False)
+    pyannote_api_key: str | None = Field(default=None, repr=False)
     vllm_base_url: str | None = None  # self-hosted second pass, MiniCheck, fine-tuned extractor
     parakeet_base_url: str | None = None  # self-hosted Parakeet + TurboBias gateway (ASR bake-off, constrained second pass)
     web_search_allowlist: list[str] = [
@@ -116,7 +126,7 @@ class Settings(BaseModel):
         "satrix.co.za",
     ]
     fna_tables_dir: Path = REPO_DIR / "fna_tables"
-    api_token: str | None = None  # bearer token the FNA app's API client sends
+    api_token: str | None = Field(default=None, repr=False)  # bearer token the FNA app's API client sends
 
     @property
     def store_local_dir(self) -> Path | None:
@@ -149,11 +159,27 @@ def get_settings() -> Settings:
     updates["auto_accept_tier_a"] = _flag("AUTO_ACCEPT_TIER_A", False)
     if _env("FNA_TABLES_DIR"):
         updates["fna_tables_dir"] = Path(_env("FNA_TABLES_DIR"))  # type: ignore[arg-type]
-    models = {}
+    models: dict = {}
     for role in ("frontier", "reasoning", "verifier", "small", "secondary"):
         v = _env(f"MODEL_{role.upper()}")
         if v:
             models[role] = v
+    effort = _env("EXTRACTION_EFFORT")
+    if effort:
+        models["extraction_effort"] = effort
+    if _env("REFUSAL_FALLBACKS") is not None:
+        models["refusal_fallbacks"] = _flag("REFUSAL_FALLBACKS", True)
     if models:
         updates["models"] = s.models.model_copy(update=models)
-    return s.model_copy(update=updates)
+    # Budgets (§13.6) and review thresholds: ADVISOR_INTEL_BUDGET_<FIELD>, e.g. BUDGET_USD_CAP=40, BUDGET_TOOL_CALLS=300.
+    budgets = {f: v for f in Budgets.model_fields if f != "scaled_for_minutes" and (v := _number(f"BUDGET_{f.upper()}")) is not None}
+    if budgets:
+        updates["budgets"] = Budgets.model_validate({**s.budgets.model_dump(), **budgets})
+    for field in ("conformal_alpha", "min_conformal_calls", "spot_check_rate"):
+        v = _number(field.upper())
+        if v is not None:
+            updates[field] = v
+    allowlist = _env("WEB_SEARCH_ALLOWLIST")
+    if allowlist:
+        updates["web_search_allowlist"] = [h.strip() for h in allowlist.split(",") if h.strip()]
+    return Settings.model_validate({**s.model_dump(), **updates})

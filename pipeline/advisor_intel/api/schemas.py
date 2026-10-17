@@ -156,6 +156,7 @@ class AnswerRouted(BaseModel):
     followup_id: str
     routed: Literal["signal", "intake_workflow"]
     workflow_id: str
+    duplicate: bool = False  # the same answer was already recorded: nothing was signalled or started
 
 
 class DocumentSeeded(BaseModel):

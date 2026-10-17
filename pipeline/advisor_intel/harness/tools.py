@@ -127,7 +127,7 @@ async def make_plan(ctx: RunContext[HarnessDeps]) -> dict[str, Any]:
     """Plan the extraction: one task per slot group and person, tier A first, dependencies respected. Call this first."""
     d = ctx.deps
     plan, usage = await planner.make_plan(d.catalog, d.discourse, d.transcript, d.profile, d.pins)
-    d.add_usage(usage)
+    d.add_usage(usage, role="frontier")
     if d.state.plan is not None:  # re-planning keeps the progress already made
         done = {t.task_id: t for t in d.state.plan.tasks}
         for t in plan.tasks:
@@ -261,7 +261,7 @@ async def search_transcript(ctx: RunContext[HarnessDeps], query: str, mode: Lite
     keyword: list[str] = []
     semantic: list[str] = []
     if mode in (None, "keyword"):
-        tok = lambda s: [w for w in "".join(c.lower() if c.isalnum() else " " for c in s).split() if w]  # noqa: E731
+        tok = lambda s: [w for w in "".join(c.lower() if c.isalnum() else " " for c in s).split() if w]
         bm = BM25Okapi([tok(s.text + " " + d.discourse.rewrites.get(s.segment_id, "")) or ["_"] for s in segs])
         sc = bm.get_scores(tok(query))
         keyword = [segs[i].segment_id for i in np.argsort(-sc) if sc[i] > 0][: k * 2]
@@ -293,6 +293,12 @@ async def get_entity(ctx: RunContext[HarnessDeps], entity_id: str) -> dict[str, 
 work = FunctionToolset[HarnessDeps](max_retries=ERROR_BUDGET)
 
 
+def extraction_key(task: ExtractionTask) -> str:
+    """The unit the re-extraction budget counts: a slot group for one person (or the group alone)."""
+    inst = task.instance_keys[0] if task.instance_keys and task.instance_keys[0] else None
+    return f"{task.slot_group}#{inst}" if inst else task.slot_group
+
+
 class AgentOp(BaseModel):
     """An op the orchestrator may apply directly (never a value: ADD and UPDATE come only from extraction)."""
 
@@ -316,13 +322,20 @@ async def extract_slot_group(ctx: RunContext[HarnessDeps], task_id: str) -> dict
     unmet = [dep for dep in task.depends_on if next((t.status for t in plan.tasks if t.task_id == dep), "done") not in ("done", "skipped", "failed")]
     if unmet:
         raise ModelRetry(f"Task {task_id} depends on {', '.join(unmet)}: run those first.")
-    runs = d.state.extraction_attempts.get(task.slot_group, 0)
+    # Re-extractions are budgeted per slot group and person (§13.6), whichever task asks: re-running a done
+    # task, a task added with update_plan or a split half all count, so the budget cannot be bypassed.
+    key = extraction_key(task)
+    runs = d.state.extraction_attempts.get(key, 0)
     limit = 1 + d.inputs.budgets.reextractions_per_group
-    if task.status == "done" and runs >= limit:
-        raise ToolFailed(f"{task.slot_group} has been extracted {runs} times; mark the remaining slots unknown or skip.")
+    if runs >= limit:
+        task.status = task.status if task.status in ("done", "failed", "skipped") else "skipped"
+        task.skip_reason = task.skip_reason or f"re-extraction budget spent ({runs} extractions of {key})"
+        raise ToolFailed(
+            f"{key} has been extracted {runs} times, the budget for this slot group; mark the remaining slots unknown (apply_state_ops) or skip the task."
+        )
     task.status = "running"
     task.attempts += 1
-    d.state.extraction_attempts[task.slot_group] = runs + 1
+    d.state.extraction_attempts[key] = runs + 1
     try:
         profile, result = await d.services.extract(task, d)
     except Exception:
@@ -356,7 +369,7 @@ async def verify_facts(ctx: RunContext[HarnessDeps], slot_group: str | None = No
     res = await d.services.verify(d.profile, ids, d)
     if res.profile is not None:
         await d.set_profile(res.profile)
-    d.add_usage(res.usage)
+    d.add_usage(res.usage, role="verifier")
     return res.data if isinstance(res.data, dict) else {"result": res.data}
 
 
@@ -423,6 +436,7 @@ async def draft_followups(ctx: RunContext[HarnessDeps]) -> list[dict[str, Any]]:
     res = await d.services.followups(d.profile, d)
     if res.profile is not None:
         await d.set_profile(res.profile)
+    d.add_usage(res.usage, role="frontier")
     d.state.followups = list(res.data or [])
     return [f.model_dump(mode="json") for f in d.state.followups]
 
@@ -435,6 +449,7 @@ async def lookup_term(ctx: RunContext[HarnessDeps], term: str, context: str = ""
     if d.services.lookup_term is None:
         return {"term": term, "resolved": False, "candidates": [], "note": "term lookup is not configured in this run"}
     res = await d.services.lookup_term(term, context, d)
+    d.add_usage(res.usage, role="small")
     return res.data if isinstance(res.data, dict) else {"result": res.data}
 
 

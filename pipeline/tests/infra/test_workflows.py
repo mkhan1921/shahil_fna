@@ -8,7 +8,7 @@ review reminder shortened through ``CallArgs.review_reminder_seconds``.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from temporalio.api.enums.v1 import EventType
@@ -24,7 +24,7 @@ from .temporal_harness import EXEC_TIMEOUT, MockActivities, running_worker, temp
 
 pytestmark = pytest.mark.temporal
 
-NOW = datetime(2026, 10, 16, 10, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 16, 10, 0, tzinfo=UTC)
 
 
 def _args(**kw) -> CallArgs:
@@ -131,6 +131,28 @@ async def test_followup_answers_during_review_are_taken_in(temporal_bin):
     assert result.profile_version == 5
 
 
+async def test_answer_signalled_after_review_is_taken_before_completion(temporal_bin):
+    """An answer the API signals while the note and final forecast run (the run was RUNNING when it looked)
+    must not be lost: it is taken in, the note and the final forecast run again, then the run completes."""
+    mocks = MockActivities(slow_note_s=2.0)
+    async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
+        handle = await env.client.start_workflow(
+            CallPipelineWorkflow.run, _args(), id=f"call-1-{uuid.uuid4().hex[:6]}", task_queue=tq, execution_timeout=EXEC_TIMEOUT
+        )
+        await wait_state(handle, RunState.AWAITING_REVIEW)
+        await handle.signal(CallPipelineWorkflow.review_submitted, _review())
+        await wait_for(lambda: C.RENDER_NOTE in mocks.names())  # the review is applied; the note is being rendered
+        await handle.signal(CallPipelineWorkflow.followup_answered, _answer())
+        result = await handle.result()
+        status = await handle.query(CallPipelineWorkflow.run_status)
+    names = mocks.names()
+    i = names.index(C.APPLY_REVIEW)
+    assert names[i:] == [C.APPLY_REVIEW, C.RENDER_NOTE, C.RUN_FORECAST, C.INTAKE_FOLLOWUP, C.RENDER_NOTE, C.RUN_FORECAST]
+    assert [f.args.forecast_mode for f in mocks.inputs(C.RUN_FORECAST)] == ["preview", "final", "final"]
+    assert status.answers_received == status.answers_processed == 1
+    assert result.profile_version == 5 and result.state == RunState.COMPLETE  # review (4) then the answer (5)
+
+
 async def test_agent_partial_still_goes_to_review(temporal_bin):
     mocks = MockActivities(partial=True)
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
@@ -230,7 +252,7 @@ async def test_forecast_workflow(temporal_bin):
 async def test_nightly_feedback_runs_every_branch_in_order(temporal_bin):
     mocks = MockActivities()
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
-        until = datetime(2026, 10, 16, 0, 0, tzinfo=timezone.utc)
+        until = datetime(2026, 10, 16, 0, 0, tzinfo=UTC)
         out = await env.client.execute_workflow(
             NightlyFeedbackWorkflow.run,
             C.NightlyArgs(until=until),
