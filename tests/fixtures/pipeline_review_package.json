@@ -319,7 +319,7 @@
     "deathIncomeFixedYears": 15.0
    },
    "engagement": {
-    "meetingDate": "2026-10-16",
+    "meetingDate": "2026-10-15",
     "meetingType": "in-person",
     "adviceType": "comprehensive",
     "scope": [
@@ -2358,7 +2358,7 @@
      ],
      "p_correct": 0.6236,
      "auto_accepted": false,
-     "review_priority": 0.028109,
+     "review_priority": 0.028108,
      "why": "moves the household's emergency fund shortfall by R995 (~1% of the need)",
      "speaker_attribution": "client",
      "said": "We help my mother with about three thousand a month.",
@@ -2871,7 +2871,7 @@
      "p_correct": 0.6237,
      "auto_accepted": false,
      "review_priority": 0.010636,
-     "why": "moves the client's severe illness cover shortfall by R15k (~1% of the need)",
+     "why": "moves the client's retirement shortfall by R239k (~1% of the need)",
      "speaker_attribution": "client",
      "said": "There's a thirteenth cheque in December",
      "interpretation": "as the client said",
@@ -3772,7 +3772,7 @@
      "p_correct": 0.6207,
      "auto_accepted": false,
      "review_priority": 0.125729,
-     "why": "moves the spouse's retirement shortfall by R1.9m (~11% of the need)",
+     "why": "moves the spouse's severe illness cover shortfall by R93k (~11% of the need)",
      "speaker_attribution": "client",
      "said": "I earn about thirty-five a month gross",
      "interpretation": "as the client said",
@@ -7718,7 +7718,7 @@
      ],
      "question": "Could you give us a rough range or your best options for the outstanding balance for Car finance and the monthly repayment for Car finance?",
      "why": "moves the spouse's estate liquidity shortfall by R2.8m (~463% of the need); not discussed in the call",
-     "expected_pos_change": 4.627887788778878,
+     "expected_pos_change": 4.627887788778874,
      "answer_type": "AMOUNT_RANGE",
      "status": "open"
     },
@@ -7768,7 +7768,7 @@
      ],
      "question": "Could you give us a rough range or your best options for the tertiary study cost for Lwazi and the tertiary for Lwazi?",
      "why": "moves the household's education funding shortfall by R853k (~63% of the need); not discussed in the call",
-     "expected_pos_change": 0.6342689132653784,
+     "expected_pos_change": 0.6342689132653783,
      "answer_type": "AMOUNT_RANGE",
      "status": "open"
     },
@@ -7779,7 +7779,7 @@
      ],
      "question": "Roughly what range would you put on the monthly contribution by the member for Allan Gray RA?",
      "why": "moves the client's retirement shortfall by R5.3m (~22% of the need); not discussed in the call",
-     "expected_pos_change": 0.22023237083260888,
+     "expected_pos_change": 0.2202323774597682,
      "answer_type": "AMOUNT_RANGE",
      "status": "open"
     },
@@ -7791,7 +7791,7 @@
      ],
      "question": "Could you give us a rough range or your best options for the monthly contribution by the member for Company pension fund and the current value for Company pension fund?",
      "why": "moves the client's retirement shortfall by R5.3m (~22% of the need); not discussed in the call",
-     "expected_pos_change": 0.22023237083260888,
+     "expected_pos_change": 0.2202323774597682,
      "answer_type": "AMOUNT_RANGE",
      "status": "open"
     },
@@ -7803,7 +7803,7 @@
      ],
      "question": "Could you give us a rough range or your best options for your gross salary and your annual bonus?",
      "why": "flips the client's life cover from partial to shortfall; moves the client's severe illness cover shortfall by R226k (~15% of the need)",
-     "expected_pos_change": 0.1474348362849333,
+     "expected_pos_change": 0.14743470762120997,
      "answer_type": "AMOUNT_RANGE",
      "status": "open"
     }
@@ -8644,7 +8644,9 @@
      ],
      "text": "Yes, still salaried there. I take home about forty-two thousand a month. Actually no, sorry, it went up in April, it's more like forty-five now.",
      "rewritten_text": null,
-     "flags": []
+     "flags": [
+      "self_correction"
+     ]
     },
     {
      "segment_id": "s0008",
@@ -13089,7 +13091,7 @@
     ],
     "question": "Could you give us a rough range or your best options for the outstanding balance for Car finance and the monthly repayment for Car finance?",
     "why": "moves the spouse's estate liquidity shortfall by R2.8m (~463% of the need); not discussed in the call",
-    "expected_pos_change": 4.627887788778878,
+    "expected_pos_change": 4.627887788778874,
     "answer_type": "AMOUNT_RANGE",
     "status": "open"
    },
@@ -13139,7 +13141,7 @@
     ],
     "question": "Could you give us a rough range or your best options for the tertiary study cost for Lwazi and the tertiary for Lwazi?",
     "why": "moves the household's education funding shortfall by R853k (~63% of the need); not discussed in the call",
-    "expected_pos_change": 0.6342689132653784,
+    "expected_pos_change": 0.6342689132653783,
     "answer_type": "AMOUNT_RANGE",
     "status": "open"
    },
@@ -13150,7 +13152,7 @@
     ],
     "question": "Roughly what range would you put on the monthly contribution by the member for Allan Gray RA?",
     "why": "moves the client's retirement shortfall by R5.3m (~22% of the need); not discussed in the call",
-    "expected_pos_change": 0.22023237083260888,
+    "expected_pos_change": 0.2202323774597682,
     "answer_type": "AMOUNT_RANGE",
     "status": "open"
    },
@@ -13162,7 +13164,7 @@
     ],
     "question": "Could you give us a rough range or your best options for the monthly contribution by the member for Company pension fund and the current value for Company pension fund?",
     "why": "moves the client's retirement shortfall by R5.3m (~22% of the need); not discussed in the call",
-    "expected_pos_change": 0.22023237083260888,
+    "expected_pos_change": 0.2202323774597682,
     "answer_type": "AMOUNT_RANGE",
     "status": "open"
    },
@@ -13174,7 +13176,7 @@
     ],
     "question": "Could you give us a rough range or your best options for your gross salary and your annual bonus?",
     "why": "flips the client's life cover from partial to shortfall; moves the client's severe illness cover shortfall by R226k (~15% of the need)",
-    "expected_pos_change": 0.1474348362849333,
+    "expected_pos_change": 0.14743470762120997,
     "answer_type": "AMOUNT_RANGE",
     "status": "open"
    }

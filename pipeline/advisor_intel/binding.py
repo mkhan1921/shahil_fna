@@ -102,7 +102,7 @@ def get_path(doc: dict[str, Any], path: str) -> Any:
     return None if row is None else row.get(pp.field)
 
 
-def set_path(doc: dict[str, Any], path: str, value: Any) -> None:
+def set_path(doc: dict[str, Any], path: str, value: Any, *, anchor: date | None = None) -> None:
     """Set a value, creating a list row (with the container's defaults) when the id is new."""
     pp = parse_path(path)
     node = _container(doc, pp.container)
@@ -114,10 +114,27 @@ def set_path(doc: dict[str, Any], path: str, value: Any) -> None:
         return
     row = next((r for r in node if r.get("id") == pp.key), None)
     if row is None:
-        row = LIST_ROW_MODEL[pp.container]().model_dump(mode="json")
-        row["id"] = pp.key
+        row = new_row(pp.container, pp.key, anchor)
         node.append(row)
     row[pp.field] = value
+
+
+def new_row(container: str, key: str, anchor: date | None = None) -> dict[str, Any]:
+    """A list row with the app's defaults. Defaults the app takes from the clock (a goal five years out) are
+    taken from the call date instead, so a run's output does not depend on the day it runs."""
+    row = LIST_ROW_MODEL[container]().model_dump(mode="json")
+    row["id"] = key
+    if container == "goals" and anchor is not None:
+        row["targetYear"] = anchor.year + 5
+    return row
+
+
+def empty_document(anchor: date) -> dict[str, Any]:
+    """``FnaDocument()`` as the app creates it, dated by the call rather than by the clock (§1.5: the meeting
+    date comes from the call metadata; a pipeline run must give the same document whenever it runs)."""
+    doc = F.FnaDocument().model_dump(mode="json")
+    doc["engagement"]["meetingDate"] = anchor.isoformat()
+    return doc
 
 
 def _container(doc: dict[str, Any], dotted: str) -> Any:
@@ -194,6 +211,8 @@ def to_fna_value(slot: SlotDef, dist: Dist, mode: Literal["median", "draw"], rng
     x = float(stats.sample(dist, rng, 1)[0]) if mode == "draw" else stats.median(dist)  # type: ignore[arg-type]
     if slot.value_type == "date":
         return stats.year_to_iso(x)
+    if isinstance(dist, Point):
+        return dist.value  # a certain value is written as it is: a prior 25.5 or a stated "sixty-two and a half" is never rounded
     return _round(slot, x)
 
 
@@ -445,7 +464,7 @@ def materialise(
     Facts with no value keep the base document's value (the prior FNA), else the app default.
     """
     catalog = catalog or load_catalog(profile.schema_version)
-    doc = (base or F.FnaDocument()).model_dump(mode="json")
+    doc = base.model_dump(mode="json") if base is not None else empty_document(profile.anchor_date)
     _ensure_rows(doc, profile, catalog)
     removed_rows: set[tuple[str, str]] = set()
     for f in sorted(profile.facts.values(), key=lambda x: x.fact_id):
@@ -467,7 +486,7 @@ def materialise(
         value = to_fna_value(slot, dist, mode, rng)
         if value is None:
             continue
-        set_path(doc, _row_path(profile, f), value)
+        set_path(doc, _row_path(profile, f), value, anchor=profile.anchor_date)
     for container, key in removed_rows:
         rows = _container(doc, container)
         rows[:] = [r for r in rows if r.get("id") != key]
@@ -487,9 +506,7 @@ def _ensure_rows(doc: dict[str, Any], profile: Profile, catalog: Catalog) -> Non
     for (container, key), _ in sorted(wanted.items(), key=lambda kv: (kv[1], kv[0])):
         rows = _container(doc, container)
         if not any(r.get("id") == key for r in rows):
-            row = LIST_ROW_MODEL[container]().model_dump(mode="json")
-            row["id"] = key
-            rows.append(row)
+            rows.append(new_row(container, key, profile.anchor_date))
 
 
 def _row_path(profile: Profile, f: Fact) -> str:

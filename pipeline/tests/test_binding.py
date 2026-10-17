@@ -109,6 +109,31 @@ def test_median_and_draw_modes():
     assert np.std(draws) > 1.0
 
 
+def test_point_values_round_trip_unrounded():
+    # A certain value is written as it is; only the median of a spread is rounded to the field's grain.
+    doc = F.FnaDocument(dependants=[F.Dependant(dependencyEndAge=25.5, tertiaryStartAge=18)])
+    prof = _load(doc)
+    assert binding.materialise(prof, "median").dependants[0].dependencyEndAge == 25.5
+    prof, _ = _add(prof, "retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", Point(value=62.5))
+    prof, _ = _add(prof, "retirement.{p}.planningAge", "client", "retirement.client.planningAge", Triangular(low=88, mode=92, high=97))
+    med = binding.materialise(prof, "median", base=doc)
+    assert med.retirement["client"].retirementAge == 62.5
+    assert med.retirement["client"].planningAge == 92 and isinstance(med.retirement["client"].planningAge, float)
+
+
+def test_new_documents_and_rows_are_dated_by_the_call_not_the_clock():
+    # A run without a prior file must give the same document whenever it runs (§1.5: the meeting date is call metadata).
+    prof = _load(None)
+    assert binding.materialise(prof, "median").engagement.meetingDate == ANCHOR.isoformat()
+    prof = prof.model_copy(update={"entities": {**prof.entities, "goal.trip_1": binding.Entity(entity_id="goal.trip_1", type="goal", canonical_name="Overseas trip")}})
+    rid = binding.row_id_for(prof, "goal.trip_1")
+    prof, _ = _add(prof, "goals[].name", "goal.trip_1", f"goals[{rid}].name", Point(value="Overseas trip"), unit="none")
+    med = binding.materialise(prof, "median")
+    assert med.goals[0].name == "Overseas trip" and med.goals[0].targetYear == ANCHOR.year + 5
+    base = F.FnaDocument(engagement=F.Engagement(meetingDate="2025-01-01"))
+    assert binding.materialise(prof, "median", base=base).engagement.meetingDate == "2025-01-01"  # a prior file keeps its own date
+
+
 def test_text_slot_with_two_readings_keeps_the_likelier():
     prof = _load(F.FnaDocument())
     hyps = [Hypothesis(value=Quantity(dist=Point(value="teacher"), unit="none"), weight=0.7, rationale=""),
