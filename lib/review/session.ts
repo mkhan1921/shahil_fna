@@ -176,6 +176,9 @@ export const isReviewItem = (f: ReviewFact): boolean => !f.moved && (f.origin ==
 
 export const isUsable = (f: ReviewFact): boolean => !f.moved && f.review.status !== 'rejected' && f.quantity !== null;
 
+/** Whether the fact carries a value the reviewer can accept: a missing or unknown field has none (§10.3: it is marked unknown, edited or asked). */
+export const hasValue = (f: ReviewFact): boolean => f.quantity !== null;
+
 export const isDecided = (f: ReviewFact): boolean => ['accepted', 'edited', 'rejected'].includes(f.review.status);
 
 const factFromSidecar = (path: string, s: SidecarField): ReviewFact => {
@@ -659,16 +662,22 @@ const resolveTarget = (s: Draft<ReviewSession>, slot: SlotDef, to: InstanceTarge
   return { instance: to.instance, path: pathOf(s as ReviewSession, slot, to.instance), refs: refsFor(s as ReviewSession, slot, to.instance) };
 };
 
+const flaggedOpen = (s: Draft<ReviewSession>, factId: string): boolean => s.flags.some((x) => x.fact_id === factId && !x.cleared);
+
+/** A flagged field with no value cannot be "accepted" (§10.3, §11.2): the reviewer marks it unknown, edits it or asks. */
+const needsValue = (s: Draft<ReviewSession>, f: ReviewFact): boolean => !hasValue(f) && flaggedOpen(s, f.factId);
+
 const run = (s: Draft<ReviewSession>, a: ReviewAction, stamp: Stamp): void => {
   switch (a.type) {
     case 'accept': {
       const f = factOf(s, a.factId);
+      if (needsValue(s, f)) throw new ReviewError(`${f.label} has no value to accept: mark it unknown (U) or give one (E).`);
       if (f.review.status !== 'accepted' && f.review.status !== 'edited') emit(s, [acceptOp(f, stamp, a.note)]);
       settleFlags(s, f.factId, 'accepted', stamp, a.note);
       return;
     }
     case 'acceptMany': {
-      const facts = a.factIds.map((id) => factOf(s, id));
+      const facts = a.factIds.map((id) => factOf(s, id)).filter((f) => !needsValue(s, f)); // "accept all" never clears a missing field
       emit(s, facts.filter((f) => !isDecided(f)).map((f) => acceptOp(f, stamp)));
       for (const f of facts) settleFlags(s, f.factId, 'accepted', stamp);
       return;

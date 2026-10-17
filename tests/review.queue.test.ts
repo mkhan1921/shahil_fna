@@ -170,17 +170,36 @@ describe('the keyboard flow', () => {
     expect(flowStep(s, order, F.target, 'close', true)).toEqual({ do: 'close' });
   });
 
+  it('Enter on a flag whose field has no value marks it unknown; "accepted" is kept for facts with a value', () => {
+    const s = fresh();
+    const order = queueOrder(buildQueue(s), false);
+    const missing = 'flag:flag-disability-cover'; // tier A cover the client never gave: no value to accept
+    expect(s.facts[F.disabilityCover].quantity).toBeNull();
+    expect(flowStep(s, order, missing, 'accept')).toEqual({ do: 'unknown', factId: F.disabilityCover, next: nextUndecided(s, order, missing, F.disabilityCover) });
+    const t = act(s, { type: 'setStatus', factId: F.disabilityCover, status: 'explicitly_unknown' });
+    expect(t.flags.find((f) => f.flag_id === 'flag-disability-cover')).toMatchObject({ cleared: true, resolution: 'marked_unknown' });
+    expect(t.flagClearances.map((c) => c.resolution)).toEqual(['marked_unknown']);
+    // A flagged fact with a value (the RA's contradiction) still accepts on Enter.
+    expect(flowStep(s, order, order[0], 'accept')).toMatchObject({ do: 'accept', factId: F.ra });
+  });
+
   it('reaches a review that can be submitted once every flag is cleared', () => {
     let s = fresh();
     expect(canSubmit(s)).toBe(false);
     const order = queueOrder(buildQueue(s), false);
+    const resolutions: string[] = [];
     for (const entry of order.filter((e) => e.startsWith('flag:'))) {
       const step = flowStep(s, queueOrder(buildQueue(s), false), entry, 'accept');
       if (step?.do === 'accept') s = act(s, { type: 'accept', factId: step.factId });
+      else if (step?.do === 'unknown') s = act(s, { type: 'setStatus', factId: step.factId, status: 'explicitly_unknown' });
       else if (step?.do === 'confirmTerm') s = act(s, { type: 'confirmTerm', factId: step.factId, canonicalName: 'Krugerrand gold bullion coins', productType: 'other', provider: '', confirmed: true });
+      resolutions.push(step?.do ?? 'none');
     }
+    expect(resolutions).toContain('unknown');
     expect(openFlags(s)).toEqual([]);
     expect(canSubmit(s)).toBe(true);
     expect(Object.values(s.facts).filter((f) => bundle.blocking_flags.some((b) => b.fact_id === f.factId)).every(isDecided)).toBe(true);
+    // No flag on a field without a value was recorded as accepted.
+    for (const c of s.flagClearances) if (c.resolution === 'accepted') expect(s.facts[bundle.blocking_flags.find((b) => b.flag_id === c.flag_id)!.fact_id!].quantity).not.toBeNull();
   });
 });
