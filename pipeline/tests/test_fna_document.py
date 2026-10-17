@@ -31,8 +31,6 @@ def test_defaults_match_new_document(empty_fna_json):
     theirs = _strip(empty_fna_json)
     # Both sides default the meeting date to the day the document is made: the fixture carries the day it was
     # exported, so only the form is compared.
-    date.fromisoformat(ours["engagement"].pop("meetingDate"))
-    date.fromisoformat(theirs["engagement"].pop("meetingDate"))
     assert ours == theirs
 
 
