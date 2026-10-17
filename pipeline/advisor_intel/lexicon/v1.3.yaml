@@ -86,6 +86,9 @@ approx_words:    # spread around a stated value: relative half-width, or relativ
   "net oor": {dist: triangular, rel_low: 0.0, rel_mode: 0.03, rel_high: 0.08}     # Afr. just over
   "net bo": {dist: triangular, rel_low: 0.0, rel_mode: 0.03, rel_high: 0.08}      # Afr. just above
   "presies": {dist: point}                                         # Afr. exactly
+  "min of meer": {dist: triangular, rel_halfwidth: 0.10}          # Afr. more or less
+  "kinda": {dist: triangular, rel_halfwidth: 0.15}
+  "sorta": {dist: triangular, rel_halfwidth: 0.15}
 
 vague_counts:    # a distribution over a count multiplier: items, years, or the head of a vague amount
   "a couple": {dist: discrete, support: [2, 3], weights: [0.75, 0.25]}   # seed
@@ -100,6 +103,7 @@ vague_counts:    # a distribution over a count multiplier: items, years, or the 
   "a handful": {dist: triangular, low: 3, mode: 4, high: 6}
   "a dozen": {dist: triangular, low: 10, mode: 12, high: 14}
   "a dozen or so": {dist: triangular, low: 10, mode: 12, high: 16}
+  "half a dozen": {dist: triangular, low: 5, mode: 6, high: 7}
   "a number of": {dist: triangular, low: 2, mode: 4, high: 8}
   "quite a few": {dist: triangular, low: 4, mode: 6, high: 10}
   "a good few": {dist: triangular, low: 4, mode: 6, high: 10}
@@ -199,6 +203,8 @@ age_bands:       # ages as spoken; decades follow the seed shape (early D: D..D+
   "grade r": {dist: triangular, low: 5.5, mode: 6, high: 6.5}            # §7.6: grade + 6 = age
   "pension age": {dist: triangular, low: 60, mode: 65, high: 65}
   "normal retirement age": {dist: triangular, low: 60, mode: 65, high: 65}
+  "retirement age": {dist: triangular, low: 60, mode: 65, high: 65}
+  "aftree ouderdom": {dist: triangular, low: 60, mode: 65, high: 65}   # Afr. retirement age
 
 age_offsets:     # templates around a stated age {n}: the age is n + (low, mode, high) years
   "turning {n}": {dist: point}
@@ -254,8 +260,14 @@ relative_words:  # multiplier on the reference slot's value
   "more": {dist: triangular, low: 1.05, mode: 1.2, high: 1.5}
   "a lot more": {dist: triangular, low: 1.25, mode: 1.5, high: 2.0}
   "much more": {dist: triangular, low: 1.25, mode: 1.5, high: 2.0}
+  "a tiny bit less": {dist: triangular, low: 0.9, mode: 0.95, high: 0.99}
+  "a tiny bit more": {dist: triangular, low: 1.01, mode: 1.05, high: 1.1}
+  "a touch less": {dist: triangular, low: 0.9, mode: 0.95, high: 0.99}
+  "a touch more": {dist: triangular, low: 1.01, mode: 1.05, high: 1.1}
   "half": {dist: triangular, low: 0.45, mode: 0.5, high: 0.55}
   "about half": {dist: triangular, low: 0.4, mode: 0.5, high: 0.6}
+  "a quarter": {dist: triangular, low: 0.22, mode: 0.25, high: 0.28}
+  "a fifth": {dist: triangular, low: 0.18, mode: 0.2, high: 0.22}
   "a third": {dist: triangular, low: 0.3, mode: 0.33, high: 0.37}
   "two thirds": {dist: triangular, low: 0.6, mode: 0.67, high: 0.72}
   "three quarters": {dist: triangular, low: 0.7, mode: 0.75, high: 0.8}
@@ -302,11 +314,19 @@ rate_words:      # annual real rates
   "sukkel": {dist: normal, mean: -0.05, sd: 0.05}          # Afr. struggling
   "groei": {dist: normal, mean: 0.04, sd: 0.04}            # Afr. growing
 
-rate_templates:  # a stated real rate around inflation, "{n}" percentage points: Normal(n/100, sd)
+rate_templates:  # a stated rate around a reference, "{n}" percentage points: Normal(base + n/100, sd); real unless said
   "inflation plus {n}": {sd: 0.01}
   "cpi plus {n}": {sd: 0.01}
   "inflation plus {n} percent": {sd: 0.01}
   "cpi plus {n} percent": {sd: 0.01}
+  # Lending rates quoted off the SA prime rate are nominal; base is the prime rate when this version was
+  # written and is re-fitted or updated with the rate, sd covers a cycle of changes. Bare "prime" is prime plus 0.
+  "prime plus {n}": {base: 0.105, sd: 0.0075, real_or_nominal: nominal}
+  "prime plus {n} percent": {base: 0.105, sd: 0.0075, real_or_nominal: nominal}
+  "prime minus {n}": {base: 0.105, sd: 0.0075, real_or_nominal: nominal}
+  "prime minus {n} percent": {base: 0.105, sd: 0.0075, real_or_nominal: nominal}
+  "prime less {n}": {base: 0.105, sd: 0.0075, real_or_nominal: nominal}
+  "prima plus {n}": {base: 0.105, sd: 0.0075, real_or_nominal: nominal}     # Afr. prime plus
 
 likelihood_words:  # P(event) as a Beta for review display (mean, p10 low, p90 high); sampled as Bernoulli(mean)
   "definitely": {mean: 0.95, low: 0.9, high: 0.99}      # seed
@@ -323,6 +343,8 @@ likelihood_words:  # P(event) as a Beta for review display (mean, p10 low, p90 h
   "most likely": {mean: 0.8, low: 0.7, high: 0.9}
   "very likely": {mean: 0.85, low: 0.75, high: 0.93}
   "likely": {mean: 0.7, low: 0.6, high: 0.8}
+  "quite likely": {mean: 0.7, low: 0.6, high: 0.8}
+  "most probably": {mean: 0.8, low: 0.7, high: 0.9}
   "planning to": {mean: 0.75, low: 0.6, high: 0.88}
   "intend to": {mean: 0.75, low: 0.6, high: 0.88}
   "want to": {mean: 0.6, low: 0.45, high: 0.75}
@@ -333,6 +355,7 @@ likelihood_words:  # P(event) as a Beta for review display (mean, p10 low, p90 h
   "fifty fifty": {mean: 0.5, low: 0.4, high: 0.6}
   "50 50": {mean: 0.5, low: 0.4, high: 0.6}
   "not sure": {mean: 0.45, low: 0.3, high: 0.6}
+  "we'll see": {mean: 0.45, low: 0.3, high: 0.6}
   "may": {mean: 0.4, low: 0.25, high: 0.55}
   "could": {mean: 0.35, low: 0.2, high: 0.5}
   "possibly": {mean: 0.35, low: 0.2, high: 0.5}
@@ -341,6 +364,7 @@ likelihood_words:  # P(event) as a Beta for review display (mean, p10 low, p90 h
   "probably not": {mean: 0.25, low: 0.15, high: 0.35}
   "doubt it": {mean: 0.15, low: 0.05, high: 0.25}
   "very unlikely": {mean: 0.07, low: 0.02, high: 0.15}
+  "no way": {mean: 0.03, low: 0.01, high: 0.08}
   "highly unlikely": {mean: 0.07, low: 0.02, high: 0.15}
   "no chance": {mean: 0.03, low: 0.01, high: 0.08}
   "never": {mean: 0.03, low: 0.01, high: 0.08}
@@ -386,7 +410,10 @@ hedge_strength:  # feature for calibration, 0 (certain) .. 1 (pure speculation)
   "hoping": 0.5
   "thinking about": 0.5
   "dont quote me": 0.5
+  "dont quote me on that": 0.5
   "id have to check": 0.5
+  "or so": 0.3
+  "give or take a bit": 0.3
   "possibly": 0.6
   "perhaps": 0.6
   "could be": 0.6
@@ -396,6 +423,7 @@ hedge_strength:  # feature for calibration, 0 (certain) .. 1 (pure speculation)
   "havent decided": 0.8
   "no clue": 1.0
   "dont know": 1.0
+  "dunno": 1.0
   "ek dink": 0.3        # Afr. I think
   "seker": 0.3          # Afr. surely / probably
   "dalk": 0.6           # Afr. maybe
@@ -412,6 +440,7 @@ certainty_words: # P(the stated category / yes-no answer is right); a category's
   "for sure": 0.98
   "of course": 0.98
   "im sure": 0.95
+  "dead sure": 0.95
   "pretty sure": 0.85
   "fairly sure": 0.85
   "i believe": 0.85
@@ -433,6 +462,8 @@ certainty_words: # P(the stated category / yes-no answer is right); a category's
   "ek dink": 0.75       # Afr. I think
   "beslis": 0.99        # Afr. definitely
   "seker": 0.85         # Afr. surely
+  "heel seker": 0.9     # Afr. quite sure
+  "nogal": 0.6          # Afr. quite / fairly
   "dalk": 0.5           # Afr. maybe
 
 category_synonyms:  # spoken label → FNA union value(s), first one the slot allows wins (§8.3 bounded categorical fields)

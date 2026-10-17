@@ -3,7 +3,7 @@
  "version": 1,
  "call_id": "call-2026-10-15-mokoena",
  "run_id": "wf-call-2026-10-15-mokoena",
- "base_profile_version": 5,
+ "base_profile_version": 6,
  "reviewer_id": "adviser-sipho",
  "ops": [
   {
@@ -19,7 +19,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 422
+   "seq": 423
   },
   {
    "op": "UPDATE",
@@ -53,7 +53,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 423
+   "seq": 424
   },
   {
    "op": "UPDATE",
@@ -85,7 +85,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 424
+   "seq": 425
   },
   {
    "op": "CONFIRM",
@@ -101,7 +101,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 425
+   "seq": 426
   },
   {
    "op": "UPDATE",
@@ -134,7 +134,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 426
+   "seq": 427
   },
   {
    "op": "RETRACT",
@@ -151,7 +151,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 427
+   "seq": 428
   },
   {
    "op": "RETRACT",
@@ -168,7 +168,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 428
+   "seq": 429
   },
   {
    "op": "ADD",
@@ -230,7 +230,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 429
+   "seq": 430
   },
   {
    "op": "UPDATE",
@@ -246,7 +246,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 430
+   "seq": 431
   },
   {
    "op": "UPDATE",
@@ -281,7 +281,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 431
+   "seq": 432
   },
   {
    "op": "RETRACT",
@@ -298,7 +298,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 432
+   "seq": 433
   },
   {
    "op": "ADD",
@@ -343,7 +343,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 433
+   "seq": 434
   },
   {
    "op": "CONFIRM",
@@ -358,7 +358,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 434
+   "seq": 435
   },
   {
    "op": "ADD",
@@ -430,7 +430,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 435
+   "seq": 436
   },
   {
    "op": "CONFIRM",
@@ -445,7 +445,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 436
+   "seq": 437
   },
   {
    "op": "ADD",
@@ -490,7 +490,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 437
+   "seq": 438
   },
   {
    "op": "CONFIRM",
@@ -505,7 +505,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 438
+   "seq": 439
   },
   {
    "op": "ADD",
@@ -552,7 +552,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 439
+   "seq": 440
   },
   {
    "op": "CONFIRM",
@@ -567,7 +567,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 440
+   "seq": 441
   },
   {
    "op": "UPDATE",
@@ -599,7 +599,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 441
+   "seq": 442
   },
   {
    "op": "CONFIRM",
@@ -614,7 +614,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 442
+   "seq": 443
   },
   {
    "op": "CONFIRM",
@@ -629,7 +629,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 443
+   "seq": 444
   },
   {
    "op": "CONFIRM",
@@ -644,7 +644,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 444
+   "seq": 445
   },
   {
    "op": "CONFIRM",
@@ -659,7 +659,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 445
+   "seq": 446
   },
   {
    "op": "CONFIRM",
@@ -674,7 +674,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 446
+   "seq": 447
   },
   {
    "op": "CONFIRM",
@@ -689,7 +689,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 447
+   "seq": 448
   },
   {
    "op": "CONFIRM",
@@ -704,7 +704,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 448
+   "seq": 449
   },
   {
    "op": "CONFIRM",
@@ -719,7 +719,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 449
+   "seq": 450
   },
   {
    "op": "CONFIRM",
@@ -734,7 +734,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 450
+   "seq": 451
   },
   {
    "op": "CONFIRM",
@@ -749,7 +749,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 451
+   "seq": 452
   },
   {
    "op": "CONFIRM",
@@ -764,7 +764,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 452
+   "seq": 453
   },
   {
    "op": "CONFIRM",
@@ -779,7 +779,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 453
+   "seq": 454
   },
   {
    "op": "CONFIRM",
@@ -794,7 +794,7 @@
     }
    },
    "actor": "reviewer",
-   "seq": 454
+   "seq": 455
   }
  ],
  "flag_clearances": [

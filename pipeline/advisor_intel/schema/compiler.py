@@ -26,7 +26,6 @@ from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 
 from ..models.entities import EntityType
 from ..models.extraction import FORM_TYPES, FieldStatus, FieldValue, ObjectRef, RawHypothesis
-from ..models.facts import Attribution, FactStatus
 from .slots import Catalog, SlotDef
 
 STATUSES: tuple[str, ...] = ("stated", "implied", "explicitly_unknown", "not_discussed", "contradicted")
@@ -87,6 +86,7 @@ def _form_model(form_type: str, slot: SlotDef) -> type[BaseModel]:
         "currency": (_enum(*_CURRENCY), ...),
         "period": (_enum(*_PERIOD), Field(..., description="as said; code converts to the field's unit")),
         "basis": (_enum(*_BASIS), ...),
+        "priced_year": (int, Field(..., description="the calendar year the amount is priced in when the speaker dated it ('R400,000 in 2030'); 0 when not said")),
     }
     fields: dict[str, Any]
     if form_type == "AMOUNT_EXACT":
@@ -150,7 +150,7 @@ def _form_model(form_type: str, slot: SlotDef) -> type[BaseModel]:
 
 def _hypothesis_model(slot: SlotDef) -> type[BaseModel]:
     forms = [_form_model(f, slot) for f in slot.allowed_forms]
-    inter: Any = forms[0] if len(forms) == 1 else Union[tuple(forms)]  # anyOf, not a discriminated oneOf
+    inter: Any = forms[0] if len(forms) == 1 else Union[tuple(forms)]  # noqa: UP007 - a union built from a runtime tuple; anyOf, not a discriminated oneOf
     return create_model(
         f"Hypothesis__{_key(slot.slot_id)}",
         __base__=_Strict,
@@ -438,9 +438,7 @@ def schema_stats(schema: dict[str, Any]) -> SchemaStats:
                 if k in ("anyOf", "oneOf", "allOf"):
                     for variant in v:
                         walk(variant, depth)
-                elif k == "items":
-                    walk(v, depth)
-                elif isinstance(v, (dict, list)) and k not in ("properties",):
+                elif k == "items" or isinstance(v, (dict, list)) and k not in ("properties",):
                     walk(v, depth)
         elif isinstance(node, list):
             for v in node:

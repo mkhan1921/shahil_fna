@@ -35,10 +35,15 @@ from ..schema.slots import Catalog, generic_slot_id
 CONTEXT_EACH_SIDE = 2
 MAX_WINDOW_TOKENS = 25_000
 KEYWORD_TOP_K = 8
+COMMON_SHARE = 0.3  # a query word in more than this share of segments identifies nothing
+# Function words of the slot questions and of adviser–client speech (English and Afrikaans): never keywords.
+STOPWORDS = frozenset(
+    ["a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at", "by", "for", "from", "with", "without", "into", "onto", "over", "under", "about", "as", "is", "are", "was", "were", "be", "been", "being", "am", "do", "does", "did", "done", "have", "has", "had", "having", "will", "would", "shall", "should", "can", "could", "may", "might", "must", "this", "that", "these", "those", "there", "here", "it", "its", "they", "them", "their", "he", "she", "his", "her", "him", "we", "us", "our", "you", "your", "i", "me", "my", "mine", "who", "whom", "whose", "which", "what", "when", "where", "why", "how", "any", "some", "each", "every", "all", "both", "either", "neither", "no", "not", "nor", "only", "own", "same", "so", "than", "too", "very", "just", "also", "still", "yet", "again", "further", "then", "once", "such", "other", "per", "each", "one", "two", "person", "persons", "people", "client", "clients", "spouse", "household", "someone", "anyone", "this", "year", "now", "today", "currently", "die", "en", "of", "maar", "as", "van", "in", "op", "by", "met", "sonder", "oor", "onder", "is", "was", "het", "sal", "sou", "kan", "kon", "mag", "moet", "dit", "hierdie", "daardie", "daar", "hier", "hulle", "ons", "jy", "jou", "ek", "my", "hy", "sy", "wie", "wat", "wanneer", "waar", "hoekom", "hoe", "enige", "elke", "al", "nie", "geen", "net", "ook", "nog", "weer", "ja", "nee"]
+)
 
 
 def _tokens(text: str) -> list[str]:
-    return [t for t in "".join(c.lower() if c.isalnum() else " " for c in text).split() if len(t) > 1]
+    return [t for t in "".join(c.lower() if c.isalnum() else " " for c in text).split() if len(t) > 1 and t not in STOPWORDS]
 
 
 def group_is_per_person(catalog: Catalog, group: str) -> bool:
@@ -66,15 +71,27 @@ def _with_context(order: list[str], picked: set[str], each_side: int = CONTEXT_E
 
 
 def keyword_scan(transcript: Transcript, catalog: Catalog, group: str, k: int = KEYWORD_TOP_K) -> list[str]:
-    """BM25 over the whole transcript with the group's slot labels and questions as the query."""
+    """BM25 over the whole transcript with the group's slot labels and questions as the query.
+
+    Only segments that share a distinguishing word with the query count as hits (a word in fewer than
+    ``COMMON_SHARE`` of the segments), so a group nobody talked about scans to nothing and its task
+    confirms ``not_discussed`` without a model call (§7.1).
+    """
     segs = transcript.segments
     if not segs:
         return []
     corpus = [_tokens(s.text) or ["_"] for s in segs]
     bm = BM25Okapi(corpus)
     query = _tokens(" ".join(f"{s.label} {s.question}" for s in catalog.in_group(group)) + " " + catalog.groups[group].description)
+    if not query:
+        return []
+    df = {t: sum(1 for doc in corpus if t in doc) for t in set(query)}
+    informative = {t for t, n in df.items() if 0 < n <= max(1, COMMON_SHARE * len(segs))}
+    if not informative:
+        return []
+    hits = [i for i, doc in enumerate(corpus) if informative & set(doc)]
     scores = bm.get_scores(query)
-    ranked = sorted(range(len(segs)), key=lambda i: -scores[i])
+    ranked = sorted(hits, key=lambda i: -scores[i])
     return [segs[i].segment_id for i in ranked[:k] if scores[i] > 0]
 
 

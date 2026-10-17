@@ -95,7 +95,7 @@ def test_amount_forms_round_trip_and_statuses():
                 {
                     "instance": "client",
                     "hypotheses": [
-                        {"intermediate": {"type": "AMOUNT_APPROX", "value": 42000, "approx_word": "about", "currency": "ZAR", "period": "monthly", "basis": "net"}, "weight": 0, "rationale": "take-home", "revises": False}
+                        {"intermediate": {"type": "AMOUNT_APPROX", "value": 42000, "approx_word": "about", "currency": "ZAR", "period": "monthly", "basis": "net", "priced_year": 0}, "weight": 0, "rationale": "take-home", "revises": False}
                     ],
                     "hedges": [],
                     "speaker_attribution": "client",

@@ -8,7 +8,7 @@ intermediate form *as spoken*; deterministic code turns it into a distribution (
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +28,7 @@ class AmountExact(BaseModel):
     currency: Currency
     period: PeriodWord
     basis: BasisWord
+    priced_year: int = 0  # the year the amount is priced in ('R400,000 in 2030'); 0 when not said (§8.3 today's money)
 
 
 class AmountApprox(BaseModel):
@@ -39,6 +40,7 @@ class AmountApprox(BaseModel):
     currency: Currency
     period: PeriodWord
     basis: BasisWord
+    priced_year: int = 0  # the year the amount is priced in ('R400,000 in 2030'); 0 when not said (§8.3 today's money)
 
 
 class AmountRange(BaseModel):
@@ -50,6 +52,7 @@ class AmountRange(BaseModel):
     currency: Currency
     period: PeriodWord
     basis: BasisWord
+    priced_year: int = 0  # the year the amount is priced in ('R400,000 in 2030'); 0 when not said (§8.3 today's money)
 
 
 class AmountBound(BaseModel):
@@ -61,6 +64,7 @@ class AmountBound(BaseModel):
     currency: Currency
     period: PeriodWord
     basis: BasisWord
+    priced_year: int = 0  # the year the amount is priced in ('R400,000 in 2030'); 0 when not said (§8.3 today's money)
 
 
 class AmountRelative(BaseModel):
@@ -79,6 +83,7 @@ class AmountVague(BaseModel):
     currency: Currency
     period: PeriodWord
     basis: BasisWord
+    priced_year: int = 0  # the year the amount is priced in ('R400,000 in 2030'); 0 when not said (§8.3 today's money)
 
 
 class DateAbs(BaseModel):
@@ -154,22 +159,7 @@ class TextForm(BaseModel):
 
 
 IntermediateForm = Annotated[
-    Union[
-        AmountExact,
-        AmountApprox,
-        AmountRange,
-        AmountBound,
-        AmountRelative,
-        AmountVague,
-        DateAbs,
-        DurationFromAnchor,
-        AgeForm,
-        RateForm,
-        ProbabilityEvent,
-        CategoryForm,
-        BooleanForm,
-        TextForm,
-    ],
+    AmountExact | AmountApprox | AmountRange | AmountBound | AmountRelative | AmountVague | DateAbs | DurationFromAnchor | AgeForm | RateForm | ProbabilityEvent | CategoryForm | BooleanForm | TextForm,
     Field(discriminator="type"),
 ]
 

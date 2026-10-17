@@ -74,8 +74,8 @@ def income_handler(bad_rate_first: list[int]):
             out["income_p_grossMonthly"] = [{
                 "instance": "client",
                 "hypotheses": [
-                    {"intermediate": {"type": "AMOUNT_APPROX", "value": 42000, "approx_word": "about", "currency": "ZAR", "period": "monthly", "basis": "net"}, "weight": 0, "rationale": "first figure", "revises": False},
-                    {"intermediate": {"type": "AMOUNT_APPROX", "value": 45000, "approx_word": "more like", "currency": "ZAR", "period": "monthly", "basis": "net"}, "weight": 0, "rationale": "corrected", "revises": True},
+                    {"intermediate": {"type": "AMOUNT_APPROX", "value": 42000, "approx_word": "about", "currency": "ZAR", "period": "monthly", "basis": "net", "priced_year": 0}, "weight": 0, "rationale": "first figure", "revises": False},
+                    {"intermediate": {"type": "AMOUNT_APPROX", "value": 45000, "approx_word": "more like", "currency": "ZAR", "period": "monthly", "basis": "net", "priced_year": 0}, "weight": 0, "rationale": "corrected", "revises": True},
                 ],
                 "hedges": ["about", "more like"], "speaker_attribution": "client", "said": "I take home about forty-two thousand a month",
                 "interpretation": "net monthly pay, corrected upward to about 45,000", "self_score": 0.8}]

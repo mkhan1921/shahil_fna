@@ -47,8 +47,9 @@ describe('a review package from process_call', () => {
     expect(gross.status).toBe('implied');
     expect(badgeAt(s, 'income.client.grossMonthly')?.title).toContain('grossed up from take-home pay');
     const derived = Object.values(s.facts).filter((f) => f.derivation);
+    // No emergency-fund answer: the call never mentions savings, and silence is not "no savings".
     expect(derived.map((f) => f.derivation).sort()).toEqual([
-      'emergency_from_cash_flow', 'gross_from_net', 'gross_from_net', 'horizon_from_retirement', 'income_stability_from_employment',
+      'gross_from_net', 'gross_from_net', 'horizon_from_retirement', 'income_stability_from_employment',
       'partner_on_call', 'partner_on_call', // the spouse spoke on the call: included, married or life partner
     ]);
   });

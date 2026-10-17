@@ -7,17 +7,26 @@ themselves. For each field value:
    similarity to ``said`` and the slot question.
 2. **Alignment**: ``said`` and each candidate are canonicalised (spoken numbers to digits, case and
    punctuation folded) and compared with rapidfuzz; a candidate scoring ≥ 90 is accepted with no
-   model call. Only values still unresolved go to the aligner sub-agent, on a different model
-   family from the extractor, which scores each candidate.
+   model call. The match must run in the right direction (the quote is found inside the segment,
+   not a short segment inside the quote) and every number in the quote must appear in the segment
+   (allowing an elided scale word), so "about one point one million" never grounds "about one
+   point two million". Only values still unresolved go to the aligner sub-agent, on a different
+   model family from the extractor, which scores each candidate.
 3. **Keep or drop**: spans scoring ≥ 0.5 become the fact's evidence and the best score is a
    calibration feature. A value with no located span is dropped and logged — it never reaches the
    profile. If ``said`` does not match the top span (partial ratio < 85), it is replaced by the
    span's text. Character offsets come from fuzzy matching within the segment, and timestamps and
    ASR confidence from the words under the span.
+
+A value with a revising hypothesis (§6.4, §7.3 step 7) is also grounded in the revising statement:
+a candidate segment that discourse flagged as a revision and that carries the revising
+hypothesis's number becomes ``revises`` evidence, so the 0.8-weight option is never cited only by
+the words it replaced.
 """
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -41,6 +50,9 @@ ACCEPT_DETERMINISTIC = 90
 KEEP_SCORE = 0.5
 SAID_MATCH = 85
 TOP_K = 10
+MIN_CONTAINMENT = 0.75  # a candidate shorter than this share of the quote cannot contain it
+REVISION_SCORE = 0.9  # a revising statement located by its number, below a verbatim match
+_NUMBER = re.compile(r"\d+(?:\.\d+)?")
 
 
 class SpanScore(BaseModel):
@@ -67,7 +79,7 @@ def canon(text: str) -> str:
     words = t.split()
     out: list[str] = []
     i = 0
-    numeric = lambda w: w in _UNITS or w in _TENS  # noqa: E731
+    numeric = lambda w: w in _UNITS or w in _TENS
     while i < len(words):
         w = words[i]
         if numeric(w):
@@ -83,7 +95,7 @@ def canon(text: str) -> str:
                     current = max(current, 1) * 100
                 elif x in ("point", "comma") and j + 1 < len(words) and words[j + 1] in _UNITS:
                     # "one point two million", SA "one comma two mil": decimal digits follow
-                    frac, k, scale = "", j + 1, 1.0
+                    frac, k = "", j + 1
                     while k < len(words) and words[k] in _UNITS:
                         frac += str(_UNITS[words[k]] % 10)
                         k += 1
@@ -104,6 +116,33 @@ def canon(text: str) -> str:
             out.append(w)
             i += 1
     return " ".join(out)
+
+
+def _numbers(c: str) -> list[float]:
+    return [float(m) for m in _NUMBER.findall(c)]
+
+
+def _number_in(value: float, numbers: list[float]) -> bool:
+    """``value`` is among ``numbers``, or differs from one only by a power of ten (an elided scale word)."""
+    for n in numbers:
+        if math.isclose(n, value, rel_tol=1e-6, abs_tol=1e-9):
+            return True
+        if n > 0 and value > 0:
+            k = math.log10(value / n)
+            if abs(k - round(k)) < 1e-6 and abs(round(k)) <= 9:
+                return True
+    return False
+
+
+def deterministic_score(said_c: str, seg_c: str) -> float:
+    """The rapidfuzz partial ratio of a canonical quote against a canonical segment, or 0 when the
+    segment cannot contain the quote (too short) or lacks a number the quote carries."""
+    if not said_c or not seg_c or len(seg_c) < MIN_CONTAINMENT * len(said_c):
+        return 0.0
+    seg_numbers = _numbers(seg_c)
+    if any(not _number_in(v, seg_numbers) for v in _numbers(said_c)):
+        return 0.0
+    return float(fuzz.partial_ratio(said_c, seg_c))
 
 
 # --------------------------------------------------------------------------- spans
@@ -200,15 +239,17 @@ async def align_values(
     """Ground every field value in transcript spans, or drop it (§7.3)."""
     res = AlignResult()
     unresolved: dict[str, list[Segment]] = {}
+    candidates_by_key: dict[str, list[Segment]] = {}
     for key, fv in values.items():
         slot = slots[key]
         cands = candidates(deps, fv, slot, status_segments.get(key, []))
         if not cands:
             res.dropped[key] = "no candidate segments in the window"
             continue
+        candidates_by_key[key] = cands
         said_c = canon(fv.said)
-        scored = sorted(((fuzz.partial_ratio(said_c, canon(s.text)) if said_c else 0.0, s) for s in cands), key=lambda t: -t[0])
-        best_ratio, best = scored[0]
+        scored = sorted(((deterministic_score(said_c, canon(s.text)), s) for s in cands), key=lambda t: -t[0])
+        best_ratio = scored[0][0]
         if best_ratio >= ACCEPT_DETERMINISTIC and len(said_c) >= 3:
             ev = []
             for ratio, s in scored:
@@ -221,7 +262,11 @@ async def align_values(
             unresolved[key] = cands
     if unresolved:
         await _model_align(deps, values, unresolved, slots, res)
-    for key, al in res.aligned.items():
+    for key, al in list(res.aligned.items()):
+        extra = _revision_evidence(al.value, al.evidence, candidates_by_key.get(key, []), deps)
+        if extra:
+            res.aligned[key] = Aligned(value=al.value, evidence=al.evidence + extra, aligner_score=al.aligner_score, method=al.method)
+    for key, al in list(res.aligned.items()):
         top = al.evidence[0]
         seg = deps.transcript.segment(top.segment_id)
         if fuzz.partial_ratio(canon(al.value.said), canon(top.quote)) < SAID_MATCH:
@@ -235,6 +280,39 @@ def _role(fv: FieldValue, seg: Segment, deps: ExtractionDeps) -> str:
     if any(r.segment_id == seg.segment_id for r in deps.discourse.revisions) and any(h.revises for h in fv.hypotheses):
         return "revises"
     return "supports"
+
+
+def _form_numbers(fv: FieldValue) -> list[float]:
+    """The numbers the revising hypotheses quote (amounts, bounds, ranges, ages, years)."""
+    out: list[float] = []
+    for h in fv.hypotheses:
+        if not h.revises:
+            continue
+        f = h.intermediate
+        for name in ("value", "low", "high", "bound"):
+            v = getattr(f, name, None)
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+                out.append(float(v))
+    return out
+
+
+def _revision_evidence(fv: FieldValue, evidence: list[Evidence], cands: list[Segment], deps: ExtractionDeps) -> list[Evidence]:
+    """``revises`` evidence for a value whose later hypothesis is not yet cited: a candidate segment that
+    discourse flagged as a revision and that carries one of the revising hypothesis's numbers."""
+    numbers = _form_numbers(fv)
+    if not numbers:
+        return []
+    cited = {e.segment_id for e in evidence}
+    revising = {r.segment_id for r in deps.discourse.revisions}
+    out: list[Evidence] = []
+    for s in cands:
+        if s.segment_id in cited or s.segment_id not in revising:
+            continue
+        seg_numbers = _numbers(canon(s.text))
+        if any(_number_in(v, seg_numbers) for v in numbers):
+            out.append(evidence_for(s, 0, len(s.text), role="revises", score=REVISION_SCORE))
+            cited.add(s.segment_id)
+    return out[:2]
 
 
 async def _model_align(deps: ExtractionDeps, values: dict[str, FieldValue], unresolved: dict[str, list[Segment]], slots: dict[str, SlotDef], res: AlignResult) -> None:

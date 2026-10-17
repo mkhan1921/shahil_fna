@@ -25,15 +25,17 @@ from __future__ import annotations
 import functools
 import re
 import threading
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Iterable, Literal, Mapping, Sequence
+from typing import Any, Literal
 
 import numpy as np
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from rapidfuzz import fuzz, process
 
 from .. import stats
 from ..embeddings import Embedder, cosine, get_embedder
@@ -104,6 +106,10 @@ _AGE_LEAD = {
 _AGE_TRAIL = {"years", "year", "old", "yrs", "jaar", "oud"}
 _AGE_AF = {"vroee": "early", "vroeer": "early", "middel": "mid", "laat": "late", "middle": "mid"}
 _CURRENCY_WORDS = {"rand", "randte", "r", "zar", "bucks", "dollars", "dollar", "usd", "pounds", "pound", "gbp", "euros", "euro", "eur"}
+_PRIME_ALONE = {"prime", "prime rate", "at prime", "the prime rate", "prima", "primakoers", "prima koers"}
+# "{n} or {m}" / "between {n} and {m}" / "{n} to {m}": two numbers the client hesitated between.
+_PAIR_OR = re.compile(r"^(?P<a>.+?) (?:or|of) (?P<b>.+)$")
+_PAIR_RANGE = re.compile(r"^(?:between |tussen )?(?P<a>.+?) (?:and|to|en|tot) (?P<b>.+)$")
 
 
 # --------------------------------------------------------------------------- the file format (validated)
@@ -123,7 +129,7 @@ class ApproxEntry(_Frozen):
     rel_high: float | None = None
 
     @model_validator(mode="after")
-    def _shape(self) -> "ApproxEntry":
+    def _shape(self) -> ApproxEntry:
         if self.dist == "point":
             return self
         sym = self.rel_halfwidth is not None
@@ -169,7 +175,7 @@ class DistEntry(_Frozen):
     p90: float | None = None
 
     @model_validator(mode="after")
-    def _valid(self) -> "DistEntry":
+    def _valid(self) -> DistEntry:
         self.to_dist()
         return self
 
@@ -194,14 +200,19 @@ class LikelihoodEntry(_Frozen):
     high: float
 
     @model_validator(mode="after")
-    def _ordered(self) -> "LikelihoodEntry":
+    def _ordered(self) -> LikelihoodEntry:
         if not (0.0 <= self.low <= self.mean <= self.high <= 1.0):
             raise ValueError("likelihood needs 0 <= low <= mean <= high <= 1")
         return self
 
 
 class RateTemplateEntry(_Frozen):
+    """A stated rate around a reference: Normal(base + n/100, sd). ``base`` is 0 for "inflation plus {n}"
+    (a real rate) and the current prime rate for "prime plus {n}" (a nominal lending rate)."""
+
     sd: float
+    base: float = 0.0
+    real_or_nominal: Literal["real", "nominal"] = "real"
 
 
 class RecencyWeights(_Frozen):
@@ -257,7 +268,7 @@ class LexiconFile(_Frozen):
         return str(v)
 
     @model_validator(mode="after")
-    def _ranges(self) -> "LexiconFile":
+    def _ranges(self) -> LexiconFile:
         for name in ("hedge_strength", "certainty_words"):
             bad = [k for k, v in getattr(self, name).items() if not 0.0 <= v <= 1.0]
             if bad:
@@ -295,6 +306,7 @@ class Lookup(BaseModel):
     likelihood: Likelihood | None = None
     multiplier: float = 1.0  # composite vague amounts: the scale words' product
     base_value: float | None = None  # the stated number an approx word or template was applied to
+    real_or_nominal: Literal["real", "nominal"] | None = None  # rate lookups: what kind of rate the entry gives
     detail: str = ""
 
     @property
@@ -346,7 +358,7 @@ class MissLog:
             match=lookup.match,
             nearest_key=nearest_key,
             similarity=round(lookup.similarity, 4),
-            at=datetime.now(timezone.utc),
+            at=datetime.now(UTC),
         )
         with self._lock:
             self._items.append(rec)
@@ -478,15 +490,15 @@ class Lexicon:
     # ------------------------------------------------------------------ construction
 
     @classmethod
-    def from_text(cls, text: str, *, path: Path | None = None, embedder: Embedder | None = None) -> "Lexicon":
+    def from_text(cls, text: str, *, path: Path | None = None, embedder: Embedder | None = None) -> Lexicon:
         data = LexiconFile.model_validate(yaml.safe_load(text))
         return cls(data, source_text=text, path=path, embedder=embedder)
 
     @classmethod
-    def from_path(cls, path: Path, *, embedder: Embedder | None = None) -> "Lexicon":
+    def from_path(cls, path: Path, *, embedder: Embedder | None = None) -> Lexicon:
         return cls.from_text(Path(path).read_text(), path=Path(path), embedder=embedder)
 
-    def with_embedder(self, embedder: Embedder) -> "Lexicon":
+    def with_embedder(self, embedder: Embedder) -> Lexicon:
         """The same lexicon bound to another embedder (own key-vector cache, shared miss log)."""
         return Lexicon(self.data, source_text=self.source_text, path=self.path, embedder=embedder, miss_log=self.miss_log)
 
@@ -604,6 +616,22 @@ class Lexicon:
             },
         )
 
+    @staticmethod
+    def _number_pair(c: str) -> tuple[Dist, float, float, str] | None:
+        """'sixty or sixty-two' → Discrete 50/50; 'between 60 and 65' / '60 to 65' → uniform over the span."""
+        for rx, kind in ((_PAIR_OR, "or"), (_PAIR_RANGE, "range")):
+            m = rx.match(c)
+            if not m:
+                continue
+            a, b = parse_number(m.group("a")), parse_number(m.group("b"))
+            if a is None or b is None or a == b:
+                continue
+            lo, hi = sorted((a, b))
+            if kind == "or":
+                return Discrete(support=[lo, hi], weights=[0.5, 0.5]), lo, hi, "either"
+            return stats.uniform_discrete(lo, hi), lo, hi, "between"
+        return None
+
     def _approx_number(self, c: str) -> tuple[str, float, Dist] | None:
         """'about five', 'five or so', 'sixty ish' → (approx key, number, spread)."""
         parts = split_number(c)
@@ -707,6 +735,10 @@ class Lexicon:
         comp = self._compose(word, c, need_scale=True)
         if comp:
             return comp
+        pair = self._number_pair(c)
+        if pair:
+            dist, lo, hi, how = pair
+            return Lookup(section="vague_counts", phrase=word, match="exact", similarity=1.0, dist=dist, detail=f"{how} {lo:g} and {hi:g}")
         return self._near_or_miss("vague_counts", word, c, lambda k: {"dist": self.data.vague_counts[k].to_dist()})
 
     def vague_amount(self, word: str) -> Lookup:
@@ -795,6 +827,11 @@ class Lexicon:
                     detail=f"age spread: {f:g} years per unit of relative half-width",
                 )
         cands = self._age_candidates(c)
+        for v in cands:
+            pair = self._number_pair(v)
+            if pair:
+                dist, lo, hi, how = pair
+                return Lookup(section="age_bands", phrase=word, match="exact", similarity=1.0, dist=dist, detail=f"{how} {lo:g} and {hi:g}")
         target = cands[-1] if cands else c
         return self._near_or_miss("age_bands", word, target, lambda k: {"dist": self.data.age_bands[k].to_dist()})
 
@@ -830,24 +867,32 @@ class Lexicon:
         return self._near_or_miss("relative_words", word, cands[-1], lambda k: {"dist": self.data.relative_words[k].to_dist()})
 
     def rate(self, word: str) -> Lookup:
-        """An annual real rate (§8.2 rate_words): 'growing a bit' → Normal(0.03, 0.03); 'inflation plus two' → Normal(0.02, 0.01)."""
+        """An annual rate (§8.2 rate_words): 'growing a bit' → Normal(0.03, 0.03) (real); 'inflation plus two' →
+        Normal(0.02, 0.01) (real); 'prime plus one' → Normal(prime + 0.01, sd) (nominal); bare 'prime' is prime plus 0."""
         c = canon(word)
         key = self._exact("rate_words", c)
         if key:
             return Lookup(
-                section="rate_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.rate_words[key].to_dist()
+                section="rate_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.rate_words[key].to_dist(), real_or_nominal="real"
             )
         t = self.sections["rate_templates"].template(c)
+        if t is None and c in _PRIME_ALONE:
+            base_key = next((k for k in self.data.rate_templates if canon(k).startswith("prime plus")), None)
+            if base_key:
+                t = (base_key, 0.0)
         if t:
             key, n = t
+            e = self.data.rate_templates[key]
+            sign = -1.0 if any(w in canon(key).split() for w in ("minus", "less", "below", "under")) else 1.0
             return Lookup(
                 section="rate_templates",
                 phrase=word,
                 key=key,
                 match="exact",
                 similarity=1.0,
-                dist=Normal(mean=n / 100.0, sd=self.data.rate_templates[key].sd),
+                dist=Normal(mean=e.base + sign * n / 100.0, sd=e.sd),
                 base_value=n,
+                real_or_nominal=e.real_or_nominal,
             )
         parts = split_number(c)
         if parts and parts[2] in ("percent", "percent a year", "percent per year", "percent per annum"):
@@ -961,12 +1006,37 @@ class Lexicon:
     # ------------------------------------------------------------------ categories
 
     def category_synonym(self, label: str, categories: Iterable[str]) -> str | None:
-        """The slot category a spoken label stands for ('cautious' → 'moderately-conservative'), if the slot allows it."""
+        """The slot category a spoken label stands for ('cautious' → 'moderately-conservative'), if the slot allows it.
+
+        A whole-phrase synonym wins; else the longest synonym key the label contains ('ANC with accrual'
+        holds 'with accrual'; 'married in community of property' holds 'in community of property'),
+        provided the keys of that length agree; else a near-identical key (typos, 'freelance' / 'freelancer').
+        """
         allowed = {canon(cat): cat for cat in categories}
-        for v in variants(canon(label)):
-            for target in self._synonyms.get(v, []):
-                if canon(target) in allowed:
-                    return allowed[canon(target)]
+
+        def target_of(key: str) -> str | None:
+            for t in self._synonyms.get(key, []):
+                if canon(t) in allowed:
+                    return allowed[canon(t)]
+            return None
+
+        c = canon(label)
+        for v in variants(c):
+            hit = target_of(v)
+            if hit is not None:
+                return hit
+        toks = c.split()
+        neg = self._negated(c)
+        contained = [k for k in self._synonyms if f" {k} " in f" {c} " and k != c and self._negated(k) == neg]
+        if contained:
+            longest = max(len(k.split()) for k in contained)
+            targets = {target_of(k) for k in contained if len(k.split()) == longest} - {None}
+            if len(targets) == 1:
+                return targets.pop()
+        if len(toks) <= 2 and not neg:
+            best = process.extractOne(c, list(self._synonyms), scorer=fuzz.ratio)
+            if best and best[1] >= 90:
+                return target_of(best[0])
         return None
 
     def ordered_scale(self, categories: Sequence[str]) -> list[str] | None:

@@ -16,8 +16,9 @@ groups with fewer than six slots merge stages 2 and 3.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from pydantic import BaseModel
 from pydantic_ai import Agent, NativeOutput
@@ -60,7 +61,7 @@ class Usage:
         reported = getattr(run_usage, "cost", None)
         self.cost_usd += llm.usage_cost_usd(model_name, input_tokens=inp, output_tokens=out, cache_read_tokens=cache, reported=float(reported) if reported else None)
 
-    def merge(self, other: "Usage") -> None:
+    def merge(self, other: Usage) -> None:
         for k in ("requests", "input_tokens", "output_tokens", "cache_read_tokens", "cost_usd"):
             setattr(self, k, getattr(self, k) + getattr(other, k))
 
@@ -101,7 +102,7 @@ def _instructions(deps: ExtractionDeps, stage: str) -> tuple[str, str]:
     return f"{stage_prompt.text}\n\n## Slot group: {deps.group}\n{block.text}", f"{stage}:{stage_prompt.version},{deps.group}:{block.version}"
 
 
-async def _run(agent: Agent, deps: ExtractionDeps, model_type: type[BaseModel], prompt: str, instructions: str, usage: Usage, out: "GroupExtraction | None" = None) -> Any:
+async def _run(agent: Agent, deps: ExtractionDeps, model_type: type[BaseModel], prompt: str, instructions: str, usage: Usage, out: GroupExtraction | None = None) -> Any:
     """One stage call. Output that still fails schema validation after the agent's own retries, a
     refusal or a truncated response comes back as ``None`` (a retryable failure, §4.4 rule 6)."""
     rm = llm.for_role(deps.role, deps.pins, thinking=deps.role == "reasoning")  # type: ignore[arg-type]
@@ -125,9 +126,13 @@ def _slot_by_key(deps: ExtractionDeps) -> dict[str, SlotDef]:
 
 
 def validate_objects(found: list[FoundObject], deps: ExtractionDeps, types: dict[str, str]) -> dict[str, str]:
+    """Registry ids must exist and be rows of the group's kind; every object needs a window segment that mentions it."""
     errors: dict[str, str] = {}
     fna_list = LIST_FNA.get(deps.list_entity or "")
     for o in found:
+        if not o.segment_ids:
+            errors[o.entity_id] = f"'{o.entity_id}' lists no segment from the window: give the ids of the window segments that mention it, or leave it out"
+            continue
         if o.entity_id.startswith("new:") or o.catalog_key and o.catalog_key != "custom":
             continue
         e = deps.entities.get(o.entity_id)

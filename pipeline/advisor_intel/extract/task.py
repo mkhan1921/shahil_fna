@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from ..harness.deps import HarnessDeps
 
 
-def _assumptions(deps: "HarnessDeps"):
+def _assumptions(deps: HarnessDeps):
     base = deps.inputs.base_document
     return base.assumptions if base is not None else None
 
@@ -43,7 +43,7 @@ def _merge(a: ReducerResult, b: ReducerResult) -> ReducerResult:
                          touched=list(dict.fromkeys(a.touched + b.touched)))
 
 
-async def extract_task(task: ExtractionTask, hdeps: "HarnessDeps") -> tuple[Profile, ExtractionResult]:
+async def extract_task(task: ExtractionTask, hdeps: HarnessDeps) -> tuple[Profile, ExtractionResult]:
     profile = hdeps.profile
     pins = hdeps.pins
     lex = load_lexicon(pins.lexicon_version)
@@ -104,7 +104,7 @@ async def extract_task(task: ExtractionTask, hdeps: "HarnessDeps") -> tuple[Prof
     for m in hdeps.discourse.mentions:
         if m.entity_id:
             mentions.setdefault(m.segment_id, set()).add(m.entity_id)
-    specs, dropped = to_state_ops(drafts, unknown, profile, provenance, mentions)
+    specs, dropped = to_state_ops(drafts, unknown, profile, provenance, mentions, lex)
     result = apply_state_ops(profile, make_ops(profile, specs))
     if later:
         mid = result.profile
@@ -113,7 +113,7 @@ async def extract_task(task: ExtractionTask, hdeps: "HarnessDeps") -> tuple[Prof
             slot, inst = keys[k]
             rel.append(draft_fact(aligned.aligned[k], out.statuses[k], slot, k, inst, mid, lex, hdeps.transcript, assumptions=assumptions,
                                   retries=out.retries.get(k, 0)))
-        specs2, dropped2 = to_state_ops(rel, [], mid, provenance, mentions)
+        specs2, dropped2 = to_state_ops(rel, [], mid, provenance, mentions, lex)
         result = _merge(result, apply_state_ops(mid, make_ops(mid, specs2)))
         drafts += rel
         dropped += dropped2

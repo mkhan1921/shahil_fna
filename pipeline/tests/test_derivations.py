@@ -121,3 +121,32 @@ def test_a_spouse_with_facts_from_the_call_is_a_partner_in_the_plan():
     assert f.status == "implied" and f.derivation == "partner_on_call" and f.value.dist.p > 0.9 and f.evidence[0].segment_id == seg
     ms = d.facts["household.maritalStatus"]
     assert ms.status == "implied" and stats.mode_label(ms.value.dist) == "married" and set(ms.value.dist.probs) == {"married", "life-partner"}
+
+
+def test_emergency_answer_needs_asset_information():
+    p = base_profile()
+    p = add(p, "expenses.items[]", "groceries", "expenses.items[groceries]", Point(value=9000), "ZAR", said="groceries are nine thousand")
+    assert "riskProfile.answers[emergency]" not in derive_all(p).facts  # expenses alone say nothing about savings
+    with_cash = p.model_copy(update={"entities": {**p.entities, "account.savings_1": Entity(entity_id="account.savings_1", type="account", canonical_name="Savings")}})
+    with_cash = add(with_cash, "assets[].type", "account.savings_1", "assets[a1].type", Point(value="cash"), "none", said="we have savings")
+    with_cash = add(with_cash, "assets[].value", "account.savings_1", "assets[a1].value", Point(value=54_000), "ZAR", said="about fifty-four thousand")
+    out = derive_all(with_cash)
+    em = out.facts["riskProfile.answers[emergency]"]
+    assert em.derivation == "emergency_from_cash_flow" and em.status == "implied"
+    assert check_profile(out) == []
+
+
+def test_target_mode_follows_the_target_the_client_gave():
+    p = base_profile()
+    p = add(p, "retirement.{p}.targetMonthly", "client", "retirement.client.targetMonthly", Point(value=30_000), "ZAR", said="about thirty thousand a month")
+    out = derive_all(p)
+    mode = out.facts["retirement.{p}.targetMode#client"]
+    assert mode.status == "implied" and mode.derivation == "target_mode_from_target" and stats.mode_label(mode.value.dist) == "amount"
+    assert mode.evidence[0].quote == "about thirty thousand a month"
+    q = base_profile()
+    q = add(q, "retirement.{p}.targetPercent", "client", "retirement.client.targetPercent", Point(value=0.7), "pct", said="seventy percent of what I earn")
+    assert stats.mode_label(derive_all(q).facts["retirement.{p}.targetMode#client"].value.dist) == "percent"
+    both = add(q, "retirement.{p}.targetMonthly", "client", "retirement.client.targetMonthly", Point(value=30_000), "ZAR")
+    assert "retirement.{p}.targetMode#client" not in derive_all(both).facts  # both given: the review decides
+    said = add(p, "retirement.{p}.targetMode", "client", "retirement.client.targetMode", Point(value="percent"), "none", said="as a percentage")
+    assert derive_all(said).facts["retirement.{p}.targetMode#client"].derivation is None
