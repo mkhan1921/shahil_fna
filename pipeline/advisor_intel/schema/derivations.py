@@ -14,9 +14,10 @@ turned into dates and ages by the normaliser (§8.3) when the value is extracted
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
@@ -219,12 +220,17 @@ def horizon_answer(ctx: DeriveContext) -> list[OpSpec]:
 
 
 def emergency_answer(ctx: DeriveContext, median_doc: FnaDocument | None) -> list[OpSpec]:
-    """riskProfile emergency from liquid assets ÷ essential monthly outgoings (FNA cash-flow logic)."""
+    """riskProfile emergency from liquid assets ÷ essential monthly outgoings (FNA cash-flow logic).
+
+    Needs both sides of the ratio to be known: an expense or debt line from the call and the household's
+    assets (an asset discussed on the call, or the prior file's asset rows). Without any asset
+    information the answer is not derived — the absence of a mention is not "no savings"."""
     slot = _risk_slot(ctx, "emergency")
     if _said(_fact(ctx.profile, slot.slot_id)) or median_doc is None:
         return []
     inputs = [f for f in ctx.profile.facts.values() if _said(f) and (f.slot_id.startswith("assets[]") or f.slot_id.startswith("expenses."))]
-    if not inputs:
+    assets_known = any(f.slot_id.startswith("assets[]") for f in inputs) or bool(median_doc.assets)
+    if not inputs or not assets_known:
         return []
     essential_keys = {e.key for e in ctx.catalog.expense_items if e.essential}
     essential = sum(v for k, v in median_doc.expenses.items.items() if k in essential_keys)
@@ -321,8 +327,33 @@ def partner_on_call(ctx: DeriveContext) -> list[OpSpec]:
     return out
 
 
+def target_mode_from_target(ctx: DeriveContext) -> list[OpSpec]:
+    """retirement.{p}.targetMode from the target the client gave (§7.6): a monthly amount, or one read
+    relative to current spending ("about the same as now"), implies ``amount``; a share of salary
+    ("70% of what I earn") implies ``percent``. Only when the mode itself was not said."""
+    out: list[OpSpec] = []
+    for p in _persons(ctx.profile):
+        mode = _fact(ctx.profile, "retirement.{p}.targetMode", p)
+        if _said(mode):
+            continue
+        monthly = _fact(ctx.profile, "retirement.{p}.targetMonthly", p)
+        percent = _fact(ctx.profile, "retirement.{p}.targetPercent", p)
+        said_monthly = _said(monthly) and _usable(monthly)
+        said_percent = _said(percent) and _usable(percent)
+        if said_monthly == said_percent:
+            continue  # neither, or both (the review decides)
+        label, src = ("amount", monthly) if said_monthly else ("percent", percent)
+        slot = ctx.catalog.slot("retirement.{p}.targetMode")
+        if slot.categories and label not in slot.categories:
+            continue
+        spec = _add(ctx, "retirement.{p}.targetMode", p, f"retirement.{p}.targetMode", Categorical(probs={label: 1.0}), "none", "target_mode_from_target", [src])
+        if spec:
+            out.append(spec)
+    return out
+
+
 RULES: list[Callable[[DeriveContext], list[OpSpec]]] = [dob_from_id, tertiary_after_matric, gross_from_net, horizon_answer, income_stability_answer, linked_assets,
-                                                        partner_on_call]
+                                                        partner_on_call, target_mode_from_target]
 
 
 def derive_all(profile: Profile, *, base: FnaDocument | None = None, run_id: str | None = None, seed: int = 0) -> Profile:

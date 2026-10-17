@@ -127,9 +127,13 @@ def _slot_by_key(deps: ExtractionDeps) -> dict[str, SlotDef]:
 
 
 def validate_objects(found: list[FoundObject], deps: ExtractionDeps, types: dict[str, str]) -> dict[str, str]:
+    """Registry ids must exist and be rows of the group's kind; every object needs a window segment that mentions it."""
     errors: dict[str, str] = {}
     fna_list = LIST_FNA.get(deps.list_entity or "")
     for o in found:
+        if not o.segment_ids:
+            errors[o.entity_id] = f"'{o.entity_id}' lists no segment from the window: give the ids of the window segments that mention it, or leave it out"
+            continue
         if o.entity_id.startswith("new:") or o.catalog_key and o.catalog_key != "custom":
             continue
         e = deps.entities.get(o.entity_id)

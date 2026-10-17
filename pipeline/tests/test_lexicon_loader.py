@@ -347,3 +347,38 @@ def test_phrases_canonicalise_and_parse_numbers():
     ]:
         assert parse_number(text) == n, text
     assert parse_number("about") is None and parse_number("sixty about") is None and parse_number("five sixty five sixty") is None
+
+
+def test_prime_templates_give_nominal_lending_rates(lex):
+    one = lex.rate("prime plus one")  # named in the values prompt as a vague rate
+    assert (one.match, one.key, one.real_or_nominal) == ("exact", "prime plus {n}", "nominal")
+    assert one.dist.mean == pytest.approx(0.115) and one.dist.sd == 0.0075
+    assert lex.rate("prime").dist.mean == pytest.approx(0.105)  # bare prime is prime plus 0
+    assert lex.rate("prime minus 1%").dist.mean == pytest.approx(0.095)
+    assert lex.rate("growing a bit").real_or_nominal == "real"
+    assert lex.rate("CPI plus 2").real_or_nominal == "real"
+
+
+def test_two_numbers_the_client_hesitated_between(lex):
+    either = lex.age_band("18 or 19")
+    assert either.match == "exact" and either.dist == Discrete(support=[18, 19], weights=[0.5, 0.5])
+    assert lex.age_band("sixty or sixty-two").dist == Discrete(support=[60, 62], weights=[0.5, 0.5])
+    between = lex.age_band("between 60 and 65")
+    assert between.match == "exact" and stats.median(between.dist) == pytest.approx(62.5)
+    assert stats.quantile(between.dist, 0.0) >= 60 and stats.quantile(between.dist, 1.0) <= 65
+    assert lex.vague_count("3 to 5").match == "exact" and stats.median(lex.vague_count("3 to 5").dist) == pytest.approx(4)
+    assert lex.vague_count("two or three").key == "two or three"  # a lexicon key still wins
+    assert lex.age_band("sixty two or so").key == "{n} or so"  # a template still wins
+    assert fresh().age_band("a dozen or so").match == "miss"  # not two numbers
+
+
+def test_category_synonyms_inside_a_longer_label(lex):
+    regimes = ["icop", "anc-accrual", "anc-no-accrual", "customary", "foreign", "na"]
+    assert lex.category_synonym("ANC with accrual", regimes) == "anc-accrual"
+    assert lex.category_synonym("anc without accrual", regimes) == "anc-no-accrual"
+    assert lex.category_synonym("married in community of property", regimes) == "icop"
+    assert lex.category_synonym("we are married", regimes) is None
+    jobs = ["salaried", "self-employed", "commission", "contract", "retired", "unemployed", "student"]
+    assert lex.category_synonym("freelance", jobs) == "contract"  # a near-identical key
+    assert lex.category_synonym("not a pensioner", jobs) is None  # negation never borrows 'pensioner'
+    assert lex.category_synonym("business", ["business-interest", "other"]) == "business-interest"

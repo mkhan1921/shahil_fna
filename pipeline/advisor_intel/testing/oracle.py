@@ -110,6 +110,8 @@ class Oracle:
             hyps = []
             for f in g["forms"]:
                 form = {k: v for k, v in f.items() if not k.startswith("_")}
+                if "currency" in form and form["type"] != "AMOUNT_RELATIVE":
+                    form.setdefault("priced_year", 0)  # the strict schema requires it; gold omits it when the amount is undated
                 hyps.append({"intermediate": form, "weight": f.get("_weight", 0), "rationale": "as said", "revises": bool(f.get("_revises", False))})
             ans = {"instance": instance, "hypotheses": hyps, "hedges": g.get("hedges", []), "speaker_attribution": g.get("attribution", "client"),
                    "said": g["said"], "interpretation": g.get("interpretation", "as the client said"), "self_score": g.get("self_score", 0.9)}

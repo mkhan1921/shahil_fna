@@ -458,7 +458,7 @@ def test_rates_become_decimals():
 def test_vague_rates_are_real_rates_from_the_lexicon():
     n = norm(rate(vague="growing a bit", rn="nominal"), GROWTH)
     assert n.quantity.dist.kind == "normal" and n.quantity.dist.mean == 0.03 and n.quantity.real_or_nominal == "real"
-    assert "lexicon rate words are real; the form said nominal" in n.normalization["conversions"]
+    assert "lexicon rate is real; the form said nominal" in n.normalization["conversions"]
 
 
 def test_rate_for_a_probability_field():
@@ -601,3 +601,43 @@ def test_anchor_date_is_required_only_when_time_matters():
     assert norm(amount("AMOUNT_EXACT", value=1), GROSS, profile=None, anchor_date=None).ok
     with pytest.raises(ValueError, match="anchor_date"):
         norm(duration(3), TARGET_YEAR, profile=None, anchor_date=None)
+
+
+# --------------------------------------------------------------------------- the forms' own pricing year, spending references, month durations
+
+
+def test_priced_year_on_the_amount_form_deflates_a_goal_cost():
+    form = AmountExact(value=400_000, currency="ZAR", period="once", basis="na", priced_year=2030)
+    n = norm(form, GOAL_COST)
+    assert "deflated" in n.flags and n.normalization["priced_year"] == 2030
+    assert n.quantity.dist.value == pytest.approx(400_000 / 1.045**4)
+    today = norm(AmountExact(value=400_000, currency="ZAR", period="once", basis="na"), GOAL_COST)
+    assert "deflated" not in today.flags and today.quantity.dist.value == 400_000
+    assert norm(form, GOAL_COST, priced_year=2028).normalization["priced_year"] == 2028  # the keyword overrides the form
+
+
+def test_a_retirement_target_relative_to_current_spending_sums_the_expense_lines():
+    from advisor_intel.lexicon.normalize import expenses_total
+
+    lines = profile(
+        fact("expenses.items[]#groceries", Quantity(dist=Point(value=9_000), unit="ZAR", period="monthly"), slot_id="expenses.items[]"),
+        fact("expenses.items[]#family-support", Quantity(dist=Point(value=3_000), unit="ZAR", period="monthly"), slot_id="expenses.items[]"),
+        fact("expenses.custom[].amount#account.gym_1", Quantity(dist=Point(value=12_000), unit="ZAR", period="annual"), slot_id="expenses.custom[].amount"),
+    )
+    total = expenses_total(lines)
+    assert total is not None and stats.median(total.value.dist) == pytest.approx(13_000) and total.derivation == "expenses_total"
+    for ref in ("expenses.total", "current spending", "expenses.items[]"):
+        n = norm({"type": "AMOUNT_RELATIVE", "reference_slot": ref, "relation_word": "about the same"}, TARGET, profile=lines, fact_id="retirement.client.targetMonthly")
+        assert "reference_missing" not in n.flags, ref
+        assert stats.median(n.quantity.dist) == pytest.approx(13_000, rel=0.03) and n.quantity.period == "monthly"
+    less = norm({"type": "AMOUNT_RELATIVE", "reference_slot": "expenses.total", "relation_word": "a bit less"}, TARGET, profile=lines)
+    assert 10_000 < stats.median(less.quantity.dist) < 13_000
+    assert expenses_total(profile()) is None  # no lines: the usual reference_missing fallback
+    assert "reference_missing" in norm({"type": "AMOUNT_RELATIVE", "reference_slot": "expenses.total", "relation_word": "the same"}, TARGET, profile=profile()).flags
+
+
+def test_month_durations_count_from_the_call_date_for_a_calendar_year():
+    years = norm({"type": "DURATION_FROM_ANCHOR", "form": "value", "value": 3, "vague_word": "", "unit": "years", "anchor": "call"}, TARGET_YEAR)
+    assert years.quantity.dist == Point(value=2029)  # whole years from the call's year
+    months = norm({"type": "DURATION_FROM_ANCHOR", "form": "value", "value": 18, "vague_word": "", "unit": "months", "anchor": "call"}, TARGET_YEAR)
+    assert round(stats.median(months.quantity.dist)) == 2028  # October 2026 + 18 months is April 2028

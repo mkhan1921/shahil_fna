@@ -10,8 +10,9 @@ extracted from this call, and ``MARK_UNKNOWN`` for explicitly unknown fields.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from ..lexicon.bounds import filter_bounds
 from ..lexicon.hedges import lookup_hedges
@@ -72,7 +73,8 @@ def normalise_value(
     values: list[Normalized | None] = []
     for it in scaled.items:
         try:
-            values.append(normalize_value(it.raw.intermediate, slot, profile, lex, anchor_date=profile.anchor_date, fact_id=key, person=person, assumptions=assumptions))
+            values.append(normalize_value(it.raw.intermediate, slot, profile, lex, anchor_date=profile.anchor_date, fact_id=key, person=person, assumptions=assumptions,
+                                          priced_year=getattr(it.raw.intermediate, "priced_year", 0) or None))
         except (ValueError, TypeError, KeyError) as e:  # a form the normaliser cannot read: dropped, logged
             values.append(None)
             scaled.flags.append(f"normalisation_error:{type(e).__name__}")
@@ -93,7 +95,7 @@ def field_problems(fv: FieldValue, slot: SlotDef, key: str, profile: Profile, le
                    assumptions: Assumptions | None = None) -> list[str]:
     """Validation for stage 3 (§7.2): forms that cannot be normalised, or values all outside the slot's bounds."""
     try:
-        hyps, rec, flags, dropped = normalise_value(fv, slot, key, profile, lex, transcript, segment_ids, assumptions=assumptions)
+        hyps, _rec, flags, dropped = normalise_value(fv, slot, key, profile, lex, transcript, segment_ids, assumptions=assumptions)
     except Exception as e:  # noqa: BLE001 - every failure becomes a retry message for the model
         return [f"the value could not be read: {type(e).__name__}: {str(e)[:160]}"]
     problems = []
@@ -156,8 +158,16 @@ def to_state_ops(
     profile: Profile,
     provenance: Provenance,
     mentions_by_segment: dict[str, set[str]],
+    lex: Lexicon | None = None,
 ) -> tuple[list[OpSpec], list[str]]:
-    """Op specs (for ``reducer.make_ops``) and a log of facts dropped for lack of a usable value (§7.3 step 8)."""
+    """Op specs (for ``reducer.make_ops``) and a log of facts dropped for lack of a usable value (§7.3 step 8).
+
+    ``lex`` supplies the recency weights for an UPDATE that revises an earlier extraction; without it
+    the pinned lexicon of the drafts' provenance is loaded."""
+    if lex is None:
+        from ..lexicon.loader import CURRENT_VERSION, load_lexicon
+
+        lex = load_lexicon(provenance.lexicon_version or CURRENT_VERSION)
     specs: list[OpSpec] = []
     dropped: list[str] = []
     for d in drafts:
@@ -186,12 +196,15 @@ def to_state_ops(
             "provenance": provenance,
         }
         if existing is not None and existing.source == "call" and any(h.revises for h in hyps):
-            # A later extraction revises what this call already said: append and re-weight (§7.5 UPDATE).
+            # A later extraction revises what this call already said: append and re-weight (§7.5 UPDATE),
+            # the revising statement taking the lexicon's recency share (§7.3 step 7).
             add = [h for h in hyps if h.value not in {x.value for x in existing.hypotheses}]
             n_old, n_new = len(existing.hypotheses), len(add)
             if n_new:
-                old_w = [h.weight * 0.2 for h in existing.hypotheses]
-                new_w = [h.weight * 0.8 / max(1e-9, sum(x.weight for x in add)) for h in add]
+                rw = lex.recency_weights()
+                old_total = max(1e-9, sum(h.weight for h in existing.hypotheses))
+                old_w = [h.weight * rw.revised / old_total for h in existing.hypotheses]
+                new_w = [h.weight * rw.revising / max(1e-9, sum(x.weight for x in add)) for h in add]
                 specs.append(("UPDATE", d.key, seg, {"add_hypotheses": add, "weights": old_w + new_w, "evidence": d.evidence}, "extractor"))
                 continue
             if n_old:

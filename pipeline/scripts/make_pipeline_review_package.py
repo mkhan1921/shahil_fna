@@ -54,10 +54,15 @@ async def build() -> ReviewPackage:
         llm.unregister_local_model(ORACLE)
     if res.document is None:
         raise RuntimeError("the pipeline produced no median document")
-    # A new client's file gets a fresh id and timestamps; fix them so the fixture is reproducible.
+    # A new client's file gets a fresh id, timestamps and a meeting date of today; fix them to the call date so the fixture is reproducible.
     stamp = f"{ANCHOR.isoformat()}T09:00:00.000Z"
     document = res.document.model_copy(
-        update={"id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"advisor-intel/{CALL_ID}/document")), "createdAt": stamp, "updatedAt": stamp}
+        update={
+            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"advisor-intel/{CALL_ID}/document")),
+            "createdAt": stamp,
+            "updatedAt": stamp,
+            "engagement": res.document.engagement.model_copy(update={"meetingDate": ANCHOR.isoformat()}),
+        }
     )
     # engagement.meetingDate defaults to today (the app sets it from the call metadata): pin it to the call date too,
     # or the fixture goes stale at midnight.

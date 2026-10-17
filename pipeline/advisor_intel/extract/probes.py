@@ -10,8 +10,9 @@ them through the reducer).
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from ..lexicon.loader import load_lexicon
 from ..models.entities import DiscourseOutput
@@ -99,7 +100,7 @@ def make_reextract(ctx: ProbeContext, get_profile: Callable[[], Profile]) -> Ree
         segs = list(dict.fromkeys(e.segment_id for e in fact.evidence))
         if not segs:
             return ProbeResult(status="not_discussed")
-        out, deps, key = await _one_field(ctx, profile, slot, fact.instance_key, segs, role="small", variant=variant + 1)
+        out, _deps, key = await _one_field(ctx, profile, slot, fact.instance_key, segs, role="small", variant=variant + 1)
         fv = out.values.get(key)
         if fv is None or key in out.failures:
             return ProbeResult(status="not_discussed")
@@ -126,7 +127,7 @@ def make_reopen(ctx: ProbeContext, get_profile: Callable[[], Profile]) -> Reopen
             return []
         draft = draft_fact(al.aligned[key], out.statuses[key], slot, key, instance, profile, lex, ctx.transcript, retries=out.retries.get(key, 0))
         prov = Provenance(run_id=ctx.run_id, extractor_model=ctx.pins.reasoning_model, lexicon_version=lex.version, schema_version=ctx.catalog.version)
-        specs, _ = to_state_ops([draft], [], profile, prov, {})
+        specs, _ = to_state_ops([draft], [], profile, prov, {}, lex)
         for spec in specs:
             if spec[0] == "ADD":
                 spec[3]["reopened_by_coverage"] = True

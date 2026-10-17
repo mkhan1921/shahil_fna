@@ -4,7 +4,7 @@
  "bundle": {
   "call_id": "call-2026-10-15-mokoena",
   "run_id": "wf-call-2026-10-15-mokoena",
-  "profile_version": 5,
+  "profile_version": 6,
   "state": "AWAITING_REVIEW",
   "median_document": {
    "id": "35d88bbf-19af-4af3-9f07-12fca071b638",
@@ -1470,8 +1470,8 @@
    "version": 1,
    "call_id": "call-2026-10-15-mokoena",
    "run_id": "wf-call-2026-10-15-mokoena",
-   "profile_version": 5,
-   "last_seq": 421,
+   "profile_version": 6,
+   "last_seq": 422,
    "schema_version": "profile_v1",
    "anchor_date": "2026-10-15",
    "fields": {
@@ -31135,27 +31135,31 @@
      "group": "retirement",
      "tier": "A",
      "exported": true,
-     "status": "not_discussed",
-     "change": "unchanged_not_discussed",
-     "source": "prior_fna",
+     "status": "implied",
+     "change": "confirmed",
+     "source": "derived",
      "value": {
       "unit": "none",
       "period": "none",
       "basis": "na",
-      "kind": "point",
-      "point": "percent"
+      "kind": "categorical",
+      "probs": {
+       "percent": 1.0
+      }
      },
      "quantity": {
       "dist": {
-       "kind": "point",
-       "value": "percent"
+       "kind": "categorical",
+       "probs": {
+        "percent": 1.0
+       }
       },
       "unit": "none",
       "period": "none",
       "basis": "na",
       "real_or_nominal": "na"
      },
-     "value_text": "percent",
+     "value_text": "percent (100%)",
      "prior_value": {
       "unit": "none",
       "period": "none",
@@ -31170,22 +31174,26 @@
         "unit": "none",
         "period": "none",
         "basis": "na",
-        "kind": "point",
-        "point": "percent"
+        "kind": "categorical",
+        "probs": {
+         "percent": 1.0
+        }
        },
        "quantity": {
         "dist": {
-         "kind": "point",
-         "value": "percent"
+         "kind": "categorical",
+         "probs": {
+          "percent": 1.0
+         }
         },
         "unit": "none",
         "period": "none",
         "basis": "na",
         "real_or_nominal": "na"
        },
-       "text": "percent",
+       "text": "percent (100%)",
        "weight": 1.0,
-       "rationale": "from the client's existing FNA",
+       "rationale": "derived: target_mode_from_target",
        "revises": false
       }
      ],
@@ -31197,7 +31205,20 @@
      "said": "",
      "interpretation": "",
      "hedges": [],
-     "evidence": [],
+     "evidence": [
+      {
+       "segment_id": "s0011",
+       "char_start": 0,
+       "char_end": 83,
+       "quote": "Most people in your position plan on about seventy percent of salary in retirement.",
+       "speaker_role": "advisor",
+       "t_start": 59.19,
+       "t_end": 64.48,
+       "asr_mean_conf": 0.801,
+       "role": "supports",
+       "aligner_score": 0.96
+      }
+     ],
      "entity_refs": [
       "person.client_primary"
      ],
@@ -31210,7 +31231,7 @@
       "note": null,
       "reason": null
      },
-     "derivation": null,
+     "derivation": "target_mode_from_target",
      "term_resolution": null
     },
     "retirement.spouse.targetMode": {
@@ -42054,7 +42075,7 @@
   ],
   "preview_forecast": {
    "run_id": "wf-call-2026-10-15-mokoena",
-   "profile_version": "5",
+   "profile_version": "6",
    "config_version": "config_v1",
    "cma_version": "2026Q4",
    "n_paths": 10000,

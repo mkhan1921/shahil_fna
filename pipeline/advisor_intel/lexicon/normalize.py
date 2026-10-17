@@ -24,9 +24,10 @@ FnaDocument rules (§3.6, §8.3):
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel, TypeAdapter
@@ -138,7 +139,7 @@ class Normalized(BaseModel):
     def has(self, flag: str) -> bool:
         return flag in self.flags
 
-    def with_flag(self, flag: str, **notes: Any) -> "Normalized":
+    def with_flag(self, flag: str, **notes: Any) -> Normalized:
         flags = self.flags if flag in self.flags else [*self.flags, flag]
         return self.model_copy(update={"flags": flags, "normalization": {**self.normalization, **notes}})
 
@@ -232,17 +233,62 @@ def _person_list(slot: SlotDef) -> str:
     return slot.fna_path.split(".", 1)[0].split("[", 1)[0]
 
 
+_EXPENSE_TOTAL_REFS = frozenset(
+    canon(x)
+    for x in (
+        "expenses", "expenses.total", "expenses.items", "expenses.items[]", "expenses.monthly", "expenses.monthlyTotal", "household.expenses",
+        "current spending", "current expenses", "monthly spending", "monthly expenses", "spending", "living expenses", "what we spend now",
+        "current monthly spending", "current monthly expenses", "total expenses", "total monthly expenses",
+    )
+)
+
+
+def expenses_total(profile: Profile | None, *, seed: int = 0) -> Fact | None:
+    """The household's current monthly spending as one synthetic fact: the sum of the profile's expense
+    lines (catalog items and custom rows). This is what "about the same as now" for a retirement income
+    target refers to (§7.6: ratio × current essential + discretionary expenses); None without any line."""
+    if profile is None:
+        return None
+    lines = [
+        f for f in profile.facts.values()
+        if f.value is not None and f.review.status != "rejected" and f.status in ("stated", "implied", "not_discussed")
+        and (f.slot_id == "expenses.items[]" or f.slot_id == "expenses.custom[].amount") and f.value.unit in CURRENCIES
+    ]
+    if not lines:
+        return None
+    dists = [stats.scaled(f.value.dist, period_factor(f.value.period, "rand_monthly")) for f in lines]  # type: ignore[union-attr]
+    dist = dists[0] if len(dists) == 1 else stats.total(dists, seed=seed)
+    first = lines[0]
+    return Fact(
+        fact_id="expenses.total",
+        slot_id="expenses.total",
+        fna_path="expenses.total",
+        source="derived",
+        status="implied",
+        value=Quantity(dist=dist, unit="ZAR", period="monthly"),
+        evidence=[e for f in lines for e in f.evidence][:6],
+        entity_refs=sorted({r for f in lines for r in f.entity_refs}),
+        provenance=first.provenance,
+        derivation="expenses_total",
+        interpretation=f"sum of {len(lines)} expense lines",
+    )
+
+
 def resolve_reference(ref: str, profile: Profile | None, *, person: str | None = None, instance: str | None = None) -> Fact | None:
     """A reference slot resolved against the profile's facts: by fact id first, then by slot id.
 
     ``{p}`` takes the current person and ``[]`` slots the current instance, so 'client.dateOfBirth',
     '{p}.dateOfBirth' and 'dependants[].dateOfBirth' (for the dependant being normalised) all resolve.
+    A reference to the household's current spending ('expenses.total', 'current spending') resolves
+    to the sum of the expense lines when no such fact exists.
     """
     if profile is None or not ref or ref == "call":
         return None
     facts = profile.facts
     if ref in facts:
         return facts[ref]
+    if canon(ref) in _EXPENSE_TOTAL_REFS:
+        return expenses_total(profile)
     concrete = ref.replace("{p}", person) if person else ref
     for fid in (concrete, fact_id_for(concrete, instance) if instance else None):
         if fid and fid in facts:
@@ -538,11 +584,17 @@ def _amount(ctx: _Ctx) -> Quantity | None:
 # --------------------------------------------------------------------------- time: durations, ages, dates
 
 
-def _anchor_base(ctx: _Ctx, anchor: str, *, as_year: bool) -> tuple[Dist | None, str]:
-    """The time a duration counts from: the call (calendar year or decimal date) or a reference date."""
+def _anchor_base(ctx: _Ctx, anchor: str, *, as_year: bool, whole_years: bool = True) -> tuple[Dist | None, str]:
+    """The time a duration counts from: the call (calendar year or decimal date) or a reference date.
+
+    A calendar-year field counts whole years from the call's year ("in three years" in October 2026
+    is 2029); a duration in months counts from the call's date, so "in eighteen months" is 2028.
+    """
     if not anchor or anchor == "call":
         a = ctx.need_anchor()
-        return (Point(value=float(a.year)) if as_year else Point(value=_decimal_year(a))), "call"
+        if as_year:
+            return Point(value=float(a.year) if whole_years else _decimal_year(a)), "call"
+        return Point(value=_decimal_year(a)), "call"
     ref = resolve_reference(anchor, ctx.profile, person=ctx.person, instance=ctx.instance)
     q, _ = _fact_quantity(ref)
     if q is None or q.unit not in ("date", "none") or stats.is_categorical(q.dist):
@@ -579,7 +631,7 @@ def _duration(ctx: _Ctx) -> Quantity | None:
         ctx.notes["value_factor"] = 1.0 if f.unit == "months" else 12.0
         return ctx.quantity(count if f.unit == "months" else stats.scaled(count, 12.0))
     if unit in ("year", "date"):
-        base, src = _anchor_base(ctx, f.anchor, as_year=unit == "year")
+        base, src = _anchor_base(ctx, f.anchor, as_year=unit == "year", whole_years=f.unit == "years")
         if base is None:
             return _fallback(ctx, f"anchor {f.anchor!r} has no date in the profile", "reference_missing")
         ctx.notes["anchor_offset"] = stats.median(base)
@@ -706,9 +758,10 @@ def _rate(ctx: _Ctx) -> Quantity | None:
         if lk.dist is None:
             return _fallback(ctx, f"rate phrase {f.vague_word!r} not in the lexicon")
         if lk.section in ("rate_words", "rate_templates"):
-            ctx.real_or_nominal = "real"  # §8.2: the lexicon's rate words are annual real rates
-            if f.real_or_nominal == "nominal":
-                ctx.conversions.append("lexicon rate words are real; the form said nominal")
+            # §8.2: the lexicon's rate words are annual real rates; a template may say otherwise ("prime plus one" is nominal)
+            ctx.real_or_nominal = lk.real_or_nominal or "real"
+            if f.real_or_nominal not in ("na", ctx.real_or_nominal):
+                ctx.conversions.append(f"lexicon rate is {ctx.real_or_nominal}; the form said {f.real_or_nominal}")
         else:
             ctx.real_or_nominal = f.real_or_nominal
         return ctx.quantity(lk.dist)
@@ -913,14 +966,13 @@ def normalize_value(
     of birth, references and instance apply. ``anchor_date`` defaults to the profile's (the call
     date). ``assumptions`` default to the FNA defaults (cpi 4.5%, educationInflation 6.5%).
     ``priced_year`` is the year a spoken amount is priced in ('R400,000 in 2030'); for fields held in
-    today's money it is deflated to the call year. A raw dict form may carry it as 'priced_year'.
+    today's money it is deflated to the call year. The amount forms carry it as ``priced_year`` (0 when
+    the speaker did not date the amount); the keyword overrides the form's.
     """
     if isinstance(form, Mapping):
-        data = dict(form)
-        if priced_year is None and data.get("priced_year"):
-            priced_year = float(data["priced_year"])
-        data.pop("priced_year", None)
-        form = _FORM.validate_python(data)
+        form = _FORM.validate_python(dict(form))
+    if priced_year is None and getattr(form, "priced_year", 0):
+        priced_year = float(form.priced_year)  # type: ignore[union-attr]
     anchor = anchor_date or (profile.anchor_date if profile is not None else None)
     ctx = _Ctx(
         form=form,
@@ -959,9 +1011,9 @@ def normalize_value(
 
 __all__ = [
     "MONEY_PERIOD",
+    "QUANTITY_UNIT",
     "NormalizationFlag",
     "Normalized",
-    "QUANTITY_UNIT",
     "match_category",
     "normalize_value",
     "period_factor",
