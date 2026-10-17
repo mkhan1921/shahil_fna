@@ -22,6 +22,7 @@ from temporalio.service import RPCError, RPCStatusCode
 
 from ..models.runs import CallArgs, FollowupAnswer, ReviewSubmission, Stage
 from ..workflows import CallPipelineWorkflow, FollowupIntakeWorkflow, ForecastWorkflow
+from ..workflows.client import start_finetune, start_rl_training
 from ..workflows.contracts import (
     INGEST_AUDIO,
     NOTIFY_ADVISOR,
@@ -29,8 +30,10 @@ from ..workflows.contracts import (
     RUN_DISCOURSE,
     RUN_FORECAST,
     RUN_VOI,
+    FinetuneArgs,
     FollowupIntakeArgs,
     ForecastArgs,
+    RlArgs,
     RunStatus,
 )
 
@@ -68,6 +71,8 @@ class TemporalGateway(Protocol):
     async def start_followup_intake(self, args: FollowupIntakeArgs, *, workflow_id: str) -> str: ...
     async def start_forecast(self, args: ForecastArgs, *, workflow_id: str) -> str: ...
     async def reset_to_stage(self, workflow_id: str, stage: Stage, *, reason: str) -> str: ...
+    async def start_finetune(self, args: FinetuneArgs, *, workflow_id: str | None = None) -> str: ...
+    async def start_rl_training(self, args: RlArgs, *, workflow_id: str | None = None) -> str: ...
 
 
 class ClientGateway:
@@ -125,6 +130,14 @@ class ClientGateway:
     async def start_forecast(self, args: ForecastArgs, *, workflow_id: str) -> str:
         handle = await self.client.start_workflow(ForecastWorkflow.run, args, id=workflow_id, task_queue=self.task_queue)
         return handle.id
+
+    async def start_finetune(self, args: FinetuneArgs, *, workflow_id: str | None = None) -> str:
+        """Start a fine-tuning run (§15.8); returns its workflow id, which names the run's artifacts."""
+        return (await start_finetune(self.client, args, task_queue=self.task_queue, workflow_id=workflow_id)).id
+
+    async def start_rl_training(self, args: RlArgs, *, workflow_id: str | None = None) -> str:
+        """Start an RL run (§15.9); it ends at once with the reasons unless the start conditions hold."""
+        return (await start_rl_training(self.client, args, task_queue=self.task_queue, workflow_id=workflow_id)).id
 
     async def reset_to_stage(self, workflow_id: str, stage: Stage, *, reason: str) -> str:
         """Reset the run to just before the stage's activity was scheduled; returns the new execution's run id."""

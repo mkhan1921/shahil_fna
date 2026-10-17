@@ -16,8 +16,16 @@ from temporalio.client import WorkflowFailureError
 
 from advisor_intel.models.profile import StateOp
 from advisor_intel.models.runs import CallArgs, CallResult, FollowupAnswer, ReviewSubmission, RunState, Stage
-from advisor_intel.workflows import CallPipelineWorkflow, FollowupIntakeWorkflow, ForecastWorkflow, NightlyFeedbackWorkflow
+from advisor_intel.workflows import (
+    CallPipelineWorkflow,
+    FinetuneExtractorWorkflow,
+    FollowupIntakeWorkflow,
+    ForecastWorkflow,
+    NightlyFeedbackWorkflow,
+    TrainRlExtractorWorkflow,
+)
 from advisor_intel.workflows import contracts as C
+from advisor_intel.workflows.client import start_finetune, start_rl_training
 from advisor_intel.workflows.schedules import MODEL_SWAP_SCHEDULE_ID, NIGHTLY_SCHEDULE_ID, SAST, ensure_schedules
 
 from .temporal_harness import EXEC_TIMEOUT, MockActivities, running_worker, temporal_env, wait_for, wait_state
@@ -318,6 +326,99 @@ async def test_traces_carry_run_attributes_from_the_client_to_activities(tempora
         assert any(s.name == "RunWorkflow:CallPipelineWorkflow" and s.attributes.get("stage") == "workflow" for s in spans)
     finally:
         telemetry.shutdown_telemetry()
+
+
+async def test_finetune_workflow_exports_trains_evaluates_and_promotes(temporal_bin):
+    mocks = MockActivities()
+    async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
+        handle = await start_finetune(env.client, C.FinetuneArgs(groups=["retirement", "income"], epochs=2), task_queue=tq)
+        out: C.FinetuneResult = await handle.result()
+        assert await handle.query(FinetuneExtractorWorkflow.progress) == "done"
+    assert mocks.names() == [C.EXPORT_FINETUNE_DATA, C.SFT_TRAIN_EXTRACTOR, C.EVALUATE_EXTRACTOR, C.PROMOTE_EXTRACTOR]
+    assert handle.id.startswith("finetune-") and out.export.label == handle.id  # the label defaults to the workflow id
+    [sft_in] = mocks.inputs(C.SFT_TRAIN_EXTRACTOR)
+    assert sft_in.args.epochs == 2 and sft_in.export.eligible and sft_in.export.groups == ["retirement", "income"]
+    [ev_in] = mocks.inputs(C.EVALUATE_EXTRACTOR)
+    assert ev_in.candidate_model == out.sft.model == f"vllm:extractor-{handle.id}" and ev_in.groups == ["retirement", "income"]
+    assert (
+        ev_in.incumbent_model is None and not ev_in.heldout_only and ev_in.hacking_passed is None
+    )  # SFT: the pinned extractor, all gold calls
+    [pr_in] = mocks.inputs(C.PROMOTE_EXTRACTOR)
+    assert pr_in.kind == "sft" and pr_in.checkpoint == out.sft.checkpoint and pr_in.prompt_versions == {"extract_values": "v3"}
+    assert (
+        out.evaluation.switched == ["retirement"]
+        and out.promotion.pull_request
+        and out.promotion.calibrator_retrain_needed == ["retirement"]
+    )
+    assert out.skipped_reason is None
+
+
+async def test_finetune_workflow_ends_early_below_the_trigger(temporal_bin):
+    mocks = MockActivities(finetune_eligible=False)
+    async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
+        handle = await start_finetune(env.client, C.FinetuneArgs(label="q4"), task_queue=tq)
+        out: C.FinetuneResult = await handle.result()
+        assert await handle.query(FinetuneExtractorWorkflow.progress) == "skipped"
+    assert mocks.names() == [C.EXPORT_FINETUNE_DATA] and handle.id == "finetune-q4"
+    assert out.sft is None and out.evaluation is None and out.promotion is None
+    assert out.skipped_reason == "120 reviewed calls < 300, and no slot group has 2000 labelled facts"
+
+
+async def test_rl_workflow_ends_early_with_the_reasons_when_the_start_conditions_fail(temporal_bin):
+    mocks = MockActivities(rl_can_start=False)
+    async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
+        handle = await start_rl_training(env.client, C.RlArgs(), task_queue=tq)
+        out: C.RlResult = await handle.result()
+        assert await handle.query(TrainRlExtractorWorkflow.progress) == "skipped"
+    assert mocks.names() == [C.CHECK_RL_START]
+    assert not out.start.can_start and out.start.checks["fine_tuned_extractor_live"] is False
+    assert out.skipped_reason == "start conditions not met: the fine-tuned extractor is not live for any slot group"
+    assert out.export is None and out.training is None and out.promotion is None
+
+
+async def test_rl_workflow_runs_grpo_the_hacking_checks_and_the_heldout_gate(temporal_bin):
+    mocks = MockActivities()
+    async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
+        out: C.RlResult = await env.client.execute_workflow(
+            TrainRlExtractorWorkflow.run,
+            C.RlArgs(label="m7", human_signed_off=True, config={"steps": 50}),
+            id=f"rl-{uuid.uuid4().hex[:6]}",
+            task_queue=tq,
+            execution_timeout=EXEC_TIMEOUT,
+        )
+    assert mocks.names() == [
+        C.CHECK_RL_START,
+        C.EXPORT_RL_PROMPTS,
+        C.GRPO_TRAIN_EXTRACTOR,
+        C.RL_HACKING_CHECKS,
+        C.EVALUATE_EXTRACTOR,
+        C.PROMOTE_EXTRACTOR,
+    ]
+    [grpo_in] = mocks.inputs(C.GRPO_TRAIN_EXTRACTOR)
+    assert grpo_in.start.reference_checkpoint == "sft-m6-final" and grpo_in.args.config == {"steps": 50}
+    [ev_in] = mocks.inputs(C.EVALUATE_EXTRACTOR)
+    # §15.9: the RL model must beat the M6 model on the held-out gold calls, with the hacking checks and a sign-off.
+    assert ev_in.incumbent_model == "vllm:extractor-m6" and ev_in.heldout_only and ev_in.require_better
+    assert ev_in.hacking_passed is True and ev_in.human_signed_off is True and ev_in.candidate_model == out.training.model
+    [pr_in] = mocks.inputs(C.PROMOTE_EXTRACTOR)
+    assert pr_in.kind == "rl" and pr_in.checkpoint == "grpo-m7-50"
+    assert out.hacking.passed and out.evaluation.gold_calls == 20 and out.promotion.switched == ["retirement"]
+
+
+async def test_rl_workflow_does_not_switch_a_group_when_the_hacking_checks_fail(temporal_bin):
+    mocks = MockActivities(hacking_passed=False)
+    async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:
+        out: C.RlResult = await env.client.execute_workflow(
+            TrainRlExtractorWorkflow.run,
+            C.RlArgs(label="m7b"),
+            id=f"rl-{uuid.uuid4().hex[:6]}",
+            task_queue=tq,
+            execution_timeout=EXEC_TIMEOUT,
+        )
+    assert mocks.inputs(C.EVALUATE_EXTRACTOR)[0].hacking_passed is False
+    assert (
+        out.hacking.failures == ["retirement: dodging penalties"] and out.evaluation.switched == [] and out.promotion.pull_request is None
+    )
 
 
 async def test_schedules_are_created_then_updated(temporal_bin):

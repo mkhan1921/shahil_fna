@@ -18,8 +18,14 @@ from temporalio.client import WorkflowHistory
 from temporalio.worker import Replayer
 
 from advisor_intel.models.runs import CallArgs, FollowupAnswer, ReviewSubmission, RunState
-from advisor_intel.workflows import ALL_WORKFLOWS, CallPipelineWorkflow, NightlyFeedbackWorkflow
-from advisor_intel.workflows.contracts import NightlyArgs
+from advisor_intel.workflows import (
+    ALL_WORKFLOWS,
+    CallPipelineWorkflow,
+    FinetuneExtractorWorkflow,
+    NightlyFeedbackWorkflow,
+    TrainRlExtractorWorkflow,
+)
+from advisor_intel.workflows.contracts import FinetuneArgs, NightlyArgs, RlArgs
 from advisor_intel.workflows.converter import data_converter
 
 from .temporal_harness import EXEC_TIMEOUT, MockActivities, running_worker, temporal_env, wait_for, wait_state
@@ -37,7 +43,7 @@ def _histories() -> list[Path]:
 
 def test_committed_histories_exist():
     names = {p.stem for p in _histories()}
-    assert {"call_pipeline_full", "call_pipeline_partial_rerun", "nightly_feedback"} <= names
+    assert {"call_pipeline_full", "call_pipeline_partial_rerun", "nightly_feedback", "finetune_extractor", "train_rl_extractor"} <= names
 
 
 @pytest.mark.parametrize("path", _histories(), ids=lambda p: p.stem)
@@ -105,3 +111,22 @@ async def test_record_and_replay_fresh_histories(temporal_bin):
         )
         await h.result()
         await _record(env, h, "nightly_feedback")
+        # The training runs (§15.8, §15.9): a full fine-tuning run and a full RL run with a signed-off review sheet.
+        h = await env.client.start_workflow(
+            FinetuneExtractorWorkflow.run,
+            FinetuneArgs(label="finetune-replay", groups=["retirement"]),
+            id="finetune-replay",
+            task_queue=tq,
+            execution_timeout=EXEC_TIMEOUT,
+        )
+        await h.result()
+        await _record(env, h, "finetune_extractor")
+        h = await env.client.start_workflow(
+            TrainRlExtractorWorkflow.run,
+            RlArgs(label="rl-replay", human_signed_off=True),
+            id="rl-replay",
+            task_queue=tq,
+            execution_timeout=EXEC_TIMEOUT,
+        )
+        await h.result()
+        await _record(env, h, "train_rl_extractor")

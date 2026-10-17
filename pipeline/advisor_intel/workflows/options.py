@@ -50,3 +50,14 @@ CONFORMAL_OPTS = _opts(timedelta(minutes=15), 3, timedelta(seconds=60))
 LEXICON_FIT_OPTS = _opts(timedelta(minutes=20), 2, timedelta(minutes=2))
 DATASET_SYNC_OPTS = _opts(timedelta(minutes=15), 3, timedelta(seconds=60))
 MODEL_SWAP_OPTS = _opts(timedelta(hours=4), 1, timedelta(minutes=5))
+
+# Fine-tuning (§15.8) and RL (§15.9): exports and checks are batch work over the reviewed calls; training runs for
+# hours at the Tinker-compatible service and is retried once (its weights are saved per step, so a retry resumes
+# from the last saved checkpoint rather than from the base model when the service keeps them).
+TRAINING_EXPORT_OPTS = _opts(timedelta(minutes=45), 3, timedelta(seconds=60))
+SFT_OPTS = _opts(timedelta(hours=12), 1, timedelta(minutes=5))
+GRPO_OPTS = _opts(timedelta(hours=24), 1, timedelta(minutes=5))
+CANDIDATE_EVAL_OPTS = _opts(timedelta(hours=4), 1, timedelta(minutes=5))
+PROMOTE_OPTS = _opts(timedelta(minutes=10), 3, timedelta(seconds=60))
+RL_START_OPTS = _opts(timedelta(minutes=15), 3, timedelta(seconds=60))
+HACKING_OPTS = _opts(timedelta(hours=2), 1, timedelta(minutes=5))

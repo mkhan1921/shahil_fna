@@ -38,6 +38,7 @@ class FakeGateway:
         self.intakes: list = []
         self.forecasts: list = []
         self.resets: list = []
+        self.trainings: list = []
         self.status: dict[str, str] = {}
         self.state = RunState.AWAITING_REVIEW
 
@@ -69,6 +70,14 @@ class FakeGateway:
     async def reset_to_stage(self, workflow_id, stage, *, reason):
         self.resets.append((workflow_id, stage))
         return "exec-2"
+
+    async def start_finetune(self, args, *, workflow_id=None):
+        self.trainings.append(("finetune", args))
+        return workflow_id or f"finetune-{args.label or 'now'}"
+
+    async def start_rl_training(self, args, *, workflow_id=None):
+        self.trainings.append(("rl", args))
+        return workflow_id or f"rl-{args.label or 'now'}"
 
 
 async def _pins() -> VersionPins:
@@ -142,6 +151,23 @@ async def test_bearer_token_is_required(api):
         )
         assert pre.status_code == 200 and pre.headers["access-control-allow-origin"] == "http://localhost:3000"
     assert (await api.c.get("/calls/x")).status_code == 404
+
+
+async def test_training_runs_start_behind_the_token(api):
+    """The fine-tuning and RL runs (§15.8, §15.9) start on demand through the API, under the same bearer token."""
+    r = await api.c.post("/admin/training/finetune", json={"groups": ["retirement"], "epochs": 2, "label": "q4"})
+    assert r.status_code == 202 and r.json() == {"workflow_id": "finetune-q4", "kind": "finetune", "label": "q4"}
+    r = await api.c.post("/admin/training/rl", json={"human_signed_off": True})
+    assert r.status_code == 202 and r.json()["kind"] == "rl" and r.json()["workflow_id"] == r.json()["label"] == "rl-now"
+    kinds = [k for k, _ in api.gw.trainings]
+    assert kinds == ["finetune", "rl"]
+    ft, rl = (a for _, a in api.gw.trainings)
+    assert ft.groups == ["retirement"] and ft.epochs == 2 and not ft.force
+    assert rl.human_signed_off is True and rl.groups == []
+    assert (await api.c.post("/admin/training/finetune", json={"epochs": "two"})).status_code == 422
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api.app), base_url="http://test") as anon:
+        assert (await anon.post("/admin/training/finetune", json={})).status_code == 401
+        assert (await anon.post("/admin/training/rl", json={})).status_code == 401
 
 
 async def test_api_is_closed_without_a_token_outside_local(store, objects):
