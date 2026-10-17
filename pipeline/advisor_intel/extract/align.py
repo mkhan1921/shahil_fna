@@ -84,15 +84,25 @@ def canon(text: str) -> str:
         w = words[i]
         if numeric(w):
             total, current = 0.0, 0.0
+            # 0: nothing since the last hundred or scale word, 1: a tens word, 2: a units word. Two tens words or two
+            # units words in a row ("sixty, fifty-eight", "two three") are two numbers, never one.
+            state = 0
             j = i
             while j < len(words):
                 x = words[j]
                 if x in _UNITS:
+                    if state == 2 or (state == 1 and _UNITS[x] >= 10):
+                        break
                     current += _UNITS[x]
+                    state = 2
                 elif x in _TENS:
+                    if state != 0:
+                        break
                     current += _TENS[x]
+                    state = 1
                 elif x == "hundred":
                     current = max(current, 1) * 100
+                    state = 0
                 elif x in ("point", "comma") and j + 1 < len(words) and words[j + 1] in _UNITS:
                     # "one point two million", SA "one comma two mil": decimal digits follow
                     frac, k = "", j + 1
@@ -104,6 +114,7 @@ def canon(text: str) -> str:
                 elif x in _SCALES:
                     total += max(current, 1) * _SCALES[x]
                     current = 0
+                    state = 0
                 elif x == "and" and j + 1 < len(words) and numeric(words[j + 1]):
                     pass
                 else:

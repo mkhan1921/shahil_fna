@@ -73,6 +73,13 @@ def test_deterministic_score_needs_the_numbers_to_agree():
     assert deterministic_score(canon("fifteen thousand a month"), canon("it's fifty thousand a month")) == 0.0
 
 
+def test_canon_keeps_adjacent_numbers_apart():
+    assert canon("Fifty-eight. Actually, let's say sixty, fifty-eight is too ambitious.") == "58 actually let s say 60 58 is too ambitious"
+    assert canon("sixty or sixty-two") == "60 or 62"
+    assert canon("forty-two thousand a month, maybe forty-five") == "42000 a month maybe 45"
+    assert canon("two three") == "2 3" and canon("twenty twenty six") == "20 26"
+
+
 def test_deterministic_score_runs_in_one_direction_only():
     said = canon("life cover with Discovery")
     assert deterministic_score(said, canon("I have life cover with Discovery, three million")) >= 90
