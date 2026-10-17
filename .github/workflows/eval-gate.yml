@@ -69,12 +69,13 @@ jobs:
         run: echo "::warning::BRAINTRUST_API_KEY is not available to this run (a pull request from a fork?); the eval gate did not run"
       - name: Synthetic suite (Braintrust eval action)
         if: env.BRAINTRUST_API_KEY != ''
-        uses: braintrustdata/eval-action@v1
+        uses: braintrustdata/eval-action@v2 # inputs checked against the action's action.yml: api_key, runtime, root, paths, use_proxy
         with:
           api_key: ${{ secrets.BRAINTRUST_API_KEY }}
           runtime: python
           root: pipeline
           paths: advisor_intel/evals/eval_extraction.py
+          use_proxy: "false" # call the providers as production does (the pipeline's own clients and keys), not through the Braintrust proxy cache
         env:
           ADVISOR_INTEL_EVAL_EXPERIMENT: ${{ github.event_name == 'pull_request' && format('pr-{0}-{1}', github.event.pull_request.number, github.run_attempt) || format('{0}-{1}', github.ref_name, github.sha) }}
       - name: Gate against the main-branch baseline (no tier A regression > 2 points, ECE not worse by > 0.01)
