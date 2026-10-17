@@ -11,7 +11,9 @@ A validator rejects (and the agent retries) any client-facing text that mentions
 confidence, scores, the transcript or the model, any unknown item id, and any numeric or categorical
 question that offers neither a range nor a choice. Follow-ups are ordered by ``expected_pos_change`` and
 capped at 8. If the agent cannot produce valid drafts (stub pins, provider failure) template questions
-built from the schema are used instead, merged per person or object and topic.
+built from the schema are used instead, merged per person or object and topic; a selected item the agent
+left without a question gets a template question too, before the ordering and the cap. Amounts quoted in
+template questions are rounded to two significant figures.
 """
 
 from __future__ import annotations
@@ -227,12 +229,20 @@ def draft_prompt(items: list[FollowupItem]) -> str:
 # --------------------------------------------------------------------------- templates (fallback)
 
 
+def _round_amount(x: float) -> float:
+    """Two significant figures for a client-facing amount: R53,865 reads as R54,000 (a range, not a quote back)."""
+    if abs(x) < 100:
+        return round(x)
+    digits = len(str(int(abs(x)))) - 2
+    return round(x, -digits)
+
+
 def _fmt(x: float, q: Quantity | None, slot: SlotDef) -> str:
     unit = (
         q.unit if q is not None else {"rand": "ZAR", "rand_monthly": "ZAR", "rand_annual": "ZAR", "decimal": "pct"}.get(slot.fna_unit, "")
     )
     if unit == "ZAR":
-        return f"R{x:,.0f}"
+        return f"R{_round_amount(x):,.0f}"
     if unit == "pct":
         return f"{x * 100:.0f}%"
     if slot.value_type in ("date", "year"):
@@ -287,7 +297,7 @@ def template_drafts(items: list[FollowupItem], profile: Profile, catalog: Catalo
     for it in items:
         groups.setdefault((it.group, it.instance), []).append(it)
     out = []
-    for (_, _), members in groups.items():
+    for members in groups.values():
         if len(members) == 1:
             it = members[0]
             text, form = template_question(it, profile.facts.get(it.fact_id), catalog.slot(it.slot_id))
@@ -349,6 +359,13 @@ async def draft_followups(
     drafted_by: Literal["model", "template", "none"] = "model"
     if not drafts:
         drafts, drafted_by = template_drafts(items, profile, catalog), "template"
+    else:
+        # Every selected item was chosen by §10.4; one the model left without a question still gets asked, from
+        # the schema template, and the ordering and cap below decide whether it makes the cut.
+        covered = {i for d in drafts for i in d.item_ids}
+        left = [it for it in items if it.item_id not in covered]
+        if left:
+            drafts = drafts + template_drafts(left, profile, catalog)
     out: list[FollowUp] = []
     seen: set[str] = set()
     for d in drafts:

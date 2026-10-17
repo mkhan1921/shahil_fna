@@ -12,8 +12,9 @@ review overlay. The workflow then re-runs the forecast.
 from __future__ import annotations
 
 import inspect
+from collections.abc import Awaitable, Callable
 from datetime import date
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -83,7 +84,7 @@ def _renumber(profile: Profile, ops: list[StateOp]) -> list[StateOp]:
     for i, op in enumerate(ops):
         payload = dict(op.payload)
         if op.op in ("ADD", "UPDATE"):
-            payload.setdefault("source", "followup")
+            payload["source"] = "followup"  # §10.6: whatever the extraction wrote, the value now comes from the client's answer
         out.append(op.model_copy(update={"seq": seq + i, "payload": payload}))
     return out
 

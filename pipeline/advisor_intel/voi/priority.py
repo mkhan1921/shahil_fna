@@ -71,7 +71,12 @@ def forced_reasons(fact: Fact, row: SensitivityRow | None, tier: str) -> list[st
         msgs = fact.verification.get("constraint_messages") or []
         reasons.append(f"fails a check: {msgs[0]}" if msgs else "fails a hard consistency check")
     if fact.status == "contradicted":
-        reasons.append("the call holds two incompatible statements")
+        entailment = (fact.verification.get("entailment") or {}).get("status")
+        reasons.append(
+            "the call does not support this reading (the independent check contradicted it)"
+            if entailment == "contradicted"
+            else "the call holds two incompatible statements"
+        )
     if fact.speaker_attribution == "advisor_suggested" and tier == "A":
         reasons.append("the adviser proposed this and the client did not clearly agree")
     return reasons
@@ -86,7 +91,8 @@ def why_line(item: PriorityItem, row: SensitivityRow | None) -> str:
                 parts.append(f"moves success odds by {_points(row.i_pos)}")
             elif row.top_need:
                 need = need_label(row.top_need)
-                parts.append(f"moves {need} shortfall by {_money(row.top_need_change)} (~{row.i_fna:.0%} of the need)")
+                share = "more than the whole need" if row.i_fna > 1.0 else f"~{row.i_fna:.0%} of the need"
+                parts.append(f"moves {need} shortfall by {_money(row.top_need_change)} ({share})")
         elif item.i_extract > 0 and row.pos_base is not None and row.pos_prior is not None:
             parts.append(f"if misheard, success odds could be off by {_points(row.pos_base - row.pos_prior)}")
         if item.virtual:

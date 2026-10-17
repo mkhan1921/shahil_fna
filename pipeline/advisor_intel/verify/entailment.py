@@ -17,7 +17,9 @@ the verifier.
 Corrective ops: a hypothesis the verifier marks contradicted is retracted (``RETRACT`` with
 ``hypothesis_index``, actor ``verifier``) when another checked hypothesis survives. When every checked
 hypothesis is contradicted the whole fact is retracted as an extraction error, unless that would lose a
-prior FNA value; then the fact stays, marked contradicted, for review. Ops go through the reducer.
+prior FNA value; then the fact's status becomes ``contradicted`` (§4.3: always sent to review, §10.3:
+forced) with the prior value added as a reading beside the call's, so the reviewer sees both. Ops go
+through the reducer.
 """
 
 from __future__ import annotations
@@ -27,14 +29,15 @@ import bisect
 import logging
 import math
 import re
-from typing import Any, Literal, Sequence
+from collections.abc import Sequence
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic_ai import Agent, ModelRetry, NativeOutput, RunContext
 from pydantic_ai.messages import ModelResponse, TextPart
 
 from .. import llm
-from ..models.facts import Fact
+from ..models.facts import Fact, Hypothesis
 from ..models.profile import Profile
 from ..models.runs import VersionPins
 from ..models.transcript import Transcript
@@ -458,7 +461,17 @@ def corrective_ops(profile: Profile, result: EntailmentResult) -> list[tuple[str
                         "verifier",
                     )
                 )
-        elif fact.source not in SEED_SOURCES and fact.prior_value is None:
+        else:
             note = "; ".join(r for r in reasons.values() if r)
-            specs.append(("RETRACT", fid, seg, {"reason": "entailment_contradicted", "note": note}, "verifier"))
+            if fact.source not in SEED_SOURCES and fact.prior_value is None:
+                specs.append(("RETRACT", fid, seg, {"reason": "entailment_contradicted", "note": note}, "verifier"))
+                continue
+            # Every reading was contradicted but a prior FNA value stands: the fact stays for review as contradicted,
+            # with the prior beside the call's reading (§4.3 "mixture of both, always sent to review").
+            payload: dict[str, Any] = {"status": "contradicted", "reason": f"entailment_contradicted: {note}"}
+            if fact.prior_value is not None and fact.hypotheses and not any(h.value == fact.prior_value for h in fact.hypotheses):
+                rationale = "prior FNA value, shown for review: the call's reading was not supported by its evidence"
+                payload["add_hypotheses"] = [Hypothesis(value=fact.prior_value, weight=0.5, rationale=rationale)]
+                payload["weights"] = [h.weight * 0.5 for h in fact.hypotheses] + [0.5]
+            specs.append(("UPDATE", fid, seg, payload, "verifier"))
     return specs

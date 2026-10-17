@@ -15,10 +15,7 @@ from advisor_intel.verify.features import SPEC_FEATURES, feature_names, features
 from .verify_factories import CATALOG, ProfileBuilder, ev, money, point, segment, span, transcript
 
 # Every row of the §9.2 table (one-hot rows as prefixes).
-SPEC_TABLE = """self_score entail_score consistency n_evidence n_supporting_segments asr_mean_conf asr_min_conf low_asr_overlap
-diarization_conf role_conf speaker_is_client resolution_conf crm_link_score hedge_strength_max scale_ambiguous revised restated
-n_hypotheses top_weight lexicon_miss constraint_soft_violations derived grammar_readings grammar_top_margin second_pass_run
-second_pass_agreement distance_from_prior aligner_score reopened_by_coverage field_retries term_unresolved""".split()
+SPEC_TABLE = ["self_score", "entail_score", "consistency", "n_evidence", "n_supporting_segments", "asr_mean_conf", "asr_min_conf", "low_asr_overlap", "diarization_conf", "role_conf", "speaker_is_client", "resolution_conf", "crm_link_score", "hedge_strength_max", "scale_ambiguous", "revised", "restated", "n_hypotheses", "top_weight", "lexicon_miss", "constraint_soft_violations", "derived", "grammar_readings", "grammar_top_margin", "second_pass_run", "second_pass_agreement", "distance_from_prior", "aligner_score", "reopened_by_coverage", "field_retries", "term_unresolved"]
 
 
 def test_vector_is_complete_against_the_spec_table():
@@ -147,6 +144,17 @@ def test_nan_rules():
     g = features(p.facts[nd], t, p, catalog=CATALOG)
     assert math.isnan(g["top_weight"]) and g["n_hypotheses"] == 0 and math.isnan(g["asr_mean_conf"])
     assert g["status_not_discussed"] == 1.0 and g["crm_link_score"] == 0.0  # the client entity has no CRM match
+
+
+def test_reopened_by_coverage_reads_the_omission_check_record_for_an_updated_prior_field():
+    """A prior field the omission check reopens is an UPDATE, which carries no ``reopened_by_coverage`` flag (§9.1d)."""
+    b = ProfileBuilder()
+    fid = b.seed("{p}.employer", "client", point("Eskom"))
+    p = b.build()
+    t = transcript([segment("s0001", "I work at Eskom")])
+    assert features(p.facts[fid], t, p, catalog=CATALOG)["reopened_by_coverage"] == 0.0
+    p = annotate(p, fid, verification={"coverage": {"reopened": True, "contradicted": False, "disagreements": 0, "segments": ["s0001"]}})
+    assert not p.facts[fid].reopened_by_coverage and features(p.facts[fid], t, p, catalog=CATALOG)["reopened_by_coverage"] == 1.0
 
 
 def test_storable_and_vector_round_trip():

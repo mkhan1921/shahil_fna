@@ -25,7 +25,8 @@ field becomes ``contradicted`` for review.
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable, Literal, Sequence
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -39,7 +40,7 @@ from ..models.profile import Profile, StateOp
 from ..models.runs import VersionPins
 from ..models.transcript import Transcript
 from ..schema.slots import PERSONS, Catalog, SlotDef, fact_id_for, load_catalog
-from .agents import Usage, format_segment, is_offline, resolve, run_guarded
+from .agents import OFFLINE, Resolved, Usage, format_segment, is_offline, resolve, run_guarded
 from .claims import noun, subject
 
 log = logging.getLogger(__name__)
@@ -49,6 +50,8 @@ TOP_SEGMENTS = 6
 MAX_DISAGREEMENTS = 2
 Reason = Literal["tier_a", "entity_attribute", "prior_field", "topic_index"]
 Reopen = Callable[[str, "str | None", list[str]], Awaitable[list[StateOp]]]
+OnProfile = Callable[[Profile], None]  # told every time the check changes the profile (a live view for the reopen callable)
+OFFLINE_SKIP = "the verifier role is a stub: the omission check did not run"
 UNPARTNERED = ("single", "divorced", "widowed")
 CONTRIBUTING_FUNDS = ("pension", "provident", "retirement-annuity")
 MONTHLY_BENEFIT_POLICIES = ("income-protection", "family-income")
@@ -160,7 +163,7 @@ def _children(profile: Profile, entities: dict[str, str]) -> bool:
 
 def entity_required(profile: Profile, entity_id: str, kind: str) -> list[str]:
     """The attributes the FNA engine needs for one entity (§9.1d)."""
-    v = lambda slot_id: _value(profile, fact_id_for(slot_id, entity_id))  # noqa: E731
+    v = lambda slot_id: _value(profile, fact_id_for(slot_id, entity_id))
     if kind == "dependant":
         out = ["dependants[].dateOfBirth", "dependants[].relationship"]
         if v("dependants[].relationship") in (None, "child"):
@@ -270,7 +273,7 @@ def expected_facts(
         for slot_id in entity_required(profile, eid, kind):
             want(slot_id, eid, "entity_attribute")
     # Every non-empty prior field.
-    for fid, f in profile.facts.items():
+    for f in profile.facts.values():
         if f.prior_value is not None and f.review.status != "rejected":
             want(f.slot_id, f.instance_key, "prior_field")
     # Topic-indexed groups that produced no fact.
@@ -428,10 +431,24 @@ def batch_prompt(questions: Sequence[Question], transcript: Transcript) -> tuple
 
 
 async def ask(
-    questions: Sequence[Question], *, transcript: Transcript, pins: VersionPins | None, batch_size: int = BATCH, usage: Usage | None = None
+    questions: Sequence[Question],
+    *,
+    transcript: Transcript,
+    pins: VersionPins | None,
+    batch_size: int = BATCH,
+    usage: Usage | None = None,
+    resolved: Resolved | None = None,
+    errors: list[str] | None = None,
+    offline: list[bool] | None = None,
 ) -> dict[str, CoverageAnswer]:
-    """Closed questions, ``batch_size`` per verifier call. Unanswered questions count as absent."""
-    resolved = resolve("verifier", pins, empty_json='{"answers": []}')
+    """Closed questions, ``batch_size`` per verifier call.
+
+    A question the verifier did not answer is treated as absent, but never silently: a batch the provider
+    failed on is reported in ``errors`` (one line per batch, naming its question ids), and a batch the offline
+    stand-in answered (a stub verifier role) appends ``True`` to ``offline``, so the caller can tell "nothing
+    missing" from "the check did not run".
+    """
+    resolved = resolved or resolve("verifier", pins, empty_json='{"answers": []}')
     out: dict[str, CoverageAnswer] = {}
     for start in range(0, len(questions), batch_size):
         batch = list(questions[start : start + batch_size])
@@ -442,6 +459,11 @@ async def ask(
             usage.input_tokens += outcome.usage.input_tokens
             usage.output_tokens += outcome.usage.output_tokens
             usage.failures += outcome.usage.failures
+        if outcome.output is None and errors is not None:
+            ids = ", ".join(q.question_id for q in batch)
+            errors.append(f"omission check batch not answered ({ids}): {outcome.error or 'no output'}")
+        if offline is not None:  # the stand-in names itself on its responses, whatever model the pin or an override chose
+            offline.append(getattr(outcome.response, "model_name", None) == OFFLINE)
         for a in outcome.output.answers if outcome.output else []:
             out[a.question_id] = a
     return out
@@ -462,6 +484,9 @@ class CoverageResult(BaseModel):
     unresolved: list[str] = []  # items that disagreed twice but cannot hold a contradicted fact (no prior to show)
     rounds: int = 0
     usage: dict[str, int] = {}
+    skipped: str | None = None  # why the check did not run at all (a stub verifier)
+    errors: list[str] = []  # verifier batches that failed, and reopen calls that raised: "absent" by default, never silently
+    unanswered: list[str] = []  # fact ids whose question got no answer (their batch failed)
 
 
 def _renumber(profile: Profile, ops: list[StateOp]) -> list[StateOp]:
@@ -563,18 +588,30 @@ async def check_coverage(
     embedder: Embedder | None = None,
     batch_size: int = BATCH,
     max_disagreements: int = MAX_DISAGREEMENTS,
+    on_profile: OnProfile | None = None,
 ) -> CoverageResult:
-    """The omission check over the whole profile (§9.1d); every change goes through the reducer."""
+    """The omission check over the whole profile (§9.1d); every change goes through the reducer.
+
+    ``on_profile`` is called with the profile after every applied batch, so a ``reopen`` callable bound to a
+    live view of the run (``extract.probes.make_reopen``) extracts against the profile as it now stands.
+    """
     catalog = catalog or load_catalog(profile.schema_version)
     embedder = embedder or get_embedder((pins.embedding_model if pins else None) or "hashed-256")
     expected = expected_facts(profile, catalog, topic_index=topic_index)
     retriever = Retriever(profile, transcript, catalog, embedder=embedder, topic_index=topic_index)
     pending = [it for it in expected if is_missing(profile, it)]
     result = CoverageResult(profile=profile, expected=expected)
+    resolved = resolve("verifier", pins, empty_json='{"answers": []}')
     usage = Usage()
     disagreements: dict[str, int] = {}
     cited: dict[str, list[str]] = {}
     n = 0
+
+    def changed(p: Profile) -> Profile:
+        if on_profile is not None:
+            on_profile(p)
+        return p
+
     while pending and result.rounds < max_disagreements:
         result.rounds += 1
         questions = []
@@ -582,8 +619,22 @@ async def check_coverage(
             n += 1
             questions.append(Question(question_id=f"q{n:02d}", item=it, candidates=retriever.top(it)))
         result.asked += questions
-        answers = await ask(questions, transcript=transcript, pins=pins, batch_size=batch_size, usage=usage)
+        offline: list[bool] = []
+        answers = await ask(
+            questions,
+            transcript=transcript,
+            pins=pins,
+            batch_size=batch_size,
+            usage=usage,
+            resolved=resolved,
+            errors=result.errors,
+            offline=offline,
+        )
         result.answers.update(answers)
+        if offline and all(offline):
+            result.skipped = OFFLINE_SKIP
+        else:
+            result.unanswered += [q.item.fact_id for q in questions if q.question_id not in answers and q.item.fact_id not in result.unanswered]
         next_round: list[ExpectedFact] = []
         for q in questions:
             a = answers.get(q.question_id)
@@ -591,11 +642,16 @@ async def check_coverage(
                 continue
             segs = [s for s in a.segment_ids if s] or q.candidates
             cited[q.item.fact_id] = segs
-            ops = _renumber(profile, list(await reopen(q.item.slot_id, q.item.instance, segs)))
+            try:
+                ops = _renumber(profile, list(await reopen(q.item.slot_id, q.item.instance, segs)))
+            except Exception as e:  # noqa: BLE001 - one field's extraction failing must not end the check; it is reported
+                log.warning("reopening %s failed: %s", q.item.fact_id, e)
+                result.errors.append(f"reopening {q.item.fact_id} failed: {type(e).__name__}: {e}")
+                continue
             applied: list[StateOp] = []
             if ops:
                 r = apply_state_ops(profile, ops)
-                profile, applied = r.profile, r.applied
+                profile, applied = changed(r.profile), r.applied
                 result.ops += r.applied
                 result.rejected += r.rejected
             if _resolved(profile, q.item, applied, catalog):
@@ -610,12 +666,14 @@ async def check_coverage(
                 result.unresolved.append(q.item.fact_id)
                 continue
             r = apply_state_ops(profile, make_ops(profile, [spec]))
-            profile = r.profile
+            profile = changed(r.profile)
             result.ops += r.applied
             result.rejected += r.rejected
             if r.applied:
                 result.contradicted.append(q.item.fact_id)
         pending = next_round
+    if result.errors:
+        log.warning("omission check: %d problem(s) on call %s: %s", len(result.errors), profile.call_id, "; ".join(result.errors[:3]))
     # Record what the check found on the facts it touched.
     for fid in set(result.reopened) | set(result.contradicted):
         if fid in profile.facts:
@@ -633,6 +691,6 @@ async def check_coverage(
                     },
                 },
             )
-    result.profile = profile
+    result.profile = changed(profile) if (result.reopened or result.contradicted) else profile
     result.usage = usage.as_dict()
     return result

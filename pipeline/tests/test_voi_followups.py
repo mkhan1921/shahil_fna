@@ -73,7 +73,7 @@ def _model(responses):
 
 def _ids_in_prompt(messages):
     text = str(messages[0].parts[-1].content)
-    return dict(re.findall(r"^- (i\d+): (.*?)\.", text, flags=re.M))
+    return dict(re.findall(r"^- (i\d+): (.*?)\.", text, flags=re.MULTILINE))
 
 
 async def test_merges_orders_by_expected_change_and_uses_vo_i_for_why():
@@ -132,11 +132,14 @@ async def test_validator_rejects_client_text_about_probabilities_confidence_or_t
     assert (
         retry and "confidence" in str(retry[-1].content) and "model" in str(retry[-1].content) and "probability" in str(retry[-1].content)
     )
-    assert [f.question for f in res.followups] == [good[0]["question"]]
+    assert res.followups[0].question == good[0]["question"] and res.followups[0].fact_ids == [ids["age"]]
+    # the items the model left out are still asked, from the schema templates, after the model's question
+    assert {fid for f in res.followups[1:] for fid in f.fact_ids} == {ids["start"], ids["cost"], ids["emp"]}
+    assert all(not banned_terms(f.question) for f in res.followups) and res.drafted_by == "model"
 
 
 async def test_validator_requires_known_ids_and_a_range_or_choice():
-    p, ids, items, decisions = _setup()
+    p, _ids, items, decisions = _setup()
     point_q = [{"item_ids": ["i1"], "question": "At what age will you retire?", "answer_type": "AGE"}]
     unknown = [{"item_ids": ["i99"], "question": "Would you say 60 or 65?", "answer_type": "AGE"}]
     fine = [{"item_ids": ["i1"], "question": "Roughly when: 60, 63 or 65?", "answer_type": "AGE"}]
@@ -205,3 +208,27 @@ def test_banned_terms_and_labels():
 def test_output_schema_is_strict_friendly():
     for schema, provider in ((anthropic_schema(Drafts), "anthropic"), (openai_schema(Drafts), "openai")):
         assert check_limits([schema_stats(schema)], provider) == []
+
+
+def test_template_amounts_are_rounded_for_the_client():
+    from advisor_intel.voi.followups import _round_amount
+
+    assert _round_amount(53_865) == 54_000 and _round_amount(63_282) == 63_000 and _round_amount(2_537_000) == 2_500_000
+    assert _round_amount(850) == 850 and _round_amount(42) == 42 and _round_amount(-1234) == -1200
+    b = ProfileBuilder()
+    inc = b.add("income.{p}.grossMonthly", "client", qty(Triangular(low=50_864, mode=58_000, high=66_304), "ZAR", "monthly"))
+    p = b.build()
+    item = FollowupItem(
+        item_id="i1",
+        fact_id=inc,
+        slot_id="income.{p}.grossMonthly",
+        instance="client",
+        group="income",
+        label="your gross salary",
+        question="",
+        current="x",
+        status="stated",
+        forms=["AMOUNT_RANGE"],
+    )
+    q, form = template_question(item, p.facts[inc], CATALOG.slot("income.{p}.grossMonthly"))
+    assert form == "AMOUNT_RANGE" and "R54,000" in q and "R63,000" in q and not any(ch.isdigit() and q.count(ch) > 6 for ch in "0")

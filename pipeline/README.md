@@ -52,6 +52,7 @@ result = await process_call(CallInput(call_id="c1", script=open("call.txt").read
 result.document      # the reviewed-median FnaDocument
 result.sidecar       # probabilities and evidence per FnaDocument path
 result.followups, result.flags, result.forecast, result.note
+result.warnings      # checks that failed or did not run inside stages 5–6 (a stub verifier, a failed PoS run): never a silent zero
 ```
 
 From the command line, a scripted call or a recording becomes the files the FNA app imports:

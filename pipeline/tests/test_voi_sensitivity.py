@@ -190,6 +190,26 @@ async def test_async_pos_runs_and_failures_degrade_to_the_other_view():
 
     rows = await sensitivity(p, catalog=CATALOG, analyse=_stub_analyse, pos_runs=broken, include_missing=False)
     assert rows[0].i_pos == 0 and rows[0].i_fna > 0
+    assert rows[0].error == "PoS runs failed: RuntimeError: forecast down"  # a zero because the view did not run, and it says so
+
+    def cannot_analyse(doc):
+        raise ValueError("bad document")
+
+    rows = await sensitivity(p, catalog=CATALOG, analyse=cannot_analyse, pos_runs=pos_runs, include_missing=False)
+    assert rows[0].i_pos == pytest.approx(0.2) and rows[0].i_fna == 0
+    assert rows[0].note == "FNA view did not run" and rows[0].error.startswith("FNA analysis of the median document failed: ValueError")
+
+
+def test_fna_view_scales_by_the_need_the_ends_create_when_the_median_has_none():
+    """§10.2 divides by max(N_k(q50), 1): with no need at the median that floor would turn a rand swing into a ratio in the millions."""
+    base = {"estate:spouse": NeedPoint(shortfall=0.0, need=0.0, status="na")}
+    a = {"estate:spouse": NeedPoint(shortfall=0.0, need=0.0, status="na")}
+    b = {"estate:spouse": NeedPoint(shortfall=2_800_000, need=3_000_000, status="shortfall")}
+    i_fna, flip, _flips, top, delta = fna_view(base, [a, b])
+    assert i_fna == pytest.approx(2_800_000 / 3_000_000) and flip and top == "estate:spouse" and delta == 2_800_000
+    # with a real need at the median the spec's denominator stands
+    base2 = {"estate:spouse": NeedPoint(shortfall=500_000, need=600_000, status="partial")}
+    assert fna_view(base2, [a, b])[0] == pytest.approx(2_800_000 / 600_000)
 
 
 def test_ends_for_numeric_categorical_and_boolean_facts():
