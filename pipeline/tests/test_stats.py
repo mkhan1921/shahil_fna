@@ -53,6 +53,32 @@ def test_sampling_tolerates_rounding_noise_in_weights():
     assert set(stats.sample(Mixture(components=[(1.0000005, Point(value=1)), (-5e-7, Point(value=2))]), rng, 50)) == {1.0}
 
 
+@pytest.mark.parametrize(
+    "dist",
+    [
+        Point(value=62),
+        Point(value="teacher"),
+        Point(value="1986-04-12"),
+        Categorical(probs={"a": 0.2, "b": 0.5, "c": 0.3}),
+        Discrete(support=[2, 3, 5], weights=[0.5, 0.3, 0.2]),
+        Triangular(low=60, mode=62, high=65),
+        Triangular(low=62, mode=62, high=62),
+        LogNormal(median=100, p10=80, p90=125),
+        Normal(mean=10, sd=2),
+        Bernoulli(p=0.3),
+        Mixture(components=[(0.6, Point(value=60)), (0.4, Triangular(low=63, mode=65, high=67))]),
+        Mixture(components=[(0.5, Categorical(probs={"a": 1.0})), (0.5, Point(value="b"))]),
+    ],
+)
+def test_draw_one_is_a_sample_of_one_from_the_same_stream(dist):
+    one = stats.draw_one(dist)
+    a, b = np.random.default_rng(5), np.random.default_rng(5)
+    for _ in range(200):
+        x, y = one(a), stats.sample(dist, b, 1)[0]
+        assert x == y and type(x) is type(y), (x, y)
+    assert a.bit_generator.state == b.bit_generator.state  # the same numbers were consumed
+
+
 def test_mixture_quantile_is_bimodal():
     m = Mixture(components=[(0.5, Point(value=60)), (0.5, Point(value=65))])
     assert stats.quantile(m, 0.25) == pytest.approx(60)

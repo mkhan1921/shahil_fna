@@ -8,8 +8,9 @@ stored as a ``Mixture`` of 50 equally weighted quantile points fitted from 10 00
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from datetime import date
+from typing import Any
 
 import numpy as np
 from numpy.random import Generator
@@ -129,6 +130,50 @@ def sample(dist: Dist, rng: Generator, n: int) -> np.ndarray:
             if m:
                 out[mask] = sample(comp, rng, m)
         return out
+    raise TypeError(f"unknown distribution {type(dist).__name__}")
+
+
+def draw_one(dist: Dist) -> Callable[[Generator], Any]:
+    """A function of an rng that returns ``sample(dist, rng, 1)[0]``: the same value from the same random stream,
+    with the set-up ``sample`` repeats on every call (weight vectors, label arrays, the type tests) done once.
+    ``binding.materialise_draws`` calls one of these per fact per draw, so each generator call below is the one
+    ``sample`` makes for n = 1, in the same order."""
+    if isinstance(dist, Point):
+        fixed = sample(dist, None, 1)[0]  # type: ignore[arg-type]  # a point consumes no randomness
+        return lambda rng: fixed
+    if isinstance(dist, Categorical):
+        labels = list(dist.probs)
+        p = _weights([dist.probs[k] for k in labels])
+        n_labels = len(labels)
+        return lambda rng: labels[rng.choice(n_labels, size=1, p=p)[0]]
+    if isinstance(dist, Discrete):
+        w = _weights(dist.weights)
+        support = np.asarray(dist.support, dtype=float)
+        n_points = len(w)
+        return lambda rng: support[rng.choice(n_points, size=1, p=w)][0]
+    if isinstance(dist, Triangular):
+        if dist.high - dist.low <= 0:
+            flat = np.full(1, dist.mode, dtype=float)[0]
+            return lambda rng: flat
+        low, mode, high = dist.low, dist.mode, dist.high
+        return lambda rng: rng.triangular(low, mode, high, size=1)[0]
+    if isinstance(dist, LogNormal):
+        mu, sigma = dist.mu, dist.sigma
+        return lambda rng: np.exp(mu + sigma * rng.standard_normal(1))[0]
+    if isinstance(dist, Normal):
+        mean, sd = dist.mean, dist.sd
+        return lambda rng: (mean + sd * rng.standard_normal(1))[0]
+    if isinstance(dist, Bernoulli):
+        p_event = dist.p
+        return lambda rng: (rng.random(1) < p_event).astype(float)[0]
+    if isinstance(dist, Mixture):
+        w = _weights([c[0] for c in dist.components])
+        n_components = len(w)
+        parts = [draw_one(comp) for _, comp in dist.components]
+        if is_categorical(dist):
+            return lambda rng: parts[rng.choice(n_components, size=1, p=w)[0]](rng)
+        # ``sample`` writes the chosen component's draw into a float array: the same float64.
+        return lambda rng: np.float64(parts[rng.choice(n_components, size=1, p=w)[0]](rng))
     raise TypeError(f"unknown distribution {type(dist).__name__}")
 
 

@@ -78,3 +78,27 @@ def test_a_batch_of_1000_draws_takes_under_two_seconds(record_property):
     print(f"\nanalyse_batch: {seconds:.2f}s for 1,000 draws; need_bands {band_seconds:.2f}s")
     assert len(analyses) == 1000 and bands["life.client"]["p10"] <= bands["life.client"]["p90"]
     assert seconds < 2.0 * SLACK
+
+
+@pytest.mark.slow
+def test_materialising_a_draw_takes_about_a_millisecond(record_property):
+    """The K documents the need bands analyse must come as fast as the engine reads them (§12.7: about 1 ms a
+    document): at most 1.5 ms per document for K ≥ 100, measured as CPU time so other load on the machine does
+    not count. Two shapes: the sample household's prior with uncertain call facts on top (380 facts over a base
+    document), and the same prior rebuilt into an empty document (every row created from the facts)."""
+    from advisor_intel import binding
+    from tests.forecast_support import prior_profile, sample_document
+    from tests.test_forecast_consistency import _profile_with_uncertain_facts
+
+    prof, doc = _profile_with_uncertain_facts()
+    cases = {"prior_with_call_facts": (prof, doc), "prior_into_an_empty_document": (prior_profile(sample_document()), None)}
+    for name, (profile, base) in cases.items():
+        binding.materialise_draws(profile, 20, seed=0, base=base)  # warm the catalog and the first allocations
+        best = float("inf")
+        for seed in range(3):
+            start = time.process_time()
+            docs = binding.materialise_draws(profile, 200, seed=seed, base=base)
+            best = min(best, (time.process_time() - start) / len(docs))
+        record_property(f"ms_per_draw_document_{name}", round(best * 1e3, 3))
+        print(f"\nmaterialise_draws, {name}: {best * 1e3:.3f} ms per document")
+        assert best < 0.0015 * SLACK, name
