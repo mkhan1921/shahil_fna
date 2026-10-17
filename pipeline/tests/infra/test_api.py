@@ -11,7 +11,7 @@ import pytest
 
 from advisor_intel.activities.keys import ingest_key
 from advisor_intel.activities.stages import StageFunctions
-from advisor_intel.api.app import create_app, deployment_pins
+from advisor_intel.api.app import BindDecision, bind_decision, create_app, deployment_pins
 from advisor_intel.api.temporal import WorkflowInfo
 from advisor_intel.config import Settings
 from advisor_intel.extract.reducer import make_ops
@@ -40,8 +40,12 @@ class FakeGateway:
         self.resets: list = []
         self.status: dict[str, str] = {}
         self.state = RunState.AWAITING_REVIEW
+        self.fail_starts = 0  # the next n starts fail (Temporal unreachable)
 
     async def start_call(self, args, *, workflow_id):
+        if self.fail_starts:
+            self.fail_starts -= 1
+            raise RuntimeError("temporal unreachable")
         self.started.append((workflow_id, args))
         self.status[workflow_id] = "RUNNING"
         return workflow_id
@@ -150,6 +154,24 @@ async def test_api_is_closed_without_a_token_outside_local(store, objects):
         assert (await c.get("/calls/x")).status_code == 503
 
 
+def test_without_a_token_the_api_serves_loopback_only():
+    # No token: the default bind is loopback, with a warning that the API is open to local processes (the local default).
+    d = bind_decision(Settings(), None)
+    assert d.host == "127.0.0.1" and d.refusal is None and "open to every local process" in (d.warning or "")
+    for host in ("localhost", "::1", "[::1]"):
+        d = bind_decision(Settings(env="production"), host)
+        assert d.refusal is None and "closed" in (d.warning or ""), host
+    # No token on an address beyond loopback: the API refuses to start, whatever the environment says.
+    for env in ("local", "production"):
+        d = bind_decision(Settings(env=env), "0.0.0.0")
+        assert d.refusal and "ADVISOR_INTEL_API_TOKEN is not set" in d.refusal and d.warning is None, env
+    assert bind_decision(Settings(), "10.0.0.5").refusal
+    # With a token every interface is the default and nothing is refused or warned about.
+    d = bind_decision(Settings(api_token=TOKEN), None)
+    assert d == BindDecision(host="0.0.0.0")
+    assert bind_decision(Settings(api_token=TOKEN), "10.0.0.5") == BindDecision(host="10.0.0.5")
+
+
 # --------------------------------------------------------------------------- calls and runs
 
 
@@ -192,6 +214,41 @@ async def test_create_call_by_upload_or_uri(api):
     ok = await api.c.post("/calls", json={"call_id": "call-9", "audio_uri": uri, "advisor_id": "adv-1"})
     assert ok.status_code == 201
     assert (await api.c.post("/calls", json={"call_id": "bad id!", "audio_uri": uri})).status_code == 422
+
+
+async def test_create_call_sent_again_gets_the_first_answer(api):
+    """A create whose reply was lost is sent again: the same request gets the first answer, a different one a conflict."""
+    uri = await api.objects.put_bytes("audio/inbox/call-r.wav", b"RIFF")
+    body = {"call_id": "call-r", "audio_uri": uri, "advisor_id": "adv-1", "client_ids": ["cl-1"], "versions": {"cma_version": "2027Q1"}}
+    first = await api.c.post("/calls", json=body)
+    assert first.status_code == 201 and not first.json()["duplicate"]
+    again = await api.c.post("/calls", json=body)
+    assert again.status_code == 200, again.text
+    assert again.json() == {**first.json(), "duplicate": True} and len(api.gw.started) == 1
+    clash = await api.c.post("/calls", json={**body, "advisor_id": "adv-2"})
+    assert clash.status_code == 409 and "different request" in clash.text and len(api.gw.started) == 1
+    # Uploads compare the recording's bytes too.
+    meta = {"call_id": "call-u", "advisor_id": "adv-1"}
+    r1 = await api.c.post("/calls", files={"audio": ("m.wav", b"RIFF-one", "audio/wav")}, data={"metadata": json.dumps(meta)})
+    r2 = await api.c.post("/calls", files={"audio": ("m.wav", b"RIFF-one", "audio/wav")}, data={"metadata": json.dumps(meta)})
+    r3 = await api.c.post("/calls", files={"audio": ("m.wav", b"RIFF-two", "audio/wav")}, data={"metadata": json.dumps(meta)})
+    assert (r1.status_code, r2.status_code, r3.status_code) == (201, 200, 409) and r2.json()["workflow_id"] == r1.json()["workflow_id"]
+    # Without a call_id, an Idempotency-Key header names the request: the same key gives the same call back.
+    headers = {"Idempotency-Key": "upload-7f3a"}
+    k1 = await api.c.post("/calls", json={"audio_uri": uri, "advisor_id": "adv-1"}, headers=headers)
+    k2 = await api.c.post("/calls", json={"audio_uri": uri, "advisor_id": "adv-1"}, headers=headers)
+    assert k1.status_code == 201 and k2.status_code == 200 and k2.json()["call_id"] == k1.json()["call_id"]
+    assert (await api.c.post("/calls", json={"audio_uri": uri, "advisor_id": "adv-9"}, headers=headers)).status_code == 409
+    assert len(api.gw.started) == 3
+    # A first request that fell over before its run started is finished by the retry, once.
+    api.gw.fail_starts = 1
+    crash = {"call_id": "call-c", "audio_uri": uri, "advisor_id": "adv-1"}
+    with pytest.raises(RuntimeError, match="temporal unreachable"):
+        await api.c.post("/calls", json=crash)
+    assert (await api.store.get_call("call-c")).workflow_id is None
+    retry = await api.c.post("/calls", json=crash)
+    assert retry.status_code == 201 and retry.json()["workflow_id"] == (await api.store.get_call("call-c")).workflow_id
+    assert (await api.c.post("/calls", json=crash)).status_code == 200 and len(api.gw.started) == 4
 
 
 async def test_deployment_pins_follow_the_routing_the_asr_provider_and_the_promoted_calibrator(store: Store, monkeypatch):
@@ -304,6 +361,20 @@ async def test_review_bundle(api):
     assert b["quality"]["n_speakers"] == 2 and isinstance(b["spot_check"], bool)
     audio = await api.c.get("/calls/call-1/audio", headers={"Range": "bytes=0-3"})
     assert audio.status_code == 206 and audio.content == b"RIFF"
+
+
+async def test_review_bundle_names_the_checks_that_did_not_run(api):
+    await seed_run(api)
+    assert (await api.c.get("/calls/call-1/review")).json()["warnings"] == []
+    agent = {"turns": 3, "warnings": ["verify skipped omission check (no reopen callable: the reasoning role is a stub)"]}
+    await api.store.put_stage_output("call-1", "agent", "agent-k1", "call-1-run-a", agent, {})
+    await api.store.put_stage_output(
+        "call-1", "voi", "voi-k1", "call-1-run-a", {"profile_version": 1, "warnings": ["voi: sensitivity runs failed"]}, {}
+    )
+    b = (await api.c.get("/calls/call-1/review")).json()
+    assert b["warnings"] == [agent["warnings"][0], "voi: sensitivity runs failed"]
+    pkg = (await api.c.get("/calls/call-1/review-package")).json()
+    assert pkg["bundle"]["warnings"] == b["warnings"]
 
 
 async def test_reviewer_ops_go_through_the_reducer_and_are_written_immediately(api):

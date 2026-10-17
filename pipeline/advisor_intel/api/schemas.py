@@ -61,6 +61,7 @@ class CallCreated(BaseModel):
     call_id: str
     workflow_id: str
     run_id: str
+    duplicate: bool = False  # the same request sent again (a lost reply): this is the first answer, nothing was started twice
 
 
 class CallView(BaseModel):
