@@ -396,6 +396,9 @@ async def test_the_fna_apps_review_client(api):
     events = len(await api.store.review_events(run_id="call-1-run-a"))
     resent = await api.c.post("/calls/call-1/ops", json=ops)  # the reply was lost: the same batch again
     assert resent.status_code == 200 and resent.json()["applied"] == [] and resent.json()["rejected"] == []
+    # The app names the reviewer on the batch (and in a header), so an ADD with no review stamp is keyed the same way each time.
+    named = await api.c.post("/calls/call-1/ops", json={"reviewer_id": "adv-7", "ops": ops}, headers={"X-Reviewer-Id": "adv-7"})
+    assert named.status_code == 200 and named.json()["applied"] == [] and named.json()["rejected"] == []
     assert len(await api.store.review_events(run_id="call-1-run-a")) == events
     stray = {**ops[0], "seq": ops[0]["seq"] + 1, "actor": "extractor"}
     refused = (await api.c.post("/calls/call-1/ops", json=[stray])).json()["rejected"]

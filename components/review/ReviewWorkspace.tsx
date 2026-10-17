@@ -7,28 +7,28 @@
  * Everything the reviewer does is a state op, saved on this device as it happens and, when the
  * practice has turned on the review API, sent to the pipeline.
  */
-import { AudioLines, CheckCircle2, CloudOff, Download, FileText, ListChecks, Loader2, MessageCircleQuestion, Plus, RefreshCw, Send, X } from 'lucide-react';
+import { AudioLines, CheckCircle2, CloudOff, Download, FileText, ListChecks, Loader2, MessageCircleQuestion, NotebookText, Plus, RefreshCw, Send, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { analyse, type Analysis } from '@/lib/fna/analysis';
 import { dateLong } from '@/lib/format';
 import { normaliseDocument } from '@/lib/fna/defaults';
 import type { FnaDocument } from '@/lib/fna/types';
-import { apiReady, createReviewApi, type ReviewedFna } from '@/lib/review/api';
+import { apiReady, createReviewApi, type MeetingNote, type ReviewedFna } from '@/lib/review/api';
 import { slotById } from '@/lib/review/catalog';
 import { reviewResultBlob, reviewResultName, reviewedFileName } from '@/lib/review/exchange';
 import { bundleDate, compareNeeds, movedNeeds } from '@/lib/review/impact';
 import { factTitle, householdName } from '@/lib/review/labels';
-import { diffDocuments } from '@/lib/review/paths';
+import { diffDocuments, setPath } from '@/lib/review/paths';
 import { badgeAt, buildQueue, entryFact, entryOf, flowStep, nextUndecided, progress, queueKey, queueOrder, type QueueGroup } from '@/lib/review/queue';
-import { canSubmit, commitPending, factAt, isDecided, isReviewItem, openFlags, submit, toResult, unsentOps, type ReviewAction, type ReviewSession } from '@/lib/review/session';
+import { canSubmit, commitPending, factAt, isDecided, isReviewItem, openFlags, refusedFacts, submit, toResult, unsentOps, type ReviewAction, type ReviewSession } from '@/lib/review/session';
 import { getDocument, saveDocument } from '@/lib/store/db';
 import { usePractice } from '@/lib/store/hooks';
 import { downloadBlob, exportDocument } from '@/lib/store/transfer';
 import AppShell from '../AppShell';
 import SheetFrame, { SaveIndicator } from '../sheet/SheetFrame';
 import { Button, Callout, EmptyState } from '../ui';
-import { AddFactDialog, FollowupDialog, SubmitDialog, TermDialog, TranscriptDialog, type SubmitChoices, type SubmitNotice } from './dialogs';
+import { AddFactDialog, FollowupDialog, NOTE_FIELD_LABEL, NoteDialog, SubmitDialog, TermDialog, TranscriptDialog, type SubmitChoices, type SubmitNotice } from './dialogs';
 import FieldPopover, { STATUS_LABEL, type Panel } from './FieldPopover';
 import { OverlayProvider, type OverlayApi } from './overlay';
 import { ImpactStrip, ReviewQueue } from './ReviewRail';
@@ -36,18 +36,21 @@ import { useCallAudio } from './useCallAudio';
 import { usePlacement } from './usePlacement';
 import { useReviewSession, type ReviewHandle, type SyncState } from './useReviewSession';
 
-type Dialog = 'followups' | 'transcript' | 'add' | 'submit';
+type Dialog = 'followups' | 'transcript' | 'add' | 'submit' | 'note';
 
+/** The narrative fields the pipeline renders from the reviewed facts (§11.6): the meeting note, not a fact. */
+const NARRATIVE_PATHS = new Set(Object.keys(NOTE_FIELD_LABEL));
+
+/** A header action. In the tab order, like the client page's own header actions, so the dialogs open from the keyboard too. */
 function HeaderButton({ icon, label, onClick, title, disabled }: { icon: ReactNode; label: ReactNode; onClick: () => void; title: string; disabled?: boolean }) {
   return (
     <button
       type="button"
-      tabIndex={-1}
       onClick={onClick}
       title={title}
       aria-label={title}
       disabled={disabled}
-      className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-ink-2 hover:bg-wash disabled:opacity-50"
+      className="focus-ring inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-ink-2 hover:bg-wash disabled:opacity-50"
     >
       {icon} <span className="hidden xl:inline">{label}</span>
     </button>
@@ -58,13 +61,19 @@ function SyncIndicator({ sync, onRetry }: { sync: SyncState; onRetry: () => void
   if (sync.kind === 'off' || sync.kind === 'idle') return null;
   if (sync.kind === 'sending')
     return (
-      <span className="inline-flex items-center gap-1 text-[11.5px] text-muted">
-        <Loader2 size={12} className="animate-spin" /> Sending
+      <span className="inline-flex items-center gap-1 text-[11.5px] text-muted" role="status">
+        <Loader2 size={12} className="animate-spin" aria-hidden /> Sending
+      </span>
+    );
+  if (sync.kind === 'refused')
+    return (
+      <span className="inline-flex items-center gap-1 text-[11.5px] text-warning-ink" role="status" title="The pipeline refused some changes: see the banner above the sheet">
+        <CloudOff size={12} aria-hidden /> {sync.count} refused
       </span>
     );
   return (
-    <button type="button" tabIndex={-1} onClick={onRetry} title={sync.message} className="inline-flex items-center gap-1 text-[11.5px] text-critical-ink hover:underline">
-      <CloudOff size={12} /> Not sent · retry <RefreshCw size={11} />
+    <button type="button" onClick={onRetry} title={sync.message} aria-label={`Not sent to the pipeline: ${sync.message}. Retry`} className="inline-flex items-center gap-1 text-[11.5px] text-critical-ink hover:underline">
+      <CloudOff size={12} aria-hidden /> Not sent · retry <RefreshCw size={11} aria-hidden />
     </button>
   );
 }
@@ -96,20 +105,38 @@ export default function ReviewWorkspace({ callId }: { callId: string | null }) {
   return <Workspace handle={handle} session={handle.session} />;
 }
 
-/** After an API submission: does the pipeline's reviewed file (GET /calls/{id}/fna) agree with the one saved here? */
-const compareWithPipeline = async (fetchFna: () => Promise<ReviewedFna>, mine: FnaDocument): Promise<SubmitNotice> => {
+/**
+ * After an API submission: does the pipeline's reviewed file (GET /calls/{id}/fna) agree with the
+ * one saved here? The narrative fields are left out: the pipeline writes the meeting note into them
+ * (§11.6), which the adviser applies from the note, so they are expected to differ.
+ */
+export const compareWithPipeline = async (fetchFna: () => Promise<ReviewedFna>, mine: FnaDocument): Promise<SubmitNotice> => {
   try {
     const theirs = normaliseDocument((await fetchFna()).file.document);
-    const d = diffDocuments(theirs, normaliseDocument(structuredClone(mine)));
+    const ours = normaliseDocument(structuredClone(mine));
+    const d = diffDocuments(theirs, ours);
     const places = [...d.fields, ...d.addedRows, ...d.removedRows];
-    if (!places.length) return { tone: 'good', text: 'The pipeline’s reviewed file matches the one saved here.' };
+    const note = [...NARRATIVE_PATHS].filter((p) => {
+      const [head, field] = p.split('.') as ['engagement' | 'advice', string];
+      const t = (theirs[head] as unknown as Record<string, unknown>)[field];
+      return typeof t === 'string' && t.trim() && t !== (ours[head] as unknown as Record<string, unknown>)[field];
+    });
+    const noteText = note.length ? ` The pipeline also wrote the meeting note into ${note.length} narrative field${note.length === 1 ? '' : 's'}: open “Meeting note” to read and apply it.` : '';
+    if (!places.length) return { tone: 'good', text: `The pipeline’s reviewed file matches the one saved here.${noteText}` };
     return {
       tone: 'warning',
-      text: `The pipeline’s reviewed file differs from the one saved here in ${places.length} place${places.length === 1 ? '' : 's'} (${places.slice(0, 3).join(', ')}${places.length > 3 ? ' …' : ''}): check them before advising.`,
+      text: `The pipeline’s reviewed file differs from the one saved here in ${places.length} place${places.length === 1 ? '' : 's'} (${places.slice(0, 3).join(', ')}${places.length > 3 ? ' …' : ''}): check them before advising.${noteText}`,
     };
   } catch {
     return { tone: 'info', text: 'The pipeline has the review; its reviewed file was not ready to compare yet.' };
   }
+};
+
+/** The meeting note's narrative fields written into the client's stored file (§11.6: the note, not the facts). */
+export const applyNoteFields = (doc: FnaDocument, fields: Record<string, string>): FnaDocument => {
+  const next = structuredClone(doc);
+  for (const [path, text] of Object.entries(fields)) if (NARRATIVE_PATHS.has(path)) setPath(next, path, text);
+  return next;
 };
 
 function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewSession }) {
@@ -126,6 +153,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
   const [last, setLast] = useState<{ label: string; before: Analysis } | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [termFact, setTermFact] = useState<string | null>(null);
+  const [dismissing, setDismissing] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<{ busy: boolean; error: string | null; notice?: SubmitNotice | null }>({ busy: false, error: null });
   const [docExists, setDocExists] = useState(false);
   const [localChanged, setLocalChanged] = useState(false);
@@ -142,6 +170,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
   const flags = openFlags(session);
   const p = progress(session, queue);
   const ready = apiReady(api);
+  const refused = refusedFacts(session);
   const lastChange = useMemo(() => (last ? { label: last.label, deltas: movedNeeds(compareNeeds(last.before, analysis)) } : null), [last, analysis]);
 
   useEffect(() => {
@@ -297,6 +326,12 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
       case 'clearFlag':
         clearFlag(step.flagId, 'accepted');
         return;
+      case 'dismissFlag':
+        setDismissing(step.flagId);
+        return;
+      case 'acceptGroup':
+        dispatch({ type: 'acceptMany', factIds: step.factIds });
+        return;
       case 'confirmTerm':
         setTermFact(step.factId);
         return;
@@ -426,6 +461,19 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
       }
     : undefined;
 
+  /** The meeting note from the pipeline (§11.6), once the review is submitted and the run has written it. */
+  const loadNote = useCallback((): Promise<MeetingNote> => {
+    if (!apiReady(api)) return Promise.reject(new Error('The review API is off.'));
+    return createReviewApi(api).getNote(session.callId);
+  }, [api, session.callId]);
+
+  const applyNote = async (fields: Record<string, string>) => {
+    const stored = (await getDocument(session.docId)) ?? { ...structuredClone(session.working), id: session.docId };
+    await saveDocument({ ...applyNoteFields(stored, fields), updatedAt: new Date().toISOString() });
+    const s = get() ?? session;
+    replace({ ...s, working: applyNoteFields(s.working, fields) });
+  };
+
   /* ---------------------------------------------------------------- */
   /* Layout                                                            */
   /* ---------------------------------------------------------------- */
@@ -452,13 +500,16 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
       />
       {!done && <HeaderButton icon={<Plus size={15} />} label="Add fact" onClick={() => setDialog('add')} title="Add a fact the call missed" />}
       {!done && <HeaderButton icon={<Download size={15} />} label="Save progress" onClick={() => downloadResult(false)} title="Download the review so far as a draft review result" />}
+      {done && ready && <HeaderButton icon={<NotebookText size={15} />} label="Meeting note" onClick={() => setDialog('note')} title="The meeting note the pipeline rendered from the reviewed facts" />}
       {done ? (
         <Button size="sm" variant="primary" icon={<CheckCircle2 size={14} />} onClick={() => setDialog('submit')}>
           Submitted
         </Button>
       ) : (
         <Button size="sm" variant="primary" icon={<Send size={14} />} disabled={!submittable} onClick={() => setDialog('submit')} title={submitTitle}>
-          Submit{flags.length ? <span className="tabular"> · {flags.length} open</span> : null}
+          <span className="whitespace-nowrap">
+            Submit{flags.length ? <span className="tabular"> · {flags.length} open</span> : null}
+          </span>
         </Button>
       )}
     </div>
@@ -519,6 +570,25 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
         </Callout>
       ))}
       {quality?.role_review_needed && <Callout tone="warning">The system was unsure who was speaking: check that the adviser’s and the client’s turns are labelled correctly in the transcript.</Callout>}
+      {refused.length > 0 && (
+        <Callout tone="warning" title={`The pipeline refused ${refused.length} of your change${refused.length === 1 ? '' : 's'}`}>
+          {refused.length === 1 ? 'It stays' : 'They stay'} in this review and its result file; the pipeline’s own reviewed file will differ there.{' '}
+          {refused.map((r, i) => (
+            <span key={r.op.seq}>
+              {i > 0 && '; '}
+              {r.fact ? (
+                <button type="button" className="font-medium text-brand underline underline-offset-2" onClick={() => openFact(r.fact!.factId)}>
+                  {factTitle(session, r.fact)}
+                </button>
+              ) : (
+                r.op.fact_id
+              )}
+              <span className="text-muted"> — {r.reason}</span>
+            </span>
+          ))}
+          .
+        </Callout>
+      )}
       {session.conflicts.length > 0 && !done && (
         <Callout tone="info" title="This client’s file changed on this device after it went to the call">
           The call also changed {session.conflicts.length === 1 ? 'one of those fields' : `${session.conflicts.length} of those fields`}:{' '}
@@ -580,6 +650,8 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
               onKeyDown={onQueueKey}
               onAcceptGroup={acceptGroup}
               onClearFlag={clearFlag}
+              dismissing={dismissing}
+              setDismissing={setDismissing}
               listRef={listRef}
             />
             <ImpactStrip session={session} analysis={analysis} last={lastChange} names={names} onOpenFact={openFact} />
@@ -622,10 +694,12 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
           notice={submitting.notice ?? null}
           household={household}
           localChanged={localChanged}
+          refused={refused.length}
           onDownloadResult={() => downloadResult(true)}
           onDownloadFile={() => void downloadFile()}
         />
       )}
+      {dialog === 'note' && <NoteDialog session={session} open onClose={() => setDialog(null)} load={loadNote} onApply={applyNote} />}
       {termFact && <TermDialog key={termFact} session={session} fact={session.facts[termFact] ?? null} onClose={() => setTermFact(null)} dispatch={dispatch} />}
       {error && dialog !== 'add' && (
         <div role="alert" className="no-print fixed bottom-4 left-4 z-50 flex max-w-md items-start gap-2 rounded-lg border border-critical/30 bg-critical-soft px-3 py-2 text-[13px] text-ink-2 shadow-lg">

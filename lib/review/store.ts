@@ -8,7 +8,7 @@ import type { AnnotationSession } from './annotate';
 import { householdName } from './labels';
 import { REVIEW_PREFIX, SUMMARY_PREFIX, annotationKey, type SessionSummary } from './listing';
 import { buildQueue, progress } from './queue';
-import { openFlags, type ReviewSession } from './session';
+import { normaliseSession, openFlags, type ReviewSession } from './session';
 
 export const summariseSession = (s: ReviewSession): SessionSummary => {
   const p = progress(s, buildQueue(s));
@@ -30,7 +30,10 @@ export const saveSession = async (s: ReviewSession) => {
   await putSetting(`${SUMMARY_PREFIX}${s.callId}`, summariseSession(s));
 };
 
-export const loadSession = (callId: string) => getSetting<ReviewSession>(`${REVIEW_PREFIX}${callId}`);
+export const loadSession = async (callId: string): Promise<ReviewSession | undefined> => {
+  const s = await getSetting<ReviewSession>(`${REVIEW_PREFIX}${callId}`);
+  return s ? normaliseSession(s) : undefined;
+};
 
 export const saveAnnotation = (a: AnnotationSession) => putSetting(annotationKey(a.annotation.call_id, a.annotation.annotator_id), a);
 export const loadAnnotation = (key: string) => getSetting<AnnotationSession>(key);

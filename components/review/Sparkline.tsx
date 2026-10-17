@@ -6,7 +6,7 @@
  * bars per label for categories. The median is marked in ink; the value before the call, when
  * there was one, is a dashed line, so the adviser sees where the old figure sits.
  */
-import { categoricalProbs, formatIn, isBoolean, isCategorical, median, pTrue, pyPercent, quantile, shape } from '@/lib/review/dist';
+import { categoricalProbs, isBoolean, isCategorical, median, pTrue, pyPercent, quantile, readable, shape } from '@/lib/review/dist';
 import type { Quantity } from '@/lib/review/types';
 
 const W = 232;
@@ -60,7 +60,8 @@ export default function Sparkline({ value, prior, label }: { value: Quantity; pr
   const p10 = quantile(d, 0.1);
   const p50 = median(d);
   const p90 = quantile(d, 0.9);
-  const fmt = (v: number) => formatIn(value, v);
+  // Ages, years and counts read whole ("62", not "62.2614"): the figure is a quantile, not a statement.
+  const fmt = (v: number) => readable(value, v);
   const showPrior = prior !== null && prior !== undefined && Number.isFinite(prior) && prior >= s.lo && prior <= s.hi;
 
   return (

@@ -14,7 +14,12 @@ import type { SaveState } from '@/lib/store/hooks';
 const IDLE_SECONDS = 120;
 const TICK_SECONDS = 5;
 
-export type SyncState = { kind: 'off' } | { kind: 'idle' } | { kind: 'sending' } | { kind: 'error'; message: string };
+/**
+ * Where the review stands with the pipeline's API: off (file exchange), idle, sending, unable to
+ * reach it (the adviser retries), or it refused some of the changes (they stay in the review and
+ * its result file; the adviser is told which).
+ */
+export type SyncState = { kind: 'off' } | { kind: 'idle' } | { kind: 'sending' } | { kind: 'error'; message: string } | { kind: 'refused'; count: number };
 
 /**
  * A review held in memory, saved on this device after every change, and — when the practice has
@@ -29,7 +34,7 @@ export function useReviewSession(callId: string | null) {
   const latest = useRef<ReviewSession | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInput = useRef(Date.now());
-  const sending = useRef(false);
+  const inflight = useRef<Promise<boolean> | null>(null);
 
   const stamp = useCallback((): Stamp => ({ reviewerId: latest.current?.reviewerId ?? '', at: new Date().toISOString() }), []);
 
@@ -47,13 +52,20 @@ export function useReviewSession(callId: string | null) {
     }
   }, []);
 
+  /**
+   * Keep the new state and save it. A decision is written at once: a save deferred past a tab
+   * closing is lost, and beforeunload cannot wait for IndexedDB. Only typing in the sheet (a
+   * pending edit, not yet an op) is debounced, so the file is not written on every keystroke.
+   */
   const set = useCallback(
     (next: ReviewSession) => {
       latest.current = next;
       setSession(next);
       setSaveState('pending');
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => void flush(), 500);
+      timer.current = null;
+      if (next.pending.length) timer.current = setTimeout(() => void flush(), 500);
+      else void flush();
     },
     [flush],
   );
@@ -65,28 +77,34 @@ export function useReviewSession(callId: string | null) {
       setSession(null);
       return;
     }
-    Promise.all([loadSession(callId), loadApiSettings()]).then(([s, settings]) => {
-      if (!alive) return;
-      setApi(settings);
-      setSync(apiReady(settings) ? { kind: 'idle' } : { kind: 'off' });
-      // An edit typed just before the page closed becomes its op now.
-      const ready = s && s.pending.length && !s.submittedAt ? commitPending(s, { reviewerId: s.reviewerId, at: new Date().toISOString() }) : (s ?? null);
-      latest.current = ready;
-      setSession(ready);
-    });
+    Promise.all([loadSession(callId), loadApiSettings()])
+      .then(([s, settings]) => {
+        if (!alive) return;
+        setApi(settings);
+        setSync(apiReady(settings) ? (s?.refused.length ? { kind: 'refused', count: s.refused.length } : { kind: 'idle' }) : { kind: 'off' });
+        // An edit typed just before the page closed becomes its op now.
+        const ready = s && s.pending.length && !s.submittedAt ? commitPending(s, { reviewerId: s.reviewerId, at: new Date().toISOString() }) : (s ?? null);
+        latest.current = ready;
+        setSession(ready);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setError(`This review could not be read from this device${e instanceof Error && e.message ? `: ${e.message}` : ''}.`);
+        setSession(null);
+      });
     return () => {
       alive = false;
     };
   }, [callId]);
 
-  // Save on tab close and when leaving the page.
+  // Save on tab close and when leaving the page (active time changes without a pending timer).
   useEffect(() => {
-    const handler = () => {
-      if (timer.current) void flush();
-    };
+    const handler = () => void flush();
     window.addEventListener('beforeunload', handler);
+    window.addEventListener('pagehide', handler);
     return () => {
       window.removeEventListener('beforeunload', handler);
+      window.removeEventListener('pagehide', handler);
       handler();
     };
   }, [flush]);
@@ -154,29 +172,37 @@ export function useReviewSession(callId: string | null) {
     };
   }, []);
 
-  /** Send ops the API has not accepted yet (API mode only): true once none are left unsent. */
-  const sendOps = useCallback(async (): Promise<boolean> => {
+  /**
+   * Send ops the API has not seen yet (API mode only): true once every op has been seen, whether
+   * applied or refused. A send already under way is awaited, never started twice. The pipeline
+   * applies a batch sent again after a lost reply only once, so a retry is always safe.
+   */
+  const sendOps = useCallback((): Promise<boolean> => {
+    if (inflight.current) return inflight.current;
     const s = latest.current;
-    if (!s || !apiReady(api)) return false;
-    if (sending.current) return false;
+    if (!s || !apiReady(api)) return Promise.resolve(false);
     const ops = unsentOps(s);
-    if (!ops.length) return true;
-    sending.current = true;
-    setSync({ kind: 'sending' });
-    try {
-      const reply = await createReviewApi(api).postOps(s.callId, ops);
-      const refused = reply?.rejected ?? [];
-      if (refused.length) throw new Error(`the pipeline refused ${refused.length} change${refused.length === 1 ? '' : 's'}: ${refused[0].reason}`);
-      const now = latest.current;
-      if (now) set(markSent(now, ops[ops.length - 1].seq));
-      setSync({ kind: 'idle' });
-      return true;
-    } catch (e) {
-      setSync({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
-      return false;
-    } finally {
-      sending.current = false;
-    }
+    if (!ops.length) return Promise.resolve(true);
+    const settings = api;
+    const run = (async () => {
+      setSync({ kind: 'sending' });
+      try {
+        const reply = await createReviewApi(settings).postOps(s.callId, ops);
+        const refused = (reply?.rejected ?? []).filter((r) => ops.some((o) => o.seq === r.seq));
+        const now = latest.current ?? s;
+        const next = markSent(now, ops[ops.length - 1].seq, refused);
+        set(next);
+        setSync(next.refused.length ? { kind: 'refused', count: next.refused.length } : { kind: 'idle' });
+        return true;
+      } catch (e) {
+        setSync({ kind: 'error', message: e instanceof Error ? e.message : String(e) });
+        return false;
+      } finally {
+        inflight.current = null;
+      }
+    })();
+    inflight.current = run;
+    return run;
   }, [api, set]);
 
   useEffect(() => {

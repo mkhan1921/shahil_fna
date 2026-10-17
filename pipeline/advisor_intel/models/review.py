@@ -18,7 +18,9 @@ Reject                 ``RETRACT`` ``{"reason": "wrong_person" | "misheard" | "a
                        "not_what_they_meant" | "other", "note", "review": {…}}``
 Remove a prior row     ``RETRACT`` ``{"reason": "removed", "review": {…}}`` on the row's identity fact
 Re-attribute           ``RETRACT`` ``{"reason": "wrong_entity"}`` on the old fact, then ``ADD`` the same
-                       hypotheses and evidence under the right instance with ``source="reviewer"``
+                       hypotheses and evidence under the right instance with ``source="reviewer"`` (an ADD
+                       onto a fact the reviewer rejected replaces it; onto a live fact it merges, so the
+                       app refuses to move a fact onto a field that already has a live statement)
 Add fact               ``ADD`` with ``source="reviewer"``, optional evidence span (logged as a recall miss)
 Accept all in group    one ``CONFIRM`` per fact
 Clear flag             the accept / edit / mark-unknown op above, plus ``FlagClearance``

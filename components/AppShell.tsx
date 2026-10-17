@@ -29,7 +29,7 @@ export function Logo({ practiceName, logo }: { practiceName?: string; logo?: str
       )}
       <span className="min-w-0 leading-tight">
         <span className="block truncate text-[14px] font-semibold text-ink">{practiceName || 'Shahil FNA'}</span>
-        <span className="block text-[11px] text-muted">Financial needs analysis</span>
+        <span className="block truncate text-[11px] text-muted">Financial needs analysis</span>
       </span>
     </Link>
   );

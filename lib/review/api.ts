@@ -71,7 +71,7 @@ export class ReviewApiError extends Error {
   }
 }
 
-/** What POST /ops reports back: the ops it applied and any it refused. */
+/** What POST /ops reports back (OpsApplied): the ops it applied (by the pipeline's seq) and any it refused (by the app's seq). */
 export interface OpsReply {
   applied?: number[];
   rejected?: { seq: number; reason: string }[];
@@ -84,22 +84,52 @@ export interface ReviewedFna {
   sidecar: Sidecar | null;
 }
 
-const TIMEOUT_MS = 30_000;
+/** GET /calls/{id}/note: the meeting note rendered from the reviewed facts (§11.6), with its narrative fields. */
+export interface MeetingNote {
+  call_id: string;
+  run_id: string;
+  profile_version: number;
+  sentences: { section: string; text: string; fact_ids: string[] }[];
+  /** The note as one text, section by section. */
+  text: string;
+  /** FnaDocument path → text: engagement.reasonForAdvice, clientObjectives, clientConcerns, advice.summary. */
+  narrative_fields: Record<string, string>;
+  generated_at?: string;
+  [key: string]: unknown;
+}
 
-export const createReviewApi = (settings: ReviewApiSettings, fetchImpl: typeof fetch = (...a) => fetch(...a)) => {
+const TIMEOUT_MS = 30_000;
+/** One retry after a short pause when the API is unreachable or briefly unavailable (502, 503, 504). */
+const RETRY_AFTER_MS = 1_500;
+const RETRY_STATUSES = new Set([502, 503, 504]);
+
+/** The API's reason for a refusal: FastAPI's `detail`, a string or an object with a message. */
+const detailOf = (json: unknown, text: string): string => {
+  if (json && typeof json === 'object' && 'detail' in json) {
+    const d = (json as { detail: unknown }).detail;
+    if (typeof d === 'string') return d;
+    if (d && typeof d === 'object' && 'message' in d) return String((d as { message: unknown }).message);
+    return JSON.stringify(d).slice(0, 200);
+  }
+  return text.slice(0, 200);
+};
+
+export const createReviewApi = (settings: ReviewApiSettings, fetchImpl: typeof fetch = (...a) => fetch(...a), wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) => {
   const base = settings.baseUrl.replace(/\/+$/, '');
   const url = (...parts: string[]) => `${base}/${parts.map(encodeURIComponent).join('/')}`;
 
-  const call = async <T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> => {
-    const problems = settingsProblems(settings);
-    if (problems.length) throw new ReviewApiError(problems[0], null);
+  const once = async (method: 'GET' | 'POST', path: string, body?: unknown): Promise<Response> => {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
-    let res: Response;
     try {
-      res = await fetchImpl(path, {
+      return await fetchImpl(path, {
         method,
-        headers: { Authorization: `Bearer ${settings.token}`, Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+        headers: {
+          Authorization: `Bearer ${settings.token}`,
+          Accept: 'application/json',
+          'X-Reviewer-Id': settings.reviewerId,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
         credentials: 'omit',
         cache: 'no-store',
@@ -111,6 +141,27 @@ export const createReviewApi = (settings: ReviewApiSettings, fetchImpl: typeof f
     } finally {
       clearTimeout(timer);
     }
+  };
+
+  /**
+   * One request, tried twice when the API cannot be reached or is briefly unavailable. Every call
+   * here is safe to repeat: reads are, and the pipeline applies an op or a submission sent twice once.
+   */
+  const call = async <T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> => {
+    const problems = settingsProblems(settings);
+    if (problems.length) throw new ReviewApiError(problems[0], null);
+    let res: Response;
+    try {
+      res = await once(method, path, body);
+      if (RETRY_STATUSES.has(res.status)) {
+        await wait(RETRY_AFTER_MS);
+        res = await once(method, path, body);
+      }
+    } catch (e) {
+      if (!(e instanceof ReviewApiError) || e.message.includes('in time')) throw e;
+      await wait(RETRY_AFTER_MS);
+      res = await once(method, path, body);
+    }
     const text = await res.text();
     let json: unknown = null;
     try {
@@ -119,16 +170,19 @@ export const createReviewApi = (settings: ReviewApiSettings, fetchImpl: typeof f
       json = null;
     }
     if (!res.ok) {
-      const detail = json && typeof json === 'object' && 'detail' in json ? String((json as { detail: unknown }).detail) : text.slice(0, 200);
-      throw new ReviewApiError(`The review API refused the request (${res.status})${detail ? `: ${detail}` : ''}.`, res.status);
+      const detail = detailOf(json, text);
+      const what = res.status === 401 ? 'The review API did not accept the practice’s token' : res.status === 404 ? 'The review API does not know this call' : 'The review API refused the request';
+      throw new ReviewApiError(`${what} (${res.status})${detail ? `: ${detail}` : ''}.`, res.status);
     }
     return json as T;
   };
 
   return {
     getReview: (callId: string) => call<ReviewBundle>('GET', url('calls', callId, 'review')),
-    postOps: (callId: string, ops: StateOp[]) => call<OpsReply | null>('POST', url('calls', callId, 'ops'), ops),
+    /** Reviewer ops, named with the reviewer so a batch sent again after a lost reply is applied once. */
+    postOps: (callId: string, ops: StateOp[]) => call<OpsReply | null>('POST', url('calls', callId, 'ops'), { reviewer_id: settings.reviewerId, ops }),
     submit: (callId: string, result: ReviewResult) => call<unknown>('POST', url('calls', callId, 'submit'), result),
+    getNote: (callId: string) => call<MeetingNote>('GET', url('calls', callId, 'note')),
     getFna: async (callId: string): Promise<ReviewedFna> => {
       const reply = await call<Record<string, unknown>>('GET', url('calls', callId, 'fna'));
       if (reply?.format === 'shahil-fna') return { file: reply as ReviewedFna['file'], sidecar: null };
@@ -136,7 +190,7 @@ export const createReviewApi = (settings: ReviewApiSettings, fetchImpl: typeof f
       throw new ReviewApiError('The review API sent something other than a client file.', null);
     },
     answerFollowup: (callId: string, followupId: string, answer: { text: string; source: 'followup' | 'advisor_note' | 'client_email' }) =>
-      call<unknown>('POST', url('calls', callId, 'followups', followupId, 'answer'), answer),
+      call<unknown>('POST', url('calls', callId, 'followups', followupId, 'answer'), { ...answer, recorded_by: settings.reviewerId }),
     sendClientFna: (clientId: string, doc: FnaDocument) =>
       call<unknown>('POST', url('clients', clientId, 'fna'), { format: 'shahil-fna', version: 1, encrypted: false, exportedAt: new Date().toISOString(), document: doc }),
   };

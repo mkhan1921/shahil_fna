@@ -25,6 +25,7 @@ its ``change`` against the prior value, so the next op (and a replay) sees the s
 from __future__ import annotations
 
 from datetime import datetime
+from itertools import pairwise
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
@@ -200,9 +201,14 @@ def _same_value(a: Quantity, b: Quantity) -> bool:
             return (stats.p_true(a.dist) >= 0.5) == (stats.p_true(b.dist) >= 0.5)
         except TypeError:
             return False
-    if isinstance(a.dist, Point) and isinstance(b.dist, Point) and isinstance(a.dist.value, str) and isinstance(b.dist.value, str):
-        if not (stats._looks_like_date(a.dist.value) and stats._looks_like_date(b.dist.value)):  # noqa: SLF001
-            return a.dist.value.strip().lower() == b.dist.value.strip().lower()
+    if (
+        isinstance(a.dist, Point)
+        and isinstance(b.dist, Point)
+        and isinstance(a.dist.value, str)
+        and isinstance(b.dist.value, str)
+        and not (stats._looks_like_date(a.dist.value) and stats._looks_like_date(b.dist.value))
+    ):
+        return a.dist.value.strip().lower() == b.dist.value.strip().lower()
     try:
         ma, mb = stats.median(a.dist), stats.median(b.dist)
     except TypeError:
@@ -300,6 +306,14 @@ def _apply_one(facts: dict[str, Fact], op: StateOp) -> str | None:
             return None
         if payload.source in SEED_SOURCES and f.source not in SEED_SOURCES:
             return None  # a seed never overrides what the call said
+        if op.actor == "reviewer" and f.review.status == "rejected":
+            # The reviewer states a value for a slot they rejected (a re-attribution back onto it, §11.2):
+            # their fact replaces the rejected one, which keeps the prior FNA's value as its prior.
+            new = _new_fact(op.fact_id, payload).model_copy(
+                update={"prior_value": f.prior_value, "entity_refs": sorted(set(f.entity_refs) | set(payload.entity_refs))}
+            )
+            facts[op.fact_id] = new
+            return None
         updates: dict[str, Any] = {
             "hypotheses": _merge_hypotheses(f.hypotheses, payload.hypotheses),
             "evidence": _append_evidence(f, payload.evidence),
@@ -334,12 +348,22 @@ def _apply_one(facts: dict[str, Fact], op: StateOp) -> str | None:
                 speaker_attribution=payload.speaker_attribution,
                 provenance=payload.provenance,
             )
+        review = payload.review or f.review
+        if op.actor == "reviewer":
+            # The reviewer marks a fact unknown: keep what was there, for the label of §9.3 ("status changed →
+            # 0 for the original") and so the app and the pipeline hold the same review state.
+            keep: dict[str, Any] = {}
+            if f.review.original_value is not None or f.value is not None:
+                keep["original_value"] = f.review.original_value if f.review.original_value is not None else f.value
+            if f.review.original_status is not None or f.status != "explicitly_unknown":
+                keep["original_status"] = f.review.original_status if f.review.original_status is not None else f.status
+            review = review.model_copy(update=keep)
         facts[op.fact_id] = f.model_copy(
             update={
                 "status": "explicitly_unknown",
                 "hypotheses": [],
                 "evidence": _append_evidence(f, payload.evidence),
-                "review": payload.review or f.review,
+                "review": review,
             }
         )
         return None
@@ -399,7 +423,8 @@ def _apply_one(facts: dict[str, Fact], op: StateOp) -> str | None:
             return None
         if op.actor == "reviewer":
             review = payload.review or ReviewState(status="rejected")
-            review = review.model_copy(update={"status": "rejected", "reason": payload.reason, "note": payload.note or review.note})
+            keep = {k: getattr(f.review, k) for k in ("original_value", "original_status") if getattr(f.review, k) is not None}
+            review = review.model_copy(update={"status": "rejected", "reason": payload.reason, "note": payload.note or review.note, **keep})
             updates = {"review": review}
             if payload.reason == "removed":
                 updates["change"] = "removed"
@@ -515,7 +540,7 @@ def check_profile(profile: Profile, replay: bool = True) -> list[str]:
         if f.status != "not_discussed" and f.status != "explicitly_unknown" and not f.hypotheses and f.review.status != "rejected":
             problems.append(f"{fid}: {f.status} with no hypotheses")
     seqs = [op.seq for op in profile.ops_log]
-    if any(b <= a for a, b in zip(seqs, seqs[1:])):
+    if any(b <= a for a, b in pairwise(seqs)):
         problems.append("ops_log seq is not strictly increasing")
     if replay:
         replayed = replay_facts(profile)

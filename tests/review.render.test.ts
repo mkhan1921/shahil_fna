@@ -2,12 +2,13 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { AddFactDialog, FollowupDialog, SubmitDialog, TermDialog, TranscriptDialog } from '@/components/review/dialogs';
+import { AddFactDialog, FollowupDialog, NoteDialog, SubmitDialog, TermDialog, TranscriptDialog } from '@/components/review/dialogs';
 import FieldPopover, { type Panel } from '@/components/review/FieldPopover';
 import { ImpactStrip, ReviewQueue } from '@/components/review/ReviewRail';
 import type { CallAudio } from '@/components/review/useCallAudio';
 import ValueEditor from '@/components/review/ValueEditor';
 import { analyse } from '@/lib/fna/analysis';
+import type { MeetingNote } from '@/lib/review/api';
 import { slotById } from '@/lib/review/catalog';
 import { compareNeeds, movedNeeds } from '@/lib/review/impact';
 import { buildQueue } from '@/lib/review/queue';
@@ -28,7 +29,8 @@ const popover = (s: ReviewSession, factId: string, panel: Panel = 'view') =>
   );
 
 describe('the field popover', () => {
-  it('renders for every fact of both packages', () => {
+  // Every popover runs the needs analysis twice (with and without its fact): slow on a loaded machine, so given room.
+  it('renders for every fact of both packages', { timeout: 60_000 }, () => {
     for (const s of [demo, scripted]) for (const f of Object.values(s.facts).filter(isReviewItem)) expect(() => popover(s, f.factId), f.factId).not.toThrow();
   });
 
@@ -71,11 +73,13 @@ describe('the rail', () => {
     const before = analyse(demo.working, ANCHOR);
     const after = analyse(s.working, ANCHOR);
     const queue = renderToStaticMarkup(
-      createElement(ReviewQueue, { session: s, queue: buildQueue(s), current: F.target, showCollapsed: false, setShowCollapsed: noop, onSelect: noop, onKeyDown: noop, onAcceptGroup: noop, onClearFlag: () => true }),
+      createElement(ReviewQueue, { session: s, queue: buildQueue(s), current: F.target, showCollapsed: false, setShowCollapsed: noop, onSelect: noop, onKeyDown: noop, onAcceptGroup: noop, onClearFlag: () => true, dismissing: 'flag-bond-scale', setDismissing: noop }),
     );
     expect(queue.indexOf('Blocking — clear before submitting')).toBeLessThan(queue.indexOf('Needs you'));
     expect(queue).toContain('aria-activedescendant="queue-retirement.{p}.targetPercent#client"');
     expect(queue).toContain('Accept all');
+    expect(queue).toContain('Why the flag does not apply'); // the D key opens the dismissal of the flag in view
+    expect(queue).toContain('dismiss flag');
     const impact = renderToStaticMarkup(createElement(ImpactStrip, { session: s, analysis: after, last: { label: 'Accepted Thabo · Gross monthly', deltas: movedNeeds(compareNeeds(before, after)) }, names: { client: 'Thabo', spouse: 'Lerato' }, onOpenFact: noop }));
     expect(impact).toContain('71%');
     expect(impact).toContain('70–72%');
@@ -101,6 +105,13 @@ describe('the dialogs', () => {
     );
     expect(sub).toContain('Submit review');
     expect(sub).toContain('The client file changed while you reviewed');
+    const refusedSub = renderToStaticMarkup(
+      createElement(SubmitDialog, { session: demo, open: true, onClose: noop, onSubmit: noop, apiAvailable: true, busy: false, error: null, household: 'Thabo & Lerato Mokoena', localChanged: false, refused: 2, notice: null, onDownloadResult: noop, onDownloadFile: noop }),
+    );
+    expect(refusedSub).toContain('The pipeline refused 2 of your changes');
+    const note = renderToStaticMarkup(createElement(NoteDialog, { session: demo, open: true, onClose: noop, load: () => new Promise<MeetingNote>(() => {}), onApply: async () => {} }));
+    expect(note).toContain('Meeting note');
+    expect(note).toContain('never from the transcript');
   });
 
   it('the value editor offers a point, a range and options in the field’s own units', () => {

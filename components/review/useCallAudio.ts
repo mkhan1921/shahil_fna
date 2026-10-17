@@ -37,7 +37,10 @@ export function useCallAudio(url: string | null) {
     audio.current = a;
     setError(null);
     return () => {
+      // The pause event arrives after the listeners are gone: clear the playing quote here.
       a.pause();
+      stopAt.current = null;
+      setPlaying(null);
       a.removeEventListener('timeupdate', onTime);
       a.removeEventListener('pause', onPause);
       a.removeEventListener('ended', onPause);
