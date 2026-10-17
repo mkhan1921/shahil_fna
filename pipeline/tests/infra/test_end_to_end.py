@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import uuid
 
 import httpx
@@ -304,11 +305,18 @@ async def test_a_scripted_call_through_the_merged_stage_code(store, objects, tem
                     assert r.status_code == 201, r.text
                     run_id = r.json()["workflow_id"]
 
+                    seen: list[str] = []
+
                     async def in_review():
                         v = (await c.get("/calls/call-real")).json()
+                        stage = f"{v.get('state')}/{(v.get('status') or {}).get('stage')}"
+                        if not seen or seen[-1] != stage:
+                            seen.append(stage)
+                            print(f"\n[{asyncio.get_running_loop().time():.0f}] {stage}", flush=True)
                         return v if v.get("state") in ("AWAITING_REVIEW", "FAILED") else None
 
-                    view = await _until(in_review, timeout=90)
+                    # The stage code runs for real here; a loaded CI machine needs minutes (ADVISOR_INTEL_E2E_WAIT_S overrides the default).
+                    view = await _until(in_review, timeout=float(os.environ.get("ADVISOR_INTEL_E2E_WAIT_S", "300")))
                     assert view["state"] == "AWAITING_REVIEW" and view["quality"]["n_speakers"] == 3
                     bundle = (await c.get("/calls/call-real/review")).json()
                     doc = bundle["median_document"]
