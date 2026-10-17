@@ -75,10 +75,10 @@ class CallArgs(BaseModel):
     review_reminder_seconds: int = 3 * 24 * 3600
     budget_usd: float | None = None
 
-    def preview(self) -> "CallArgs":
+    def preview(self) -> CallArgs:
         return self.model_copy(update={"forecast_mode": "preview"})
 
-    def final(self) -> "CallArgs":
+    def final(self) -> CallArgs:
         return self.model_copy(update={"forecast_mode": "final"})
 
 
