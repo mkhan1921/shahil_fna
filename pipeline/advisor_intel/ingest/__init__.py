@@ -44,7 +44,7 @@ from .second_pass import (
 )
 from .segmentation import LabeledWord, segment_words
 from .spans import annotate_transcript, canonical_text
-from .types import AsrError, AsrResult, AsrWord, BiasPhrase, CallMeta, CrmNames, SpeakerTurn, Vocabulary
+from .types import AsrError, AsrResult, AsrWord, BiasPhrase, CallMeta, CrmNames, ProductHint, SpeakerTurn, Vocabulary
 from .vad import SpeechMap, VadConfig, detect_speech
 
 __all__ = [
@@ -69,6 +69,7 @@ __all__ = [
     "NoiseConfig",
     "ParakeetASR",
     "PreparedAudio",
+    "ProductHint",
     "PyannoteAIDiarizer",
     "ScriptRender",
     "ScriptTurn",

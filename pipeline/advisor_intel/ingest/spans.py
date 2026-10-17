@@ -13,7 +13,10 @@ mass), never alone: a span whose spoken form no grammar path accepts is ``accept
 Product spans are found first, so "regulation twenty eight" and "ten x" are products, not amounts. Numbers
 that are years ("in twenty nineteen"), counts and durations ("two kids", "eight years") or clock times
 ("at two thirty") are left alone: they are not amounts. A number is an age when the grammar says so
-("late fifties", "grade nine", "forty years old") or the words before it do ("retire at sixty", "she's 14").
+("late fifties", "grade nine", "forty years old") or the words before it do ("retire at sixty", "she's 14",
+"I turn fifty", "ek is vyf en vyftig"). A window never runs past a sentence end the provider punctuated, and past
+a comma only when a scale word continues the number, so "sixty five, fifty two" stays two numbers while
+"one million, two hundred and fifty thousand" stays one.
 """
 
 from __future__ import annotations
@@ -25,7 +28,7 @@ from dataclasses import dataclass
 
 from ..models.transcript import NumericSpan, Reading, Segment, SpanKind, Transcript, Word
 from .grammars import ProductName, merge_readings
-from .grammars.age import STRONG_AGE_MARKERS, age_marker_vocabulary
+from .grammars.age import GRADE_WORDS, STRONG_AGE_MARKERS, age_marker_vocabulary
 from .grammars.amount import GLUE_WORDS, period_vocabulary, scale_vocabulary
 from .grammars.catalog import edge_tokens, product_vocabulary
 from .grammars.lattice import Arc, GrammarResult, accepts, lattice_readings, parse
@@ -148,7 +151,7 @@ NEVER_END = frozenset(
         "once",
     }
 )
-AGE_PREV_1 = frozenset({"aged", "age", "turning", "turns", "turned", "ouderdom"})
+AGE_PREV_1 = frozenset({"aged", "age", "turning", "turns", "turned", "turn", "ouderdom"})
 AGE_PREV_2 = frozenset(
     {
         ("retire", "at"),
@@ -163,6 +166,13 @@ AGE_PREV_2 = frozenset(
         ("work", "until"),
         ("work", "till"),
         ("aftree", "op"),
+        ("i", "am"),
+        ("ek", "is"),  # Afrikaans: "ek is vyf en vyftig"
+        ("ek", "word"),  # "ek word sestig" (I turn sixty)
+        ("hy", "is"),
+        ("sy", "is"),
+        ("hy", "word"),
+        ("sy", "word"),
     }
 )
 AGE_PRONOUNS = frozenset({"i'm", "he's", "she's", "they're", "we're", "you're", "hy's", "sy's"})
@@ -342,7 +352,34 @@ class Found:
     accepted: bool = True
 
 
+def _grade_r(toks: Sequence[Tok], k: int) -> bool:
+    """'grade R' (the reception year): the 'r' is the number of this age phrase, not a currency prefix."""
+    return toks[k].norm == "r" and k > 0 and toks[k - 1].norm in GRADE_WORDS
+
+
+def _strong_at(toks: Sequence[Tok], k: int) -> bool:
+    return _strong(toks[k]) or _grade_r(toks, k)
+
+
+_HARD_END = (".", "?", "!", ";", ":")
+CONTINUATION = STRONG_SCALES | {"hundred", "honderd"}  # after a pause, these words carry a number on ("…, two hundred thousand")
+
+
+def _hard_barrier(t: Tok) -> bool:
+    """A word the provider punctuated as a sentence end: a numeric span may end on it, never run past it."""
+    raw = t.arcs[0][0].rstrip()
+    return raw.endswith(_HARD_END) and not raw.endswith("...")
+
+
+def _soft_barrier(t: Tok) -> bool:
+    """A comma or a trailing-off: a pause. A span runs past it only when what follows continues the number with a
+    scale word ("one million, two hundred thousand"), not when a new number starts ("sixty five, fifty two")."""
+    raw = t.arcs[0][0].rstrip()
+    return raw.endswith((",", "..."))
+
+
 def _runs(toks: Sequence[Tok], member, strong, taken: set[int]) -> list[tuple[int, int]]:
+    """Maximal stretches of member tokens outside ``taken`` that hold at least one strong token (``strong`` takes an index)."""
     runs, i = [], 0
     while i < len(toks):
         if i in taken or not member(toks[i]):
@@ -351,7 +388,7 @@ def _runs(toks: Sequence[Tok], member, strong, taken: set[int]) -> list[tuple[in
         j = i
         while j < len(toks) and j not in taken and member(toks[j]):
             j += 1
-        if any(strong(toks[k]) for k in range(i, j)):
+        if any(strong(k) for k in range(i, j)):
             runs.append((i, j))
         i = j
     return runs
@@ -361,7 +398,7 @@ def find_products(toks: Sequence[Tok], extra: tuple[ProductName, ...] = ()) -> l
     vocab = product_vocabulary(extra)
     starts, ends = edge_tokens(extra)
     found = []
-    for a, b in _runs(toks, lambda t: any(v in vocab for v in t.variants), lambda t: True, set()):
+    for a, b in _runs(toks, lambda t: any(v in vocab for v in t.variants), lambda k: True, set()):
         i = a
         while i < b:
             hit = None
@@ -406,6 +443,8 @@ def _is_age_context(toks: Sequence[Tok], i: int, j: int) -> bool:
     if prev and prev[-1] in AGE_PRONOUNS:
         return True
     if len(prev) >= 2 and prev[-2] in AGE_PRONOUNS and prev[-1] in AGE_ADVERBS:  # "I'm only thirty seven"
+        return True
+    if len(prev) >= 3 and tuple(prev[-3:-1]) in AGE_PREV_2 and prev[-1] in AGE_ADVERBS:  # "I am almost fifty", "ek is nou sestig"
         return True
     if len(prev) >= 2 and prev[-1] in ("is", "turns", "was", "turned") and prev[-2] in PERSON_WORDS:
         return True
@@ -545,9 +584,17 @@ def _cover_run(toks: Sequence[Tok], a: int, b: int) -> list[tuple[int, int, bool
     rather than 100,055 and an orphaned "thousand". Returns (start, end, amount_ok, age_ok) per window.
     """
     n = b - a
-    strong = [_strong(toks[k]) for k in range(a, b)]
+    strong = [_strong_at(toks, k) for k in range(a, b)]
     has_number = [any(_numberish(v) and v not in WEAK_ANCHORS and v not in STRONG_SCALES for v in _supported(toks[k])) for k in range(a, b)]
+    hard = [_hard_barrier(toks[k]) for k in range(a, b)]
+    soft = [_soft_barrier(toks[k]) for k in range(a, b)]
+    continues = [any(v in CONTINUATION for v in toks[k].variants) for k in range(a, b)]
     cache: dict[tuple[int, int], tuple[bool, bool]] = {}
+
+    def crosses_a_pause(i: int, j: int) -> bool:
+        if any(hard[i : j - 1]):
+            return True
+        return any(soft[k] and not any(continues[k + 1 : j]) for k in range(i, j - 1))
 
     def window_has_age_marker(i: int, j: int) -> bool:
         return any(v in STRONG_AGE_MARKERS for t in toks[a + i : a + j] for v in t.variants)
@@ -569,7 +616,9 @@ def _cover_run(toks: Sequence[Tok], a: int, b: int) -> list[tuple[int, int, bool
         choice: tuple[float, tuple] = (best[i + 1][0], ("skip",))
         if _can_start(toks[a + i]) and not splits_compound(i):
             for j in range(min(n, i + MAX_WINDOW), i, -1):
-                if not _can_end(toks[a + j - 1]):
+                if crosses_a_pause(i, j):
+                    continue  # "sixty five, fifty two" is two numbers; "one million, two hundred thousand" is one
+                if not (_can_end(toks[a + j - 1]) or _grade_r(toks, a + j - 1)):
                     continue
                 amount_ok, age_ok = ok(i, j)
                 if not (amount_ok or age_ok):
@@ -595,7 +644,7 @@ def find_numbers(toks: Sequence[Tok], taken: set[int] | None = None) -> list[Fou
     """Amount and age spans (and unaccepted numeric stretches) outside ``taken`` positions."""
     taken = taken or set()
     found: list[Found] = []
-    for a, b in _runs(toks, _numeric_member, _strong, taken):
+    for a, b in _runs(toks, _numeric_member, lambda k: _strong_at(toks, k), taken):
         covered: set[int] = set()
         for i, j, amount_ok, age_ok in _cover_run(toks, a, b):
             window_words = {v for t in toks[i:j] for v in t.variants}
@@ -611,11 +660,11 @@ def find_numbers(toks: Sequence[Tok], taken: set[int] | None = None) -> list[Fou
         # Strong number words no accepted window covers: an unaccepted span for the second pass.
         k = a
         while k < b:
-            if k in covered or not _strong(toks[k]):
+            if k in covered or not _strong_at(toks, k):
                 k += 1
                 continue
             m = k + 1
-            while m < b and m not in covered and (_strong(toks[m]) or (m + 1 < b and m + 1 not in covered and _strong(toks[m + 1]))):
+            while m < b and m not in covered and (_strong_at(toks, m) or (m + 1 < b and m + 1 not in covered and _strong_at(toks, m + 1))):
                 m += 1
             kind = "age" if any(v in STRONG_AGE_MARKERS for t in toks[k:m] for v in t.variants) else "amount"
             found.append(Found(k, m, kind, GrammarResult(kind=kind), accepted=False))

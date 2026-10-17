@@ -223,7 +223,7 @@ async def transcript_from_script_async(
     seed: int = 0,
     noise: NoiseConfig | None = None,
     want_alternatives: bool = True,
-    roles: Literal["heuristic", "script", "agent"] = "heuristic",
+    roles: Literal["heuristic", "script", "agent", "auto"] = "heuristic",
     role_agent_pins: VersionPins | None = None,
     second_pass: SecondPassProvider | Literal["scripted"] | None = None,
     prior_fna: FnaDocument | None = None,
@@ -234,7 +234,8 @@ async def transcript_from_script_async(
     """A ``Transcript`` from a scripted call (no audio): ScriptedASR words, gold speaker turns, then the real back half.
 
     Speakers are labelled ``spk_0``, ``spk_1``… in order of first speech, as a diarizer would. ``roles`` picks
-    the heuristic, the script's gold roles, or the role agent (on ``role_agent_pins``). ``second_pass="scripted"``
+    the heuristic, the script's gold roles, the role agent (on ``role_agent_pins``), or ``"auto"``: what
+    ``ingest_call`` does, the agent unless the frontier pin is a test model. ``second_pass="scripted"``
     re-checks risky spans against what the script really said.
     """
     asr = asr or ScriptedASR(script, seed=seed, noise=noise)
@@ -261,7 +262,7 @@ async def transcript_from_script_async(
         role_pins=role_agent_pins,
         crm=crm_names,
         roles=assignment,
-        use_role_agent=True if roles == "agent" else False if roles == "heuristic" else None,
+        use_role_agent={"agent": True, "heuristic": False}.get(roles),  # "auto" and "script": None (the pin decides)
         second_pass=sp,
         extra_products=product_names_for_call(prior_fna, crm_names),
     )

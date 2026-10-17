@@ -7,8 +7,8 @@ unless a turn overrides it.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
-from typing import Sequence
 
 from ..models.transcript import QualityReport, Segment, Transcript, Word
 

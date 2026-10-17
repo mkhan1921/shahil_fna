@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from advisor_intel.config import Settings
-from advisor_intel.ingest import AssemblyAIASR, AudioModelCheck, ChannelDiarizer, DeepgramASR, GrammarConstrainedRedecode, PyannoteAIDiarizer
+from advisor_intel.ingest import (
+    AssemblyAIASR,
+    AudioModelCheck,
+    ChannelDiarizer,
+    DeepgramASR,
+    GrammarConstrainedRedecode,
+    PyannoteAIDiarizer,
+)
 from advisor_intel.ingest.providers import ProviderConfigError, build_asr, build_diarizer, build_second_pass
 from advisor_intel.models.runs import VersionPins
 
@@ -36,3 +44,10 @@ def test_second_pass_prefers_the_parakeet_redecode(monkeypatch):
     monkeypatch.setenv("ADVISOR_INTEL_SECOND_PASS", "audio-model")
     with pytest.raises(ProviderConfigError):
         build_second_pass(VersionPins(), Settings(parakeet_base_url="http://p"))
+
+
+async def test_without_a_pyannote_key_a_mono_call_fails_with_the_reason_instead_of_one_speaker():
+    d = build_diarizer(VersionPins(), Settings())
+    assert isinstance(d, ChannelDiarizer)  # stereo calls with one speaker per channel still work: they never call it
+    with pytest.raises(ProviderConfigError, match="PYANNOTEAI_API_KEY"):
+        await d.diarize(np.zeros(16_000, np.float32), 16_000, min_speakers=2, max_speakers=4)

@@ -143,11 +143,48 @@ def test_years_counts_durations_and_times_are_not_amounts(text: str):
         ("he is in grade nine now", "age", 15.0),
         ("I earn about forty two", "amount", 42.0),
         ("the rate is eleven and a half percent", "amount", 11.5),
+        ("I turn fifty next year", "age", 50.0),
+        ("I am almost fifty", "age", 50.0),
+        ("ek is vyf en vyftig", "age", 55.0),
+        ("sy word sestig volgende jaar", "age", 60.0),
+        ("the little one is in grade R", "age", 6.0),
+        ("my mother is in her early 60s", "age", 61.5),
+        ("my salary is twenty two fifty a week", "amount", 2250.0),
+        ("about a million and a half in the provident fund", "amount", 1_500_000.0),
     ],
 )
 def test_kind_follows_the_words_around_the_number(text: str, kind: str, value: float):
     spans = [s for s in segment_spans(seg("s0001", "spk_0", 0.0, text.split())) if s.kind != "product"]
     assert spans and spans[0].kind == kind and spans[0].readings[0].value == value
+
+
+def test_a_window_never_runs_past_a_comma_or_full_stop():
+    # "sixty five, fifty two" are two ages, not 6552; without the comma the grammar would also read "twenty two fifty".
+    spans = segment_spans(seg("s0001", "spk_0", 0.0, ["I'm", "sixty", "five,", "my", "wife", "is", "fifty", "two."]))
+    assert [(s.kind, s.readings[0].value) for s in spans] == [("age", 65.0), ("age", 52.0)]
+    spans = segment_spans(seg("s0002", "spk_1", 0.0, ["the", "first", "is", "twenty", "two,", "fifty", "on", "the", "other", "one"]))
+    assert [s.readings[0].value for s in spans] == [22.0, 50.0]
+    spans = segment_spans(seg("s0003", "spk_1", 0.0, ["forty", "two,", "fifty", "two,", "both", "policies"]))
+    assert [s.readings[0].value for s in spans] == [42.0, 52.0]
+    # A pause inside a long number is not a new number when a scale word carries it on.
+    spans = segment_spans(seg("s0004", "spk_1", 0.0, ["one", "million,", "two", "hundred", "and", "fifty", "thousand", "rand"]))
+    assert [s.readings[0].value for s in spans] == [1_250_000.0]
+    spans = segment_spans(seg("s0005", "spk_1", 0.0, ["about", "two", "hundred...", "fifty", "thousand"]))
+    assert [s.readings[0].value for s in spans] == [250_000.0]
+    # A full stop ends the number: the stranded scale word becomes an unaccepted stretch for the second pass.
+    spans = segment_spans(seg("s0006", "spk_1", 0.0, ["two", "fifty.", "Thousand", "rand", "a", "month"]))
+    assert [(s.surface, s.accepted) for s in spans] == [("two fifty.", True), ("Thousand", False)]
+    assert {r.value for r in spans[0].readings} == {250.0, 250_000.0, 2_500_000.0} and "low_asr" in spans[1].flags
+
+
+def test_zero_and_cents_are_literal_and_not_sent_to_the_second_pass():
+    assert segment_spans(seg("s0001", "spk_0", 0.0, ["zero", "debt,", "nothing", "on", "the", "card"])) == []  # a count-sized literal: not an amount
+    spans = segment_spans(seg("s0002", "spk_0", 0.0, ["I", "owe", "zero", "rand", "on", "it"]))
+    assert len(spans) == 1 and spans[0].accepted and spans[0].readings[0].value == 0.0 and "low_asr" not in spans[0].flags
+    s = seg("s0003", "spk_1", 0.0, [("R1234.56", 0.95, [], "one two three four rand fifty six")])
+    spans = segment_spans(s)
+    assert spans[0].provider_itn == "R1234.56" and 1234.56 in {r.value for r in spans[0].readings}
+    assert all(r.scale_source != "implied_million" for r in spans[0].readings if r.value == 1234.56)
 
 
 def test_crosstalk_over_a_span_and_client_product_names():

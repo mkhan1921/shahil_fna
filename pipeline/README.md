@@ -109,7 +109,7 @@ options `EXTRACTION_EFFORT` (low / medium / high) and `REFUSAL_FALLBACKS`.
 | Needs | For |
 | --- | --- |
 | Model API keys | real extraction, verification, follow-up drafting and the meeting note (tests use fakes and the gold-call oracle) |
-| `ASSEMBLYAI_API_KEY` / `DEEPGRAM_API_KEY` / `SPEECHMATICS_API_KEY`, `PYANNOTEAI_API_KEY` | recorded calls (ASR and diarization); `VLLM_BASE_URL` / `PARAKEET_BASE_URL` for self-hosted ASR, the second pass and MiniCheck |
+| `ASSEMBLYAI_API_KEY` / `DEEPGRAM_API_KEY` / `SPEECHMATICS_API_KEY`, `PYANNOTEAI_API_KEY` | recorded calls (ASR and diarization; without the pyannoteAI key only stereo calls with one speaker per channel run, a mono call or a shared client channel fails with a configuration error); `VLLM_BASE_URL` / `PARAKEET_BASE_URL` for self-hosted ASR, the second pass and MiniCheck |
 | Temporal Cloud, Postgres, S3 | durable production runs |
 | `BRAINTRUST_API_KEY` | tracing, datasets and the experiment CI gate |
 | `ADVISOR_INTEL_SMTP_*`, `ADVISOR_INTEL_NOTIFY_WEBHOOK_URL` | adviser notifications |

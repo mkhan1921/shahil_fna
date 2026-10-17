@@ -4,8 +4,9 @@ Each speaker's words are merged into runs, split when the pause exceeds 1.2 s, w
 takes a turn in the gap (without overlapping), or when the run would pass 30 s. A long run is split at the
 best break before 30 s: a long pause or a sentence end, never between two number words. A segment is
 ``crosstalk`` when another speaker's speech overlaps it by more than 300 ms (words on stereo, or
-overlapping diarization turns within 0.5 s of it on mono), and ``low_asr`` when its mean word confidence is
-below 0.6.
+overlapping diarization turns within 0.5 s of it on mono), ``interrupted`` when another speaker started
+over it and it stopped within 1.5 s of that without a sentence end, and ``low_asr`` when its mean word
+confidence is below 0.6.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ MAX_SEGMENT_S = 30.0
 CROSSTALK_MIN_S = 0.3
 LOW_ASR_CONF = 0.6
 TURN_OVERLAP_PAD_S = 0.5  # mono: overlapped speech often yields words for one speaker only, just outside the other's segment
+INTERRUPTED_TAIL_S = 1.5  # a segment that stops within this long of another speaker starting over it was cut off
+_SENTENCE_END = (".", "?", "!")
 
 _NUMBERS = number_vocabulary()
 _DIGIT = re.compile(r"\d")
@@ -179,6 +182,10 @@ def _flag(segments: list[Segment], turns: Sequence[SpeakerTurn], crosstalk_s: fl
             overlap = max(overlap, overlap_seconds(turns, s.t_start - TURN_OVERLAP_PAD_S, s.t_end + TURN_OVERLAP_PAD_S))
         if overlap > crosstalk_s:
             s.flags.add("crosstalk")
+        # Interrupted: another speaker started over this one and this one stopped soon after, mid-sentence.
+        cut_in = [o for o in others if s.t_start < o.t_start < s.t_end and s.t_end - o.t_start <= INTERRUPTED_TAIL_S]
+        if cut_in and s.words and not s.words[-1].text.rstrip().endswith(_SENTENCE_END):
+            s.flags.add("interrupted")
 
 
 def crosstalk_seconds(segments: Sequence[Segment]) -> float:

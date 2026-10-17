@@ -2475,7 +2475,7 @@
           "type": "string"
         },
         "grammar_version": {
-          "default": "1",
+          "default": "2",
           "title": "Grammar Version",
           "type": "string"
         },

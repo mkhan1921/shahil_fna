@@ -42615,7 +42615,7 @@
   "versions": {
    "schema_version": "profile_v1",
    "lexicon_version": "1.3",
-   "grammar_version": "1",
+   "grammar_version": "2",
    "calibrator_version": "cold-start-2026-10",
    "asr_provider": "deepgram",
    "asr_model_version": "nova-3-2026-08",

@@ -115,19 +115,22 @@ def _optional(module: str, attr: str) -> Any | None:
 def crm_names(crm: CrmRecord | None, doc: FnaDocument | None = None) -> Any:
     """CRM and prior-file names as stage 1 role hints and vocabulary (§5.2 step 6, §5.4)."""
     from .ingest import CrmNames
+    from .ingest.types import ProductHint
 
     by_role: dict[str, list[str]] = {"advisor": [], "client_primary": [], "client_secondary": [], "others": []}
+    products: list[ProductHint] = []
     if crm is not None:
         if crm.adviser_name:
             by_role["advisor"].append(crm.adviser_name)
         for p in crm.household:
             role = {"advisor": "advisor", "client_primary": "client_primary", "spouse": "client_secondary"}.get(p.role, "others")
             by_role[role].append(p.name)
+        products = [ProductHint(name=p.product, provider=p.provider, fna_type=p.fna_type) for p in crm.products if p.product or p.provider]
     if doc is not None:
         by_role["client_primary"] += [n for n in (doc.client.firstName, " ".join(x for x in (doc.client.firstName, doc.client.surname) if x)) if n]
         by_role["client_secondary"] += [n for n in (doc.spouse.firstName,) if n]
         by_role["others"] += [d.name for d in doc.dependants if d.name]
-    return CrmNames(**{k: list(dict.fromkeys(v)) for k, v in by_role.items()})
+    return CrmNames(**{k: list(dict.fromkeys(v)) for k, v in by_role.items()}, products=products)
 
 
 async def transcribe(call: CallInput, pins: VersionPins, settings: Settings | None = None) -> Transcript:
@@ -140,7 +143,8 @@ async def transcribe(call: CallInput, pins: VersionPins, settings: Settings | No
     names = crm_names(call.crm, call.prior_document)
     if call.script is not None:
         script = ingest.ScriptedCall.parse(call.script, roles=call.script_roles or None)
-        return await ingest.transcript_from_script_async(script, anchor, call_id=call.call_id, roles="script" if call.script_roles else "heuristic",
+        # Without gold roles the scripted call takes the same road as audio: the role agent, unless the frontier pin is a test model.
+        return await ingest.transcript_from_script_async(script, anchor, call_id=call.call_id, roles="script" if call.script_roles else "auto",
                                                          role_agent_pins=pins, prior_fna=call.prior_document, crm_names=names)
     if not call.audio:
         raise ValueError(f"call {call.call_id} has no transcript, script or audio")

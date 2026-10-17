@@ -39,7 +39,7 @@ from .verbalize import (
     written_amount,
 )
 
-GRAMMAR_VERSION = "1"
+GRAMMAR_VERSION = "2"  # 2: "twenty two fifty", "a million and a half", zero, literal cents, written decades ("60s")
 
 
 def warm() -> None:

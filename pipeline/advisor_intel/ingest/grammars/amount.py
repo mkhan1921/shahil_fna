@@ -8,7 +8,8 @@ The value is the sum of the ``v`` terms, so "two million five hundred thousand" 
 The grammar makes every reading well-formed; it does not choose between them. A number with no scale word
 gets its *implied* readings too: "forty two" → 42 (literal) and 42,000 (implied thousand); "two fifty" →
 250, 250,000 and 2,500,000; "one point two" → 1.2 million, 1,200 and 1.2. Choosing among them is scale
-resolution (§7.4), which sees context the grammar cannot.
+resolution (§7.4), which sees context the grammar cannot. "zero" and written cents ("R0.50", "R1234.56")
+are literal only: nobody means a scale by them.
 
 Weights are costs (negative natural logs) in the tropical semiring; explicit forms cost nothing and
 implied readings carry the v1 priors in ``COSTS``. Rates ("eleven and a half percent") keep the
@@ -22,7 +23,7 @@ from functools import lru_cache
 import pynini
 from pynini.lib import pynutil
 
-from .numbers import number_fsts
+from .numbers import AF_UNITS, EN_UNITS, SCALE_AND_A_HALF, number_fsts
 
 # Cost (−ln p) of each reading of a number spoken without a scale word. Version-pinned with GRAMMAR_VERSION.
 COSTS: dict[str, dict[str, float]] = {
@@ -151,6 +152,18 @@ def _scale(table: dict[str, tuple[str, str]], *, attached: bool = False, af_soli
     return _union(arms)
 
 
+def _scale_and_half() -> pynini.Fst:
+    """'a million and a half', 'two bar and a half', "'n miljoen en 'n half": the half comes after the scale word."""
+    counts = {**{w: str(v) for w, v in EN_UNITS.items()}, **{w: str(v) for w, v in AF_UNITS.items()}, "a": "1", "an": "1", "'n": "1", "n": "1"}
+    pairs = []
+    for word, count in counts.items():
+        for scale, (mult, src) in {**FORMAL_SCALES, **SLANG_SCALES}.items():
+            currency = f"c={SCALE_CURRENCY[scale]};" if scale in SCALE_CURRENCY else ""
+            for half, frac in SCALE_AND_A_HALF.items():
+                pairs.append((f"{word} {scale}{half}", f"v={count}{frac}*{mult};s={src};{currency}"))
+    return pynini.string_map(pairs)
+
+
 def _bare(mantissa: pynini.Fst, costs: dict[str, float], *, million_mantissa: pynini.Fst | None = None) -> pynini.Fst:
     """A number spoken with no scale word, with its literal and implied readings."""
     insert = pynutil.insert
@@ -207,10 +220,13 @@ def amount_grammar() -> pynini.Fst:
             pynini.cross("miljoen", "v=1*1000000;s=miljoen;"),
         ]
     )
+    # "zero", "nought", "nul": a literal nought, no implied scale ("zero debt").
+    zero = insert("v=") + n.zero + insert(";s=literal;")
 
     # One mantissa and one scale word: "two point five mil", "half a bar", "twelve hundred thousand", "a million".
     special = n.hcount | n.decimal | n.count_a | n.fraction | n.compressed_abc
     single = insert("v=") + ((special + formal) | ((n.m999 | special) + slang))
+    scale_and_half = _scale_and_half()
 
     bare_words = _union(
         [
@@ -222,14 +238,16 @@ def amount_grammar() -> pynini.Fst:
             _bare(n.compressed_ab_decimal, COSTS["ab"]),
         ]
     )
-    words = multi | bare_scale | single | bare_words
+    words = multi | bare_scale | zero | single | scale_and_half | bare_words
 
     digits_scaled = insert("v=") + (n.digits_small | n.digits_decimal_scaled) + (slang_attached | formal_attached)
     digits_bare = _union(
         [
             _bare(n.digits_small, COSTS["digits_int"]),
-            _bare(n.digits_decimal, COSTS["digits_decimal"]),
+            _bare(n.digits_decimal_short, COSTS["digits_decimal"]),
+            insert("v=") + n.digits_decimal_long + insert(";s=digits;"),  # "R0.50", "R1234.56", "1,234.56": cents, read literally
             insert("v=") + n.digits_big + insert(";s=digits;"),
+            insert("v=") + pynini.cross("0", "0") + insert(";s=digits;"),
         ]
     )
     digits = digits_scaled | digits_bare

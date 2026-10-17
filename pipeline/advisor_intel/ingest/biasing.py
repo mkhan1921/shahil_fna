@@ -178,6 +178,8 @@ def call_phrases(prior_fna: FnaDocument | None, *, anchor: date, crm: CrmNames |
     phrases: list[BiasPhrase] = []
     if crm:
         phrases += [BiasPhrase(text=n, kind="name", boost=BOOST["name"], source="crm") for n in crm.all_names() if _clean_name(n)]
+        for h in crm.products:  # the client's holdings and their institutions (§5.4)
+            phrases += [BiasPhrase(text=n, kind="product", boost=BOOST["product"], source="crm") for n in (h.name, h.provider) if _clean_name(n)]
     if prior_fna is not None:
         for path, name, kind in prior_names(prior_fna):
             phrases.append(BiasPhrase(text=name, kind=kind, boost=BOOST[kind], source=path))
@@ -206,10 +208,9 @@ def build_vocabulary(
 
 
 def product_names_for_call(prior_fna: FnaDocument | None, crm: CrmNames | None = None) -> tuple[ProductName, ...]:
-    """The client's own products and providers for the per-call product grammar (§5.3)."""
+    """The client's own products and providers, from the prior FnaDocument and the CRM's holdings, for the per-call
+    product grammar (§5.3, §5.4)."""
     names: dict[str, ProductName] = {}
-    if prior_fna is None:
-        return ()
 
     def add(surface: str, ptype: str | None, provider_raw: str | None) -> None:
         s = _clean_name(surface or "")
@@ -217,6 +218,13 @@ def product_names_for_call(prior_fna: FnaDocument | None, crm: CrmNames | None =
             return
         provider = (provider_for(provider_raw) or _clean_name(provider_raw)) if provider_raw else None
         names.setdefault(normalize_text(s), ProductName(surface=s, product_type=ptype, provider=provider))
+
+    for h in crm.products if crm else ():
+        add(h.name, h.fna_type or None, h.provider or None)
+        if h.provider and not provider_for(h.provider):
+            add(h.provider, None, h.provider)
+    if prior_fna is None:
+        return tuple(sorted(names.values(), key=lambda n: n.surface))
 
     for f in prior_fna.retirementFunds:
         add(f.name, f.type, f.provider)
