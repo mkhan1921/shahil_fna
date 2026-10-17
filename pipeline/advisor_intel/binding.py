@@ -567,12 +567,11 @@ def describe_value(q: Quantity | None, *, money: bool | None = None) -> str:
             return stats.year_to_iso(x)[:7] if abs(x - round(x)) > 1e-9 else str(round(x))
         if q.unit == "pct":
             return f"{x * 100:.1f}%"
+        # The review overlay phrases values the same way in TypeScript (lib/review, checked by the app's
+        # contract tests), so any change here must be made on both sides.
         if money:
-            return f"-{sym}{-x:,.0f}" if x < 0 else f"{sym}{x:,.0f}"
-        if abs(x) >= 1000:
-            return f"{x:,.0f}"
-        # Ages, years, months and counts: one decimal at most ("62.3"), none when whole ("62").
-        return f"{x:.1f}".removesuffix(".0")
+            return f"{sym}{x:,.0f}"
+        return f"{x:g}" if abs(x) < 1000 else f"{x:,.0f}"
 
     d = q.dist
     if isinstance(d, Point):

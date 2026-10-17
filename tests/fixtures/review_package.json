@@ -11928,7 +11928,7 @@
       "basis": "na",
       "real_or_nominal": "na"
      },
-     "value_text": "-R1,043,934–-R794,868, most likely -R912,829",
+     "value_text": "R-1,043,934–R-794,868, most likely R-912,829",
      "prior_value": null,
      "prior_text": null,
      "hypotheses": [
@@ -11954,7 +11954,7 @@
         "basis": "na",
         "real_or_nominal": "na"
        },
-       "text": "-R1,043,934–-R794,868, most likely -R912,829",
+       "text": "R-1,043,934–R-794,868, most likely R-912,829",
        "weight": 1.0,
        "rationale": "three years at about R300,000 more than studying locally",
        "revises": false
@@ -30954,7 +30954,7 @@
       "basis": "na",
       "real_or_nominal": "na"
      },
-     "value_text": "61–63.8, most likely 62.3",
+     "value_text": "61–63.7753, most likely 62.2614",
      "prior_value": {
       "unit": "age",
       "period": "none",
@@ -30986,7 +30986,7 @@
         "basis": "na",
         "real_or_nominal": "na"
        },
-       "text": "61–63.8, most likely 62.3",
+       "text": "61–63.7753, most likely 62.2614",
        "weight": 1.0,
        "rationale": "'between sixty and sixty-five, probably sixty-two'",
        "revises": false
