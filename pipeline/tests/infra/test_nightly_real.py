@@ -14,14 +14,14 @@ from advisor_intel.models.runs import ReviewSubmission
 from advisor_intel.workflows import contracts as C
 
 from .factories import GROSS, RET_AGE
-from .test_activities import NOW, RUN, _through_forecast, env
+from .test_activities import NOW, RUN, _through_forecast, ctx, env  # noqa: F401 - ctx is a pytest fixture used by name below
 
 pytestmark = pytest.mark.postgres
 
 verify = pytest.importorskip("advisor_intel.verify.labels")
 
 
-async def test_labels_retrain_and_refit_with_the_verification_code(ctx):
+async def test_labels_retrain_and_refit_with_the_verification_code(ctx):  # noqa: F811 - the fixture, injected
     await _through_forecast(ctx)
     profile = await ctx.store.load_profile(RUN)
     ops = make_ops(profile, [("CONFIRM", RET_AGE, None, {}, "reviewer"), ("RETRACT", GROSS, None, {"reason": "misheard"}, "reviewer")])
