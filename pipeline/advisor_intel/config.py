@@ -129,6 +129,14 @@ class Settings(BaseModel):
     ]
     fna_tables_dir: Path = REPO_DIR / "fna_tables"
     api_token: str | None = Field(default=None, repr=False)  # bearer token the FNA app's API client sends
+    # The fine-tuning (§15.8) and RL (§15.9) tracks: a Tinker-compatible training service (managed Tinker, SkyRL's
+    # backend or Baseten Loops), the base model to fine-tune, and the slot groups the fine-tuned extractor is live
+    # for (ADVISOR_INTEL_EXTRACTION_GROUPS as "group=model,group=model", else routing.yaml's extraction_groups).
+    tinker_api_key: str | None = Field(default=None, repr=False)
+    tinker_base_url: str | None = None
+    finetune_base_model: str | None = None
+    finetune_lora_rank: int = 32
+    extraction_groups: dict[str, str] = {}
 
     @property
     def store_local_dir(self) -> Path | None:
@@ -164,6 +172,9 @@ def get_settings() -> Settings:
         ("vllm_base_url", "VLLM_BASE_URL"),
         ("parakeet_base_url", "PARAKEET_BASE_URL"),
         ("api_token", "API_TOKEN"),
+        ("tinker_api_key", "TINKER_API_KEY"),
+        ("tinker_base_url", "TINKER_BASE_URL"),
+        ("finetune_base_model", "FINETUNE_BASE_MODEL"),
     ):
         v = _env(name)
         if v:
@@ -195,4 +206,11 @@ def get_settings() -> Settings:
     allowlist = _env("WEB_SEARCH_ALLOWLIST")
     if allowlist:
         updates["web_search_allowlist"] = [h.strip() for h in allowlist.split(",") if h.strip()]
+    rank = _number("FINETUNE_LORA_RANK")
+    if rank is not None:
+        updates["finetune_lora_rank"] = int(rank)
+    groups = _env("EXTRACTION_GROUPS")
+    if groups:
+        pairs = (item.partition("=") for item in groups.split(","))
+        updates["extraction_groups"] = {k.strip(): v.strip() for k, _, v in pairs if k.strip() and v.strip()}
     return Settings.model_validate({**s.model_dump(), **updates})

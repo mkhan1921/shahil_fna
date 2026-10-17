@@ -32,6 +32,7 @@ import numpy as np
 from pydantic import BaseModel
 
 from .. import stats
+from ..models.entities import DiscourseOutput
 from ..models.extraction import FORM_TYPES, ExtractionTask
 from ..models.facts import Fact
 from ..models.profile import Profile
@@ -61,6 +62,7 @@ class ReviewedCall(BaseModel):
     profile: Profile
     tasks: list[ExtractionTask]
     transcript: Transcript | None = None
+    discourse: DiscourseOutput | None = None  # the run's cached Stage 2 output, for the production prompt rendering
     is_gold: bool = False  # an adjudicated gold call: weighted 3×
     heldout: bool = False  # one of the 20 held-out gold calls: never exported
     disputed_fact_ids: list[str] = []  # facts with an unresolved review disagreement

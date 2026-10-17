@@ -95,6 +95,24 @@ as JSON (`{script, script_roles}`). The tests under `tests/infra` start a Tempor
 (`pipeline/.tools/temporal` or `TEMPORAL_CLI_PATH`) and a throwaway PostgreSQL (`initdb` on the path,
 `ADVISOR_INTEL_PG_BIN`, or `ADVISOR_INTEL_TEST_DATABASE_URL`); they skip when those are missing.
 
+The training runs of spec §15.8 and §15.9 are workflows on the same worker, started on demand (no schedule):
+`POST /admin/training/finetune` and `POST /admin/training/rl` behind the API token, or
+`workflows.client.start_finetune` / `start_rl_training`. `FinetuneExtractorWorkflow` exports the reviewed calls as
+training data (the production stage prompts paired with the reviewed outputs, split by client, the held-out gold
+calls never included; it ends early with the reason below the §15.8 trigger of 300 reviewed calls or a slot group
+with 2,000 labelled facts, unless `force`), LoRA-fine-tunes through the Tinker-compatible service, runs the gold
+experiment with the candidate as the extractor, and switches a slot group only when status accuracy, slot recall
+and value coverage match or beat the incumbent, ECE is no worse and cost per call-minute is lower.
+`TrainRlExtractorWorkflow` first checks the §15.9 start conditions (a fine-tuned extractor live for the groups,
+its gold metrics flat over two retraining rounds, reviewer corrections a reward can target, 300 reviewed calls) and
+ends with the recorded reasons when they fail; otherwise GRPO from the fine-tuned checkpoint against
+`rl_reward.reward`, the reward-hacking checks (a review sheet of 50 sampled outputs for a person; pass
+`human_signed_off` once read), then the gate on the held-out gold calls against the fine-tuned model. Neither run
+switches anything itself: a win writes the routing change (`extraction_groups` in `routing.yaml`) under
+`training/runs/<label>/` in object storage and opens a pull request when `GITHUB_REPOSITORY` / `GITHUB_TOKEN` are
+set; every run is recorded under `training/registry/extractor/`. The calibrator of a switched group is retrained
+after the switch. The live group routing is `ADVISOR_INTEL_EXTRACTION_GROUPS` (`group=model,…`) or the routing file.
+
 ## Models, credentials and data
 
 Every setting reads `ADVISOR_INTEL_<NAME>` or `<NAME>` from the environment. Model roles are Pydantic AI
@@ -116,7 +134,7 @@ options `EXTRACTION_EFFORT` (low / medium / high) and `REFUSAL_FALLBACKS`.
 | `ADVISOR_INTEL_SMTP_*`, `ADVISOR_INTEL_NOTIFY_WEBHOOK_URL` | adviser notifications |
 | Reviewed gold calls | the calibrator (50 labelled calls warm, 300 to promote) and conformal auto-accept (50 calibration calls; until then nothing is auto-accepted) |
 | The investment team's CMA and return history | the forecast's market model (`forecast/cma/2026Q4.yaml` is a placeholder) |
-| GPUs or a Tinker-compatible API | the fine-tuning (M6) and RL (M7) tracks |
+| `ADVISOR_INTEL_TINKER_API_KEY` (+ `_TINKER_BASE_URL` for SkyRL or Baseten Loops), `ADVISOR_INTEL_FINETUNE_BASE_MODEL`, the `tinker` package | the fine-tuning (M6) and RL (M7) training steps; without them `FinetuneExtractorWorkflow` and `TrainRlExtractorWorkflow` still export and check, then fail the training step at once with `TrainingClientUnavailable` (tests inject a fake service); `GITHUB_REPOSITORY` / `GITHUB_TOKEN` to open the routing pull request; a vLLM deployment of the LoRA weights (`VLLM_BASE_URL`) to serve a promoted extractor |
 
 ## Evaluation, datasets and CI gates (spec §15–16)
 

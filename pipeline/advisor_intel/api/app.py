@@ -48,6 +48,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import TypeAdapter, ValidationError
 from starlette.datastructures import UploadFile
+from temporalio.exceptions import WorkflowAlreadyStartedError
 from temporalio.service import RPCError, RPCStatusCode
 
 from .. import binding
@@ -66,7 +67,7 @@ from ..storage.objects import LocalObjectStore, ObjectStore, open_object_store, 
 from ..storage.records import CallRecord, RunRecord
 from ..storage.store import Store
 from ..telemetry import instrument_fastapi, run_context
-from ..workflows.contracts import FollowupIntakeArgs, ForecastArgs
+from ..workflows.contracts import FinetuneArgs, FollowupIntakeArgs, ForecastArgs, RlArgs
 from .bundle import NotReady, build_bundle, prior_document, spot_check
 from .schemas import (
     AnswerRequest,
@@ -706,6 +707,31 @@ async def regenerate_note(call_id: str, d: ApiDeps = Depends(deps)) -> JSONRespo
 
 
 # --------------------------------------------------------------------------- app
+
+
+# --------------------------------------------------------------------------- training runs (§15.8, §15.9), behind the same token
+
+
+@router.post("/admin/training/finetune", status_code=202)
+async def start_finetune_run(body: FinetuneArgs | None = None, d: ApiDeps = Depends(deps)) -> dict[str, Any]:
+    """Start ``FinetuneExtractorWorkflow`` (§15.8). Promotion stays a pull request; nothing is switched by this call."""
+    args = body or FinetuneArgs()
+    try:
+        wf = await d.temporal.start_finetune(args)
+    except WorkflowAlreadyStartedError as e:
+        raise HTTPException(409, f"a fine-tuning run with label {args.label!r} is already running") from e
+    return {"workflow_id": wf, "kind": "finetune", "label": args.label or wf}
+
+
+@router.post("/admin/training/rl", status_code=202)
+async def start_rl_run(body: RlArgs | None = None, d: ApiDeps = Depends(deps)) -> dict[str, Any]:
+    """Start ``TrainRlExtractorWorkflow`` (§15.9); it ends at once with the recorded reasons unless the start conditions hold."""
+    args = body or RlArgs()
+    try:
+        wf = await d.temporal.start_rl_training(args)
+    except WorkflowAlreadyStartedError as e:
+        raise HTTPException(409, f"an RL run with label {args.label!r} is already running") from e
+    return {"workflow_id": wf, "kind": "rl", "label": args.label or wf}
 
 
 def create_app(

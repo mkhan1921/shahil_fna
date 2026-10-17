@@ -24,7 +24,7 @@ from typing import Any
 from temporalio.client import Client
 from temporalio.worker import Worker, WorkerDeploymentConfig
 
-from .activities import NightlyActivities, PipelineActivities, StageFunctions
+from .activities import NightlyActivities, PipelineActivities, StageFunctions, TrainingActivities
 from .activities.providers import Providers
 from .config import Settings, get_settings
 from .notify import Notifier
@@ -55,21 +55,25 @@ def build_worker(
     note_model: Any = None,
     deployment: WorkerDeploymentConfig | None = None,
     task_queue: str | None = None,
+    training_service: Any = None,
 ) -> Worker:
     """A worker with every workflow and activity, sharing one store, object store and set of stage entry points.
 
     ``deployment`` defaults to this build's Worker Deployment version (the workflows need a versioned worker).
+    ``training_service`` is the Tinker-compatible client of the fine-tuning and RL activities (§15.8, §15.9); without
+    one it is built from ``ADVISOR_INTEL_TINKER_API_KEY`` when a training step runs.
     """
     stages = stages or StageFunctions()
     pipeline = PipelineActivities(
         store=store, objects=objects, settings=settings, notifier=notifier, stages=stages, providers=providers, note_model=note_model
     )
     nightly = NightlyActivities(store=store, objects=objects, settings=settings, stages=stages)
+    training = TrainingActivities(store=store, objects=objects, settings=settings, stages=stages, training_service=training_service)
     return Worker(
         client,
         task_queue=task_queue or settings.task_queue,
         workflows=ALL_WORKFLOWS,
-        activities=[*pipeline.activities(), *nightly.activities()],
+        activities=[*pipeline.activities(), *nightly.activities(), *training.activities()],
         deployment_config=deployment or deployment_config(),
         max_concurrent_activities=int(os.environ.get("ADVISOR_INTEL_MAX_CONCURRENT_ACTIVITIES", "20")),
         graceful_shutdown_timeout=timedelta(seconds=30),

@@ -35,6 +35,10 @@ class MockActivities:
     failing_nightly: tuple[str, ...] = ()
     fail_discourse: bool = False
     slow_note_s: float = 0.0  # how long render_meeting_note takes (to race signals against the final steps)
+    finetune_eligible: bool = True  # the §15.8 trigger holds
+    rl_can_start: bool = True  # the §15.9 start conditions hold
+    hacking_passed: bool = True
+    switch_groups: tuple[str, ...] = ("retirement",)  # groups the candidate wins on the gold experiment
     calls: list[tuple[str, Any]] = field(default_factory=list)
     profile_version: int = 3
 
@@ -150,7 +154,146 @@ class MockActivities:
             check(C.RUN_MODEL_SWAP, a)
             return C.ModelSwapOutcome(results=[{"role": "small", "won": False}])
 
+        # Fine-tuning (§15.8) and RL (§15.9)
+
+        @activity.defn(name=C.EXPORT_FINETUNE_DATA)
+        async def export_finetune(a: C.FinetuneArgs) -> C.TrainingExportOutcome:
+            check(C.EXPORT_FINETUNE_DATA, a)
+            if not m.finetune_eligible:
+                return C.TrainingExportOutcome(
+                    label=a.label,
+                    eligible=False,
+                    reason="120 reviewed calls < 300, and no slot group has 2000 labelled facts",
+                    n_reviewed_calls=120,
+                )
+            return C.TrainingExportOutcome(
+                label=a.label,
+                eligible=True,
+                reason="320 reviewed calls",
+                groups=list(a.groups) or ["retirement", "income"],
+                n_reviewed_calls=320,
+                n_clients=290,
+                examples=1800,
+                by_split={"train": 1440, "val": 180, "test": 180},
+                skipped_heldout_calls=20,
+                prompt_versions={"extract_values": "v3"},
+                data_uri="file:///objects/training/runs/x/data/examples.jsonl",
+            )
+
+        @activity.defn(name=C.SFT_TRAIN_EXTRACTOR)
+        async def sft(inp: C.SftInput) -> C.SftOutcome:
+            check(C.SFT_TRAIN_EXTRACTOR, inp)
+            return C.SftOutcome(
+                label=inp.export.label,
+                base_model="base",
+                checkpoint=f"sft-{inp.export.label}-final",
+                model=f"vllm:extractor-{inp.export.label}",
+                steps=90,
+                examples=1440,
+                final_loss=0.41,
+            )
+
+        @activity.defn(name=C.EVALUATE_EXTRACTOR)
+        async def evaluate(inp: C.CandidateEvalInput) -> C.CandidateEvalOutcome:
+            check(C.EVALUATE_EXTRACTOR, inp)
+            blocked = inp.hacking_passed is False or inp.human_signed_off is False
+            decisions = [
+                C.GroupDecision(
+                    group=g,
+                    switch=g in m.switch_groups and not blocked,
+                    reasons=["matches or beats the incumbent"] if g in m.switch_groups and not blocked else ["slot_recall 0.880 < 0.900"],
+                    metrics={"status_accuracy": [0.9, 0.92], "slot_recall": [0.9, 0.9 if g in m.switch_groups else 0.88]},
+                )
+                for g in inp.groups
+            ]
+            return C.CandidateEvalOutcome(
+                label=inp.label,
+                candidate_model=inp.candidate_model,
+                incumbent_model=inp.incumbent_model or "frontier",
+                groups=list(inp.groups),
+                decisions=decisions,
+                switched=[d.group for d in decisions if d.switch],
+                cost_incumbent=0.21,
+                cost_candidate=0.08,
+                gold_calls=20 if inp.heldout_only else 60,
+            )
+
+        @activity.defn(name=C.PROMOTE_EXTRACTOR)
+        async def promote(inp: C.PromotionInput) -> C.PromotionOutcome:
+            check(C.PROMOTE_EXTRACTOR, inp)
+            switched = list(inp.evaluation.switched)
+            return C.PromotionOutcome(
+                label=inp.label,
+                model=inp.evaluation.candidate_model,
+                switched=switched,
+                routing_uri="file:///objects/training/runs/x/routing.yaml" if switched else None,
+                pull_request="https://github.com/example/shahil_fna/pull/42" if switched else None,
+                registry_uri="file:///objects/training/registry/extractor/x.json",
+                calibrator_retrain_needed=switched,
+            )
+
+        @activity.defn(name=C.CHECK_RL_START)
+        async def rl_start(a: C.RlArgs) -> C.RlStartOutcome:
+            check(C.CHECK_RL_START, a)
+            ok = m.rl_can_start
+            return C.RlStartOutcome(
+                label=a.label,
+                can_start=ok,
+                checks={"fine_tuned_extractor_live": ok, "metrics_plateaued": ok, "errors_targetable": True, "reviewed_calls": True},
+                reasons=[] if ok else ["the fine-tuned extractor is not live for any slot group"],
+                live_groups=["retirement"] if ok else [],
+                reference_model="vllm:extractor-m6" if ok else None,
+                reference_checkpoint="sft-m6-final" if ok else None,
+                n_reviewed_calls=320,
+            )
+
+        @activity.defn(name=C.EXPORT_RL_PROMPTS)
+        async def rl_export(inp: C.RlExportInput) -> C.RlExportOutcome:
+            check(C.EXPORT_RL_PROMPTS, inp)
+            return C.RlExportOutcome(
+                label=inp.start.label,
+                n_prompts=600,
+                by_group={"retirement": 600},
+                n_reviewed_calls=300,
+                skipped_heldout_calls=20,
+                prompts_uri="file:///p",
+            )
+
+        @activity.defn(name=C.GRPO_TRAIN_EXTRACTOR)
+        async def grpo(inp: C.GrpoInput) -> C.GrpoOutcome:
+            check(C.GRPO_TRAIN_EXTRACTOR, inp)
+            return C.GrpoOutcome(
+                label=inp.export.label,
+                base_model="base",
+                reference_checkpoint=inp.start.reference_checkpoint or "",
+                checkpoint=f"grpo-{inp.export.label}-50",
+                model=f"vllm:extractor-{inp.export.label}",
+                steps=50,
+                first_mean_reward=1.1,
+                last_mean_reward=1.6,
+            )
+
+        @activity.defn(name=C.RL_HACKING_CHECKS)
+        async def hacking(inp: C.HackingInput) -> C.HackingOutcome:
+            check(C.RL_HACKING_CHECKS, inp)
+            return C.HackingOutcome(
+                label=inp.training.label,
+                passed=m.hacking_passed,
+                failures=[] if m.hacking_passed else ["retirement: dodging penalties"],
+                flagged_samples=2,
+                review_sheet_uri="file:///sheet",
+                human_signed_off=inp.args.human_signed_off,
+            )
+
         return [
+            export_finetune,
+            sft,
+            evaluate,
+            promote,
+            rl_start,
+            rl_export,
+            grpo,
+            hacking,
             ingest_audio,
             run_discourse,
             run_agent,

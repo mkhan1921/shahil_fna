@@ -3,5 +3,6 @@
 from .nightly import NightlyActivities
 from .pipeline import PipelineActivities
 from .stages import ENTRYPOINTS, StageFunctions, StageUnavailable
+from .training import TrainingActivities
 
-__all__ = ["ENTRYPOINTS", "NightlyActivities", "PipelineActivities", "StageFunctions", "StageUnavailable"]
+__all__ = ["ENTRYPOINTS", "NightlyActivities", "PipelineActivities", "StageFunctions", "StageUnavailable", "TrainingActivities"]

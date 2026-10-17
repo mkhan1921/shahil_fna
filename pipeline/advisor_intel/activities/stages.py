@@ -47,6 +47,18 @@ propose_lexicon_fit    ``(pairs: list[EditPair], lex) -> LexiconDiff`` with ``.c
 sync_error_dataset     ``(rows: list[dict], *, settings) -> int`` rows inserted into ``production-errors``
 sync_gold_candidates   ``(rows: list[dict], *, settings) -> int`` rows inserted (§15.6)
 run_model_swap         ``(candidates: dict[str, str], *, settings) -> dict`` with ``results``, ``pull_requests``
+training_tasks         ``(profile, discourse, *, catalog, groups) -> list[ExtractionTask]``: a reviewed run's tasks (§15.8)
+training_task_keys     ``(call: ReviewedCall, task) -> {field key: (SlotDef, instance)}``: the keys a task's prompts list
+render_stage_prompt    ``(call: ReviewedCall, task, stage) -> list[{role, content}]``: the production stage prompt (§15.8)
+export_training_data   ``evals.finetune.export_training_data``; ``sft_train``, ``grpo_train``, ``promotion_check`` and
+                       ``write_group_routing`` likewise (§15.8, §15.9)
+reviewed_facts         ``(profile, *, catalog) -> list[GoldFact]``: the reviewed truth the §15.9 reward scores against
+rl_postprocess         ``(text, prompt: RLPrompt) -> list[RolloutFact]``: a sampled output through the production
+                       post-processing (schema conversion, lexicon normalisation)
+hacking_checks         ``evals.rl_reward.hacking_checks`` (§15.9)
+dataset_store          ``(*, settings) -> DatasetStore`` (the gold dataset: held-out and gold call ids)
+current_version_pins   ``() -> VersionPins``: the pins the deployment runs with (the gold experiment's incumbent)
+gold_experiment        ``(*, settings, heldout_only) -> (pins) -> EvalReport``: the gold suite with the pins given
 ====================== =======================================================================
 
 Sync callables run in a worker thread, so heartbeats keep flowing during CPU-bound stages.
@@ -89,6 +101,20 @@ ENTRYPOINTS: dict[str, str] = {
     "sync_error_dataset": "advisor_intel.evals.datasets:sync_error_dataset",
     "sync_gold_candidates": "advisor_intel.evals.datasets:sync_gold_candidates",
     "run_model_swap": "advisor_intel.evals.model_swap:run_model_swap",
+    "training_tasks": "advisor_intel.extract.training_prompt:tasks_from_profile",
+    "training_task_keys": "advisor_intel.extract.training_prompt:task_keys",
+    "render_stage_prompt": "advisor_intel.extract.training_prompt:render_stage_prompt",
+    "export_training_data": "advisor_intel.evals.finetune:export_training_data",
+    "sft_train": "advisor_intel.evals.finetune:sft_train",
+    "grpo_train": "advisor_intel.evals.finetune:grpo_train",
+    "promotion_check": "advisor_intel.evals.finetune:promotion_check",
+    "write_group_routing": "advisor_intel.evals.finetune:write_group_routing",
+    "reviewed_facts": "advisor_intel.evals.rl_reward:reviewed_facts",
+    "rl_postprocess": "advisor_intel.extract.training_prompt:rl_postprocess",
+    "hacking_checks": "advisor_intel.evals.rl_reward:hacking_checks",
+    "dataset_store": "advisor_intel.evals.datasets:get_store",
+    "current_version_pins": "advisor_intel.evals.extraction_eval:current_version_pins",
+    "gold_experiment": "advisor_intel.activities.training:gold_experiment",
 }
 
 

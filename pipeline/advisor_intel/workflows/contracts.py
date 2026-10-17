@@ -34,6 +34,14 @@ PROPOSE_LEXICON_FIT = "propose_lexicon_fit"
 SYNC_ERROR_DATASET = "sync_error_dataset"
 SYNC_GOLD_CANDIDATES = "sync_gold_candidates"
 RUN_MODEL_SWAP = "run_model_swap_eval"
+EXPORT_FINETUNE_DATA = "export_finetune_data"
+SFT_TRAIN_EXTRACTOR = "sft_train_extractor"
+EVALUATE_EXTRACTOR = "evaluate_extractor_candidate"
+PROMOTE_EXTRACTOR = "promote_extractor_groups"
+CHECK_RL_START = "check_rl_start_conditions"
+EXPORT_RL_PROMPTS = "export_rl_prompts"
+GRPO_TRAIN_EXTRACTOR = "grpo_train_extractor"
+RL_HACKING_CHECKS = "run_rl_hacking_checks"
 
 PIPELINE_ACTIVITIES = (
     INGEST_AUDIO,
@@ -56,6 +64,16 @@ NIGHTLY_ACTIVITIES = (
     SYNC_GOLD_CANDIDATES,
     RUN_MODEL_SWAP,
 )
+TRAINING_ACTIVITIES = (
+    EXPORT_FINETUNE_DATA,
+    SFT_TRAIN_EXTRACTOR,
+    EVALUATE_EXTRACTOR,
+    PROMOTE_EXTRACTOR,
+    CHECK_RL_START,
+    EXPORT_RL_PROMPTS,
+    GRPO_TRAIN_EXTRACTOR,
+    RL_HACKING_CHECKS,
+)
 
 # Workflow type names (stable across code moves: they are what the server and histories record).
 CALL_PIPELINE = "CallPipelineWorkflow"
@@ -63,6 +81,8 @@ FOLLOWUP_INTAKE = "FollowupIntakeWorkflow"
 FORECAST_ONLY = "ForecastWorkflow"
 NIGHTLY_FEEDBACK = "NightlyFeedbackWorkflow"
 MODEL_SWAP = "ModelSwapWorkflow"
+FINETUNE_EXTRACTOR = "FinetuneExtractorWorkflow"
+TRAIN_RL_EXTRACTOR = "TrainRlExtractorWorkflow"
 
 # --------------------------------------------------------------------------- call pipeline
 
@@ -274,3 +294,213 @@ class ModelSwapArgs(BaseModel):
 class ModelSwapOutcome(BaseModel):
     results: list[dict[str, Any]] = []
     pull_requests: list[str] = []
+
+
+# --------------------------------------------------------------------------- fine-tuning (§15.8) and RL (§15.9)
+
+
+class FinetuneArgs(BaseModel):
+    """``FinetuneExtractorWorkflow`` (§15.8): export reviewed calls, SFT, the gold experiment, per-group promotion."""
+
+    label: str = ""  # names the run's artifacts under training/runs/<label>; empty = the workflow id
+    groups: list[str] = []  # slot groups to train and evaluate; empty = every group with examples
+    base_model: str = ""  # the Tinker base model; empty = ADVISOR_INTEL_FINETUNE_BASE_MODEL
+    epochs: int = 1
+    min_reviewed_calls: int = 300  # the §15.8 trigger …
+    min_group_facts: int = 2000  # … or earlier for a slot group with this many labelled facts
+    force: bool = False  # an operator's run below the trigger (recorded as such)
+    heldout_ids: list[str] = []  # extra calls to keep out of training, besides the gold dataset's held-out calls
+
+
+class TrainingExportOutcome(BaseModel):
+    label: str
+    eligible: bool = False
+    reason: str = ""
+    groups: list[str] = []
+    n_reviewed_calls: int = 0
+    n_clients: int = 0
+    examples: int = 0
+    by_split: dict[str, int] = {}
+    by_group: dict[str, int] = {}
+    labelled_facts_by_group: dict[str, int] = {}
+    skipped_heldout_calls: int = 0
+    skipped_disputed_tasks: int = 0
+    skipped_unreviewed_tasks: int = 0
+    gold_examples: int = 0
+    heldout_ids: list[str] = []  # what was kept out: the gold dataset's held-out calls and the args' extras
+    prompt_versions: dict[str, str] = {}  # the prompt versions frozen into the training prompts (§15.8, order with GEPA)
+    data_uri: str | None = None  # the examples in object storage (chat JSONL, one file per split)
+    cached: bool = False
+
+
+class SftInput(BaseModel):
+    args: FinetuneArgs
+    export: TrainingExportOutcome
+
+
+class SftOutcome(BaseModel):
+    label: str
+    base_model: str
+    checkpoint: str  # the saved LoRA weights' name at the training service
+    model: str  # the model id the extractor routes to once the weights are served
+    steps: int = 0
+    examples: int = 0
+    final_loss: float | None = None
+    metrics_uri: str | None = None
+    cached: bool = False
+
+
+class CandidateEvalInput(BaseModel):
+    """The gold experiment of one candidate extractor against its incumbent, decided per slot group."""
+
+    label: str
+    candidate_model: str
+    groups: list[str] = []
+    incumbent_model: str | None = None  # None: the pinned extractor; RL: the fine-tuned model it started from
+    heldout_only: bool = False  # RL: the held-out gold calls only (§15.9)
+    require_better: bool = False  # RL: must beat the incumbent on at least one metric, not only match it
+    hacking_passed: bool | None = None  # RL: the reward-hacking checks (None for SFT)
+    human_signed_off: bool | None = None  # RL: a person read the sampled outputs (None for SFT)
+
+
+class GroupDecision(BaseModel):
+    group: str
+    switch: bool
+    reasons: list[str] = []
+    metrics: dict[str, list[float | None]] = {}  # metric → [incumbent, candidate]
+
+
+class CandidateEvalOutcome(BaseModel):
+    label: str
+    candidate_model: str
+    incumbent_model: str
+    groups: list[str] = []
+    decisions: list[GroupDecision] = []
+    switched: list[str] = []
+    cost_incumbent: float | None = None
+    cost_candidate: float | None = None
+    gold_calls: int = 0
+    candidate_report_uri: str | None = None
+    incumbent_report_uri: str | None = None
+    cached: bool = False
+
+
+class PromotionInput(BaseModel):
+    label: str
+    kind: Literal["sft", "rl"]
+    evaluation: CandidateEvalOutcome
+    checkpoint: str = ""
+    base_model: str = ""
+    prompt_versions: dict[str, str] = {}
+
+
+class PromotionOutcome(BaseModel):
+    label: str
+    model: str
+    switched: list[str] = []
+    routing_uri: str | None = None  # the routing change (routing.yaml with the groups switched), for the pull request
+    pull_request: str | None = None  # opened when GitHub is configured; never merged by the workflow
+    registry_uri: str | None = None  # the recorded versions of this run
+    calibrator_retrain_needed: list[str] = []  # the switched groups: their calibrator is retrained after the switch
+    cached: bool = False
+
+
+class FinetuneResult(BaseModel):
+    export: TrainingExportOutcome
+    sft: SftOutcome | None = None
+    evaluation: CandidateEvalOutcome | None = None
+    promotion: PromotionOutcome | None = None
+    skipped_reason: str | None = None
+
+
+class RlArgs(BaseModel):
+    """``TrainRlExtractorWorkflow`` (§15.9): GRPO on the fine-tuned extractor, only when the start conditions hold."""
+
+    label: str = ""
+    groups: list[str] = []  # empty = the groups the fine-tuned extractor is live for
+    reference_model: str = ""  # the M6 model to start from and to beat; empty = the live fine-tuned model
+    reference_checkpoint: str = ""  # its LoRA weights at the training service; empty = the registry's record
+    base_model: str = ""
+    config: dict[str, Any] = {}  # GRPOConfig fields (group_size, kl_coef, steps, …)
+    min_reviewed_calls: int = 300
+    plateau_rounds: int = 2  # retraining rounds without improvement before RL starts
+    min_targetable_share: float = 0.5  # share of reviewer corrections a reward can target
+    n_review_samples: int = 50
+    human_signed_off: bool | None = None  # True once a person has read the sampled outputs
+    force: bool = False  # run although a start condition fails (recorded)
+    heldout_ids: list[str] = []
+
+
+class RlStartOutcome(BaseModel):
+    label: str
+    can_start: bool = False
+    forced: bool = False
+    checks: dict[str, bool] = {}
+    reasons: list[str] = []
+    live_groups: list[str] = []
+    reference_model: str | None = None
+    reference_checkpoint: str | None = None
+    n_reviewed_calls: int = 0
+    targetable_share: float | None = None
+
+
+class RlExportInput(BaseModel):
+    args: RlArgs
+    start: RlStartOutcome
+
+
+class RlExportOutcome(BaseModel):
+    label: str
+    n_prompts: int = 0
+    by_group: dict[str, int] = {}
+    n_reviewed_calls: int = 0
+    skipped_heldout_calls: int = 0
+    heldout_ids: list[str] = []
+    prompts_uri: str | None = None
+    cached: bool = False
+
+
+class GrpoInput(BaseModel):
+    args: RlArgs
+    start: RlStartOutcome
+    export: RlExportOutcome
+
+
+class GrpoOutcome(BaseModel):
+    label: str
+    base_model: str
+    reference_checkpoint: str
+    checkpoint: str
+    model: str
+    steps: int = 0
+    first_mean_reward: float | None = None
+    last_mean_reward: float | None = None
+    metrics_uri: str | None = None
+    cached: bool = False
+
+
+class HackingInput(BaseModel):
+    args: RlArgs
+    export: RlExportOutcome
+    training: GrpoOutcome
+
+
+class HackingOutcome(BaseModel):
+    label: str
+    passed: bool = False
+    failures: list[str] = []
+    not_discussed: dict[str, list[float | None]] = {}  # group → [candidate, reference]
+    flagged_samples: int = 0
+    review_sheet_uri: str | None = None
+    human_signed_off: bool | None = None
+    cached: bool = False
+
+
+class RlResult(BaseModel):
+    start: RlStartOutcome
+    export: RlExportOutcome | None = None
+    training: GrpoOutcome | None = None
+    hacking: HackingOutcome | None = None
+    evaluation: CandidateEvalOutcome | None = None
+    promotion: PromotionOutcome | None = None
+    skipped_reason: str | None = None
