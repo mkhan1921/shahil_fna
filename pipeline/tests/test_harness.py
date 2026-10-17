@@ -29,9 +29,22 @@ DISC = asyncio.run(run_discourse(T))
 
 
 def inputs(pins: VersionPins | None = None, budgets: Budgets | None = None) -> AgentInputs:
-    prof = Profile(call_id=T.call_id, run_id="wf-h", schema_version="profile_v1", anchor_date=T.anchor_date,
-                   entities={"person.spouse": Entity(entity_id="person.spouse", type="person", canonical_name="Lerato")})
-    return AgentInputs(call_id=T.call_id, run_id="wf-h", transcript=T, discourse=DISC, profile=prof, pins=pins or VersionPins(), budgets=budgets or Budgets())
+    prof = Profile(
+        call_id=T.call_id,
+        run_id="wf-h",
+        schema_version="profile_v1",
+        anchor_date=T.anchor_date,
+        entities={"person.spouse": Entity(entity_id="person.spouse", type="person", canonical_name="Lerato")},
+    )
+    return AgentInputs(
+        call_id=T.call_id,
+        run_id="wf-h",
+        transcript=T,
+        discourse=DISC,
+        profile=prof,
+        pins=pins or VersionPins(),
+        budgets=budgets or Budgets(),
+    )
 
 
 def fake_services(calls: list[str], fail_on: str | None = None) -> HarnessServices:
@@ -45,11 +58,33 @@ def fake_services(calls: list[str], fail_on: str | None = None) -> HarnessServic
         fid = f"{slot.slot_id}#{inst}" if inst else slot.slot_id
         if slot.per_entity:
             return deps.profile, ExtractionResult(task_id=task.task_id, usage={"requests": 2, "input_tokens": 1000, "output_tokens": 200})
-        payload = {"slot_id": slot.slot_id, "instance_key": inst, "fna_path": slot.fna_path_for(inst), "hypotheses": [Hypothesis(value=Quantity(dist=Point(value="x"), unit="none"), weight=1, rationale="")],
-                   "evidence": [Evidence(segment_id=seg.segment_id, char_start=0, char_end=5, quote=seg.text[:5], speaker_role=seg.speaker_role, t_start=seg.t_start, t_end=seg.t_end, asr_mean_conf=0.95, role="supports")],
-                   "provenance": Provenance(run_id="wf-h")}
+        payload = {
+            "slot_id": slot.slot_id,
+            "instance_key": inst,
+            "fna_path": slot.fna_path_for(inst),
+            "hypotheses": [Hypothesis(value=Quantity(dist=Point(value="x"), unit="none"), weight=1, rationale="")],
+            "evidence": [
+                Evidence(
+                    segment_id=seg.segment_id,
+                    char_start=0,
+                    char_end=5,
+                    quote=seg.text[:5],
+                    speaker_role=seg.speaker_role,
+                    t_start=seg.t_start,
+                    t_end=seg.t_end,
+                    asr_mean_conf=0.95,
+                    role="supports",
+                )
+            ],
+            "provenance": Provenance(run_id="wf-h"),
+        }
         res = apply_state_ops(deps.profile, make_ops(deps.profile, [("ADD", fid, seg.segment_id, payload, "extractor")]))
-        return res.profile, ExtractionResult(task_id=task.task_id, ops_applied=len(res.applied), new_fact_ids=res.touched, usage={"requests": 2, "input_tokens": 1000, "output_tokens": 200})
+        return res.profile, ExtractionResult(
+            task_id=task.task_id,
+            ops_applied=len(res.applied),
+            new_fact_ids=res.touched,
+            usage={"requests": 2, "input_tokens": 1000, "output_tokens": 200},
+        )
 
     async def verify(profile, ids, deps):
         return ServiceResult(data={"verified": len(ids)})
@@ -86,7 +121,9 @@ async def test_policy_run_follows_expected_behaviour():
     assert not todo
     assert calls.index("people:client") < calls.index("retirement:client")
     assert check_profile(res.profile) == []
-    assert store.saves == res.outcome.turns + 1 and res.state["subagent_usage"]["requests"] >= 2 * len(calls)  # per turn, plus the finished one
+    assert store.saves == res.outcome.turns + 1 and res.state["subagent_usage"]["requests"] >= 2 * len(
+        calls
+    )  # per turn, plus the finished one
     assert "Extracted" in res.summary
 
 
@@ -156,7 +193,9 @@ async def test_resume_continues_the_runs_budgets_and_wall_clock():
     beats["n"] = 0
     limit = int(whole.outcome.usage["orchestrator_requests"]) - 2
     with pytest.raises(RuntimeError):
-        await run_agent(inputs(budgets=Budgets(orchestrator_requests=limit)), services=fake_services([]), checkpoints=store, heartbeat=heartbeat)
+        await run_agent(
+            inputs(budgets=Budgets(orchestrator_requests=limit)), services=fake_services([]), checkpoints=store, heartbeat=heartbeat
+        )
     res = await run_agent(inputs(budgets=Budgets(orchestrator_requests=limit)), services=fake_services([]), checkpoints=store)
     assert res.outcome.partial and "request_limit" in (res.outcome.reason or "")
     assert res.outcome.usage["orchestrator_requests"] >= limit
@@ -181,7 +220,9 @@ async def test_usd_cap_counts_every_sub_agent_even_without_a_reported_cost():
     assert not res.outcome.partial, res.outcome.reason
     per_verify = llm.usage_cost_usd("openai:gpt-5", input_tokens=40_000, output_tokens=2_000)
     assert per_verify > 0 and res.state["subagent_usage"]["cost_usd"] == pytest.approx(per_verify * verify_calls["n"], rel=1e-6)
-    assert res.outcome.usage["usd"] == pytest.approx(per_verify * verify_calls["n"], rel=1e-6)  # the frontier role is a free test model here
+    assert res.outcome.usage["usd"] == pytest.approx(
+        per_verify * verify_calls["n"], rel=1e-6
+    )  # the frontier role is a free test model here
     # The same run with a cap below that spend ends partial on the cost budget.
     cap = per_verify * 3
     res = await run_agent(inputs(pins=pins, budgets=Budgets(usd_cap=cap)), services=services)
@@ -199,7 +240,9 @@ async def test_retry_after_the_loop_finished_returns_the_same_result_without_run
     again = await run_agent(inputs(), services=fake_services(calls), checkpoints=store)
     assert len(calls) == n_calls and store.saves == n_saves  # nothing ran, nothing was checkpointed
     assert again.outcome == first.outcome and again.summary == first.summary
-    assert again.profile.facts.keys() == first.profile.facts.keys() and [o.seq for o in again.profile.ops_log] == [o.seq for o in first.profile.ops_log]
+    assert again.profile.facts.keys() == first.profile.facts.keys() and [o.seq for o in again.profile.ops_log] == [
+        o.seq for o in first.profile.ops_log
+    ]
     assert [t.status for t in again.plan.tasks] == [t.status for t in first.plan.tasks]
 
 
@@ -252,16 +295,36 @@ async def test_reextraction_budget_counts_tasks_added_for_the_same_group():
         if n <= 8 and n % 2 == 1:  # add another task for the same group and person …
             tid = f"income:client:again{n}"
             added.append(tid)
-            return ModelResponse(parts=[ToolCallPart(tool_name="update_plan", args={"action": "add", "task_id": tid, "reason": "look again",
-                                                                                     "slot_group": "income", "instance": "client",
-                                                                                     "segment_ids": [T.segments[3].segment_id]})])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_plan",
+                        args={
+                            "action": "add",
+                            "task_id": tid,
+                            "reason": "look again",
+                            "slot_group": "income",
+                            "instance": "client",
+                            "segment_ids": [T.segments[3].segment_id],
+                        },
+                    )
+                ]
+            )
         if n <= 8:  # … and extract it
             return ModelResponse(parts=[ToolCallPart(tool_name="extract_slot_group", args={"task_id": added[-1]})])
-        plan = next(p.content for p in reversed(returns) if p.tool_name in ("make_plan", "view_plan", "update_plan") and isinstance(p.content, dict))
+        plan = next(
+            p.content for p in reversed(returns) if p.tool_name in ("make_plan", "view_plan", "update_plan") and isinstance(p.content, dict)
+        )
         todo = [t["task_id"] for t in plan["tasks"] if t["status"] == "todo"]
         if todo:
-            return ModelResponse(parts=[ToolCallPart(tool_name="update_plan", args={"action": "skip", "task_id": tid, "reason": "test skip"},
-                                                     tool_call_id=f"c{i}") for i, tid in enumerate(todo)])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_plan", args={"action": "skip", "task_id": tid, "reason": "test skip"}, tool_call_id=f"c{i}"
+                    )
+                    for i, tid in enumerate(todo)
+                ]
+            )
         return ModelResponse(parts=[TextPart(content=json.dumps({"summary": "done", "unresolved": []}))])
 
     calls: list[str] = []
@@ -296,15 +359,27 @@ async def test_compaction_twice_keeps_what_the_first_summary_held():
 
     inp = inputs()
     state = HarnessState(notes=["remember the spouse's RA"])
-    deps = HarnessDeps(inputs=inp, catalog=load_catalog(inp.pins.schema_version), services=fake_services([]), state=state,
-                       budget=BudgetGuard(budgets=Budgets(), model_name="test"), loop=LoopDetector(), profile=inp.profile, context_window_tokens=400)
+    deps = HarnessDeps(
+        inputs=inp,
+        catalog=load_catalog(inp.pins.schema_version),
+        services=fake_services([]),
+        state=state,
+        budget=BudgetGuard(budgets=Budgets(), model_name="test"),
+        loop=LoopDetector(),
+        profile=inp.profile,
+        context_window_tokens=400,
+    )
     ctx = SimpleNamespace(deps=deps)
 
     def turns(lo: int, hi: int) -> list:
         out = []
         for i in range(lo, hi):
             out.append(ModelResponse(parts=[ToolCallPart(tool_name="get_segments", args={"segment_ids": [f"s{i}"]}, tool_call_id=f"c{i}")]))
-            out.append(ModelRequest(parts=[ToolReturnPart(tool_name="get_segments", content=f"FACT-{i} said at length " * 6, tool_call_id=f"c{i}")]))
+            out.append(
+                ModelRequest(
+                    parts=[ToolReturnPart(tool_name="get_segments", content=f"FACT-{i} said at length " * 6, tool_call_id=f"c{i}")]
+                )
+            )
         return out
 
     msgs = [ModelRequest(parts=[UserPromptPart(content="the brief " * 40)]), *turns(0, 10)]
@@ -342,7 +417,14 @@ async def test_loop_detection_and_finish_refused_while_tasks_open():
         plan = next(p.content for p in reversed(returns) if p.tool_name in ("make_plan", "view_plan") and isinstance(p.content, dict))
         todo = [t["task_id"] for t in plan["tasks"] if t["status"] == "todo"]
         if n == 6:
-            return ModelResponse(parts=[ToolCallPart(tool_name="update_plan", args={"action": "skip", "task_id": tid, "reason": "test skip"}, tool_call_id=f"c{i}") for i, tid in enumerate(todo)])
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_plan", args={"action": "skip", "task_id": tid, "reason": "test skip"}, tool_call_id=f"c{i}"
+                    )
+                    for i, tid in enumerate(todo)
+                ]
+            )
         return ModelResponse(parts=[TextPart(content=json.dumps({"summary": "skipped everything", "unresolved": []}))])
 
     pins = VersionPins(frontier_model=llm.register_local_model("loopy", FunctionModel(model)))

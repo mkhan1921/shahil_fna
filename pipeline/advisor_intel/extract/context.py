@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 
 from ..binding import describe_value, row_id_for
+from ..discourse.text import render_segment
 from ..embeddings import cosine, get_embedder, nearest
 from ..models.crm import CrmRecord
 from ..models.entities import DiscourseOutput, Entity
@@ -24,7 +25,6 @@ from ..models.profile import Profile
 from ..models.runs import VersionPins
 from ..models.transcript import Segment, Transcript
 from ..schema.slots import Catalog, SlotDef, fact_id_for, generic_slot_id
-from ..discourse.text import render_segment
 
 CONTEXT_CHARS = 32_000  # ≈ 8,000 tokens (§7.2)
 LIST_FNA: dict[str, str] = {
@@ -136,7 +136,11 @@ class ExtractionDeps:
     def schema_excerpt(self, slots: list[SlotDef] | None = None) -> str:
         out = []
         for s in slots or self.slots:
-            line = [f"### {s.slot_id} — {s.label}", f"Question: {s.question}", f"Policy: {s.policy}; unit: {s.fna_unit}; allowed forms: {', '.join(s.allowed_forms)}"]
+            line = [
+                f"### {s.slot_id} — {s.label}",
+                f"Question: {s.question}",
+                f"Policy: {s.policy}; unit: {s.fna_unit}; allowed forms: {', '.join(s.allowed_forms)}",
+            ]
             if s.categories:
                 line.append(f"Categories: {', '.join(s.categories)}")
             if s.bounds:
@@ -145,11 +149,18 @@ class ExtractionDeps:
                 line.append(f"Hint: {h}")
             out.append("\n".join(line))
         if self.group == "expenses" and self.catalog.expense_items:
-            out.append("### Expense catalog (key — label [category, essential])\n" + "\n".join(
-                f"- {e.key} — {e.label} [{e.category}{', essential' if e.essential else ''}]{' — ' + e.hint if e.hint else ''}" for e in self.catalog.expense_items))
+            out.append(
+                "### Expense catalog (key — label [category, essential])\n"
+                + "\n".join(
+                    f"- {e.key} — {e.label} [{e.category}{', essential' if e.essential else ''}]{' — ' + e.hint if e.hint else ''}"
+                    for e in self.catalog.expense_items
+                )
+            )
             hints = self.catalog_hints()
             if hints:
-                out.append("### Nearest catalog lines per segment\n" + "\n".join(f"- {sid}: {', '.join(keys)}" for sid, keys in hints.items()))
+                out.append(
+                    "### Nearest catalog lines per segment\n" + "\n".join(f"- {sid}: {', '.join(keys)}" for sid, keys in hints.items())
+                )
         return "\n\n".join(out)
 
     def catalog_hints(self) -> dict[str, list[str]]:
@@ -158,7 +169,9 @@ class ExtractionDeps:
         emb = get_embedder(self.pins.embedding_model)
         out: dict[str, list[str]] = {}
         for seg in self.window():
-            if not any(ch.isdigit() for ch in seg.text) and not any(w in seg.text.lower() for w in ("thousand", "hundred", "bar", "grand", "rand")):
+            if not any(ch.isdigit() for ch in seg.text) and not any(
+                w in seg.text.lower() for w in ("thousand", "hundred", "bar", "grand", "rand")
+            ):
                 continue
             out[seg.segment_id] = [k.split(":", 1)[0] for k, _ in nearest(seg.text, keys, emb, k=3)]
         return out
@@ -178,7 +191,10 @@ class ExtractionDeps:
             fna_list = LIST_FNA.get(self.list_entity)
             for e in self.entities.values():
                 if e.fna_list == fna_list or (e.attributes.get("list_entity") == self.list_entity):
-                    lines.append(f"- existing {self.list_entity}: {e.entity_id} — {e.canonical_name}" + (f" (aka {', '.join(e.aliases[:3])})" if e.aliases else ""))
+                    lines.append(
+                        f"- existing {self.list_entity}: {e.entity_id} — {e.canonical_name}"
+                        + (f" (aka {', '.join(e.aliases[:3])})" if e.aliases else "")
+                    )
         return "\n".join(lines) or "(none)"
 
     def context_pack(self) -> str:
@@ -186,14 +202,26 @@ class ExtractionDeps:
         if self.crm:
             hh = "\n".join(f"- {p.role}: {p.name}" + (f", born {p.date_of_birth}" if p.date_of_birth else "") for p in self.crm.household)
             prods = "\n".join(
-                f"- {p.kind}: {p.provider} {p.product}".rstrip() + (f" #{p.number}" if p.number else "") + (f", last value R{p.last_value:,.0f}" if p.last_value else "") + (f" ({p.fna_type})" if p.fna_type else "")
+                f"- {p.kind}: {p.provider} {p.product}".rstrip()
+                + (f" #{p.number}" if p.number else "")
+                + (f", last value R{p.last_value:,.0f}" if p.last_value else "")
+                + (f" ({p.fna_type})" if p.fna_type else "")
                 for p in self.crm.products
             )
-            blocks.append(("CRM record", "\n".join(x for x in (hh, prods, f"Adviser notes: {self.crm.adviser_notes}" if self.crm.adviser_notes else "") if x)))
+            blocks.append(
+                (
+                    "CRM record",
+                    "\n".join(x for x in (hh, prods, f"Adviser notes: {self.crm.adviser_notes}" if self.crm.adviser_notes else "") if x),
+                )
+            )
         prior_lines = []
         groups_slots = {s.slot_id for s in self.slots}
         for f in self.profile.facts.values():
-            if f.source == "prior_fna" and f.slot_id in groups_slots and (not self.person or f.instance_key in (self.person, None) or f.instance_key in self.entities):
+            if (
+                f.source == "prior_fna"
+                and f.slot_id in groups_slots
+                and (not self.person or f.instance_key in (self.person, None) or f.instance_key in self.entities)
+            ):
                 prior_lines.append(f"- {f.fact_id}: {describe_value(f.prior_value or f.value)}")
         if prior_lines:
             blocks.append(("Client's existing FNA (before this call)", "\n".join(prior_lines[:120])))
@@ -210,7 +238,11 @@ class ExtractionDeps:
         fna_list = LIST_FNA.get(self.list_entity or "")
         lines = []
         for e in self.entities.values():
-            if e.entity_id in in_window or (fna_list and e.fna_list == fna_list) or e.entity_id in ("person.client_primary", "person.spouse"):
+            if (
+                e.entity_id in in_window
+                or (fna_list and e.fna_list == fna_list)
+                or e.entity_id in ("person.client_primary", "person.spouse")
+            ):
                 aliases = f" aka {', '.join(e.aliases[:4])}" if e.aliases else ""
                 attrs = ", ".join(f"{k}={v}" for k, v in e.attributes.items() if v not in ("", None))
                 lines.append(f"- {e.entity_id} ({e.type}): {e.canonical_name}{aliases}{' [' + attrs + ']' if attrs else ''}")

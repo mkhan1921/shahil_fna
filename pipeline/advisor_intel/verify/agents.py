@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError, UnexpectedModelBehavior
@@ -47,7 +47,7 @@ class Usage:
         self.input_tokens += int(getattr(run_usage, "input_tokens", 0) or 0)
         self.output_tokens += int(getattr(run_usage, "output_tokens", 0) or 0)
 
-    def merge(self, other: "Usage") -> "Usage":
+    def merge(self, other: Usage) -> Usage:
         return Usage(
             self.requests + other.requests,
             self.input_tokens + other.input_tokens,
@@ -104,14 +104,16 @@ def resolve(
 
 
 @dataclass
-class Outcome(Generic[T]):
+class Outcome[T]:
     output: T | None
     response: ModelResponse | None = None
     error: str | None = None
     usage: Usage = field(default_factory=Usage)
 
 
-async def run_guarded(agent: Agent[Any, T], prompt: str, resolved: Resolved, *, deps: Any = None, instructions: str | None = None) -> Outcome[T]:
+async def run_guarded[T](
+    agent: Agent[Any, T], prompt: str, resolved: Resolved, *, deps: Any = None, instructions: str | None = None
+) -> Outcome[T]:
     """Run a sub-agent; a provider failure or an output that never validates returns an empty outcome.
 
     ``instructions`` are the run's pinned prompt (``prompts.pinned``), passed per run so a version pin or a GEPA

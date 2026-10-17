@@ -74,8 +74,10 @@ def test_booleans_categories_events_and_text():
     ]
     risk = _claims(lambda b: b.add("riskProfile.answers[horizon]", None, point("More than 10 years")))
     assert risk == [
-        "The client's answer to the risk question 'When will you need to start drawing on the majority of this money?'"
-        " is 'More than 10 years'."
+        (
+            "The client's answer to the risk question 'When will you need to start drawing on the majority of this money?'"
+            " is 'More than 10 years'."
+        )
     ]
 
 

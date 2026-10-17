@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic_ai import ModelResponse, TextPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
@@ -150,7 +150,7 @@ async def test_editing_a_fact_regenerates_only_the_sentences_citing_it():
                 value=Quantity(dist=Point(value=90000), unit="ZAR", period="monthly", basis="gross"), weight=1.0, rationale="adviser"
             )
         ],
-        "review": {"status": "edited", "reviewer_id": "adv-1", "reviewed_at": datetime.now(timezone.utc).isoformat()},
+        "review": {"status": "edited", "reviewer_id": "adv-1", "reviewed_at": datetime.now(UTC).isoformat()},
     }
     p2 = apply_state_ops(p, make_ops(p, [("UPDATE", GROSS, None, edit, "reviewer")])).profile
     assert changed_facts(first, p2) == {GROSS}
@@ -192,14 +192,38 @@ def test_yes_no_and_option_values_keep_their_odds_in_the_note():
     p = seeded_profile()
     prov = Provenance(run_id=p.run_id, schema_version=p.schema_version)
     specs = [
-        ("ADD", "{p}.smoker#client", "s0004", {"slot_id": "{p}.smoker", "instance_key": "client", "fna_path": "client.smoker", "status": "stated",
-                                              "hypotheses": [Hypothesis(value=Quantity(dist=Bernoulli(p=0.03), unit="none"), weight=1.0, rationale="")],
-                                              "evidence": [evidence("s0004", "No, neither of us", t=40.0)], "provenance": prov}, "extractor"),
-        ("ADD", "estate.{p}.hasWill#client", "s0004", {"slot_id": "estate.{p}.hasWill", "instance_key": "client", "fna_path": "estate.client.hasWill",
-                                                      "status": "stated",
-                                                      "hypotheses": [Hypothesis(value=Quantity(dist=Categorical(probs={"yes": 0.75, "unsure": 0.25}), unit="none"),
-                                                                                weight=1.0, rationale="")],
-                                                      "evidence": [evidence("s0004", "We did wills years ago, I think", t=41.0)], "provenance": prov}, "extractor"),
+        (
+            "ADD",
+            "{p}.smoker#client",
+            "s0004",
+            {
+                "slot_id": "{p}.smoker",
+                "instance_key": "client",
+                "fna_path": "client.smoker",
+                "status": "stated",
+                "hypotheses": [Hypothesis(value=Quantity(dist=Bernoulli(p=0.03), unit="none"), weight=1.0, rationale="")],
+                "evidence": [evidence("s0004", "No, neither of us", t=40.0)],
+                "provenance": prov,
+            },
+            "extractor",
+        ),
+        (
+            "ADD",
+            "estate.{p}.hasWill#client",
+            "s0004",
+            {
+                "slot_id": "estate.{p}.hasWill",
+                "instance_key": "client",
+                "fna_path": "estate.client.hasWill",
+                "status": "stated",
+                "hypotheses": [
+                    Hypothesis(value=Quantity(dist=Categorical(probs={"yes": 0.75, "unsure": 0.25}), unit="none"), weight=1.0, rationale="")
+                ],
+                "evidence": [evidence("s0004", "We did wills years ago, I think", t=41.0)],
+                "provenance": prov,
+            },
+            "extractor",
+        ),
     ]
     r = apply_state_ops(p, make_ops(p, specs))
     assert not r.rejected, r.rejected

@@ -22,9 +22,10 @@ import math
 import re
 import sys
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Sequence, get_args
+from typing import Any, Literal, get_args
 
 import numpy as np
 from pydantic import BaseModel, Field
@@ -105,7 +106,7 @@ def errors_from_dataset(rows: Iterable[DatasetRecord], *, catalog: Catalog | Non
     for r in rows:
         inp, exp, meta = r.input or {}, r.expected or {}, r.metadata or {}
         at = meta.get("at")
-        if since is not None and at and datetime.fromisoformat(str(at)).astimezone(timezone.utc) < since:
+        if since is not None and at and datetime.fromisoformat(str(at)).astimezone(UTC) < since:
             continue
         slot_id = str(meta.get("slot_id") or inp.get("slot_id") or "")
         slot = _slot(catalog, slot_id) if slot_id else None
@@ -532,8 +533,10 @@ class WeeklyAnalysis(BaseModel):
         lines = [
             f"## Error analysis, week {self.week}",
             "",
-            f"{self.n_errors} errors ({self.n_production} from production review, {self.n_gold} from the gold experiment); "
-            f"{len(self.clusters)} clusters; {self.sample_size} sampled for labelling in `{self.sheet}`.",
+            (
+                f"{self.n_errors} errors ({self.n_production} from production review, {self.n_gold} from the gold experiment); "
+                f"{len(self.clusters)} clusters; {self.sample_size} sampled for labelling in `{self.sheet}`."
+            ),
             "",
             "Suggested top causes (until the sheet is labelled): "
             + (", ".join(f"{c} ({n})" for c, n in self.suggested_top_causes) or "none"),
@@ -550,7 +553,7 @@ class WeeklyAnalysis(BaseModel):
 
 
 def iso_week(at: datetime | None = None) -> str:
-    y, w, _ = (at or datetime.now(timezone.utc)).isocalendar()
+    y, w, _ = (at or datetime.now(UTC)).isocalendar()
     return f"{y}-W{w:02d}"
 
 
@@ -569,7 +572,7 @@ def run_weekly(
 ) -> WeeklyAnalysis:
     """Gather the week's errors, cluster and label them, draw the sample and write the sheet and the cluster file."""
     catalog = catalog or load_catalog()
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     week = iso_week(now)
     since = now - timedelta(days=days) if days else None
     production = errors_from_dataset((store or get_store()).fetch(PRODUCTION_ERRORS), catalog=catalog, since=since)

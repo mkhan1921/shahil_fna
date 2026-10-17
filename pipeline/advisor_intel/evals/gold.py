@@ -42,8 +42,9 @@ from __future__ import annotations
 import math
 import re
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from datetime import date, datetime
-from typing import Any, Iterable, Literal, Sequence
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel, field_validator, model_validator
@@ -108,7 +109,7 @@ class GoldValue(BaseModel):
         return _num(v)
 
     @model_validator(mode="after")
-    def _fill(self) -> "GoldValue":
+    def _fill(self) -> GoldValue:
         if self.kind == "numeric":
             if self.p50 is None:
                 raise ValueError("a numeric gold value needs p50")
@@ -215,7 +216,7 @@ class AnnotatedFact(BaseModel):
     note: str = ""
 
     @model_validator(mode="after")
-    def _addressed(self) -> "AnnotatedFact":
+    def _addressed(self) -> AnnotatedFact:
         if not self.fna_path and not self.slot_id:
             raise ValueError("an annotated fact needs fna_path or slot_id")
         return self
@@ -537,7 +538,7 @@ def _write_value(doc: dict[str, Any], slot: SlotDef, path: str, v: GoldValue) ->
         if slot.value_type == "date":
             set_path(doc, path, stats.year_to_iso(x))  # type: ignore[arg-type]
         elif slot.value_type in ("age", "years", "months", "year", "count"):
-            set_path(doc, path, int(round(x)))  # type: ignore[arg-type]
+            set_path(doc, path, round(x))  # type: ignore[arg-type]
         else:
             set_path(doc, path, round(float(x), 6))  # type: ignore[arg-type]
     elif v.kind == "boolean":

@@ -25,8 +25,17 @@ from .reducer import make_ops
 
 def answer_transcript(profile: Profile, followup: FollowUp, text: str, *, call_id: str) -> Transcript:
     words = [Word(text=w, t_start=0.0, t_end=0.0, conf=1.0) for w in text.split()]
-    seg = Segment(segment_id=f"fu-{followup.followup_id}", speaker_label="followup", speaker_role="client_primary", role_conf=1.0, diarization_conf=1.0,
-                  t_start=0.0, t_end=0.0, words=words, text=text)
+    seg = Segment(
+        segment_id=f"fu-{followup.followup_id}",
+        speaker_label="followup",
+        speaker_role="client_primary",
+        role_conf=1.0,
+        diarization_conf=1.0,
+        t_start=0.0,
+        t_end=0.0,
+        words=words,
+        text=text,
+    )
     return Transcript(call_id=call_id, anchor_date=profile.anchor_date, segments=[seg], asr_provider="followup", asr_model_version="text")
 
 
@@ -45,12 +54,16 @@ async def extract_followup_answer(
     return t, await followup_ops(profile, followup, t, catalog=catalog, pins=pins, run_id=run_id)
 
 
-async def extract_followup_ops(profile: Profile, transcript: Transcript, *, followup: FollowUp, pins: VersionPins, catalog: Catalog) -> list[StateOp]:
+async def extract_followup_ops(
+    profile: Profile, transcript: Transcript, *, followup: FollowUp, pins: VersionPins, catalog: Catalog
+) -> list[StateOp]:
     """The intake activity's entry: the answer already as a one-segment transcript."""
     return await followup_ops(profile, followup, transcript, catalog=catalog, pins=pins, run_id=profile.run_id)
 
 
-async def followup_ops(profile: Profile, followup: FollowUp, t: Transcript, *, catalog: Catalog, pins: VersionPins, run_id: str) -> list[StateOp]:
+async def followup_ops(
+    profile: Profile, followup: FollowUp, t: Transcript, *, catalog: Catalog, pins: VersionPins, run_id: str
+) -> list[StateOp]:
     ctx = ProbeContext(catalog=catalog, transcript=t, discourse=DiscourseOutput(entities=dict(profile.entities)), pins=pins, run_id=run_id)
     lex = load_lexicon(pins.lexicon_version)
     seg_id = t.segments[0].segment_id
@@ -69,11 +82,43 @@ async def followup_ops(profile: Profile, followup: FollowUp, t: Transcript, *, c
             continue
         evidence = [e.model_copy(update={"role": "revises"}) for e in draft.evidence]
         if fid in profile.facts:
-            specs.append(("UPDATE", fid, seg_id, {"replace_hypotheses": draft.hypotheses, "status": "stated", "source": "followup", "evidence": evidence,
-                                                  "interpretation": draft.value.interpretation if draft.value else None}, "extractor"))
+            specs.append(
+                (
+                    "UPDATE",
+                    fid,
+                    seg_id,
+                    {
+                        "replace_hypotheses": draft.hypotheses,
+                        "status": "stated",
+                        "source": "followup",
+                        "evidence": evidence,
+                        "interpretation": draft.value.interpretation if draft.value else None,
+                    },
+                    "extractor",
+                )
+            )
         else:
-            prov = Provenance(run_id=run_id, extractor_model=pins.reasoning_model, lexicon_version=lex.version, schema_version=catalog.version)
-            specs.append(("ADD", fid, seg_id, {"slot_id": slot.slot_id, "instance_key": instance or None, "fna_path": draft.fna_path, "source": "followup",
-                                               "status": "stated", "hypotheses": draft.hypotheses, "evidence": draft.evidence, "hedges": draft.hedges,
-                                               "said": draft.value.said if draft.value else "", "provenance": prov}, "extractor"))
+            prov = Provenance(
+                run_id=run_id, extractor_model=pins.reasoning_model, lexicon_version=lex.version, schema_version=catalog.version
+            )
+            specs.append(
+                (
+                    "ADD",
+                    fid,
+                    seg_id,
+                    {
+                        "slot_id": slot.slot_id,
+                        "instance_key": instance or None,
+                        "fna_path": draft.fna_path,
+                        "source": "followup",
+                        "status": "stated",
+                        "hypotheses": draft.hypotheses,
+                        "evidence": draft.evidence,
+                        "hedges": draft.hedges,
+                        "said": draft.value.said if draft.value else "",
+                        "provenance": prov,
+                    },
+                    "extractor",
+                )
+            )
     return make_ops(profile, specs)

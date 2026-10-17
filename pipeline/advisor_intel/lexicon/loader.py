@@ -873,7 +873,13 @@ class Lexicon:
         key = self._exact("rate_words", c)
         if key:
             return Lookup(
-                section="rate_words", phrase=word, key=key, match="exact", similarity=1.0, dist=self.data.rate_words[key].to_dist(), real_or_nominal="real"
+                section="rate_words",
+                phrase=word,
+                key=key,
+                match="exact",
+                similarity=1.0,
+                dist=self.data.rate_words[key].to_dist(),
+                real_or_nominal="real",
             )
         t = self.sections["rate_templates"].template(c)
         if t is None and c in _PRIME_ALONE:

@@ -62,7 +62,7 @@ def test_grammar_case(case: dict):
 
 
 def test_version_matches_the_run_pin():
-    assert grammars.GRAMMAR_VERSION == VersionPins().grammar_version
+    assert VersionPins().grammar_version == grammars.GRAMMAR_VERSION
 
 
 def test_grammars_compile_once():

@@ -19,7 +19,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -83,7 +83,7 @@ class MeetingNote(BaseModel):
     fact_hashes: dict[str, str] = {}  # cited fact → its content hash when the sentence was written
     model: str = ""
     prompt_version: str = PROMPT_VERSION
-    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     def section_text(self, section: NoteSection) -> str:
         return " ".join(s.text.strip() for s in self.sentences if s.section == section)
@@ -259,7 +259,7 @@ def _dist_numbers(q: Any) -> list[float]:
             vals.append(float(v))
         elif isinstance(v, str):
             vals.extend(float(x) for x in re.findall(r"\d+(?:\.\d+)?", v))
-            if stats._looks_like_date(v):  # noqa: SLF001
+            if stats._looks_like_date(v):
                 vals.append(float(v[:4]))
         return vals
     if stats.is_categorical(d) or stats.is_boolean(d):
@@ -563,7 +563,7 @@ async def update_note(
             "sentences": out,
             "removed": note.removed + removed,
             "fact_hashes": hashes,
-            "generated_at": datetime.now(timezone.utc),
+            "generated_at": datetime.now(UTC),
         }
     )
 

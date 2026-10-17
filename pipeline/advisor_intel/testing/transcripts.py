@@ -17,7 +17,9 @@ Turn = tuple[str, str] | tuple[str, str, float]  # (speaker_role, text[, confide
 _LABEL = {"advisor": "spk_0", "client_primary": "spk_1", "client_secondary": "spk_2", "other": "spk_3"}
 
 
-def transcript_from_turns(turns: Sequence[Turn], *, call_id: str = "call-test", anchor: date = date(2026, 10, 15), word_s: float = 0.35, gap_s: float = 0.6) -> Transcript:
+def transcript_from_turns(
+    turns: Sequence[Turn], *, call_id: str = "call-test", anchor: date = date(2026, 10, 15), word_s: float = 0.35, gap_s: float = 0.6
+) -> Transcript:
     segs: list[Segment] = []
     t = 0.0
     for i, turn in enumerate(turns, start=1):
@@ -44,12 +46,21 @@ def transcript_from_turns(turns: Sequence[Turn], *, call_id: str = "call-test", 
         )
         t += gap_s
     roles = {s.speaker_label for s in segs}
-    q = QualityReport(mean_word_conf=sum(s.mean_conf for s in segs) / max(1, len(segs)), low_asr_share=0.0, crosstalk_share=0.0, n_speakers=len(roles), role_conf_min=0.97)
-    return Transcript(call_id=call_id, anchor_date=anchor, segments=segs, asr_provider="scripted", asr_model_version="scripted-1", quality=q)
+    q = QualityReport(
+        mean_word_conf=sum(s.mean_conf for s in segs) / max(1, len(segs)),
+        low_asr_share=0.0,
+        crosstalk_share=0.0,
+        n_speakers=len(roles),
+        role_conf_min=0.97,
+    )
+    return Transcript(
+        call_id=call_id, anchor_date=anchor, segments=segs, asr_provider="scripted", asr_model_version="scripted-1", quality=q
+    )
 
 
-async def ingested_transcript(turns: Sequence[Turn], *, call_id: str = "call-test", anchor: date = date(2026, 10, 15), seed: int = 0,
-                              noise: object | None = None) -> Transcript:
+async def ingested_transcript(
+    turns: Sequence[Turn], *, call_id: str = "call-test", anchor: date = date(2026, 10, 15), seed: int = 0, noise: object | None = None
+) -> Transcript:
     """The same turns through stage 1 (scripted ASR, segmentation, spans and grammar readings, quality), roles from the script."""
     from ..ingest import transcript_from_script_async
     from ..ingest.asr.fake import ScriptedCall

@@ -21,8 +21,9 @@ is a breach against net too. Nothing here computes tax (§12.7: one tax implemen
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Iterator, Literal, Mapping
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -64,7 +65,7 @@ class Rule:
     severity: Severity
     weight: float  # soft: likelihood down-weight for scale resolution (§7.4); hard rules use 1.0
     description: str
-    check: Callable[["ProfileView"], Iterable[tuple[list[str], str]]]
+    check: Callable[[ProfileView], Iterable[tuple[list[str], str]]]
 
 
 # --------------------------------------------------------------------------- the profile as rules see it

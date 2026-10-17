@@ -13,9 +13,10 @@ from __future__ import annotations
 import base64
 import os
 import re
-from datetime import datetime, timezone
+from collections.abc import Callable, Mapping, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Literal, Mapping, Sequence
+from typing import Any, Literal
 
 import httpx
 import yaml
@@ -140,7 +141,7 @@ def decide(
         rows=rows,
         cost_current=cost_c,
         cost_candidate=cost_k,
-        decided_at=datetime.now(timezone.utc).isoformat(),
+        decided_at=datetime.now(UTC).isoformat(),
     )
 
 
@@ -242,7 +243,7 @@ class GitHubPullRequests:
 
     def branch_name(self, decision: SwapDecision) -> str:
         slug = re.sub(r"[^a-z0-9]+", "-", decision.candidate_model.lower()).strip("-")
-        return f"model-swap/{decision.role}-{slug}-{(decision.decided_at or datetime.now(timezone.utc).isoformat())[:10]}"
+        return f"model-swap/{decision.role}-{slug}-{(decision.decided_at or datetime.now(UTC).isoformat())[:10]}"
 
     def __call__(self, decision: SwapDecision, routing: str | None = None) -> str | None:
         """Branch from the base, commit the routing change on it and open the pull request; returns its URL."""

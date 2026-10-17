@@ -236,9 +236,24 @@ def _person_list(slot: SlotDef) -> str:
 _EXPENSE_TOTAL_REFS = frozenset(
     canon(x)
     for x in (
-        "expenses", "expenses.total", "expenses.items", "expenses.items[]", "expenses.monthly", "expenses.monthlyTotal", "household.expenses",
-        "current spending", "current expenses", "monthly spending", "monthly expenses", "spending", "living expenses", "what we spend now",
-        "current monthly spending", "current monthly expenses", "total expenses", "total monthly expenses",
+        "expenses",
+        "expenses.total",
+        "expenses.items",
+        "expenses.items[]",
+        "expenses.monthly",
+        "expenses.monthlyTotal",
+        "household.expenses",
+        "current spending",
+        "current expenses",
+        "monthly spending",
+        "monthly expenses",
+        "spending",
+        "living expenses",
+        "what we spend now",
+        "current monthly spending",
+        "current monthly expenses",
+        "total expenses",
+        "total monthly expenses",
     )
 )
 
@@ -250,9 +265,13 @@ def expenses_total(profile: Profile | None, *, seed: int = 0) -> Fact | None:
     if profile is None:
         return None
     lines = [
-        f for f in profile.facts.values()
-        if f.value is not None and f.review.status != "rejected" and f.status in ("stated", "implied", "not_discussed")
-        and (f.slot_id == "expenses.items[]" or f.slot_id == "expenses.custom[].amount") and f.value.unit in CURRENCIES
+        f
+        for f in profile.facts.values()
+        if f.value is not None
+        and f.review.status != "rejected"
+        and f.status in ("stated", "implied", "not_discussed")
+        and (f.slot_id == "expenses.items[]" or f.slot_id == "expenses.custom[].amount")
+        and f.value.unit in CURRENCIES
     ]
     if not lines:
         return None

@@ -57,7 +57,14 @@ def test_priors_fit_categories_and_bounds():
 def test_tier_a_coverage_and_group_sizes():
     cat = load_catalog()
     tier_a = {s.slot_id for s in cat.tier_a()}
-    for must in ("{p}.dateOfBirth", "income.{p}.grossMonthly", "retirement.{p}.retirementAge", "dependants[].tertiaryCostAnnual", "policies[].cover", "estate.{p}.hasWill"):
+    for must in (
+        "{p}.dateOfBirth",
+        "income.{p}.grossMonthly",
+        "retirement.{p}.retirementAge",
+        "dependants[].tertiaryCostAnnual",
+        "policies[].cover",
+        "estate.{p}.hasWill",
+    ):
         assert must in tier_a
     for g in cat.groups:
         assert 1 <= len(cat.in_group(g)) <= 12, g
@@ -67,7 +74,16 @@ def test_tier_a_coverage_and_group_sizes():
 def test_catalog_tables_come_from_the_app():
     cat = load_catalog()
     assert {e.key for e in cat.expense_items} >= {"rent", "groceries", "school-fees", "family-support", "medical-aid"}
-    assert [q.id for q in cat.risk_questions] == ["horizon", "income-stability", "emergency", "proportion", "knowledge", "objective", "drawdown", "tradeoff"]
+    assert [q.id for q in cat.risk_questions] == [
+        "horizon",
+        "income-stability",
+        "emergency",
+        "proportion",
+        "knowledge",
+        "objective",
+        "drawdown",
+        "tradeoff",
+    ]
     horizon = cat.slot("riskProfile.answers[horizon]")
     assert horizon.store_as == "index" and horizon.categories[0] == "Within 1 year"
     assert cat.slot("household.maritalRegime").categories == ["icop", "anc-accrual", "anc-no-accrual", "customary", "foreign", "na"]

@@ -182,13 +182,13 @@ def label_probabilities(
             continue
         mass = {lab: 0.0 for lab in labels}
         seen: set[str] = set()
-        for t, l in [(tok, lp)] + alts:
+        for t, logprob in [(tok, lp)] + alts:
             if t in seen or (offset and not t.startswith(lead)):
                 continue
             seen.add(t)
             lab = _match_label(t[offset:], labels)
             if lab:
-                mass[lab] += math.exp(l)
+                mass[lab] += math.exp(logprob)
         total = sum(mass.values())
         out.append({lab: v / total for lab, v in mass.items()} if total > 0 else None)
     return out
@@ -309,7 +309,14 @@ def _weighted(checks: list[HypothesisCheck], attr: str) -> float | None:
 
 
 async def _verify_fact(
-    fact: Fact, claims: list[Claim], transcript: Transcript, resolved: Resolved, *, want_logprobs: bool, sem: asyncio.Semaphore, instructions: str
+    fact: Fact,
+    claims: list[Claim],
+    transcript: Transcript,
+    resolved: Resolved,
+    *,
+    want_logprobs: bool,
+    sem: asyncio.Semaphore,
+    instructions: str,
 ) -> tuple[dict[str, tuple[str, str, float | None]], str | None, Usage]:
     """Run the verifier on one fact's claims: claim id → (verdict, reason, P(entailed) from logprobs)."""
     prompt = verifier_prompt(fact, claims, transcript)
@@ -415,7 +422,13 @@ async def check_entailment(
             else:
                 to_verify.append(c)
         if to_verify:
-            jobs.append((fact, to_verify, _verify_fact(fact, to_verify, transcript, resolved, want_logprobs=bool(extra), sem=sem, instructions=prompt.text)))
+            jobs.append(
+                (
+                    fact,
+                    to_verify,
+                    _verify_fact(fact, to_verify, transcript, resolved, want_logprobs=bool(extra), sem=sem, instructions=prompt.text),
+                )
+            )
     answers = await asyncio.gather(*(j[2] for j in jobs))
     for (fact, claims, _), (verdicts, error, used) in zip(jobs, answers):
         usage = usage.merge(used)

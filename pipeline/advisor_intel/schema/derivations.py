@@ -53,7 +53,11 @@ def _usable(f: Fact | None) -> bool:
 
 
 def _said(f: Fact | None) -> bool:
-    return f is not None and f.source in ("call", "followup", "reviewer") and f.status in ("stated", "implied", "explicitly_unknown", "contradicted")
+    return (
+        f is not None
+        and f.source in ("call", "followup", "reviewer")
+        and f.status in ("stated", "implied", "explicitly_unknown", "contradicted")
+    )
 
 
 def _evidence(*facts: Fact | None) -> list[Evidence]:
@@ -67,8 +71,19 @@ def _evidence(*facts: Fact | None) -> list[Evidence]:
     return out[:6]
 
 
-def _add(ctx: DeriveContext, slot_id: str, instance: str | None, fna_path: str, dist: Any, unit: str, rule: str, inputs: list[Fact | None],
-         *, period: str = "none", status: str = "implied") -> OpSpec | None:
+def _add(
+    ctx: DeriveContext,
+    slot_id: str,
+    instance: str | None,
+    fna_path: str,
+    dist: Any,
+    unit: str,
+    rule: str,
+    inputs: list[Fact | None],
+    *,
+    period: str = "none",
+    status: str = "implied",
+) -> OpSpec | None:
     ev = _evidence(*inputs)
     if status == "implied" and not ev:
         return None  # an implied fact must point at the call's evidence (§3.5)
@@ -111,8 +126,17 @@ def dob_from_id(ctx: DeriveContext) -> list[OpSpec]:
         dob = parsed[0] if isinstance(parsed, tuple) else getattr(parsed, "date_of_birth", None)
         if dob is None:
             continue
-        spec = _add(ctx, "{p}.dateOfBirth", p, f"{p}.dateOfBirth", Point(value=dob.isoformat() if hasattr(dob, "isoformat") else str(dob)), "date",
-                    "dob_from_id_number", [], status="not_discussed")
+        spec = _add(
+            ctx,
+            "{p}.dateOfBirth",
+            p,
+            f"{p}.dateOfBirth",
+            Point(value=dob.isoformat() if hasattr(dob, "isoformat") else str(dob)),
+            "date",
+            "dob_from_id_number",
+            [],
+            status="not_discussed",
+        )
         if spec:
             out.append(spec)
     return out
@@ -124,10 +148,31 @@ def tertiary_after_matric(ctx: DeriveContext) -> list[OpSpec]:
     for f in ctx.profile.facts.values():
         if f.slot_id != "dependants[].tertiaryStartAge" or not _said(f) or f.derivation:
             continue
-        if "matric" in (f.said + " " + f.interpretation).lower() and f.value is not None and isinstance(f.value.dist, Point) and float(f.value.dist.value) == 18:
-            out.append(("UPDATE", f.fact_id, f.evidence[0].segment_id if f.evidence else None,
-                        {"replace_hypotheses": [Hypothesis(value=Quantity(dist=Triangular(low=17, mode=18, high=19), unit="age"), weight=1.0, rationale="after matric: 18 ± 1")],
-                         "status": "implied", "reason": "tertiary_after_matric"}, "deriver"))
+        if (
+            "matric" in (f.said + " " + f.interpretation).lower()
+            and f.value is not None
+            and isinstance(f.value.dist, Point)
+            and float(f.value.dist.value) == 18
+        ):
+            out.append(
+                (
+                    "UPDATE",
+                    f.fact_id,
+                    f.evidence[0].segment_id if f.evidence else None,
+                    {
+                        "replace_hypotheses": [
+                            Hypothesis(
+                                value=Quantity(dist=Triangular(low=17, mode=18, high=19), unit="age"),
+                                weight=1.0,
+                                rationale="after matric: 18 ± 1",
+                            )
+                        ],
+                        "status": "implied",
+                        "reason": "tertiary_after_matric",
+                    },
+                    "deriver",
+                )
+            )
     return out
 
 
@@ -153,18 +198,37 @@ def gross_from_net(ctx: DeriveContext) -> list[OpSpec]:
         income = ctx.base.income.get(p) if ctx.base is not None else None
         kw = {}
         if income is not None:
-            kw = {"medical_members": int(income.medicalSchemeMembers or 0), "medical_payroll_monthly": float(income.medicalAidPayrollMonthly or 0),
-                  "other_payroll_monthly": float(income.otherPayrollDeductionsMonthly or 0), "uif": bool(income.uifApplies)}
+            kw = {
+                "medical_members": int(income.medicalSchemeMembers or 0),
+                "medical_payroll_monthly": float(income.medicalAidPayrollMonthly or 0),
+                "other_payroll_monthly": float(income.otherPayrollDeductionsMonthly or 0),
+                "uif": bool(income.uifApplies),
+            }
         rng = np.random.default_rng(ctx.seed)
         nets = stats.sample(f.value.dist, rng, 400).astype(float)
         grossed = np.array([tax.gross_up_monthly(float(n), age=age, table=table, **kw) for n in nets])
         widened = grossed * rng.uniform(0.97, 1.03, size=grossed.size)  # unknown payroll deductions
         dist = stats.fit_quantile_mixture(widened)
-        out.append(("UPDATE", f.fact_id, f.evidence[0].segment_id if f.evidence else None,
-                    {"replace_hypotheses": [Hypothesis(value=Quantity(dist=dist, unit="ZAR", period="monthly", basis="gross"), weight=1.0,
-                                                       rationale=f"grossed up from a net take-home of {stats.median(f.value.dist):,.0f}")],
-                     "status": "implied", "reason": "gross_from_net", "normalization": {**(f.normalization or {}), "derivation": "gross_from_net", "net": f.value.model_dump(mode="json")}},
-                    "deriver"))
+        out.append(
+            (
+                "UPDATE",
+                f.fact_id,
+                f.evidence[0].segment_id if f.evidence else None,
+                {
+                    "replace_hypotheses": [
+                        Hypothesis(
+                            value=Quantity(dist=dist, unit="ZAR", period="monthly", basis="gross"),
+                            weight=1.0,
+                            rationale=f"grossed up from a net take-home of {stats.median(f.value.dist):,.0f}",
+                        )
+                    ],
+                    "status": "implied",
+                    "reason": "gross_from_net",
+                    "normalization": {**(f.normalization or {}), "derivation": "gross_from_net", "net": f.value.model_dump(mode="json")},
+                },
+                "deriver",
+            )
+        )
         out += _rescale_relatives(ctx.profile, f, stats.median(dist) / max(1e-9, stats.median(f.value.dist)))
     return out
 
@@ -178,11 +242,25 @@ def _rescale_relatives(profile: Profile, ref: Fact, ratio: float) -> list[OpSpec
         values = (g.normalization or {}).get("values") or []
         if not any(isinstance(v, dict) and (v.get("reference") or {}).get("fact_id") == ref.fact_id for v in values):
             continue
-        hyps = [h.model_copy(update={"value": h.value.model_copy(update={"dist": stats.scaled(h.value.dist, ratio), "basis": "gross"})}) if h.value is not None else h
-                for h in g.hypotheses]
-        out.append(("UPDATE", g.fact_id, g.evidence[0].segment_id if g.evidence else None,
-                    {"replace_hypotheses": hyps, "reason": "gross_from_net",
-                     "normalization": {**(g.normalization or {}), "derivation": "gross_from_net", "gross_ratio": ratio}}, "deriver"))
+        hyps = [
+            h.model_copy(update={"value": h.value.model_copy(update={"dist": stats.scaled(h.value.dist, ratio), "basis": "gross"})})
+            if h.value is not None
+            else h
+            for h in g.hypotheses
+        ]
+        out.append(
+            (
+                "UPDATE",
+                g.fact_id,
+                g.evidence[0].segment_id if g.evidence else None,
+                {
+                    "replace_hypotheses": hyps,
+                    "reason": "gross_from_net",
+                    "normalization": {**(g.normalization or {}), "derivation": "gross_from_net", "gross_ratio": ratio},
+                },
+                "deriver",
+            )
+        )
     return out
 
 
@@ -235,7 +313,7 @@ def emergency_answer(ctx: DeriveContext, median_doc: FnaDocument | None) -> list
     essential_keys = {e.key for e in ctx.catalog.expense_items if e.essential}
     essential = sum(v for k, v in median_doc.expenses.items.items() if k in essential_keys)
     essential += sum(c.amount for c in median_doc.expenses.custom if c.essential)
-    essential += sum(l.monthlyRepayment for l in median_doc.liabilities)
+    essential += sum(debt.monthlyRepayment for debt in median_doc.liabilities)
     liquid = sum(a.value for a in median_doc.assets if a.type in LIQUID)
     if essential <= 0:
         return []
@@ -273,7 +351,16 @@ def income_stability_answer(ctx: DeriveContext) -> list[OpSpec]:
     if not probs:
         return []
     s = sum(probs.values())
-    spec = _add(ctx, slot.slot_id, None, slot.fna_path, Categorical(probs={k: v / s for k, v in probs.items()}), "none", "income_stability_from_employment", [et])
+    spec = _add(
+        ctx,
+        slot.slot_id,
+        None,
+        slot.fna_path,
+        Categorical(probs={k: v / s for k, v in probs.items()}),
+        "none",
+        "income_stability_from_employment",
+        [et],
+    )
     return [spec] if spec else []
 
 
@@ -298,8 +385,16 @@ def linked_assets(ctx: DeriveContext) -> list[OpSpec]:
         if len(cands) != 1:
             continue
         path = f.fna_path.rsplit(".", 1)[0] + ".linkedAssetId"
-        spec = _add(ctx, "liabilities[].linkedAssetId", f.instance_key, path, Point(value=row_id_for(ctx.profile, cands[0])), "none", "linked_asset_from_registry",
-                    [f, _fact(ctx.profile, "assets[].type", cands[0])])
+        spec = _add(
+            ctx,
+            "liabilities[].linkedAssetId",
+            f.instance_key,
+            path,
+            Point(value=row_id_for(ctx.profile, cands[0])),
+            "none",
+            "linked_asset_from_registry",
+            [f, _fact(ctx.profile, "assets[].type", cands[0])],
+        )
         if spec:
             out.append(spec)
     return out
@@ -310,8 +405,11 @@ def partner_on_call(ctx: DeriveContext) -> list[OpSpec]:
     household.includeSpouse true, and household.maritalStatus married or life partner (which one stays open)."""
     if "person.spouse" not in ctx.profile.entities:
         return []
-    spouse = [x for x in sorted(ctx.profile.facts.values(), key=lambda x: x.fact_id)
-              if x.source == "call" and x.status in ("stated", "implied") and person_of(x.fact_id) == "spouse"][:3]
+    spouse = [
+        x
+        for x in sorted(ctx.profile.facts.values(), key=lambda x: x.fact_id)
+        if x.source == "call" and x.status in ("stated", "implied") and person_of(x.fact_id) == "spouse"
+    ][:3]
     if not spouse:
         return []
     out: list[OpSpec] = []
@@ -321,8 +419,16 @@ def partner_on_call(ctx: DeriveContext) -> list[OpSpec]:
         out += [spec] if spec else []
     ms = _fact(ctx.profile, "household.maritalStatus")
     if not _said(ms) and not (_usable(ms) and stats.mode_label(ms.value.dist) in ("married", "life-partner")):  # type: ignore[union-attr]
-        spec = _add(ctx, "household.maritalStatus", None, "household.maritalStatus", Categorical(probs={"married": 0.75, "life-partner": 0.25}), "none",
-                    "partner_on_call", spouse)
+        spec = _add(
+            ctx,
+            "household.maritalStatus",
+            None,
+            "household.maritalStatus",
+            Categorical(probs={"married": 0.75, "life-partner": 0.25}),
+            "none",
+            "partner_on_call",
+            spouse,
+        )
         out += [spec] if spec else []
     return out
 
@@ -346,14 +452,31 @@ def target_mode_from_target(ctx: DeriveContext) -> list[OpSpec]:
         slot = ctx.catalog.slot("retirement.{p}.targetMode")
         if slot.categories and label not in slot.categories:
             continue
-        spec = _add(ctx, "retirement.{p}.targetMode", p, f"retirement.{p}.targetMode", Categorical(probs={label: 1.0}), "none", "target_mode_from_target", [src])
+        spec = _add(
+            ctx,
+            "retirement.{p}.targetMode",
+            p,
+            f"retirement.{p}.targetMode",
+            Categorical(probs={label: 1.0}),
+            "none",
+            "target_mode_from_target",
+            [src],
+        )
         if spec:
             out.append(spec)
     return out
 
 
-RULES: list[Callable[[DeriveContext], list[OpSpec]]] = [dob_from_id, tertiary_after_matric, gross_from_net, horizon_answer, income_stability_answer, linked_assets,
-                                                        partner_on_call, target_mode_from_target]
+RULES: list[Callable[[DeriveContext], list[OpSpec]]] = [
+    dob_from_id,
+    tertiary_after_matric,
+    gross_from_net,
+    horizon_answer,
+    income_stability_answer,
+    linked_assets,
+    partner_on_call,
+    target_mode_from_target,
+]
 
 
 def derive_all(profile: Profile, *, base: FnaDocument | None = None, run_id: str | None = None, seed: int = 0) -> Profile:
@@ -361,8 +484,14 @@ def derive_all(profile: Profile, *, base: FnaDocument | None = None, run_id: str
     from ..binding import materialise
 
     catalog = load_catalog(profile.schema_version)
-    ctx = DeriveContext(profile=profile, catalog=catalog, base=base, anchor=profile.anchor_date,
-                        provenance=Provenance(run_id=run_id or profile.run_id, schema_version=catalog.version), seed=seed)
+    ctx = DeriveContext(
+        profile=profile,
+        catalog=catalog,
+        base=base,
+        anchor=profile.anchor_date,
+        provenance=Provenance(run_id=run_id or profile.run_id, schema_version=catalog.version),
+        seed=seed,
+    )
     for rule in RULES:
         specs = rule(ctx)
         if specs:

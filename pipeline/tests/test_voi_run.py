@@ -242,7 +242,12 @@ async def test_a_failed_view_is_reported_on_the_output():
 
     with followup_agent.override(model=_drafter()):
         out = await run_voi_and_followups(
-            prof, catalog=CATALOG, pins=VersionPins(), pos_runs=broken, analyse=functools.partial(fna_analyse, today=ANCHOR), base_document=doc
+            prof,
+            catalog=CATALOG,
+            pins=VersionPins(),
+            pos_runs=broken,
+            analyse=functools.partial(fna_analyse, today=ANCHOR),
+            base_document=doc,
         )
     assert out.errors == ["PoS runs failed: RuntimeError: forecast down"]
     assert all(r.i_pos == 0 for r in out.sensitivity) and any(r.i_fna > 0 for r in out.sensitivity)  # the FNA view still ranked

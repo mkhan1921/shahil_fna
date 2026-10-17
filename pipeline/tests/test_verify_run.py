@@ -115,7 +115,9 @@ async def test_a_reading_the_verifier_rejects_becomes_contradicted_when_a_prior_
     assert [o.op for o in res.ops] == ["UPDATE"] and f.status == "contradicted" and len(f.hypotheses) == 2
     assert f.verification["contradicted"] is True and f.verification["entailment"]["status"] == "contradicted"
     assert not needs_verification(f) and res.results[fid]["contradicted_hypotheses"] == [0]
-    item = prioritise(res.profile, [SensitivityRow(fact_id=fid, slot_id="income.{p}.grossMonthly", tier="A", reasons=["tier A"])], catalog=CATALOG)[0]
+    item = prioritise(
+        res.profile, [SensitivityRow(fact_id=fid, slot_id="income.{p}.grossMonthly", tier="A", reasons=["tier A"])], catalog=CATALOG
+    )[0]
     assert item.forced == 1.0 and "independent check contradicted" in item.why
     assert ("tier_a_contradicted", fid) in {(fl.kind, fl.fact_id) for fl in compute_flags(res.profile, catalog=CATALOG)}
     assert check_profile(res.profile) == []
@@ -268,7 +270,9 @@ async def test_nothing_to_check_counts_as_checked_but_a_failed_check_is_retried(
     p = b.build()
     # a stub verifier: the valued fact's check did not run and stays due; the unknown fact had nothing to check
     res = await verify_facts(p, [unknown, valued], transcript=_t(), pins=VersionPins(), catalog=CATALOG, reextract=None)
-    assert not needs_verification(res.profile.facts[unknown]) and res.profile.facts[unknown].verification["entailment"]["error"] == "no claims"
+    assert (
+        not needs_verification(res.profile.facts[unknown]) and res.profile.facts[unknown].verification["entailment"]["error"] == "no claims"
+    )
     assert needs_verification(res.profile.facts[valued]) and res.errors == []
     # a verifier that fails: the fact is reported, keeps NaN features and is retried on the next pass
     with entailment_agent.override(model=_broken_verifier()):
@@ -292,7 +296,10 @@ async def test_probe_failures_are_counted_in_the_usage_and_reported_when_nothing
     detail = res.profile.facts[ra].verification["consistency_detail"]
     assert detail["failures"] == 3 and detail["answered"] == 0 and "RuntimeError" in detail["error"] and "failed" in detail["skipped"]
     assert res.profile.facts[ra].verification["consistency"] is None
-    assert res.profile.facts[inc].verification["consistency"] == 1.0 and res.profile.facts[inc].verification["consistency_detail"]["failures"] == 0
+    assert (
+        res.profile.facts[inc].verification["consistency"] == 1.0
+        and res.profile.facts[inc].verification["consistency_detail"]["failures"] == 0
+    )
     assert res.usage["failures"] == 3 and [e for e in res.errors if e.startswith(ra)] and not [e for e in res.errors if e.startswith(inc)]
 
 
@@ -301,7 +308,12 @@ def _present_for(label, segs):
         prompt = str(messages[-1].parts[-1].content)
         qs = re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.MULTILINE)
         out = [
-            {"question_id": q, "answer": "present" if label in line else "absent", "segment_ids": segs if label in line else [], "reason": "r"}
+            {
+                "question_id": q,
+                "answer": "present" if label in line else "absent",
+                "segment_ids": segs if label in line else [],
+                "reason": "r",
+            }
             for q, line in qs
         ]
         return ModelResponse(parts=[TextPart(json.dumps({"answers": out}))])

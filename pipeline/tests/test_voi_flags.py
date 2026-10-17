@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from advisor_intel.models.profile import BlockingFlag
 from advisor_intel.models.review import FlagClearance
@@ -12,7 +12,7 @@ from advisor_intel.voi.sensitivity import SensitivityRow
 
 from .verify_factories import CATALOG, ProfileBuilder, ev, money, point, segment, span, transcript
 
-AT = datetime(2026, 10, 16, tzinfo=timezone.utc)
+AT = datetime(2026, 10, 16, tzinfo=UTC)
 
 
 def _kinds(flags):
@@ -110,7 +110,7 @@ def test_clean_facts_raise_nothing_beyond_missing_fields():
 
 
 def test_merge_keeps_reviewer_decisions_and_closes_resolved_flags():
-    p, inc, ra, will, pol = _household()
+    p, _inc, _ra, _will, _pol = _household()
     first = compute_flags(p, catalog=CATALOG)
     p = p.model_copy(update={"blocking_flags": first})
     hc = next(f for f in first if f.kind == "hard_constraint")

@@ -354,7 +354,9 @@ async def test_the_verifier_runs_on_the_pinned_prompt():
         instr = getattr(messages[0], "instructions", None) or getattr(info, "instructions", None) or ""
         seen.append(str(instr))
         claims = re.findall(r"^- (c\d+): (.*)$", str(messages[-1].parts[-1].content), flags=re.MULTILINE)
-        return ModelResponse(parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": "entailed", "reason": "ok"} for c, _ in claims]}))])
+        return ModelResponse(
+            parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": "entailed", "reason": "ok"} for c, _ in claims]}))]
+        )
 
     with entailment_agent.override(model=FunctionModel(fn)):
         res = await check_entailment(p, [inc], transcript=_transcript(), pins=VersionPins(prompt_versions={"entailment": "v1"}))

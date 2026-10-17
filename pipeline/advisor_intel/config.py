@@ -102,6 +102,8 @@ class Settings(BaseModel):
     min_conformal_calls: int = 50
     spot_check_rate: float = 0.1
     asr_provider: str = "assemblyai"
+    # The segment/topic embedder (§6.5, §17 default: EmbeddingGemma 2 until decided); "hashed-256" needs no model.
+    embedding_model: str = "google/embeddinggemma-2-270m"
     # Secrets never appear in a repr (a logged Settings shows them as elided).
     assemblyai_api_key: str | None = Field(default=None, repr=False)
     deepgram_api_key: str | None = Field(default=None, repr=False)
@@ -137,7 +139,18 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     s = Settings()
     updates: dict = {}
-    for field in ("database_url", "object_store_uri", "temporal_address", "temporal_namespace", "task_queue", "braintrust_project", "otlp_endpoint", "asr_provider", "env"):
+    for field in (
+        "database_url",
+        "object_store_uri",
+        "temporal_address",
+        "temporal_namespace",
+        "task_queue",
+        "braintrust_project",
+        "otlp_endpoint",
+        "asr_provider",
+        "embedding_model",
+        "env",
+    ):
         v = _env(field.upper())
         if v:
             updates[field] = v

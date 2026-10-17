@@ -8,7 +8,7 @@ that carry uncertainty are held as decimal years (``unit="date"``), e.g. 1985.5 
 from __future__ import annotations
 
 import math
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -29,7 +29,7 @@ class Categorical(_Dist):
     probs: dict[str, float]  # sums to 1
 
     @model_validator(mode="after")
-    def _sums_to_one(self) -> "Categorical":
+    def _sums_to_one(self) -> Categorical:
         if not self.probs:
             raise ValueError("categorical needs at least one category")
         if any(p < -_TOL for p in self.probs.values()):
@@ -45,7 +45,7 @@ class Discrete(_Dist):
     weights: list[float]
 
     @model_validator(mode="after")
-    def _check(self) -> "Discrete":
+    def _check(self) -> Discrete:
         if len(self.support) != len(self.weights) or not self.support:
             raise ValueError("discrete support and weights must be non-empty and the same length")
         if any(w < -_TOL for w in self.weights) or abs(sum(self.weights) - 1) > 1e-4:
@@ -60,7 +60,7 @@ class Triangular(_Dist):
     high: float
 
     @model_validator(mode="after")
-    def _ordered(self) -> "Triangular":
+    def _ordered(self) -> Triangular:
         if not (self.low <= self.mode <= self.high):
             raise ValueError(f"triangular needs low <= mode <= high, got {self.low}, {self.mode}, {self.high}")
         return self
@@ -75,7 +75,7 @@ class LogNormal(_Dist):
     p90: float
 
     @model_validator(mode="after")
-    def _ordered(self) -> "LogNormal":
+    def _ordered(self) -> LogNormal:
         if not (0 < self.p10 <= self.median <= self.p90):
             raise ValueError("lognormal needs 0 < p10 <= median <= p90")
         return self
@@ -118,10 +118,10 @@ class Bernoulli(_Dist):
 
 class Mixture(_Dist):
     kind: Literal["mixture"] = "mixture"
-    components: list[tuple[float, "Dist"]]  # (weight, dist)
+    components: list[tuple[float, Dist]]  # (weight, dist)
 
     @model_validator(mode="after")
-    def _weights(self) -> "Mixture":
+    def _weights(self) -> Mixture:
         if not self.components:
             raise ValueError("mixture needs at least one component")
         total = sum(w for w, _ in self.components)
@@ -131,7 +131,7 @@ class Mixture(_Dist):
 
 
 Dist = Annotated[
-    Union[Point, Categorical, Discrete, Triangular, LogNormal, Normal, Bernoulli, Mixture],
+    Point | Categorical | Discrete | Triangular | LogNormal | Normal | Bernoulli | Mixture,
     Field(discriminator="kind"),
 ]
 Mixture.model_rebuild()

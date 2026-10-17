@@ -26,10 +26,11 @@ import re
 import subprocess
 import sys
 import traceback
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 import yaml
@@ -357,7 +358,7 @@ def build_report(
         eval_name=eval_name,
         dataset=dataset,
         experiment=experiment,
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
         git_sha=_git_sha(),
         pins=pins_dict,
         n_items=len(items),
@@ -369,7 +370,7 @@ def build_report(
 
 
 def report_path(eval_name: str = EVAL_NAME, dataset: str = SYNTHETIC_DATASET, *, latest: bool = True) -> Path:
-    stamp = "latest" if latest else datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    stamp = "latest" if latest else datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     return data_dir() / "evals" / "reports" / f"{eval_name}-{dataset}-{stamp}.json"
 
 
@@ -622,9 +623,9 @@ if __name__ == "__main__":
 __all__ = [
     "EVAL_BASELINES",
     "EVAL_NAME",
+    "NOTE_ENV",
     "EvalReport",
     "ItemReport",
-    "NOTE_ENV",
     "braintrust_eval",
     "braintrust_scorers",
     "build_report",

@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import math
-from typing import Any, Callable, Mapping, Protocol, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Protocol
 
 import httpx
 

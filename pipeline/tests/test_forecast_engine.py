@@ -37,13 +37,25 @@ def doc_with(**kw) -> F.FnaDocument:
     d.income["client"] = F.Income(grossMonthly=kw.get("gross", 30_000), uifApplies=False)
     d.expenses.items = kw.get("items", {"groceries": 10_000, "dining": 2_000})
     d.assets = kw.get("assets", [F.Asset(type="cash", value=100_000)])
-    d.retirementFunds = kw.get("funds", [F.RetirementFund(type="retirement-annuity", value=500_000, employeeMonthly=1_000, viaPayroll=False)])
+    d.retirementFunds = kw.get(
+        "funds", [F.RetirementFund(type="retirement-annuity", value=500_000, employeeMonthly=1_000, viaPayroll=False)]
+    )
     d.liabilities = kw.get("liabilities", [])
     d.goals = kw.get("goals", [])
-    d.retirement["client"] = F.RetirementGoal(retirementAge=kw.get("retire", 62), planningAge=kw.get("plan", 64),
-                                              targetMode="amount", targetMonthly=kw.get("target", 5_000))
-    a = kw.get("assumptions", {"cpi": 0.0, "salaryEscalation": 0.0, "preRetirementReturn": 0.0, "postRetirementReturn": 0.0,
-                               "riskCapitalReturn": 0.0, "educationInflation": 0.0})
+    d.retirement["client"] = F.RetirementGoal(
+        retirementAge=kw.get("retire", 62), planningAge=kw.get("plan", 64), targetMode="amount", targetMonthly=kw.get("target", 5_000)
+    )
+    a = kw.get(
+        "assumptions",
+        {
+            "cpi": 0.0,
+            "salaryEscalation": 0.0,
+            "preRetirementReturn": 0.0,
+            "postRetirementReturn": 0.0,
+            "riskCapitalReturn": 0.0,
+            "educationInflation": 0.0,
+        },
+    )
     d.assumptions = d.assumptions.model_copy(update=a)
     return d
 
@@ -72,10 +84,25 @@ def test_zero_volatility_reproduces_a_hand_computed_cash_flow_table():
 
 
 def test_a_single_lump_sum_at_a_fixed_real_return_compounds_exactly():
-    a = {"cpi": 0.05, "salaryEscalation": 0.05, "preRetirementReturn": 0.08, "postRetirementReturn": 0.08, "riskCapitalReturn": 0.08,
-         "educationInflation": 0.05}
-    doc = doc_with(dob="1986-10-15", gross=0, items={}, assets=[F.Asset(type="unit-trust", value=1_000_000)],
-                   funds=[F.RetirementFund(type="pension", value=1_000_000)], retire=65, plan=92, target=0, assumptions=a)
+    a = {
+        "cpi": 0.05,
+        "salaryEscalation": 0.05,
+        "preRetirementReturn": 0.08,
+        "postRetirementReturn": 0.08,
+        "riskCapitalReturn": 0.08,
+        "educationInflation": 0.05,
+    }
+    doc = doc_with(
+        dob="1986-10-15",
+        gross=0,
+        items={},
+        assets=[F.Asset(type="unit-trust", value=1_000_000)],
+        funds=[F.RetirementFund(type="pension", value=1_000_000)],
+        retire=65,
+        plan=92,
+        target=0,
+        assumptions=a,
+    )
     r = run_doc(doc)
     real = 1.08 / 1.05
     years = np.arange(26)
@@ -114,12 +141,20 @@ def test_unmet_spend_within_the_tolerance_is_neither_failure_nor_shortfall():
     """R14,590 a month is R175,080 a year against a R175,000 band maximum: the R80 gap is within the 0.1% tolerance,
     so the path succeeds and, consistently, reports no shortfall (P(any shortfall) stays 1 − PoS). Two years are
     funded (65 to the planning age); a 20% return holds the balance, so the band is binding in the first year only."""
-    a = {"cpi": 0.0, "salaryEscalation": 0.0, "preRetirementReturn": 0.0, "postRetirementReturn": 0.20, "riskCapitalReturn": 0.0,
-         "educationInflation": 0.0}
+    a = {
+        "cpi": 0.0,
+        "salaryEscalation": 0.0,
+        "preRetirementReturn": 0.0,
+        "postRetirementReturn": 0.20,
+        "riskCapitalReturn": 0.0,
+        "educationInflation": 0.0,
+    }
     retired = {"employment": "retired", "dob": "1961-10-15", "retire": 60, "plan": 66, "gross": 0, "items": {}, "assumptions": a}
     fund = [F.RetirementFund(type="living-annuity", value=1_000_000)]
     r = run_doc(doc_with(target=14_590, funds=fund, assets=[], **retired))
-    assert np.allclose(r.retirement_income_real[:, 0], 175_000) and r.retirement_income_real[0, 1] == pytest.approx(175_080)  # band binds in year 1 only
+    assert np.allclose(r.retirement_income_real[:, 0], 175_000) and r.retirement_income_real[0, 1] == pytest.approx(
+        175_080
+    )  # band binds in year 1 only
     assert r.success.all() and np.all(r.total_shortfall_real == 0) and np.all(np.isnan(r.first_shortfall_age))
     # R14,700 a month leaves R1,400 unmet in the first year, above the tolerance: a failure, counted in full.
     r = run_doc(doc_with(target=14_700, funds=fund, assets=[], **retired))
@@ -139,7 +174,9 @@ def test_drawdown_band_comes_from_the_shared_table_not_the_config():
     assert tax.living_annuity_band == (0.025, 0.175)
     r = run_doc(doc, config=loose, tax=tax)
     assert np.allclose(r.retirement_income_real[:, 0], 175_000)  # 17.5% from the table, not 50% from the config
-    assert np.allclose(run_doc(doc, config=loose).retirement_income_real[:, 0], 240_000)  # a stub without a table: the config's band allows the need
+    assert np.allclose(
+        run_doc(doc, config=loose).retirement_income_real[:, 0], 240_000
+    )  # a stub without a table: the config's band allows the need
 
 
 def test_every_committed_parity_document_forecasts_finite_and_consistent():
@@ -201,9 +238,11 @@ def test_loans_are_repaid_until_paid_off():
 
 
 def test_goals_are_funded_on_time_from_savings_then_liquid_assets():
-    goals = [F.OtherGoal(name="Car", cost=50_000, targetYear=2028, existingSavings=60_000),
-             F.OtherGoal(name="Holiday", cost=40_000, targetYear=2027),
-             F.OtherGoal(name="Yacht", cost=50_000_000, targetYear=2029)]
+    goals = [
+        F.OtherGoal(name="Car", cost=50_000, targetYear=2028, existingSavings=60_000),
+        F.OtherGoal(name="Holiday", cost=40_000, targetYear=2027),
+        F.OtherGoal(name="Yacht", cost=50_000_000, targetYear=2029),
+    ]
     doc = doc_with(goals=goals)
     plan = plan_from_document(doc, anchor=ANCHOR, config=ZERO, cma=flat_cma())
     r = Forecaster(plan, ZeroTaxModel()).run(1, 4).result

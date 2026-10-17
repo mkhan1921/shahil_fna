@@ -33,7 +33,7 @@ class Prompt:
 
 def versions(name: str) -> list[str]:
     d = PROMPTS_DIR / name
-    found = sorted((int(m.group(1)) for p in d.glob("v*.md") if (m := _VERSION.match(p.name))))
+    found = sorted(int(m.group(1)) for p in d.glob("v*.md") if (m := _VERSION.match(p.name)))
     return [f"v{n}" for n in found]
 
 

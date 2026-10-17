@@ -7,6 +7,7 @@ above their capacity to absorb losses. The eight questions are categorical slots
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Literal, NamedTuple
 
@@ -164,7 +165,7 @@ def _category_index(average: float) -> int:
 
 def _option_score(q: RiskQuestion, answer: float) -> int | None:
     """``q.options[answer]?.score``: JavaScript indexes an array only with a whole number in range (-0 included)."""
-    if answer != answer or answer in (float("inf"), float("-inf")) or answer != int(answer):
+    if math.isnan(answer) or math.isinf(answer) or answer != int(answer):
         return None
     i = int(answer)
     return q.options[i].score if 0 <= i < len(q.options) else None

@@ -27,10 +27,11 @@ import json
 import logging
 import os
 import tempfile
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 from urllib.parse import urlparse
 
 import yaml
@@ -152,7 +153,7 @@ class ProductCatalogue:
         self.named_products = list(named)
 
     @classmethod
-    def from_yaml(cls, text: str) -> "ProductCatalogue":
+    def from_yaml(cls, text: str) -> ProductCatalogue:
         data = yaml.safe_load(text)
         prods = [CatalogueEntry.model_validate(p) for p in data.get("products", [])]
         provs = [CatalogueEntry.model_validate({**p, "kind": "provider"}) for p in data.get("providers", [])]
@@ -298,7 +299,7 @@ class TermContext:
     extra: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_fna(cls, doc: FnaDocument, **kw: Any) -> "TermContext":
+    def from_fna(cls, doc: FnaDocument, **kw: Any) -> TermContext:
         """A context whose prior-FNA terms are the document's providers, insurers, lenders and product names."""
         terms: list[str] = []
         for f in doc.retirementFunds:
@@ -604,7 +605,7 @@ def confirm_term(
         source=source,
         source_url=source_url,
         confirmed_by=confirmed_by,
-        confirmed_at=at or datetime.now(timezone.utc),
+        confirmed_at=at or datetime.now(UTC),
     )
     store.put(entry)
     return entry

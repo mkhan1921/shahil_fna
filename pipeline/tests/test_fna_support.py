@@ -196,7 +196,14 @@ def test_need_bands_summarise_each_shortfall_over_the_draws():
     life = sorted(a.persons["client"].death.shortfall for a in analyses)
     assert bands["life.client"] == pytest.approx({"p10": life[4], "p50": life[20], "p90": life[36]})
     # Keyed as the app's review overlay keys its need lines (lib/review/impact.ts): "<area>.<person>" / "<area>.household".
-    assert {"life.client", "income-protection.spouse", "estate.client", "retirement.spouse", "emergency.household", "education.household"} <= set(bands)
+    assert {
+        "life.client",
+        "income-protection.spouse",
+        "estate.client",
+        "retirement.spouse",
+        "emergency.household",
+        "education.household",
+    } <= set(bands)
     assert {f"education.{d.id}" for d in sample.dependants if d.relationship == "child"} <= set(bands)
     assert all(b["p10"] <= b["p50"] <= b["p90"] for b in bands.values())
     single = analyse(new_document(), today=TODAY)

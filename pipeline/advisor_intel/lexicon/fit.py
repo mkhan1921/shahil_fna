@@ -23,7 +23,8 @@ import difflib
 import math
 import re
 from collections import defaultdict
-from typing import Any, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any
 
 import numpy as np
 from pydantic import BaseModel, TypeAdapter
@@ -91,7 +92,7 @@ class EditPair(BaseModel):
     fna_unit: str | None = None
 
     @classmethod
-    def from_fact(cls, fact: Fact, edited: Quantity | Dist) -> list["EditPair"]:
+    def from_fact(cls, fact: Fact, edited: Quantity | Dist) -> list[EditPair]:
         """Pairs from a reviewed fact: one per exact lexicon lookup recorded in its normalization.
 
         A fact with several hypotheses records one normalization per hypothesis; when more than one
@@ -577,7 +578,7 @@ def propose_lexicon_fit(
             )
         )
     if changes:
-        text = re.sub(r"^version:\s*.*$", f'version: "{new_version}"', text, count=1, flags=re.M)
+        text = re.sub(r"^version:\s*.*$", f'version: "{new_version}"', text, count=1, flags=re.MULTILINE)
         proposed = Lexicon.from_text(text)  # the proposal must load and validate
     else:
         new_version, proposed = lex.version, work
@@ -605,10 +606,10 @@ def propose_lexicon_fit(
 
 
 __all__ = [
+    "MIN_PAIRS",
     "EditPair",
     "EntryFit",
     "LexiconDiff",
-    "MIN_PAIRS",
     "bump_version",
     "fit_beta",
     "fit_discrete",

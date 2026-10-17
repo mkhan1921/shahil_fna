@@ -128,7 +128,9 @@ def _synthetic_series(months: int = 312, seed: int = 0, rho: float = 0.0) -> His
         ar[i] = rho * ar[i - 1] + shock[i]
     returns = {k: rng.normal(0.006, 0.02, months) for k in ASSET_CLASSES}
     returns["za_equity"] = 0.008 + ar
-    return HistoricalSeries(returns=returns, cpi=rng.normal(0.004, 0.002, months), usdzar_log_change=rng.normal(0.004, 0.03, months), start="2000-01")
+    return HistoricalSeries(
+        returns=returns, cpi=rng.normal(0.004, 0.002, months), usdzar_log_change=rng.normal(0.004, 0.03, months), start="2000-01"
+    )
 
 
 def test_block_bootstrap_resamples_blocks_of_mean_length_24_and_keeps_the_model_means():
@@ -152,7 +154,9 @@ def test_block_bootstrap_keeps_autocorrelation_that_iid_resampling_loses():
     model = MarketModel(CFG, CMA_, 0.045)
     series = _synthetic_series(months=600, seed=2, rho=0.6)
     blocks = StationaryBlockBootstrap(series, model).realise(StationaryBlockBootstrap(series, model).shocks(2, 3_000, 10))
-    iid = StationaryBlockBootstrap(series, model, mean_block_months=1).realise(StationaryBlockBootstrap(series, model, mean_block_months=1).shocks(2, 3_000, 10))
+    iid = StationaryBlockBootstrap(series, model, mean_block_months=1).realise(
+        StationaryBlockBootstrap(series, model, mean_block_months=1).shocks(2, 3_000, 10)
+    )
     # Positive monthly autocorrelation makes annual sums more variable; blocks keep it, single months do not.
     assert blocks.class_log[0].std() > 1.4 * iid.class_log[0].std()
 

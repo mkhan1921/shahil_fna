@@ -86,13 +86,23 @@ def _form_model(form_type: str, slot: SlotDef) -> type[BaseModel]:
         "currency": (_enum(*_CURRENCY), ...),
         "period": (_enum(*_PERIOD), Field(..., description="as said; code converts to the field's unit")),
         "basis": (_enum(*_BASIS), ...),
-        "priced_year": (int, Field(..., description="the calendar year the amount is priced in when the speaker dated it ('R400,000 in 2030'); 0 when not said")),
+        "priced_year": (
+            int,
+            Field(
+                ..., description="the calendar year the amount is priced in when the speaker dated it ('R400,000 in 2030'); 0 when not said"
+            ),
+        ),
     }
     fields: dict[str, Any]
     if form_type == "AMOUNT_EXACT":
         fields = {"type": tag, "value": (float, Field(..., description="the number as said, scale words applied")), **amount_common}
     elif form_type == "AMOUNT_APPROX":
-        fields = {"type": tag, "value": (float, ...), "approx_word": (str, Field(..., description="'about', 'roughly', 'give or take'")), **amount_common}
+        fields = {
+            "type": tag,
+            "value": (float, ...),
+            "approx_word": (str, Field(..., description="'about', 'roughly', 'give or take'")),
+            **amount_common,
+        }
     elif form_type == "AMOUNT_RANGE":
         fields = {"type": tag, "low": (float, ...), "high": (float, ...), **amount_common}
     elif form_type == "AMOUNT_BOUND":
@@ -106,7 +116,12 @@ def _form_model(form_type: str, slot: SlotDef) -> type[BaseModel]:
     elif form_type == "AMOUNT_VAGUE":
         fields = {"type": tag, "vague_word": (str, Field(..., description="'a few hundred K', 'six figures'")), **amount_common}
     elif form_type == "DATE_ABS":
-        fields = {"type": tag, "year": (int, ...), "month": (int, Field(..., description="1-12, or 0 when not said")), "day": (int, Field(..., description="1-31, or 0 when not said"))}
+        fields = {
+            "type": tag,
+            "year": (int, ...),
+            "month": (int, Field(..., description="1-12, or 0 when not said")),
+            "day": (int, Field(..., description="1-31, or 0 when not said")),
+        }
     elif form_type == "DURATION_FROM_ANCHOR":
         fields = {
             "type": tag,
@@ -199,7 +214,15 @@ def compile_objects(group: str, catalog: Catalog, *, registry_ids: tuple[str, ..
         raise ValueError(f"group {group} has no list entity")
     types = LIST_ENTITY_TYPES.get(g.list_entity, (LIST_ENTITY_TYPE[g.list_entity],))
     fields: dict[str, Any] = {
-        "entity_id": (str, Field(..., description="an existing registry id" + (f" ({', '.join(registry_ids[:40])})" if registry_ids else "") + ", or 'new:<short name>'")),
+        "entity_id": (
+            str,
+            Field(
+                ...,
+                description="an existing registry id"
+                + (f" ({', '.join(registry_ids[:40])})" if registry_ids else "")
+                + ", or 'new:<short name>'",
+            ),
+        ),
         "entity_type": (_enum(*types), ...),
         "name": (str, Field(..., description="short canonical name, e.g. 'Thandi' or 'Discovery life policy'")),
         "segment_ids": (list[str], Field(..., description="segments that mention this object")),
@@ -278,7 +301,12 @@ def to_object_refs(out: BaseModel) -> list[tuple[ObjectRef, str | None]]:
     """Objects → (ObjectRef, expense catalog key or None)."""
     refs = []
     for o in out.objects:  # type: ignore[attr-defined]
-        refs.append((ObjectRef(entity_id=o.entity_id, entity_type=o.entity_type, name=o.name, segment_ids=list(o.segment_ids)), getattr(o, "catalog_key", None)))
+        refs.append(
+            (
+                ObjectRef(entity_id=o.entity_id, entity_type=o.entity_type, name=o.name, segment_ids=list(o.segment_ids)),
+                getattr(o, "catalog_key", None),
+            )
+        )
     return refs
 
 
@@ -438,7 +466,7 @@ def schema_stats(schema: dict[str, Any]) -> SchemaStats:
                 if k in ("anyOf", "oneOf", "allOf"):
                     for variant in v:
                         walk(variant, depth)
-                elif k == "items" or isinstance(v, (dict, list)) and k not in ("properties",):
+                elif k == "items" or (isinstance(v, (dict, list)) and k not in ("properties",)):
                     walk(v, depth)
         elif isinstance(node, list):
             for v in node:
@@ -476,4 +504,3 @@ def check_limits(stats: list[SchemaStats], provider: str, *, strict_tools: int =
     if provider == "anthropic" and total.leftover_constraints:
         problems.append(f"anthropic: {total.leftover_constraints} constraint(s) would be dropped into descriptions")
     return problems
-

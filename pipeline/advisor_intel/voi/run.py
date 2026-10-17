@@ -169,9 +169,22 @@ def placeholders(profile: Profile, catalog: Catalog, fact_ids: list[str]) -> Pro
             log.warning("flag or follow-up names unknown slot %s", slot_id)
             continue
         instance = inst or None
-        specs.append(("ADD", fid, None, {"slot_id": slot.slot_id, "instance_key": instance, "fna_path": concrete_path(profile, slot, instance),
-                                         "source": "fna_default", "status": "not_discussed",
-                                         "provenance": Provenance(run_id=profile.run_id, schema_version=catalog.version)}, "loader"))
+        specs.append(
+            (
+                "ADD",
+                fid,
+                None,
+                {
+                    "slot_id": slot.slot_id,
+                    "instance_key": instance,
+                    "fna_path": concrete_path(profile, slot, instance),
+                    "source": "fna_default",
+                    "status": "not_discussed",
+                    "provenance": Provenance(run_id=profile.run_id, schema_version=catalog.version),
+                },
+                "loader",
+            )
+        )
     if not specs:
         return profile
     res = apply_state_ops(profile, make_ops(profile, specs))

@@ -477,7 +477,9 @@ def apply_state_ops(profile: Profile, ops: list[StateOp], *, validate: bool = Fa
             facts[op.fact_id] = _finalise(facts[op.fact_id])  # each op sees a consistent fact
         if op.fact_id not in touched:
             touched.append(op.fact_id)
-    new = profile.model_copy(update={"facts": facts, "ops_log": list(profile.ops_log) + applied, "version": profile.version + (1 if applied else 0)})
+    new = profile.model_copy(
+        update={"facts": facts, "ops_log": list(profile.ops_log) + applied, "version": profile.version + (1 if applied else 0)}
+    )
     if validate:
         new.validate(replay=False)
     return ReducerResult(profile=new, applied=applied, rejected=rejected, touched=touched)

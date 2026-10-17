@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
-from typing import Any, Iterable
+from typing import Any
 
 from advisor_intel.extract.reducer import apply_state_ops, make_ops
 from advisor_intel.models.dists import Dist, Point, Quantity
@@ -75,7 +76,7 @@ class ProfileBuilder:
         self.profile = Profile(call_id=call_id, run_id="wf-1", schema_version="profile_v1", anchor_date=anchor, entities=ents)
         self.specs: list[tuple[str, str, str | None, dict[str, Any], str]] = []
 
-    def entity(self, entity_id: str, etype: str, name: str, **attrs: Any) -> "ProfileBuilder":
+    def entity(self, entity_id: str, etype: str, name: str, **attrs: Any) -> ProfileBuilder:
         ents = dict(self.profile.entities)
         ents[entity_id] = Entity(entity_id=entity_id, type=etype, canonical_name=name, attributes=attrs)  # type: ignore[arg-type]
         self.profile = self.profile.model_copy(update={"entities": ents})

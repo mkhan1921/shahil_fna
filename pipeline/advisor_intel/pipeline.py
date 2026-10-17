@@ -89,11 +89,21 @@ class PipelineResult:
         """The review as a file for the FNA app's overlay (file exchange, §11.5)."""
         attribution = _optional("advisor_intel.api.bundle", "attribution_text")
         bundle = ReviewBundle(
-            call_id=self.call_id, run_id=self.run_id, profile_version=self.profile.version,
+            call_id=self.call_id,
+            run_id=self.run_id,
+            profile_version=self.profile.version,
             state=RunState.AGENT_PARTIAL if self.partial else RunState.AWAITING_REVIEW,
-            median_document=self.document or FnaDocument(), prior_document=self.prior_document, sidecar=self.sidecar, transcript=self.transcript,
-            entities=self.profile.entities, followups=self.followups, blocking_flags=self.flags, preview_forecast=self.forecast,
-            deterministic_analysis=self.analysis, quality=self.transcript.quality, versions=self.pins,
+            median_document=self.document or FnaDocument(),
+            prior_document=self.prior_document,
+            sidecar=self.sidecar,
+            transcript=self.transcript,
+            entities=self.profile.entities,
+            followups=self.followups,
+            blocking_flags=self.flags,
+            preview_forecast=self.forecast,
+            deterministic_analysis=self.analysis,
+            quality=self.transcript.quality,
+            versions=self.pins,
             attribution_text=attribution(self.forecast) if attribution is not None and self.forecast is not None else None,
         )
         return ReviewPackage(bundle=bundle)
@@ -127,7 +137,9 @@ def crm_names(crm: CrmRecord | None, doc: FnaDocument | None = None) -> Any:
             by_role[role].append(p.name)
         products = [ProductHint(name=p.product, provider=p.provider, fna_type=p.fna_type) for p in crm.products if p.product or p.provider]
     if doc is not None:
-        by_role["client_primary"] += [n for n in (doc.client.firstName, " ".join(x for x in (doc.client.firstName, doc.client.surname) if x)) if n]
+        by_role["client_primary"] += [
+            n for n in (doc.client.firstName, " ".join(x for x in (doc.client.firstName, doc.client.surname) if x)) if n
+        ]
         by_role["client_secondary"] += [n for n in (doc.spouse.firstName,) if n]
         by_role["others"] += [d.name for d in doc.dependants if d.name]
     return CrmNames(**{k: list(dict.fromkeys(v)) for k, v in by_role.items()}, products=products)
@@ -144,17 +156,36 @@ async def transcribe(call: CallInput, pins: VersionPins, settings: Settings | No
     if call.script is not None:
         script = ingest.ScriptedCall.parse(call.script, roles=call.script_roles or None)
         # Without gold roles the scripted call takes the same road as audio: the role agent, unless the frontier pin is a test model.
-        return await ingest.transcript_from_script_async(script, anchor, call_id=call.call_id, roles="script" if call.script_roles else "auto",
-                                                         role_agent_pins=pins, prior_fna=call.prior_document, crm_names=names)
+        return await ingest.transcript_from_script_async(
+            script,
+            anchor,
+            call_id=call.call_id,
+            roles="script" if call.script_roles else "auto",
+            role_agent_pins=pins,
+            prior_fna=call.prior_document,
+            crm_names=names,
+        )
     if not call.audio:
         raise ValueError(f"call {call.call_id} has no transcript, script or audio")
     from .ingest.providers import build_asr, build_diarizer, build_second_pass
 
     s = settings or get_settings()
-    meta = ingest.CallMeta(call_id=call.call_id, started_at=datetime.combine(anchor, time(9, 0)), anchor_date=anchor,
-                           client_ids=[p.crm_id for p in call.crm.household if p.role in ("client_primary", "spouse")] if call.crm else [])
-    return await ingest.ingest_call(call.audio, meta, asr=build_asr(pins, s), diarizer=build_diarizer(pins, s), role_agent_pins=pins,
-                                    second_pass=build_second_pass(pins, s), prior_fna=call.prior_document, crm_names=names)
+    meta = ingest.CallMeta(
+        call_id=call.call_id,
+        started_at=datetime.combine(anchor, time(9, 0)),
+        anchor_date=anchor,
+        client_ids=[p.crm_id for p in call.crm.household if p.role in ("client_primary", "spouse")] if call.crm else [],
+    )
+    return await ingest.ingest_call(
+        call.audio,
+        meta,
+        asr=build_asr(pins, s),
+        diarizer=build_diarizer(pins, s),
+        role_agent_pins=pins,
+        second_pass=build_second_pass(pins, s),
+        prior_fna=call.prior_document,
+        crm_names=names,
+    )
 
 
 async def process_call(
@@ -176,16 +207,33 @@ async def process_call(
 
     transcript = await transcribe(call, pins, settings)
     doc = call.prior_document
-    provenance = Provenance(run_id=run_id, schema_version=catalog.version, lexicon_version=pins.lexicon_version, calibrator_version=pins.calibrator_version,
-                            extractor_model=pins.reasoning_model)
-    prior = binding.load_prior(doc, call.crm, call_id=call.call_id, run_id=run_id, anchor_date=transcript.anchor_date, catalog=catalog,
-                               provenance=provenance)
+    provenance = Provenance(
+        run_id=run_id,
+        schema_version=catalog.version,
+        lexicon_version=pins.lexicon_version,
+        calibrator_version=pins.calibrator_version,
+        extractor_model=pins.reasoning_model,
+    )
+    prior = binding.load_prior(
+        doc, call.crm, call_id=call.call_id, run_id=run_id, anchor_date=transcript.anchor_date, catalog=catalog, provenance=provenance
+    )
     discourse = call.discourse or await run_discourse(transcript, prior=prior, crm=call.crm, pins=pins, catalog=catalog)
     transcript = with_rewrites(transcript, discourse)  # the agent and verification read stage 2's rewrites beside the words
 
-    inputs = AgentInputs(call_id=call.call_id, run_id=run_id, transcript=transcript, discourse=discourse, profile=prior, pins=pins,
-                         budgets=settings.budgets, quality=transcript.quality, crm=call.crm, glossary=call.glossary, base_document=doc,
-                         call_minutes=transcript.duration / 60.0)
+    inputs = AgentInputs(
+        call_id=call.call_id,
+        run_id=run_id,
+        transcript=transcript,
+        discourse=discourse,
+        profile=prior,
+        pins=pins,
+        budgets=settings.budgets,
+        quality=transcript.quality,
+        crm=call.crm,
+        glossary=call.glossary,
+        base_document=doc,
+        call_minutes=transcript.duration / 60.0,
+    )
     agent = await run_agent(inputs, services=services)
     profile = agent.profile
 
@@ -194,10 +242,13 @@ async def process_call(
     verify_after = _optional("advisor_intel.verify.services", "verify_after_agent")
     warnings: list[str] = []
     if verify_after is not None:
-        checked = await verify_after(profile, transcript=transcript, discourse=discourse, pins=pins, catalog=catalog, run_id=run_id,
-                                     settings=settings)
+        checked = await verify_after(
+            profile, transcript=transcript, discourse=discourse, pins=pins, catalog=catalog, run_id=run_id, settings=settings
+        )
         profile = checked.profile
-        warnings += [f"verify: {e}" for e in getattr(checked, "errors", [])] + [f"verify skipped {s}" for s in getattr(checked, "skipped", [])]
+        warnings += [f"verify: {e}" for e in getattr(checked, "errors", [])] + [
+            f"verify skipped {s}" for s in getattr(checked, "skipped", [])
+        ]
     else:
         skipped.append("verify")
     followups, flags = list(agent.followups or profile.open_questions), list(profile.blocking_flags)
@@ -208,15 +259,31 @@ async def process_call(
     if voi is not None:
         runs = _optional("advisor_intel.forecast.sensitivity", "sensitivity_runs")
         pos_runs = functools.partial(runs, base_document=doc) if runs is not None else None  # the forecast sees the prior file too
-        out = await voi(profile, catalog=catalog, pins=pins, pos_runs=pos_runs, analyse=analyse, transcript=transcript, settings=settings,
-                        base_document=doc, seed=forecast_seed(run_id))
+        out = await voi(
+            profile,
+            catalog=catalog,
+            pins=pins,
+            pos_runs=pos_runs,
+            analyse=analyse,
+            transcript=transcript,
+            settings=settings,
+            base_document=doc,
+            seed=forecast_seed(run_id),
+        )
         profile, followups, flags = out.profile, list(out.followups), list(out.flags)
         warnings += [f"voi: {e}" for e in getattr(out, "errors", [])]
     else:
         skipped.append("voi")
     if transcript.quality is not None and transcript.quality.role_review_needed and not any(f.kind == "role_review" for f in flags):
-        flags.insert(0, BlockingFlag(flag_id="flag.role_review", kind="role_review", fact_id=None,
-                                     message="Confirm who is speaking before reviewing: a speaker role is below 0.8 confidence (§5.5)."))
+        flags.insert(
+            0,
+            BlockingFlag(
+                flag_id="flag.role_review",
+                kind="role_review",
+                fact_id=None,
+                message="Confirm who is speaking before reviewing: a speaker role is below 0.8 confidence (§5.5).",
+            ),
+        )
     profile = profile.model_copy(update={"open_questions": followups, "blocking_flags": flags})
 
     export, sidecar = binding.export_bundle(profile, base=doc)
@@ -247,30 +314,64 @@ async def process_call(
     usage = dict(agent.outcome.usage)
     usage["cost_usd"] = float(usage.get("usd", 0.0))
     return PipelineResult(
-        call_id=call.call_id, run_id=run_id, transcript=transcript, discourse=discourse, profile=profile, outcome=agent.outcome, followups=followups,
-        flags=flags, forecast=fc, note=mn, analysis=analysis, document=document, sidecar=sidecar, usage=usage,
-        tool_calls=[e["tool"] for e in agent.state.get("events", [])], summary=agent.summary, skipped=skipped, warnings=warnings, pins=pins,
+        call_id=call.call_id,
+        run_id=run_id,
+        transcript=transcript,
+        discourse=discourse,
+        profile=profile,
+        outcome=agent.outcome,
+        followups=followups,
+        flags=flags,
+        forecast=fc,
+        note=mn,
+        analysis=analysis,
+        document=document,
+        sidecar=sidecar,
+        usage=usage,
+        tool_calls=[e["tool"] for e in agent.state.get("events", [])],
+        summary=agent.summary,
+        skipped=skipped,
+        warnings=warnings,
+        pins=pins,
         prior_document=doc,
     )
 
 
 async def process_cached_call(call: Any, pins: VersionPins) -> PipelineResult:
     """The eval harness's task (§15.4): stages 3–6 and the preview forecast on cached stage 1–2 output."""
-    ci = CallInput(call_id=call.call_id, anchor_date=call.anchor_date, transcript=call.transcript, discourse=getattr(call, "discourse", None),
-                   prior_document=getattr(call, "prior_document", None), crm=getattr(call, "crm", None))
+    ci = CallInput(
+        call_id=call.call_id,
+        anchor_date=call.anchor_date,
+        transcript=call.transcript,
+        discourse=getattr(call, "discourse", None),
+        prior_document=getattr(call, "prior_document", None),
+        crm=getattr(call, "crm", None),
+    )
     return await process_call(ci, pins, note=False)
 
 
-ASR_DEFAULT_MODEL = {"assemblyai": "universal-3", "deepgram": "nova-3", "speechmatics": "enhanced", "granite": "ibm-granite/granite-speech-4.0",
-                     "parakeet": "nvidia/parakeet-tdt-0.6b-v3"}
+ASR_DEFAULT_MODEL = {
+    "assemblyai": "universal-3",
+    "deepgram": "nova-3",
+    "speechmatics": "enhanced",
+    "granite": "ibm-granite/granite-speech-4.0",
+    "parakeet": "nvidia/parakeet-tdt-0.6b-v3",
+}
 
 
 def deployment_pins(settings: Settings | None = None) -> VersionPins:
     """Pins from the deployment's settings: its model routing and ASR provider (the calibrator stays cold-start without a store)."""
     s = settings or get_settings()
     m = s.models
-    return VersionPins(frontier_model=m.frontier, reasoning_model=m.reasoning, verifier_model=m.verifier, small_model=m.small,
-                       asr_provider=s.asr_provider, asr_model_version=ASR_DEFAULT_MODEL.get(s.asr_provider, s.asr_provider))
+    return VersionPins(
+        frontier_model=m.frontier,
+        reasoning_model=m.reasoning,
+        verifier_model=m.verifier,
+        small_model=m.small,
+        asr_provider=s.asr_provider,
+        asr_model_version=ASR_DEFAULT_MODEL.get(s.asr_provider, s.asr_provider),
+        embedding_model=s.embedding_model,
+    )
 
 
 def _roles(spec: str) -> dict[str, SpeakerRole]:
@@ -291,7 +392,9 @@ def _read_prior(path: Path) -> FnaDocument:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="python -m advisor_intel.pipeline", description="Process one call and write the files the FNA app imports.")
+    ap = argparse.ArgumentParser(
+        prog="python -m advisor_intel.pipeline", description="Process one call and write the files the FNA app imports."
+    )
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--script", type=Path, help="a scripted call: 'speaker[@channel]: text' lines")
     src.add_argument("--audio", type=Path, nargs="+", help="the call recording (one file, or one per channel)")
@@ -301,16 +404,23 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--crm", type=Path, help="the client's CRM record (CrmRecord JSON)")
     ap.add_argument("--call-id", default=None)
     ap.add_argument("--date", type=date.fromisoformat, default=None, help="the call date, YYYY-MM-DD (default: today)")
-    ap.add_argument("--pins", choices=["deployment", "test"], default="deployment",
-                    help="'deployment': the configured models (needs their API keys); 'test': offline fakes with arbitrary values")
+    ap.add_argument(
+        "--pins",
+        choices=["deployment", "test"],
+        default="deployment",
+        help="'deployment': the configured models (needs their API keys); 'test': offline fakes with arbitrary values",
+    )
     ap.add_argument("--out", type=Path, required=True, help="directory for export.json, review_package.json and sidecar.json")
     args = ap.parse_args(argv)
 
     source = args.script or args.transcript or args.audio[0]
     call = CallInput(
-        call_id=args.call_id or Path(source).stem, anchor_date=args.date,
+        call_id=args.call_id or Path(source).stem,
+        anchor_date=args.date,
         transcript=Transcript.model_validate_json(args.transcript.read_text()) if args.transcript else None,
-        script=args.script.read_text() if args.script else None, script_roles=_roles(args.roles), audio=list(args.audio or []),
+        script=args.script.read_text() if args.script else None,
+        script_roles=_roles(args.roles),
+        audio=list(args.audio or []),
         prior_document=_read_prior(args.prior) if args.prior else None,
         crm=CrmRecord.model_validate_json(args.crm.read_text()) if args.crm else None,
     )
@@ -321,8 +431,10 @@ def main(argv: list[str] | None = None) -> int:
     (args.out / "review_package.json").write_text(res.review_package().model_dump_json(indent=2))
     (args.out / "sidecar.json").write_text(json.dumps(res.sidecar, indent=2, default=str))
     found = sum(1 for f in res.profile.facts.values() if f.source == "call")
-    print(f"{res.call_id}: {found} facts from the call, {len(res.followups)} follow-ups, {sum(not f.cleared for f in res.flags)} open flags"
-          f"{' (partial: ' + str(res.outcome.reason) + ')' if res.partial else ''}; cost ${res.usage.get('cost_usd', 0.0):.2f}")
+    print(
+        f"{res.call_id}: {found} facts from the call, {len(res.followups)} follow-ups, {sum(not f.cleared for f in res.flags)} open flags"
+        f"{' (partial: ' + str(res.outcome.reason) + ')' if res.partial else ''}; cost ${res.usage.get('cost_usd', 0.0):.2f}"
+    )
     if res.skipped:
         print(f"not installed: {', '.join(res.skipped)}")
     for w in res.warnings:

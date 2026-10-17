@@ -136,7 +136,7 @@ def test_a_broken_table_file_is_rejected(tmp_path, change, message):
 
 
 def test_a_table_file_must_be_named_after_its_tax_year(tmp_path):
-    with pytest.raises(TableError, match="file name should be za_2026_27.json"):
+    with pytest.raises(TableError, match=r"file name should be za_2026_27\.json"):
         load_table_file(_broken(tmp_path, lambda t: None, name="za_2027_28.json"))
 
 

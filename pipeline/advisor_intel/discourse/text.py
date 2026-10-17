@@ -9,12 +9,38 @@ from itertools import pairwise
 from ..models.transcript import Segment
 
 _UNITS = {
-    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
-    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
     "nineteen": 19,
 }
 _TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
-_SCALES = {"hundred": 100, "thousand": 1_000, "grand": 1_000, "bar": 1_000, "k": 1_000, "million": 1_000_000, "mil": 1_000_000, "billion": 1_000_000_000}
+_SCALES = {
+    "hundred": 100,
+    "thousand": 1_000,
+    "grand": 1_000,
+    "bar": 1_000,
+    "k": 1_000,
+    "million": 1_000_000,
+    "mil": 1_000_000,
+    "billion": 1_000_000_000,
+}
 _FRACTIONS = {"half": 0.5, "quarter": 0.25, "third": 1 / 3}
 _ARTICLES = ("a", "an")
 # A number in digits: "45 000", "2,500", "1.5", optionally with a rand marker. Scale suffixes and words
@@ -26,9 +52,35 @@ _WORD = re.compile(r"[a-z]+", re.IGNORECASE)
 
 # Hedges every rewrite must keep (§6.3). The lexicon's hedge list extends this when available.
 HEDGES = (
-    "maybe", "perhaps", "probably", "possibly", "might", "about", "around", "roughly", "approximately", "i think", "i guess",
-    "i suppose", "not sure", "more or less", "give or take", "ish", "a bit", "a little", "sort of", "kind of", "could be",
-    "thinking of", "hopefully", "ballpark", "something like", "or so", "omtrent", "sowat", "miskien",
+    "maybe",
+    "perhaps",
+    "probably",
+    "possibly",
+    "might",
+    "about",
+    "around",
+    "roughly",
+    "approximately",
+    "i think",
+    "i guess",
+    "i suppose",
+    "not sure",
+    "more or less",
+    "give or take",
+    "ish",
+    "a bit",
+    "a little",
+    "sort of",
+    "kind of",
+    "could be",
+    "thinking of",
+    "hopefully",
+    "ballpark",
+    "something like",
+    "or so",
+    "omtrent",
+    "sowat",
+    "miskien",
 )
 
 
@@ -48,7 +100,7 @@ def numbers_in(text: str) -> set[float]:
         except ValueError:
             continue
         out.add(v)
-        after = _AFTER_NUMBER.match(text[m.end(1):])
+        after = _AFTER_NUMBER.match(text[m.end(1) :])
         if after:
             out.add(v * _SUFFIX_SCALE[after.group(1).lower()])
     words = [w.lower() for w in _WORD.findall(text)]

@@ -23,9 +23,10 @@ sign-off on the sampled outputs).
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
+from typing import Any, Literal, Protocol
 
 import numpy as np
 from pydantic import BaseModel
@@ -359,7 +360,7 @@ class ModelInput:
     tokens: list[int]
 
     @classmethod
-    def from_ints(cls, tokens: Sequence[int]) -> "ModelInput":
+    def from_ints(cls, tokens: Sequence[int]) -> ModelInput:
         return cls(tokens=list(tokens))
 
     def to_ints(self) -> list[int]:

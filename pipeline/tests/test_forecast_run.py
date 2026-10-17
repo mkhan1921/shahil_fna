@@ -15,8 +15,16 @@ from advisor_intel.models.dists import Bernoulli, LogNormal, Triangular
 from tests.forecast_support import StubTaxModel, add_fact, point, prior_profile, sample_document
 from tests.test_forecast_returns import _synthetic_series
 
-SMALL = ModeSettings(n_paths=1_000, attribution_n=300, shapley_paths=120, shapley_contexts=12, shapley_permutations=14,
-                     shapley_inner=3, top_drivers=5, need_bands_k=12)
+SMALL = ModeSettings(
+    n_paths=1_000,
+    attribution_n=300,
+    shapley_paths=120,
+    shapley_contexts=12,
+    shapley_permutations=14,
+    shapley_inner=3,
+    top_drivers=5,
+    need_bands_k=12,
+)
 CFG = load_config().with_(modes={"preview": SMALL, "final": SMALL.model_copy(update={"attribution_n": 400})}, pos_ci_max_width=1.0)
 TAX = StubTaxModel()
 
@@ -25,10 +33,24 @@ TAX = StubTaxModel()
 def household():
     doc = sample_document()
     prof = prior_profile(doc)
-    prof, _ = add_fact(prof, "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=60, mode=63, high=66),
-                       instance="client", unit="age", p_correct=0.7)
-    prof, _ = add_fact(prof, "expenses.items[]", "expenses.items[groceries]", LogNormal(median=9_000, p10=7_000, p90=13_000),
-                       instance="groceries", period="monthly", p_correct=0.6)
+    prof, _ = add_fact(
+        prof,
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=60, mode=63, high=66),
+        instance="client",
+        unit="age",
+        p_correct=0.7,
+    )
+    prof, _ = add_fact(
+        prof,
+        "expenses.items[]",
+        "expenses.items[groceries]",
+        LogNormal(median=9_000, p10=7_000, p90=13_000),
+        instance="groceries",
+        period="monthly",
+        p_correct=0.6,
+    )
     neo = next(e for e in prof.entities.values() if e.canonical_name.startswith("Neo"))
     common = {"instance": "event.offshore_1", "entity_refs": [neo.entity_id], "p_correct": 0.8}
     prof, _ = add_fact(prof, "event[].occurs", "event[e1].occurs", Bernoulli(p=0.4), unit="none", **common)
@@ -69,7 +91,11 @@ def test_every_result_field_is_filled(household):
     assert r.net_worth_bands["p50"][0] == pytest.approx(4_920_000, rel=1e-6)
     assert all(len(v) == 60 for v in r.retirement_income_bands.values())
     assert r.shortfall["p_any"] == pytest.approx(1 - r.pos) and r.shortfall["p90_total_real_shortfall"] >= 0
-    assert set(r.shortfall) == {"p_any", "median_first_shortfall_age", "p90_total_real_shortfall"}  # §12.4, as the review fixture names them
+    assert set(r.shortfall) == {
+        "p_any",
+        "median_first_shortfall_age",
+        "p90_total_real_shortfall",
+    }  # §12.4, as the review fixture names them
     assert 0 <= r.liquidity_breach_prob <= 1
     assert set(r.variance_attribution) == {"market", "client_content", "extraction", "interaction"}
     assert r.variance_attribution["market"] > 0.3 and r.variance_attribution["extraction"] > 0
@@ -95,11 +121,23 @@ def test_fna_side_by_side_defaults_to_the_ported_engine(household):
     # Need bands are keyed as the app's review overlay keys its need lines (lib/review/impact.ts).
     assert {"life.client", "retirement.client", "retirement.spouse", "education.household", "emergency.household"} <= set(r.need_bands)
     assert all(b["p10"] <= b["p50"] <= b["p90"] for b in r.need_bands.values())
-    assert r.need_bands["retirement.client"]["p50"] == pytest.approx(det["client.shortfall"], rel=0.25)  # the band sits around the median document's shortfall
-    injected = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=fna_engine_analyse, fna_bands=fna_engine_bands)
+    assert r.need_bands["retirement.client"]["p50"] == pytest.approx(
+        det["client.shortfall"], rel=0.25
+    )  # the band sits around the median document's shortfall
+    injected = run_forecast(
+        prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=fna_engine_analyse, fna_bands=fna_engine_bands
+    )
     assert injected == r
     called = {}
-    run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=lambda d: called.setdefault("doc", d) and {}, fna_bands=False)
+    run_forecast(
+        prof,
+        base_document=doc,
+        config=CFG,
+        tax_model=TAX,
+        seed=3,
+        fna_analyse=lambda d: called.setdefault("doc", d) and {},
+        fna_bands=False,
+    )
     assert called["doc"].retirement["client"].retirementAge == 63  # one-argument hooks are called without today
 
 
@@ -115,8 +153,15 @@ def test_path_count_rises_until_the_interval_is_two_points_wide(household):
 def test_the_market_covers_the_longest_lived_path(household):
     """An uncertain date of birth: the youngest of all the paths sets the horizon, not a sample of them."""
     prof, doc = household
-    prof, _ = add_fact(prof, "{p}.dateOfBirth", "client.dateOfBirth", Triangular(low=1955.0, mode=1986.0, high=2001.0), instance="client",
-                       unit="date", p_correct=0.5)
+    prof, _ = add_fact(
+        prof,
+        "{p}.dateOfBirth",
+        "client.dateOfBirth",
+        Triangular(low=1955.0, mode=1986.0, high=2001.0),
+        instance="client",
+        unit="date",
+        p_correct=0.5,
+    )
     plan = build_plan(prof, base_document=doc, config=CFG, cma=load_cma())
     u = plan.uniforms(4, 1_000, matrix="main")
     years = plan.realise(u, TAX).n_years

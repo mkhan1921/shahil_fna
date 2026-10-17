@@ -22,7 +22,9 @@ from advisor_intel.testing.transcripts import transcript_from_turns
 CAT = load_catalog()
 T = transcript_from_turns(SAMPLE_CALL)
 DISC = asyncio.run(run_discourse(T))
-DISC.entities["person.spouse"] = Entity(entity_id="person.spouse", type="person", canonical_name="Lerato", attributes={"person_key": "spouse"})
+DISC.entities["person.spouse"] = Entity(
+    entity_id="person.spouse", type="person", canonical_name="Lerato", attributes={"person_key": "spouse"}
+)
 PROFILE = Profile(call_id=T.call_id, run_id="wf-test", schema_version=CAT.version, anchor_date=T.anchor_date, entities=dict(DISC.entities))
 
 
@@ -45,8 +47,15 @@ def test_canon_numbers():
 
 
 def _value_item(instance, intermediate, said, revises=False, attribution="client"):
-    return {"instance": instance, "hypotheses": [{"intermediate": intermediate, "weight": 0, "rationale": "as said", "revises": revises}],
-            "hedges": ["about"], "speaker_attribution": attribution, "said": said, "interpretation": "monthly take-home", "self_score": 0.85}
+    return {
+        "instance": instance,
+        "hypotheses": [{"intermediate": intermediate, "weight": 0, "rationale": "as said", "revises": revises}],
+        "hedges": ["about"],
+        "speaker_attribution": attribution,
+        "said": said,
+        "interpretation": "monthly take-home",
+        "self_score": 0.85,
+    }
 
 
 def income_handler(bad_rate_first: list[int]):
@@ -56,7 +65,11 @@ def income_handler(bad_rate_first: list[int]):
         props = schema.get("properties", {})
         if "fields" in props:
             keys = props["fields"]["items"]
-            enum = schema["$defs"][keys["$ref"].rsplit("/", 1)[-1]]["properties"]["fna_path"]["enum"] if "$ref" in keys else keys["properties"]["fna_path"]["enum"]
+            enum = (
+                schema["$defs"][keys["$ref"].rsplit("/", 1)[-1]]["properties"]["fna_path"]["enum"]
+                if "$ref" in keys
+                else keys["properties"]["fna_path"]["enum"]
+            )
             out = []
             for k in enum:
                 if k.startswith("income.{p}.grossMonthly"):
@@ -68,17 +81,58 @@ def income_handler(bad_rate_first: list[int]):
             return {"fields": out}
         out = {k: [] for k in props}
         if "income_p_grossMonthly" in props:
-            out["income_p_grossMonthly"] = [{
-                "instance": "client",
-                "hypotheses": [
-                    {"intermediate": {"type": "AMOUNT_APPROX", "value": 42000, "approx_word": "about", "currency": "ZAR", "period": "monthly", "basis": "net", "priced_year": 0}, "weight": 0, "rationale": "first figure", "revises": False},
-                    {"intermediate": {"type": "AMOUNT_APPROX", "value": 45000, "approx_word": "more like", "currency": "ZAR", "period": "monthly", "basis": "net", "priced_year": 0}, "weight": 0, "rationale": "corrected", "revises": True},
-                ],
-                "hedges": ["about", "more like"], "speaker_attribution": "client", "said": "I take home about forty-two thousand a month",
-                "interpretation": "net monthly pay, corrected upward to about 45,000", "self_score": 0.8}]
+            out["income_p_grossMonthly"] = [
+                {
+                    "instance": "client",
+                    "hypotheses": [
+                        {
+                            "intermediate": {
+                                "type": "AMOUNT_APPROX",
+                                "value": 42000,
+                                "approx_word": "about",
+                                "currency": "ZAR",
+                                "period": "monthly",
+                                "basis": "net",
+                                "priced_year": 0,
+                            },
+                            "weight": 0,
+                            "rationale": "first figure",
+                            "revises": False,
+                        },
+                        {
+                            "intermediate": {
+                                "type": "AMOUNT_APPROX",
+                                "value": 45000,
+                                "approx_word": "more like",
+                                "currency": "ZAR",
+                                "period": "monthly",
+                                "basis": "net",
+                                "priced_year": 0,
+                            },
+                            "weight": 0,
+                            "rationale": "corrected",
+                            "revises": True,
+                        },
+                    ],
+                    "hedges": ["about", "more like"],
+                    "speaker_attribution": "client",
+                    "said": "I take home about forty-two thousand a month",
+                    "interpretation": "net monthly pay, corrected upward to about 45,000",
+                    "self_score": 0.8,
+                }
+            ]
         if "income_p_annualBonus" in props:
-            out["income_p_annualBonus"] = [_value_item("client", {"type": "AMOUNT_RELATIVE", "reference_slot": "income.client.grossMonthly", "relation_word": "one month's salary (a thirteenth cheque)"},
-                                                       "There's a thirteenth cheque in December")]
+            out["income_p_annualBonus"] = [
+                _value_item(
+                    "client",
+                    {
+                        "type": "AMOUNT_RELATIVE",
+                        "reference_slot": "income.client.grossMonthly",
+                        "relation_word": "one month's salary (a thirteenth cheque)",
+                    },
+                    "There's a thirteenth cheque in December",
+                )
+            ]
         return out
 
     return handler
@@ -146,22 +200,44 @@ async def test_list_group_objects_create_entities():
     def handler(prompt, schema, info):
         props = schema.get("properties", {})
         if "objects" in props:
-            return {"objects": [
-                {"entity_id": "new:thandi", "entity_type": "person", "name": "Thandi", "segment_ids": [thandi, sid("Thandi wants to do medicine")]},
-                {"entity_id": "new:lwazi", "entity_type": "person", "name": "Lwazi", "segment_ids": [lwazi, "s9999"]},
-                {"entity_id": "new:thandi", "entity_type": "person", "name": "Thandi", "segment_ids": [thandi]},
-            ]}
+            return {
+                "objects": [
+                    {
+                        "entity_id": "new:thandi",
+                        "entity_type": "person",
+                        "name": "Thandi",
+                        "segment_ids": [thandi, sid("Thandi wants to do medicine")],
+                    },
+                    {"entity_id": "new:lwazi", "entity_type": "person", "name": "Lwazi", "segment_ids": [lwazi, "s9999"]},
+                    {"entity_id": "new:thandi", "entity_type": "person", "name": "Thandi", "segment_ids": [thandi]},
+                ]
+            }
         if "fields" in props:
             item = props["fields"]["items"]
             enum = schema["$defs"][item["$ref"].rsplit("/", 1)[-1]]["properties"]["fna_path"]["enum"]
-            return {"fields": [{"fna_path": k, "status": "stated" if "dateOfBirth" in k or "relationship" in k else "not_discussed", "segment_ids": [thandi] if ("dateOfBirth" in k or "relationship" in k) else []} for k in enum]}
+            return {
+                "fields": [
+                    {
+                        "fna_path": k,
+                        "status": "stated" if "dateOfBirth" in k or "relationship" in k else "not_discussed",
+                        "segment_ids": [thandi] if ("dateOfBirth" in k or "relationship" in k) else [],
+                    }
+                    for k in enum
+                ]
+            }
         out = {k: [] for k in props}
         for k, v in props.items():
             inst_schema = schema["$defs"][v["items"]["$ref"].rsplit("/", 1)[-1]]["properties"]["instance"]
             for inst in inst_schema.get("enum", []):
                 if k.endswith("dateOfBirth"):
                     age = 14 if "thandi" in inst else 9
-                    out[k].append(_value_item(inst, {"type": "AGE", "form": "value", "value": age, "low": 0, "high": 0, "vague_word": ""}, "Thandi is fourteen" if age == 14 else "Lwazi is nine"))
+                    out[k].append(
+                        _value_item(
+                            inst,
+                            {"type": "AGE", "form": "value", "value": age, "low": 0, "high": 0, "vague_word": ""},
+                            "Thandi is fourteen" if age == 14 else "Lwazi is nine",
+                        )
+                    )
                 elif k.endswith("relationship"):
                     out[k].append(_value_item(inst, {"type": "CATEGORY", "label": "child", "certainty_word": ""}, "Thandi is fourteen"))
         return out

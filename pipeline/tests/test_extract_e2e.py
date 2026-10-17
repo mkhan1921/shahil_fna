@@ -26,7 +26,9 @@ def run():
     async def go():
         t = await ingested_transcript(SAMPLE_CALL)  # scripted ASR, segmentation, grammar spans
         disc = await run_discourse(t)  # no prior file: the second client on the call becomes the spouse
-        prof = Profile(call_id=t.call_id, run_id="wf-e2e", schema_version="profile_v1", anchor_date=t.anchor_date, entities=dict(disc.entities))
+        prof = Profile(
+            call_id=t.call_id, run_id="wf-e2e", schema_version="profile_v1", anchor_date=t.anchor_date, entities=dict(disc.entities)
+        )
         oracle = Oracle(t, SAMPLE_OBJECTS, SAMPLE_GOLD)
         pins = VersionPins(reasoning_model=llm.register_local_model("oracle-e2e", scripted_model(oracle.handler)))
         inputs = AgentInputs(call_id=t.call_id, run_id="wf-e2e", transcript=t, discourse=disc, profile=prof, pins=pins)
@@ -70,7 +72,9 @@ def test_every_call_fact_quotes_the_transcript(run):
 def test_evidence_cites_the_right_segment_only(run):
     t, _, r = run
     pension = fact(run, "retirementFunds[].value#@company pension fund")
-    assert [t.index()[e.segment_id].text for e in pension.evidence] == [next(s.text for s in t.segments if "one point two million" in s.text)]
+    assert [t.index()[e.segment_id].text for e in pension.evidence] == [
+        next(s.text for s in t.segments if "one point two million" in s.text)
+    ]
     insurer = fact(run, "policies[].insurer#@discovery life cover")
     assert all(e.speaker_role != "advisor" for e in insurer.evidence)  # 'Life cover?' is the question, not the answer
     assert "riskProfile.answers[emergency]" not in r.profile.facts  # no savings were discussed: nothing to divide

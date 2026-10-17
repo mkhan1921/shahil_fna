@@ -9,8 +9,9 @@ features this part of the pipeline owns (§9.2).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 

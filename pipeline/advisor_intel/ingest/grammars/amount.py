@@ -154,7 +154,14 @@ def _scale(table: dict[str, tuple[str, str]], *, attached: bool = False, af_soli
 
 def _scale_and_half() -> pynini.Fst:
     """'a million and a half', 'two bar and a half', "'n miljoen en 'n half": the half comes after the scale word."""
-    counts = {**{w: str(v) for w, v in EN_UNITS.items()}, **{w: str(v) for w, v in AF_UNITS.items()}, "a": "1", "an": "1", "'n": "1", "n": "1"}
+    counts = {
+        **{w: str(v) for w, v in EN_UNITS.items()},
+        **{w: str(v) for w, v in AF_UNITS.items()},
+        "a": "1",
+        "an": "1",
+        "'n": "1",
+        "n": "1",
+    }
     pairs = []
     for word, count in counts.items():
         for scale, (mult, src) in {**FORMAL_SCALES, **SLANG_SCALES}.items():

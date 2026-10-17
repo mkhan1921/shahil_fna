@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import hashlib
 import math
-from datetime import datetime, timezone
-from typing import Iterable, Literal, Sequence
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -93,7 +94,7 @@ class ConformalThresholds(BaseModel):
     source_by_family: dict[str, Literal["family", "pooled"]] = {}
     auto_accept_tier_a: bool = False
     calibrator_version: str = ""
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def tau_for(self, family: str) -> float | None:
         if not self.enabled:
@@ -104,7 +105,7 @@ class ConformalThresholds(BaseModel):
             return self.tau_by_family[family]
         return self.tau_pooled_family
 
-    def disabled(self, reason: str) -> "ConformalThresholds":
+    def disabled(self, reason: str) -> ConformalThresholds:
         return self.model_copy(update={"enabled": False, "reason": reason})
 
 
@@ -208,7 +209,7 @@ class SpotCheckOutcome(BaseModel):
     call_id: str
     n_auto_accepted: int
     n_wrong: int
-    at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class WrongAutoAcceptMonitor(BaseModel):
@@ -218,13 +219,13 @@ class WrongAutoAcceptMonitor(BaseModel):
     window: int = MONITOR_WINDOW
     outcomes: list[SpotCheckOutcome] = []
 
-    def record(self, call_id: str, n_auto_accepted: int, n_wrong: int) -> "WrongAutoAcceptMonitor":
+    def record(self, call_id: str, n_auto_accepted: int, n_wrong: int) -> WrongAutoAcceptMonitor:
         kept = [o for o in self.outcomes if o.call_id != call_id] + [
             SpotCheckOutcome(call_id=call_id, n_auto_accepted=n_auto_accepted, n_wrong=n_wrong)
         ]
         return self.model_copy(update={"outcomes": kept[-self.window :]})
 
-    def record_labels(self, call_id: str, labels: Sequence[Label]) -> "WrongAutoAcceptMonitor":
+    def record_labels(self, call_id: str, labels: Sequence[Label]) -> WrongAutoAcceptMonitor:
         auto = [lb for lb in labels if lb.call_id == call_id and lb.auto_accepted]
         return self.record(call_id, len(auto), sum(1 for lb in auto if lb.correct == 0))
 

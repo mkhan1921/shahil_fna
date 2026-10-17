@@ -105,7 +105,7 @@ def nice_amount(x: float, sig: int = 2) -> float:
     """Round to ``sig`` significant figures (how people quote amounts): 83_512 → 84_000."""
     if x == 0:
         return 0.0
-    k = int(math.floor(math.log10(abs(x)))) - sig + 1
+    k = math.floor(math.log10(abs(x))) - sig + 1
     return float(round(x / 10**k) * 10**k)
 
 
@@ -113,7 +113,7 @@ def _decimal_words(x: float, lang: Literal["en", "af"] = "en") -> str | None:
     """'2.5' → 'two point five' ('twee komma vyf'); None unless x has at most one decimal."""
     if abs(x * 10 - round(x * 10)) > 1e-9:
         return None
-    whole, tenth = int(x), int(round((x - int(x)) * 10))
+    whole, tenth = int(x), round((x - int(x)) * 10)
     w = words_en if lang == "en" else words_af
     if tenth == 0:
         return w(whole)
@@ -143,7 +143,7 @@ def say_amount(value: float, style: str = "digits") -> str:
     if style == "digits":
         return f"R{v:,.0f}" if float(v).is_integer() else f"R{v:,.2f}"
     if style == "words":
-        return f"{words_en(int(round(v)))} rand"
+        return f"{words_en(round(v))} rand"
     if style == "short_k":
         return f"{int(v // 1000)}k"
     if style == "grand":
@@ -157,7 +157,7 @@ def say_amount(value: float, style: str = "digits") -> str:
     if style == "mil":
         return f"{_decimal_words(v / 10**6)} mil"
     if style == "afrikaans":
-        if v >= 10**6 and not (v % 10**6 == 0):
+        if v >= 10**6 and v % 10**6 != 0:
             return f"{_decimal_words(v / 10**6, 'af')} miljoen"
         return words_af(int(v))
     raise ValueError(style)  # pragma: no cover

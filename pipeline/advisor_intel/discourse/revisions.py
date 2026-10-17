@@ -32,12 +32,106 @@ _SPOUSE_CORRECTION = re.compile(r"^\s*(no|nee|um,? no|well,? no|actually)\b", re
 _CONTENT_WORD = re.compile(r"[a-z']+")
 # Words that carry no topic when deciding whether a later segment restates an earlier one.
 _STOP = frozenset(
-    {"a", "an", "the", "and", "or", "but", "so", "is", "are", "was", "were", "be", "it", "its", "it's", "that", "this", "we", "i",
-     "you", "my", "our", "your", "he", "she", "they", "of", "to", "for", "in", "on", "at", "with", "per", "each", "now", "then",
-     "about", "around", "roughly", "more", "less", "like", "bit", "ja", "yes", "no", "well", "um", "uh", "sorry", "think", "say",
-     "month", "months", "year", "years", "week", "weeks", "day", "days", "rand", "r", "point", "half", "another", "still", "also",
-     "just", "only", "maybe", "probably", "actually", "wait", "mean", "really", "quite", "very", "there", "here", "what", "have",
-     "has", "had", "get", "got", "do", "does", "did", "not", "don't", "from", "up", "down", "out", "all", "some", "any"}
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "so",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "it",
+        "its",
+        "it's",
+        "that",
+        "this",
+        "we",
+        "i",
+        "you",
+        "my",
+        "our",
+        "your",
+        "he",
+        "she",
+        "they",
+        "of",
+        "to",
+        "for",
+        "in",
+        "on",
+        "at",
+        "with",
+        "per",
+        "each",
+        "now",
+        "then",
+        "about",
+        "around",
+        "roughly",
+        "more",
+        "less",
+        "like",
+        "bit",
+        "ja",
+        "yes",
+        "no",
+        "well",
+        "um",
+        "uh",
+        "sorry",
+        "think",
+        "say",
+        "month",
+        "months",
+        "year",
+        "years",
+        "week",
+        "weeks",
+        "day",
+        "days",
+        "rand",
+        "r",
+        "point",
+        "half",
+        "another",
+        "still",
+        "also",
+        "just",
+        "only",
+        "maybe",
+        "probably",
+        "actually",
+        "wait",
+        "mean",
+        "really",
+        "quite",
+        "very",
+        "there",
+        "here",
+        "what",
+        "have",
+        "has",
+        "had",
+        "get",
+        "got",
+        "do",
+        "does",
+        "did",
+        "not",
+        "don't",
+        "from",
+        "up",
+        "down",
+        "out",
+        "all",
+        "some",
+        "any",
+    }
 )
 
 
@@ -60,7 +154,11 @@ def _client(seg: Segment) -> bool:
 
 
 def _content_words(text: str) -> set[str]:
-    return {w for w in _CONTENT_WORD.findall(text.lower()) if w not in _STOP and w not in _UNITS and w not in _TENS and w not in _SCALES and len(w) > 1}
+    return {
+        w
+        for w in _CONTENT_WORD.findall(text.lower())
+        if w not in _STOP and w not in _UNITS and w not in _TENS and w not in _SCALES and len(w) > 1
+    }
 
 
 def restates(earlier: Segment, later: Segment) -> bool:
@@ -98,11 +196,25 @@ def pattern_revisions(transcript: Transcript, topic_of: dict[str, str] | None = 
                 or repeated
             ):
                 trigger = cue.group(0) if cue else ("spouse correction" if spouse_fix else "changed number")
-                out.append(Revision(segment_id=seg.segment_id, revises_segment_id=prev.segment_id, scope=topic_of.get(prev.segment_id, "unknown"), trigger=trigger))
+                out.append(
+                    Revision(
+                        segment_id=seg.segment_id,
+                        revises_segment_id=prev.segment_id,
+                        scope=topic_of.get(prev.segment_id, "unknown"),
+                        trigger=trigger,
+                    )
+                )
                 break
         if cue and len(nums) >= 2 and not any(r.segment_id == seg.segment_id for r in out):
             # A bare self-correction inside one turn ("forty, sorry, I mean forty-five") revises itself.
-            out.append(Revision(segment_id=seg.segment_id, revises_segment_id=seg.segment_id, scope=topic_of.get(seg.segment_id, "unknown"), trigger=cue.group(0)))
+            out.append(
+                Revision(
+                    segment_id=seg.segment_id,
+                    revises_segment_id=seg.segment_id,
+                    scope=topic_of.get(seg.segment_id, "unknown"),
+                    trigger=cue.group(0),
+                )
+            )
     return out
 
 
@@ -125,7 +237,11 @@ async def detect_revisions(
             for r in result.output.revisions:
                 if r.segment_id in ids and r.revises_segment_id in ids and ids[r.revises_segment_id] <= ids[r.segment_id]:
                     scope = r.scope if r.scope in groups else topic_of.get(r.revises_segment_id, "unknown") if topic_of else "unknown"
-                    found.append(Revision(segment_id=r.segment_id, revises_segment_id=r.revises_segment_id, scope=scope, trigger=r.trigger or "model"))
+                    found.append(
+                        Revision(
+                            segment_id=r.segment_id, revises_segment_id=r.revises_segment_id, scope=scope, trigger=r.trigger or "model"
+                        )
+                    )
             if start + window >= len(transcript.segments):
                 break
     dedup: dict[tuple[str, str], Revision] = {}

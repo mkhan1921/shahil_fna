@@ -52,8 +52,15 @@ def test_prior_fna_values_not_discussed_are_used_as_is():
 
 def test_unreviewed_call_fact_is_the_extraction_risk_mixture():
     doc = sample_document()
-    prof, fid = add_fact(prior_profile(doc), "retirement.{p}.retirementAge", "retirement.client.retirementAge", point(60), instance="client",
-                         unit="age", p_correct=0.7)
+    prof, fid = add_fact(
+        prior_profile(doc),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        point(60),
+        instance="client",
+        unit="age",
+        p_correct=0.7,
+    )
     plan = plan_for(prof, doc)
     s = plan.samplers[fid]
     assert (s.rule, s.mode, s.q) == ("extraction_mixture", "mixture", 0.7)
@@ -70,18 +77,34 @@ def test_unreviewed_call_fact_is_the_extraction_risk_mixture():
     ids=["accepted", "edited", "auto_accepted", "reviewer"],
 )
 def test_trusted_facts_use_their_value(kw):
-    prof, fid = add_fact(empty_profile(), "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=60, mode=62, high=65),
-                         instance="client", unit="age", p_correct=0.3, **kw)
+    prof, fid = add_fact(
+        empty_profile(),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=60, mode=62, high=65),
+        instance="client",
+        unit="age",
+        p_correct=0.3,
+        **kw,
+    )
     plan = plan_for(prof)
     s = plan.samplers[fid]
     assert (s.rule, s.mode, s.q) == ("trusted", "content", 1.0)
     d = draws(plan)["retirement.client.retirementAge"]
-    assert d.extracted is None and 60 <= d.values.min() and d.values.max() <= 65
+    assert d.extracted is None and d.values.min() >= 60 and d.values.max() <= 65
 
 
 def test_not_discussed_without_a_prior_uses_the_population_prior():
-    prof, fid = add_fact(empty_profile(), "retirement.{p}.retirementAge", "retirement.client.retirementAge", point(65), instance="client",
-                         unit="age", status="not_discussed", source="fna_default")
+    prof, fid = add_fact(
+        empty_profile(),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        point(65),
+        instance="client",
+        unit="age",
+        status="not_discussed",
+        source="fna_default",
+    )
     plan = plan_for(prof)
     s = plan.samplers[fid]
     assert (s.rule, s.mode) == ("not_discussed_population_prior", "prior")
@@ -95,20 +118,36 @@ def test_explicitly_unknown_uses_the_prior_value_or_else_the_population_prior():
     s = plan_for(prof, doc).samplers[RET_AGE]
     assert s.rule == "unknown_prior_value" and s.content == Point(value=65)
     fid = "retirement.{p}.retirementAge#client"
-    prof = mark_unknown(empty_profile(), fid, slot_id="retirement.{p}.retirementAge", path="retirement.client.retirementAge", instance="client")
+    prof = mark_unknown(
+        empty_profile(), fid, slot_id="retirement.{p}.retirementAge", path="retirement.client.retirementAge", instance="client"
+    )
     s = plan_for(prof).samplers[fid]
     assert s.rule == "unknown_population_prior" and s.mode == "prior"
 
 
 def test_rejected_facts_are_absent():
     doc = sample_document()
-    prof, fid = add_fact(prior_profile(doc), "income.{p}.grossMonthly", "income.client.grossMonthly", point(250_000), instance="client",
-                         period="monthly", p_correct=0.4)
+    prof, fid = add_fact(
+        prior_profile(doc),
+        "income.{p}.grossMonthly",
+        "income.client.grossMonthly",
+        point(250_000),
+        instance="client",
+        period="monthly",
+        p_correct=0.4,
+    )
     prof = reject(prof, fid)
     s = plan_for(prof, doc).samplers[fid]
     assert s.rule == "rejected_prior_value" and s.content == Point(value=100000)  # back to the prior FNA value
-    prof, fid = add_fact(empty_profile(), "income.{p}.grossMonthly", "income.client.grossMonthly", point(250_000), instance="client",
-                         period="monthly", p_correct=0.4)
+    prof, fid = add_fact(
+        empty_profile(),
+        "income.{p}.grossMonthly",
+        "income.client.grossMonthly",
+        point(250_000),
+        instance="client",
+        period="monthly",
+        p_correct=0.4,
+    )
     plan = plan_for(reject(prof, fid))
     assert fid not in plan.samplers and plan.trace[fid] == "absent_median_document"
     inp = plan.realise(plan.uniforms(1, 10), TAX)
@@ -116,8 +155,16 @@ def test_rejected_facts_are_absent():
 
 
 def test_contradicted_and_multi_hypothesis_facts_stay_bimodal():
-    prof, fid = add_fact(empty_profile(), "retirement.{p}.retirementAge", "retirement.client.retirementAge", [(0.5, point(60)), (0.5, point(65))],
-                         instance="client", unit="age", status="contradicted", review="accepted")
+    prof, fid = add_fact(
+        empty_profile(),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        [(0.5, point(60)), (0.5, point(65))],
+        instance="client",
+        unit="age",
+        status="contradicted",
+        review="accepted",
+    )
     plan = plan_for(prof)
     assert isinstance(plan.samplers[fid].content, Mixture)
     v = draws(plan)["retirement.client.retirementAge"].values
@@ -126,8 +173,16 @@ def test_contradicted_and_multi_hypothesis_facts_stay_bimodal():
 
 def test_income_basis_unknown_is_gross_or_net_half_the_time():
     doc = sample_document()
-    prof, _ = add_fact(prior_profile(doc), "income.{p}.grossMonthly", "income.client.grossMonthly", point(60_000), instance="client",
-                       period="monthly", basis="unknown", review="accepted")
+    prof, _ = add_fact(
+        prior_profile(doc),
+        "income.{p}.grossMonthly",
+        "income.client.grossMonthly",
+        point(60_000),
+        instance="client",
+        period="monthly",
+        basis="unknown",
+        review="accepted",
+    )
     plan = plan_for(prof, doc)
     inp = plan.realise(plan.uniforms(5, 4_000), TAX)
     p = inp.persons[0]
@@ -137,29 +192,60 @@ def test_income_basis_unknown_is_gross_or_net_half_the_time():
     up = gross[~as_gross]
     assert np.allclose(up, up[0]) and up[0] > 60_000
     # The grossed-up salary's take-home pay is the stated R60,000 (the payroll view, through the tax model).
-    t = TAX.person_tax(age=p.age0[0], gross_monthly=up[0], retirement_contributions_annual=p.contrib_payroll_monthly[0] * 12,
-                       medical_scheme_members=p.medical_members[0], uif_applies=True)
-    take_home = up[0] - t.annual_tax / 12 - t.monthly_uif - p.contrib_payroll_monthly[0] - p.medical_payroll_monthly[0] - p.other_payroll_monthly[0]
+    t = TAX.person_tax(
+        age=p.age0[0],
+        gross_monthly=up[0],
+        retirement_contributions_annual=p.contrib_payroll_monthly[0] * 12,
+        medical_scheme_members=p.medical_members[0],
+        uif_applies=True,
+    )
+    take_home = (
+        up[0] - t.annual_tax / 12 - t.monthly_uif - p.contrib_payroll_monthly[0] - p.medical_payroll_monthly[0] - p.other_payroll_monthly[0]
+    )
     assert float(take_home) == pytest.approx(60_000, abs=0.01)
     # Stated as take-home: every path is grossed up. The FNA target follows the grossed-up income.
-    prof2, _ = add_fact(prior_profile(doc), "income.{p}.grossMonthly", "income.client.grossMonthly", point(60_000), instance="client",
-                        period="monthly", basis="net", review="accepted")
+    prof2, _ = add_fact(
+        prior_profile(doc),
+        "income.{p}.grossMonthly",
+        "income.client.grossMonthly",
+        point(60_000),
+        instance="client",
+        period="monthly",
+        basis="net",
+        review="accepted",
+    )
     p2 = plan_for(prof2, doc).realise(plan.uniforms(5, 100), TAX).persons[0]
     assert np.allclose(p2.gross_monthly.total(), up[0])
     assert np.allclose(p2.target_monthly_today, 0.75 * (up[0] + 100_000 / 12))
 
 
 def test_foreign_amounts_convert_at_spot_and_move_with_the_rand():
-    prof, _ = add_fact(empty_profile(), "expenses.items[]", "expenses.items[groceries]", point(500), instance="groceries", unit="USD",
-                       period="monthly", review="accepted")
+    prof, _ = add_fact(
+        empty_profile(),
+        "expenses.items[]",
+        "expenses.items[groceries]",
+        point(500),
+        instance="groceries",
+        unit="USD",
+        period="monthly",
+        review="accepted",
+    )
     plan = plan_for(prof)
     d = draws(plan, n=100)["expenses.items[groceries]"]
     assert np.all(d.fx) and np.allclose(d.values, 500 * 17.5)
     living = plan.realise(plan.uniforms(1, 100), TAX).household.living_essential
     assert np.allclose(living.linked, 8_750) and np.allclose(living.at(1.2), 8_750 * 1.2)
     # A foreign amount replaced by the (rand) population prior on some paths is linked to the rand only where extracted.
-    prof, _ = add_fact(empty_profile(), "expenses.items[]", "expenses.items[groceries]", point(500), instance="groceries", unit="USD",
-                       period="monthly", p_correct=0.5)
+    prof, _ = add_fact(
+        empty_profile(),
+        "expenses.items[]",
+        "expenses.items[groceries]",
+        point(500),
+        instance="groceries",
+        unit="USD",
+        period="monthly",
+        p_correct=0.5,
+    )
     d = draws(plan_for(prof), n=4_000)["expenses.items[groceries]"]
     assert np.array_equal(d.fx, d.extracted) and d.fx.mean() == pytest.approx(0.5, abs=0.03)
     m = Money.of(np.array([10.0, 20.0]), np.array([True, False]))
@@ -202,12 +288,29 @@ def test_income_changes_and_business_growth():
     doc = sample_document()
     prof = prior_profile(doc)
     common = {"instance": "change.part_time_1", "review": "accepted"}
-    prof, _ = add_fact(prof, "income.{p}.expectedChange[].occurs", "income.spouse.expectedChange[c1].occurs", Bernoulli(p=0.3), unit="none", **common)
-    prof, _ = add_fact(prof, "income.{p}.expectedChange[].year", "income.spouse.expectedChange[c1].year", point(2030), unit="date", **common)
-    prof, _ = add_fact(prof, "income.{p}.expectedChange[].newGrossMonthly", "income.spouse.expectedChange[c1].newGrossMonthly", point(30_000),
-                       period="monthly", **common)
-    prof, _ = add_fact(prof, "income.{p}.businessGrowthRate", "income.client.businessGrowthRate", point(0.03), instance="client", unit="pct",
-                       review="accepted")
+    prof, _ = add_fact(
+        prof, "income.{p}.expectedChange[].occurs", "income.spouse.expectedChange[c1].occurs", Bernoulli(p=0.3), unit="none", **common
+    )
+    prof, _ = add_fact(
+        prof, "income.{p}.expectedChange[].year", "income.spouse.expectedChange[c1].year", point(2030), unit="date", **common
+    )
+    prof, _ = add_fact(
+        prof,
+        "income.{p}.expectedChange[].newGrossMonthly",
+        "income.spouse.expectedChange[c1].newGrossMonthly",
+        point(30_000),
+        period="monthly",
+        **common,
+    )
+    prof, _ = add_fact(
+        prof,
+        "income.{p}.businessGrowthRate",
+        "income.client.businessGrowthRate",
+        point(0.03),
+        instance="client",
+        unit="pct",
+        review="accepted",
+    )
     inp = plan_for(prof, doc).realise(plan_for(prof, doc).uniforms(2, 4_000), TAX)
     spouse = inp.persons[1]
     (change,) = spouse.changes
@@ -245,8 +348,15 @@ def test_portfolio_policy_follows_the_risk_profile_or_the_glide_path():
 
 def test_overrides_fix_resample_or_reset_a_fact():
     doc = sample_document()
-    prof, fid = add_fact(prior_profile(doc), "expenses.items[]", "expenses.items[groceries]", LogNormal(median=9_000, p10=7_000, p90=13_000),
-                         instance="groceries", period="monthly", p_correct=0.6)
+    prof, fid = add_fact(
+        prior_profile(doc),
+        "expenses.items[]",
+        "expenses.items[groceries]",
+        LogNormal(median=9_000, p10=7_000, p90=13_000),
+        instance="groceries",
+        period="monthly",
+        p_correct=0.6,
+    )
     plan = plan_for(prof, doc)
     fixed = plan.with_overrides({fid: 12_000})
     assert np.all(draws(fixed, 50)["expenses.items[groceries]"].values == 12_000)

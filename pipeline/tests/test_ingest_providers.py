@@ -37,7 +37,9 @@ def test_diarizer_needs_a_pyannote_key_for_shared_channels():
 def test_second_pass_prefers_the_parakeet_redecode(monkeypatch):
     monkeypatch.delenv("ADVISOR_INTEL_SECOND_PASS", raising=False)
     assert build_second_pass(VersionPins(), Settings()) is None
-    assert isinstance(build_second_pass(VersionPins(), Settings(parakeet_base_url="http://p", vllm_base_url="http://v")), GrammarConstrainedRedecode)
+    assert isinstance(
+        build_second_pass(VersionPins(), Settings(parakeet_base_url="http://p", vllm_base_url="http://v")), GrammarConstrainedRedecode
+    )
     assert isinstance(build_second_pass(VersionPins(), Settings(vllm_base_url="http://v")), AudioModelCheck)
     monkeypatch.setenv("ADVISOR_INTEL_SECOND_PASS", "off")
     assert build_second_pass(VersionPins(), Settings(parakeet_base_url="http://p")) is None

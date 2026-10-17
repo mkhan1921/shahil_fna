@@ -14,18 +14,18 @@ import pytest
 
 pipeline = pytest.importorskip("advisor_intel.pipeline")
 
-from advisor_intel import llm  # noqa: E402
-from advisor_intel.evals import extraction_eval as E  # noqa: E402
-from advisor_intel.evals.datasets import GOLD_CALLS, LocalBlobStore, LocalStore, Stage12Cache, sync_gold, sync_synthetic  # noqa: E402
-from advisor_intel.evals.extraction_eval import load_rows, rows_path  # noqa: E402
-from advisor_intel.evals.gold import GoldCall, GoldFact, GoldValue, Span  # noqa: E402
-from advisor_intel.evals.synthetic import generate_calls  # noqa: E402
-from advisor_intel.models.runs import VersionPins  # noqa: E402
-from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS  # noqa: E402
-from advisor_intel.testing.fakes import scripted_model  # noqa: E402
-from advisor_intel.testing.oracle import Oracle  # noqa: E402
-from advisor_intel.testing.transcripts import ingested_transcript  # noqa: E402
-from tests.evals_fakes import small_forecast  # noqa: E402
+from advisor_intel import llm
+from advisor_intel.evals import extraction_eval as E
+from advisor_intel.evals.datasets import GOLD_CALLS, LocalBlobStore, LocalStore, Stage12Cache, sync_gold, sync_synthetic
+from advisor_intel.evals.extraction_eval import load_rows, rows_path
+from advisor_intel.evals.gold import GoldCall, GoldFact, GoldValue, Span
+from advisor_intel.evals.synthetic import generate_calls
+from advisor_intel.models.runs import VersionPins
+from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS
+from advisor_intel.testing.fakes import scripted_model
+from advisor_intel.testing.oracle import Oracle
+from advisor_intel.testing.transcripts import ingested_transcript
+from tests.evals_fakes import small_forecast
 
 CALL_ID = "call-eval"
 
@@ -171,4 +171,4 @@ async def test_gepa_candidates_reach_the_real_extraction_prompts(oracle_world):
     assert batch.scores[0] > 0.9 and batch.outputs[0].get("error") is None, batch.outputs[0].get("error")
     assert any("GEPA-MARKER" in s and "## Slot group: retirement" in s for s in seen)
     assert not any("GEPA-MARKER" in s and "## Slot group: income" in s for s in seen)  # other groups keep their prompts
-    assert prompts.PROMPTS_DIR == GA.PromptStore().root and "GEPA-MARKER" not in prompts.load_prompt(component).text
+    assert GA.PromptStore().root == prompts.PROMPTS_DIR and "GEPA-MARKER" not in prompts.load_prompt(component).text

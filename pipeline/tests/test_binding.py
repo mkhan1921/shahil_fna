@@ -83,13 +83,29 @@ PROV = Provenance(run_id="wf-1")
 
 
 def _ev(seg="s0001"):
-    return Evidence(segment_id=seg, char_start=0, char_end=5, quote="hello", speaker_role="client_primary", t_start=1, t_end=2, asr_mean_conf=0.9, role="supports")
+    return Evidence(
+        segment_id=seg,
+        char_start=0,
+        char_end=5,
+        quote="hello",
+        speaker_role="client_primary",
+        t_start=1,
+        t_end=2,
+        asr_mean_conf=0.9,
+        role="supports",
+    )
 
 
 def _add(prof, slot_id, instance, path, dist, unit="age", period="none", p_correct=0.5):
     fid = f"{slot_id}#{instance}" if instance else slot_id
-    payload = {"slot_id": slot_id, "instance_key": instance, "fna_path": path, "hypotheses": [Hypothesis(value=Quantity(dist=dist, unit=unit, period=period), weight=1, rationale="")],
-               "evidence": [_ev()], "provenance": PROV}
+    payload = {
+        "slot_id": slot_id,
+        "instance_key": instance,
+        "fna_path": path,
+        "hypotheses": [Hypothesis(value=Quantity(dist=dist, unit=unit, period=period), weight=1, rationale="")],
+        "evidence": [_ev()],
+        "provenance": PROV,
+    }
     prof = apply_state_ops(prof, make_ops(prof, [("ADD", fid, "s0001", payload, "extractor")])).profile
     f = prof.facts[fid].model_copy(update={"p_correct": p_correct})
     return prof.model_copy(update={"facts": {**prof.facts, fid: f}}), fid
@@ -98,13 +114,15 @@ def _add(prof, slot_id, instance, path, dist, unit="age", period="none", p_corre
 def test_median_and_draw_modes():
     prof = _load(F.FnaDocument())
     prof, _ = _add(prof, "retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", Triangular(low=60, mode=62, high=65))
-    prof, _ = _add(prof, "client.dateOfBirth".replace("client", "{p}"), "client", "client.dateOfBirth", Point(value="1980-03-04"), unit="date")
+    prof, _ = _add(
+        prof, "client.dateOfBirth".replace("client", "{p}"), "client", "client.dateOfBirth", Point(value="1980-03-04"), unit="date"
+    )
     med = binding.materialise(prof, "median")
     assert med.retirement["client"].retirementAge == 62
     assert med.client.dateOfBirth == "1980-03-04"
     rng = np.random.default_rng(0)
     draws = [binding.materialise(prof, "draw", rng).retirement["client"].retirementAge for _ in range(400)]
-    assert 55 <= min(draws) and max(draws) <= 75
+    assert min(draws) >= 55 and max(draws) <= 75
     # p_correct 0.5: about half the draws come from the population prior (60–70), widening the spread.
     assert np.std(draws) > 1.0
 
@@ -117,7 +135,9 @@ def test_values_are_written_at_the_fields_grain():
     assert binding.materialise(prof, "median").dependants[0].dependencyEndAge == 25
     prof, _ = _add(prof, "retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", Point(value=62.4))
     prof, _ = _add(prof, "retirement.{p}.planningAge", "client", "retirement.client.planningAge", Triangular(low=88, mode=92, high=97))
-    prof, _ = _add(prof, "income.{p}.grossMonthly", "client", "income.client.grossMonthly", Point(value=51234.5678), unit="ZAR", period="monthly")
+    prof, _ = _add(
+        prof, "income.{p}.grossMonthly", "client", "income.client.grossMonthly", Point(value=51234.5678), unit="ZAR", period="monthly"
+    )
     med = binding.materialise(prof, "median", base=doc)
     assert med.retirement["client"].retirementAge == 62 and med.retirement["client"].planningAge == 92
     assert med.income["client"].grossMonthly == 51234.57
@@ -127,7 +147,14 @@ def test_new_documents_and_rows_are_dated_by_the_call_not_the_clock():
     # A run without a prior file must give the same document whenever it runs (§1.5: the meeting date is call metadata).
     prof = _load(None)
     assert binding.materialise(prof, "median").engagement.meetingDate == ANCHOR.isoformat()
-    prof = prof.model_copy(update={"entities": {**prof.entities, "goal.trip_1": binding.Entity(entity_id="goal.trip_1", type="goal", canonical_name="Overseas trip")}})
+    prof = prof.model_copy(
+        update={
+            "entities": {
+                **prof.entities,
+                "goal.trip_1": binding.Entity(entity_id="goal.trip_1", type="goal", canonical_name="Overseas trip"),
+            }
+        }
+    )
     rid = binding.row_id_for(prof, "goal.trip_1")
     prof, _ = _add(prof, "goals[].name", "goal.trip_1", f"goals[{rid}].name", Point(value="Overseas trip"), unit="none")
     med = binding.materialise(prof, "median")
@@ -138,9 +165,18 @@ def test_new_documents_and_rows_are_dated_by_the_call_not_the_clock():
 
 def test_text_slot_with_two_readings_keeps_the_likelier():
     prof = _load(F.FnaDocument())
-    hyps = [Hypothesis(value=Quantity(dist=Point(value="teacher"), unit="none"), weight=0.7, rationale=""),
-            Hypothesis(value=Quantity(dist=Point(value="lecturer"), unit="none"), weight=0.3, rationale="")]
-    payload = {"slot_id": "{p}.occupation", "instance_key": "client", "fna_path": "client.occupation", "hypotheses": hyps, "evidence": [_ev()], "provenance": PROV}
+    hyps = [
+        Hypothesis(value=Quantity(dist=Point(value="teacher"), unit="none"), weight=0.7, rationale=""),
+        Hypothesis(value=Quantity(dist=Point(value="lecturer"), unit="none"), weight=0.3, rationale=""),
+    ]
+    payload = {
+        "slot_id": "{p}.occupation",
+        "instance_key": "client",
+        "fna_path": "client.occupation",
+        "hypotheses": hyps,
+        "evidence": [_ev()],
+        "provenance": PROV,
+    }
     prof = apply_state_ops(prof, make_ops(prof, [("ADD", "{p}.occupation#client", "s0001", payload, "extractor")])).profile
     assert binding.materialise(prof, "median").client.occupation == "teacher"
     assert check_profile(prof) == []
@@ -148,10 +184,21 @@ def test_text_slot_with_two_readings_keeps_the_likelier():
 
 def test_probabilistic_event_and_new_rows():
     prof = _load(F.FnaDocument())
-    prof = prof.model_copy(update={"entities": {**prof.entities, "person.thandi_1": binding.Entity(entity_id="person.thandi_1", type="person", canonical_name="Thandi", attributes={"relation": "child"})}})
+    prof = prof.model_copy(
+        update={
+            "entities": {
+                **prof.entities,
+                "person.thandi_1": binding.Entity(
+                    entity_id="person.thandi_1", type="person", canonical_name="Thandi", attributes={"relation": "child"}
+                ),
+            }
+        }
+    )
     rid = binding.row_id_for(prof, "person.thandi_1")
     prof, _ = _add(prof, "dependants[].tertiary", "person.thandi_1", f"dependants[{rid}].tertiary", Bernoulli(p=0.4), unit="none")
-    prof, _ = _add(prof, "dependants[].relationship", "person.thandi_1", f"dependants[{rid}].relationship", Point(value="child"), unit="none")
+    prof, _ = _add(
+        prof, "dependants[].relationship", "person.thandi_1", f"dependants[{rid}].relationship", Point(value="child"), unit="none"
+    )
     med = binding.materialise(prof, "median")
     assert len(med.dependants) == 1 and med.dependants[0].id == rid
     assert med.dependants[0].tertiary is False  # p = 0.4 < 0.5
@@ -188,7 +235,11 @@ def test_sidecar_and_export(sample_fna_json):
     assert exp.format == "shahil-fna" and exp.document.schemaVersion == 2
     assert side["format"] == "advisor-intel-sidecar"
     f = side["fields"]["income.client.grossMonthly"]
-    assert f["status"] == "not_discussed" and f["change"] == "unchanged_not_discussed" and f["value"]["point"] == doc.income["client"].grossMonthly
+    assert (
+        f["status"] == "not_discussed"
+        and f["change"] == "unchanged_not_discussed"
+        and f["value"]["point"] == doc.income["client"].grossMonthly
+    )
 
 
 def test_describe_value():

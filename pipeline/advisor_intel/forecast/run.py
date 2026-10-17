@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import inspect
 import math
 import re
@@ -43,9 +44,7 @@ FnaBands = Callable[..., dict[str, dict[str, float]]]  # fna_bands(docs) or fna_
 
 def _engine_hook(name: str) -> Callable[..., Any] | None:
     """The ported FNA engine's ``analyse`` or ``bands`` hook, or None when the engine is not installed."""
-    try:
-        from .. import fna_engine  # noqa: F401 - only to find out whether the port is importable
-    except ImportError:
+    if importlib.util.find_spec("advisor_intel.fna_engine") is None:
         return None
     return fna_engine_analyse if name == "analyse" else fna_engine_bands
 
@@ -107,10 +106,7 @@ class Evaluation:
 
 def concat_uniforms(parts: Sequence[Uniforms]) -> Uniforms:
     keys = parts[0].facts.keys()
-    facts = {
-        k: FactUniforms(*(np.concatenate([getattr(p.facts[k], a) for p in parts]) for a in ("c1", "c2", "e1", "e2")))
-        for k in keys
-    }
+    facts = {k: FactUniforms(*(np.concatenate([getattr(p.facts[k], a) for p in parts]) for a in ("c1", "c2", "e1", "e2"))) for k in keys}
     return Uniforms(sum(p.n for p in parts), facts)
 
 
@@ -224,10 +220,28 @@ def _finite(x: float | None, decimals: int = 6) -> float | None:
     return round(float(x), decimals)
 
 
-DETERMINISTIC_KEYS = ("currentAge", "retirementAge", "planningAge", "yearsToRetirement", "currentCapital", "monthlyContributions",
-                      "projectedCapital", "projectedCapitalReal", "targetMonthlyToday", "targetMonthlyAtRetirement", "requiredCapital",
-                      "requiredCapitalReal", "shortfall", "shortfallReal", "funded", "initialDrawdown", "sustainableMonthlyToday",
-                      "replacementRatio", "targetReplacementRatio", "depletionAge")
+DETERMINISTIC_KEYS = (
+    "currentAge",
+    "retirementAge",
+    "planningAge",
+    "yearsToRetirement",
+    "currentCapital",
+    "monthlyContributions",
+    "projectedCapital",
+    "projectedCapitalReal",
+    "targetMonthlyToday",
+    "targetMonthlyAtRetirement",
+    "requiredCapital",
+    "requiredCapitalReal",
+    "shortfall",
+    "shortfallReal",
+    "funded",
+    "initialDrawdown",
+    "sustainableMonthlyToday",
+    "replacementRatio",
+    "targetReplacementRatio",
+    "depletionAge",
+)
 
 
 def _snake(name: str) -> str:
@@ -256,7 +270,9 @@ def zero_volatility_capital(plan: ForecastPlan, tax_model: TaxModel) -> dict[str
     volatility switched off and every fact at its median (the plan's median document), which must agree with the
     FNA's ``projectedCapital`` within 0.5%."""
     median = F.FnaDocument.model_validate(plan.doc)
-    zero = plan_from_document(median, anchor=plan.anchor, config=plan.config.with_(zero_volatility=True), cma=plan.cma, call_id=plan.profile_id)
+    zero = plan_from_document(
+        median, anchor=plan.anchor, config=plan.config.with_(zero_volatility=True), cma=plan.cma, call_id=plan.profile_id
+    )
     result = Forecaster(zero, tax_model).run(0, 2).result
     return {f"{k}.mc_zero_vol_capital": _finite(float(v[0])) for k, v in sorted(result.capital_at_retirement.items())}
 

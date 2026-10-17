@@ -209,10 +209,25 @@ def sensitivity_runs(
     for fid, spec in specs.items():
         slot: SlotDef = spec["slot"]
         s: FactSampler | None = spec["sampler"]
-        common = {"fact_id": fid, "slot_id": slot.slot_id, "tier": slot.sensitivity_tier, "pos_base": round(base, 6), "n_paths": n_paths, "seed": seed}
+        common = {
+            "fact_id": fid,
+            "slot_id": slot.slot_id,
+            "tier": slot.sensitivity_tier,
+            "pos_base": round(base, 6),
+            "n_paths": n_paths,
+            "seed": seed,
+        }
         if s is None:
-            kind = "categorical" if slot.value_type == "category" else "boolean" if slot.value_type in ("boolean", "probability") else "numeric"
-            rows[fid] = SensitivityRow(**common, kind=kind, bound=False, pos_low=round(base, 6), pos_high=round(base, 6), rule="not_in_forecast")
+            kind = (
+                "categorical"
+                if slot.value_type == "category"
+                else "boolean"
+                if slot.value_type in ("boolean", "probability")
+                else "numeric"
+            )
+            rows[fid] = SensitivityRow(
+                **common, kind=kind, bound=False, pos_low=round(base, 6), pos_high=round(base, 6), rule="not_in_forecast"
+            )
             continue
         if s.kind == "categorical":
             outcomes = [(pos[index[(fid, f"cat:{c}")]], c) for c in spec["categories"]]

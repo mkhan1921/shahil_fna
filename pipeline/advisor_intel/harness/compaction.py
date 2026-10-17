@@ -85,7 +85,9 @@ def digest(turns: list[list[ModelMessage]]) -> str:
         for m in turn:
             for p in m.parts:
                 if isinstance(p, ToolCallPart):
-                    lines.append(f"- called {p.tool_name}({json.dumps(p.args, default=str)[:160] if not isinstance(p.args, str) else p.args[:160]})")
+                    lines.append(
+                        f"- called {p.tool_name}({json.dumps(p.args, default=str)[:160] if not isinstance(p.args, str) else p.args[:160]})"
+                    )
                 elif isinstance(p, ToolReturnPart):
                     c = p.content if isinstance(p.content, str) else json.dumps(p.content, default=str)
                     lines.append(f"  → {c[:200]}")
@@ -124,19 +126,39 @@ async def compact_history(ctx: RunContext[HarnessDeps], messages: list[ModelMess
     if not llm.is_stub(rm.name) and (text or previous):
         prompt = pinned("compaction", deps.pins.prompt_versions)
         earlier = "\n\n".join(f"Earlier summary (keep every fact, task and id in it):\n{s}" for s in previous)
-        res = await summary_agent.run((earlier + "\n\nNew turns:\n" + text)[:60_000] if earlier else text[:60_000], model=rm.model,
-                                      model_settings=rm.settings, instructions=prompt.text)
-        deps.add_usage({"requests": res.usage.requests, "input_tokens": res.usage.input_tokens or 0, "output_tokens": res.usage.output_tokens or 0,
-                        "cache_read_tokens": res.usage.cache_read_tokens or 0,
-                        "cost_usd": llm.usage_cost_usd(rm.name, input_tokens=res.usage.input_tokens or 0, output_tokens=res.usage.output_tokens or 0,
-                                                       cache_read_tokens=res.usage.cache_read_tokens or 0,
-                                                       cache_write_tokens=res.usage.cache_write_tokens or 0)})
+        res = await summary_agent.run(
+            (earlier + "\n\nNew turns:\n" + text)[:60_000] if earlier else text[:60_000],
+            model=rm.model,
+            model_settings=rm.settings,
+            instructions=prompt.text,
+        )
+        deps.add_usage(
+            {
+                "requests": res.usage.requests,
+                "input_tokens": res.usage.input_tokens or 0,
+                "output_tokens": res.usage.output_tokens or 0,
+                "cache_read_tokens": res.usage.cache_read_tokens or 0,
+                "cost_usd": llm.usage_cost_usd(
+                    rm.name,
+                    input_tokens=res.usage.input_tokens or 0,
+                    output_tokens=res.usage.output_tokens or 0,
+                    cache_read_tokens=res.usage.cache_read_tokens or 0,
+                    cache_write_tokens=res.usage.cache_write_tokens or 0,
+                ),
+            }
+        )
         text = res.output
     else:
         text = "\n".join([*previous, text]) if previous else text
     notes = "\n".join(f"- {n}" for n in deps.state.notes)
-    summary = ModelRequest(parts=[UserPromptPart(content=f"{SUMMARY_HEADER}\n{text}\n\nYour notes:\n{notes or '(none)'}\n"
-                                                          "Re-read the plan and profile with view_plan and view_profile before continuing.")])
+    summary = ModelRequest(
+        parts=[
+            UserPromptPart(
+                content=f"{SUMMARY_HEADER}\n{text}\n\nYour notes:\n{notes or '(none)'}\n"
+                "Re-read the plan and profile with view_plan and view_profile before continuing."
+            )
+        ]
+    )
     first = head[0]
     if isinstance(first, ModelRequest):
         first = replace(first, parts=list(first.parts))

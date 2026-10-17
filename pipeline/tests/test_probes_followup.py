@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC
 
 import pytest
 
@@ -59,8 +60,14 @@ async def test_followup_answer_replaces_the_vague_value(profile):
     before = p.facts[SPOUSE_GROSS]
     answer = "It's thirty-six thousand five hundred gross a month."
     gold = {SPOUSE_GROSS: {"forms": [_amt("exact", 36_500, basis="gross")], "said": "thirty-six thousand five hundred gross a month"}}
-    fu = FollowUp(followup_id="fu1", fact_ids=[SPOUSE_GROSS], question="What is Lerato's gross monthly salary?", why="moves the shortfall",
-                  expected_pos_change=0.05, answer_type="AMOUNT_EXACT")
+    fu = FollowUp(
+        followup_id="fu1",
+        fact_ids=[SPOUSE_GROSS],
+        question="What is Lerato's gross monthly salary?",
+        why="moves the shortfall",
+        expected_pos_change=0.05,
+        answer_type="AMOUNT_EXACT",
+    )
     t, ops = await extract_followup_answer(p, fu, answer, catalog=CAT, pins=pins_for("oracle-fu", Oracle(T, [], gold)), run_id="wf-p")
     assert [o.op for o in ops] == ["UPDATE"]
     res = apply_state_ops(p, ops)
@@ -72,16 +79,25 @@ async def test_followup_answer_replaces_the_vague_value(profile):
 
 
 async def test_lookup_term_service_uses_the_glossary_and_the_prior_file():
-    from datetime import datetime, timezone
-
+    from datetime import datetime
     from types import SimpleNamespace
 
     from advisor_intel.harness.deps import AgentInputs
     from advisor_intel.harness.services import default_services
     from advisor_intel.lexicon.glossary import GlossaryEntry, InMemoryGlossary
 
-    store = InMemoryGlossary([GlossaryEntry(term="Max Income", canonical_name="Sanlam Max Income Plan", product_type="living-annuity", provider="Sanlam",
-                                            confirmed_by="adviser", confirmed_at=datetime(2026, 1, 5, tzinfo=timezone.utc))])
+    store = InMemoryGlossary(
+        [
+            GlossaryEntry(
+                term="Max Income",
+                canonical_name="Sanlam Max Income Plan",
+                product_type="living-annuity",
+                provider="Sanlam",
+                confirmed_by="adviser",
+                confirmed_at=datetime(2026, 1, 5, tzinfo=UTC),
+            )
+        ]
+    )
     services = default_services(glossary_store=store)
     prof = Profile(call_id=T.call_id, run_id="wf-p", schema_version=CAT.version, anchor_date=T.anchor_date)
     inputs = AgentInputs(call_id=T.call_id, run_id="wf-p", transcript=T, discourse=DISC, profile=prof)
@@ -95,8 +111,14 @@ async def test_lookup_term_service_uses_the_glossary_and_the_prior_file():
 async def test_followup_intake_entry_takes_the_answer_as_a_transcript(profile):
     p = await reopened(profile)
     gold = {SPOUSE_GROSS: {"forms": [_amt("exact", 36_500, basis="gross")], "said": "thirty-six thousand five hundred gross a month"}}
-    fu = FollowUp(followup_id="fu2", fact_ids=[SPOUSE_GROSS], question="What is Lerato's gross monthly salary?", why="", expected_pos_change=0.05,
-                  answer_type="AMOUNT_EXACT")
+    fu = FollowUp(
+        followup_id="fu2",
+        fact_ids=[SPOUSE_GROSS],
+        question="What is Lerato's gross monthly salary?",
+        why="",
+        expected_pos_change=0.05,
+        answer_type="AMOUNT_EXACT",
+    )
     t = answer_transcript(p, fu, "It's thirty-six thousand five hundred gross a month.", call_id=p.call_id)
     ops = await extract_followup_ops(p, t, followup=fu, pins=pins_for("oracle-fu2", Oracle(T, [], gold)), catalog=CAT)
     assert [o.op for o in ops] == ["UPDATE"] and ops[0].payload["source"] == "followup"

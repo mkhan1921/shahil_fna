@@ -21,18 +21,40 @@ CATALOG = load_catalog()
 def candidates():
     doc = sample_document()
     prof = prior_profile(doc)
-    prof, wide = add_fact(prof, "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=57, mode=63, high=68),
-                          instance="client", unit="age", p_correct=0.7)
-    prof, narrow = add_fact(prof, "expenses.items[]", "expenses.items[groceries]", Triangular(low=8_800, mode=9_000, high=9_200),
-                            instance="groceries", period="monthly", review="accepted")
+    prof, wide = add_fact(
+        prof,
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=57, mode=63, high=68),
+        instance="client",
+        unit="age",
+        p_correct=0.7,
+    )
+    prof, narrow = add_fact(
+        prof,
+        "expenses.items[]",
+        "expenses.items[groceries]",
+        Triangular(low=8_800, mode=9_000, high=9_200),
+        instance="groceries",
+        period="monthly",
+        review="accepted",
+    )
     neo = next(e for e in prof.entities.values() if e.canonical_name.startswith("Neo"))
     common = {"instance": "event.offshore_1", "entity_refs": [neo.entity_id], "review": "accepted"}
     prof, event = add_fact(prof, "event[].occurs", "event[e1].occurs", Bernoulli(p=0.5), unit="none", **common)
     prof, _ = add_fact(prof, "event[].cashImpact", "event[e1].cashImpact", point(-60_000), unit="USD", period="annual", **common)
     prof, _ = add_fact(prof, "event[].kind", "event[e1].kind", point("education-offshore"), unit="none", **common)
     fund = next(f for f in prof.facts.values() if f.slot_id == "retirementFunds[].owner" and f.value.dist == Point(value="client"))
-    prof, owner = add_fact(prof, "retirementFunds[].owner", fund.fna_path, Categorical(probs={"client": 0.6, "spouse": 0.4}),
-                           instance=fund.instance_key, unit="none", review="accepted", entity_refs=fund.entity_refs)
+    prof, owner = add_fact(
+        prof,
+        "retirementFunds[].owner",
+        fund.fna_path,
+        Categorical(probs={"client": 0.6, "spouse": 0.4}),
+        instance=fund.instance_key,
+        unit="none",
+        review="accepted",
+        entity_refs=fund.entity_refs,
+    )
     cover = next(f.fact_id for f in prof.facts.values() if f.slot_id == "policies[].cover")
     ids = {"wide": wide, "narrow": narrow, "event": event, "owner": owner, "cover": cover}
     rows = sensitivity_runs(prof, list(ids.values()), n_paths=1_000, seed=9, base_document=doc, config=CFG, cma=CMA_, tax_model=TAX)
@@ -74,7 +96,9 @@ def test_facts_the_forecast_does_not_use_have_no_engine_impact(candidates):
 
 def test_common_random_numbers_make_runs_repeatable(candidates):
     prof, doc, ids, rows = candidates
-    again = sensitivity_runs(prof, [ids["wide"], ids["narrow"]], n_paths=1_000, seed=9, base_document=doc, config=CFG, cma=CMA_, tax_model=TAX)
+    again = sensitivity_runs(
+        prof, [ids["wide"], ids["narrow"]], n_paths=1_000, seed=9, base_document=doc, config=CFG, cma=CMA_, tax_model=TAX
+    )
     assert again[ids["wide"]] == rows[ids["wide"]] and again[ids["narrow"]].pos_base == rows[ids["wide"]].pos_base
     with pytest.raises(KeyError):
         sensitivity_runs(prof, ["nope#1"], seed=1, base_document=doc, tax_model=TAX)
@@ -83,27 +107,70 @@ def test_common_random_numbers_make_runs_repeatable(candidates):
 def test_fact_extremes():
     doc = sample_document()
     prof = prior_profile(doc)
-    prof, age = add_fact(prof, "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=57, mode=63, high=68),
-                         instance="client", unit="age", p_correct=0.7)
+    prof, age = add_fact(
+        prof,
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=57, mode=63, high=68),
+        instance="client",
+        unit="age",
+        p_correct=0.7,
+    )
     slot = CATALOG.slot("retirement.{p}.retirementAge")
     assert fact_extremes(prof.facts[age], slot) == (60, 66)  # p10 59.57 and p90 65.65, whole years as the document stores them
-    prof, dob = add_fact(prof, "{p}.dateOfBirth", "client.dateOfBirth", Triangular(low=1985.5, mode=1986.3, high=1987.0), instance="client",
-                         unit="date", p_correct=0.9)
+    prof, dob = add_fact(
+        prof,
+        "{p}.dateOfBirth",
+        "client.dateOfBirth",
+        Triangular(low=1985.5, mode=1986.3, high=1987.0),
+        instance="client",
+        unit="date",
+        p_correct=0.9,
+    )
     lo, hi = fact_extremes(prof.facts[dob], CATALOG.slot("{p}.dateOfBirth"))
     assert lo.startswith("1985-") and hi.startswith("1986-")
-    prof, fee = add_fact(prof, "dependants[].tertiaryCostAnnual", "dependants[x].tertiaryCostAnnual", LogNormal(median=10_000, p10=8_000, p90=12_000),
-                         instance="person.neo_mokoena_1", unit="USD", period="annual", review="accepted")
+    prof, fee = add_fact(
+        prof,
+        "dependants[].tertiaryCostAnnual",
+        "dependants[x].tertiaryCostAnnual",
+        LogNormal(median=10_000, p10=8_000, p90=12_000),
+        instance="person.neo_mokoena_1",
+        unit="USD",
+        period="annual",
+        review="accepted",
+    )
     lo, hi = fact_extremes(prof.facts[fee], CATALOG.slot("dependants[].tertiaryCostAnnual"))
     _, hi_r = fact_extremes(prof.facts[fee], CATALOG.slot("dependants[].tertiaryCostAnnual"), spot=CMA_.fx.spot)
     assert hi_r == pytest.approx(hi * 17.5, rel=1e-6) and lo < 10_000 < hi
-    prof, tert = add_fact(prof, "dependants[].tertiary", "dependants[x].tertiary", Bernoulli(p=0.4), instance="person.neo_mokoena_1", unit="none",
-                          review="accepted")
+    prof, tert = add_fact(
+        prof,
+        "dependants[].tertiary",
+        "dependants[x].tertiary",
+        Bernoulli(p=0.4),
+        instance="person.neo_mokoena_1",
+        unit="none",
+        review="accepted",
+    )
     assert fact_extremes(prof.facts[tert], CATALOG.slot("dependants[].tertiary")) == (False, True)
-    prof, mode = add_fact(prof, "retirement.{p}.targetMode", "retirement.client.targetMode", Categorical(probs={"percent": 0.3, "amount": 0.7}),
-                          instance="client", unit="none", review="accepted")
+    prof, mode = add_fact(
+        prof,
+        "retirement.{p}.targetMode",
+        "retirement.client.targetMode",
+        Categorical(probs={"percent": 0.3, "amount": 0.7}),
+        instance="client",
+        unit="none",
+        review="accepted",
+    )
     assert fact_extremes(prof.facts[mode], CATALOG.slot("retirement.{p}.targetMode")) == ("amount", "percent")
-    prof, gone = add_fact(prof, "income.{p}.otherTaxableMonthly", "income.client.otherTaxableMonthly", point(5_000), instance="client",
-                          period="monthly", p_correct=0.5)
+    prof, gone = add_fact(
+        prof,
+        "income.{p}.otherTaxableMonthly",
+        "income.client.otherTaxableMonthly",
+        point(5_000),
+        instance="client",
+        period="monthly",
+        p_correct=0.5,
+    )
     prof = reject(prof, gone)
     assert fact_extremes(prof.facts[gone], CATALOG.slot("income.{p}.otherTaxableMonthly")) == (None, None)
 
@@ -115,8 +182,15 @@ def test_variants_with_different_horizons_share_one_market(monkeypatch):
 
     monkeypatch.setattr(S, "MAX_BATCH_PATHS", 500)  # one variant per batch, as with many candidates at full size
     doc = sample_document()
-    prof, dob = add_fact(prior_profile(doc), "{p}.dateOfBirth", "spouse.dateOfBirth", Triangular(low=1970.0, mode=1985.0, high=1995.0),
-                         instance="spouse", unit="date", p_correct=0.6)
+    prof, dob = add_fact(
+        prior_profile(doc),
+        "{p}.dateOfBirth",
+        "spouse.dateOfBirth",
+        Triangular(low=1970.0, mode=1985.0, high=1995.0),
+        instance="spouse",
+        unit="date",
+        p_correct=0.6,
+    )
     for seed in range(3):
         row = sensitivity_runs(prof, [dob], n_paths=500, seed=seed, base_document=doc, config=CFG, cma=CMA_, tax_model=TAX)[dob]
         assert row.bound and 0.0 <= min(row.pos_low, row.pos_high) <= max(row.pos_low, row.pos_high) <= 1.0

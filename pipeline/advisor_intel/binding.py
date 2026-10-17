@@ -254,50 +254,110 @@ def _row_entity(list_name: str, row: dict[str, Any], n: int) -> Entity:
         )
     if list_name == "retirementFunds":
         label = " ".join(x for x in (row.get("provider"), row.get("name") or row.get("type")) if x)
-        return Entity(entity_id=f"account.{_slug(row.get('provider') or row.get('type') or 'fund')}_{n}", type="account", canonical_name=label or "retirement fund",
-                      aliases=[a for a in (row.get("name"), row.get("provider")) if a], attributes={"fund_type": row.get("type"), "owner": row.get("owner")},
-                      fna_list=list_name, fna_id=row["id"])
+        return Entity(
+            entity_id=f"account.{_slug(row.get('provider') or row.get('type') or 'fund')}_{n}",
+            type="account",
+            canonical_name=label or "retirement fund",
+            aliases=[a for a in (row.get("name"), row.get("provider")) if a],
+            attributes={"fund_type": row.get("type"), "owner": row.get("owner")},
+            fna_list=list_name,
+            fna_id=row["id"],
+        )
     if list_name == "assets":
         t = row.get("type") or "other"
         etype = _ASSET_ENTITY.get(t, "account")
         label = row.get("description") or t
-        return Entity(entity_id=f"{etype}.{_slug(label)}_{n}", type=etype, canonical_name=label, aliases=[a for a in (row.get("description"), row.get("provider")) if a],
-                      attributes={"asset_type": t, "owner": row.get("owner")}, fna_list=list_name, fna_id=row["id"])
+        return Entity(
+            entity_id=f"{etype}.{_slug(label)}_{n}",
+            type=etype,
+            canonical_name=label,
+            aliases=[a for a in (row.get("description"), row.get("provider")) if a],
+            attributes={"asset_type": t, "owner": row.get("owner")},
+            fna_list=list_name,
+            fna_id=row["id"],
+        )
     if list_name == "liabilities":
         label = row.get("description") or row.get("type") or "debt"
-        return Entity(entity_id=f"liability.{_slug(label)}_{n}", type="liability", canonical_name=label, aliases=[a for a in (row.get("description"), row.get("lender")) if a],
-                      attributes={"liability_type": row.get("type"), "owner": row.get("owner"), "linked_asset_row": row.get("linkedAssetId") or ""},
-                      fna_list=list_name, fna_id=row["id"])
+        return Entity(
+            entity_id=f"liability.{_slug(label)}_{n}",
+            type="liability",
+            canonical_name=label,
+            aliases=[a for a in (row.get("description"), row.get("lender")) if a],
+            attributes={"liability_type": row.get("type"), "owner": row.get("owner"), "linked_asset_row": row.get("linkedAssetId") or ""},
+            fna_list=list_name,
+            fna_id=row["id"],
+        )
     if list_name == "policies":
         label = " ".join(x for x in (row.get("insurer"), row.get("type")) if x) or "policy"
-        return Entity(entity_id=f"policy.{_slug(label)}_{n}", type="policy", canonical_name=label, aliases=[a for a in (row.get("insurer"), row.get("policyNumber")) if a],
-                      attributes={"policy_type": row.get("type"), "life_assured": row.get("lifeAssured")}, fna_list=list_name, fna_id=row["id"])
+        return Entity(
+            entity_id=f"policy.{_slug(label)}_{n}",
+            type="policy",
+            canonical_name=label,
+            aliases=[a for a in (row.get("insurer"), row.get("policyNumber")) if a],
+            attributes={"policy_type": row.get("type"), "life_assured": row.get("lifeAssured")},
+            fna_list=list_name,
+            fna_id=row["id"],
+        )
     if list_name == "goals":
         label = row.get("name") or "goal"
-        return Entity(entity_id=f"goal.{_slug(label)}_{n}", type="goal", canonical_name=label, aliases=[label], attributes={"owner": row.get("owner")},
-                      fna_list=list_name, fna_id=row["id"])
+        return Entity(
+            entity_id=f"goal.{_slug(label)}_{n}",
+            type="goal",
+            canonical_name=label,
+            aliases=[label],
+            attributes={"owner": row.get("owner")},
+            fna_list=list_name,
+            fna_id=row["id"],
+        )
     if list_name == "expenses.custom":
         label = row.get("label") or "expense"
-        return Entity(entity_id=f"account.expense_{_slug(label)}_{n}", type="account", canonical_name=label, aliases=[label],
-                      attributes={"category": row.get("category"), "essential": row.get("essential")}, fna_list=list_name, fna_id=row["id"])
+        return Entity(
+            entity_id=f"account.expense_{_slug(label)}_{n}",
+            type="account",
+            canonical_name=label,
+            aliases=[label],
+            attributes={"category": row.get("category"), "essential": row.get("essential")},
+            fna_list=list_name,
+            fna_id=row["id"],
+        )
     raise ValueError(list_name)
 
 
 def _persons(doc: F.FnaDocument, crm: CrmRecord | None) -> dict[str, Entity]:
     out: dict[str, Entity] = {}
     cname = " ".join(x for x in (doc.client.firstName, doc.client.surname) if x) or "Client"
-    out["person.client_primary"] = Entity(entity_id="person.client_primary", type="person", canonical_name=cname,
-                                          aliases=[a for a in (doc.client.firstName,) if a], attributes={"person_key": "client"})
+    out["person.client_primary"] = Entity(
+        entity_id="person.client_primary",
+        type="person",
+        canonical_name=cname,
+        aliases=[a for a in (doc.client.firstName,) if a],
+        attributes={"person_key": "client"},
+    )
     if doc.household.includeSpouse or doc.spouse.firstName or doc.household.maritalStatus in ("married", "life-partner"):
         sname = " ".join(x for x in (doc.spouse.firstName, doc.spouse.surname) if x) or "Spouse"
-        out["person.spouse"] = Entity(entity_id="person.spouse", type="person", canonical_name=sname,
-                                      aliases=[a for a in (doc.spouse.firstName,) if a], attributes={"person_key": "spouse"})
-    out["person.advisor"] = Entity(entity_id="person.advisor", type="person", canonical_name=(crm.adviser_name if crm else "") or "Adviser", attributes={"role": "advisor"})
+        out["person.spouse"] = Entity(
+            entity_id="person.spouse",
+            type="person",
+            canonical_name=sname,
+            aliases=[a for a in (doc.spouse.firstName,) if a],
+            attributes={"person_key": "spouse"},
+        )
+    out["person.advisor"] = Entity(
+        entity_id="person.advisor",
+        type="person",
+        canonical_name=(crm.adviser_name if crm else "") or "Adviser",
+        attributes={"role": "advisor"},
+    )
     if crm:
         for p in crm.household:
             key = {"client_primary": "person.client_primary", "spouse": "person.spouse", "advisor": "person.advisor"}.get(p.role)
             if key and key in out:
-                out[key] = out[key].model_copy(update={"crm_match": [(p.crm_id, 1.0)], "aliases": sorted(set(out[key].aliases) | {p.name.split()[0]} if p.name else set(out[key].aliases))})
+                out[key] = out[key].model_copy(
+                    update={
+                        "crm_match": [(p.crm_id, 1.0)],
+                        "aliases": sorted(set(out[key].aliases) | {p.name.split()[0]} if p.name else set(out[key].aliases)),
+                    }
+                )
     return out
 
 
@@ -318,14 +378,30 @@ def _crm_links(entities: dict[str, Entity], crm: CrmRecord) -> dict[str, Entity]
             out[best.entity_id] = best.model_copy(update={"crm_match": [(p.crm_id, 1.0)]})
         else:
             eid = f"person.{_slug(p.name)}_crm"
-            out[eid] = Entity(entity_id=eid, type="person", canonical_name=p.name, aliases=[p.name.split()[0]] if p.name else [],
-                              attributes={"relation": p.role, "date_of_birth": p.date_of_birth}, crm_match=[(p.crm_id, 1.0)])
-    kind_types: dict[str, EntityType] = {"policy": "policy", "fund": "account", "investment": "account", "loan": "liability", "bank": "account", "property": "property", "other": "account"}
+            out[eid] = Entity(
+                entity_id=eid,
+                type="person",
+                canonical_name=p.name,
+                aliases=[p.name.split()[0]] if p.name else [],
+                attributes={"relation": p.role, "date_of_birth": p.date_of_birth},
+                crm_match=[(p.crm_id, 1.0)],
+            )
+    kind_types: dict[str, EntityType] = {
+        "policy": "policy",
+        "fund": "account",
+        "investment": "account",
+        "loan": "liability",
+        "bank": "account",
+        "property": "property",
+        "other": "account",
+    }
     for prod in crm.products:
         etype = kind_types[prod.kind]
         label = " ".join(x for x in (prod.provider, prod.product) if x) or prod.kind
         cands = [e for e in out.values() if e.type == etype and e.fna_id]
-        scored = sorted(((fuzz.token_set_ratio(label, " ".join([e.canonical_name, *e.aliases])) / 100.0, e) for e in cands), key=lambda t: -t[0])
+        scored = sorted(
+            ((fuzz.token_set_ratio(label, " ".join([e.canonical_name, *e.aliases])) / 100.0, e) for e in cands), key=lambda t: -t[0]
+        )
         if prod.number:
             scored = [(1.0 if prod.number in e.aliases else s, e) for s, e in scored]
             scored.sort(key=lambda t: -t[0])
@@ -334,9 +410,14 @@ def _crm_links(entities: dict[str, Entity], crm: CrmRecord) -> dict[str, Entity]
             out[e.entity_id] = e.model_copy(update={"crm_match": [(prod.crm_id, round(scored[0][0], 3))]})
         else:
             eid = f"{etype}.{_slug(label)}_crm"
-            out[eid] = Entity(entity_id=eid, type=etype, canonical_name=label, aliases=[a for a in (prod.provider, prod.product, prod.number) if a],
-                              attributes={"crm_kind": prod.kind, "fna_type": prod.fna_type, "owner": prod.owner, "last_value": prod.last_value},
-                              crm_match=[(prod.crm_id, 1.0)])
+            out[eid] = Entity(
+                entity_id=eid,
+                type=etype,
+                canonical_name=label,
+                aliases=[a for a in (prod.provider, prod.product, prod.number) if a],
+                attributes={"crm_kind": prod.kind, "fna_type": prod.fna_type, "owner": prod.owner, "last_value": prod.last_value},
+                crm_match=[(prod.crm_id, 1.0)],
+            )
     return out
 
 
@@ -623,7 +704,14 @@ def sidecar(profile: Profile, *, catalog: Catalog | None = None) -> dict[str, An
             "prior_value": summarise_value(f.prior_value),
             "prior_text": describe_value(f.prior_value) if f.prior_value is not None else None,
             "hypotheses": [
-                {"value": summarise_value(h.value), "quantity": _quantity(h.value), "text": describe_value(h.value), "weight": round(h.weight, 4), "rationale": h.rationale, "revises": h.revises}
+                {
+                    "value": summarise_value(h.value),
+                    "quantity": _quantity(h.value),
+                    "text": describe_value(h.value),
+                    "weight": round(h.weight, 4),
+                    "rationale": h.rationale,
+                    "revises": h.revises,
+                }
                 for h in f.hypotheses
             ],
             "p_correct": round(f.p_correct, 4),

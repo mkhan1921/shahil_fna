@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -60,7 +61,7 @@ def test_errored_items_are_reported_not_raised(world):
 
     rep = E.run_local(cases[:2], runner=broken, pins=VersionPins(), cache=world["cache"], save=False)
     assert rep.n_errors == 2 and "provider down" in rep.items[0].error and rep.task_error_rate == 1.0
-    assert E._CONTEXT.runner is None  # noqa: SLF001 - run_local restores the context
+    assert E._CONTEXT.runner is None
 
 
 def test_runner_gets_the_cached_call_and_pins(world):
@@ -79,9 +80,7 @@ def test_runner_gets_the_cached_call_and_pins(world):
 
 
 def test_default_runner_is_the_pipeline():
-    try:
-        import advisor_intel.pipeline  # noqa: F401
-    except ImportError:
+    if importlib.util.find_spec("advisor_intel.pipeline") is None:
         with pytest.raises(RuntimeError, match="process_cached_call"):
             E.default_runner()
     else:
@@ -226,9 +225,9 @@ def test_the_lexicon_version_pin_compares_versions_numerically(tmp_path):
     lex.mkdir()
     for name, version in (("v1.3.yaml", "1.3"), ("v1.10.yaml", "1.10"), ("catalogue_za_v1.yaml", "za-1")):
         (lex / name).write_text(f"version: '{version}'\n")
-    assert E._lexicon_version(lex) == "1.10"  # noqa: SLF001 - lexicographic order would pick v1.3
-    assert E._lexicon_version(tmp_path / "missing") is None  # noqa: SLF001
-    assert E.current_version_pins().lexicon_version == E._lexicon_version()  # noqa: SLF001 - the checkout's newest lexicon
+    assert E._lexicon_version(lex) == "1.10"
+    assert E._lexicon_version(tmp_path / "missing") is None
+    assert E.current_version_pins().lexicon_version == E._lexicon_version()
 
 
 def test_the_eval_reads_the_pipelines_own_forecast_seed():

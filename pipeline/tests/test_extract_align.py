@@ -45,12 +45,17 @@ def sid(part: str) -> str:
 
 
 def disc(revisions: list[Revision] = ()) -> DiscourseOutput:
-    return DiscourseOutput(entities={"person.client_primary": Entity(entity_id="person.client_primary", type="person", canonical_name="Sipho")}, revisions=list(revisions))
+    return DiscourseOutput(
+        entities={"person.client_primary": Entity(entity_id="person.client_primary", type="person", canonical_name="Sipho")},
+        revisions=list(revisions),
+    )
 
 
 def deps_for(slot_id: str, group: str, d: DiscourseOutput, instance: str | None = "client") -> ExtractionDeps:
     profile = Profile(call_id=T.call_id, run_id="wf-a", schema_version=CAT.version, anchor_date=T.anchor_date, entities=dict(d.entities))
-    task = ExtractionTask(task_id=group, slot_group=group, slot_ids=[slot_id], instance_keys=[instance], segment_ids=[s.segment_id for s in T.segments])
+    task = ExtractionTask(
+        task_id=group, slot_group=group, slot_ids=[slot_id], instance_keys=[instance], segment_ids=[s.segment_id for s in T.segments]
+    )
     return ExtractionDeps(task=task, catalog=CAT, profile=profile, transcript=T, discourse=d, pins=PINS)
 
 
@@ -59,7 +64,12 @@ def value(said: str, hyps: list[RawHypothesis], path: str = "x") -> FieldValue:
 
 
 def approx(v: float, word: str = "about", revises: bool = False) -> RawHypothesis:
-    return RawHypothesis(intermediate=AmountApprox(value=v, approx_word=word, currency="ZAR", period="once", basis="na"), weight=0, rationale="", revises=revises)
+    return RawHypothesis(
+        intermediate=AmountApprox(value=v, approx_word=word, currency="ZAR", period="once", basis="na"),
+        weight=0,
+        rationale="",
+        revises=revises,
+    )
 
 
 # --------------------------------------------------------------------------- deterministic grounding
@@ -69,7 +79,9 @@ def test_deterministic_score_needs_the_numbers_to_agree():
     said = canon("about one point two million")
     assert deterministic_score(said, canon("my company pension fund, about one point two million, and an RA")) >= 90
     assert deterministic_score(said, canon("the bond, we owe about one point one million")) == 0.0  # a different number
-    assert deterministic_score(canon("forty-two thousand a month"), canon("I take home about forty-two a month")) > 0  # an elided scale word is not a different number
+    assert (
+        deterministic_score(canon("forty-two thousand a month"), canon("I take home about forty-two a month")) > 0
+    )  # an elided scale word is not a different number
     assert deterministic_score(canon("fifteen thousand a month"), canon("it's fifty thousand a month")) == 0.0
 
 
@@ -102,7 +114,10 @@ async def test_alignment_never_cites_a_short_segment_contained_in_the_quote():
     d = disc()
     deps = deps_for("policies[].insurer", "policies", d, "policy.disc_1")
     key = "policies[].insurer#policy.disc_1"
-    fv = value("life cover with Discovery", [RawHypothesis(intermediate={"type": "TEXT", "text": "Discovery"}, weight=0, rationale="", revises=False)])
+    fv = value(
+        "life cover with Discovery",
+        [RawHypothesis(intermediate={"type": "TEXT", "text": "Discovery"}, weight=0, rationale="", revises=False)],
+    )
     res = await align_values(deps, {key: fv}, {key: [sid("I have life cover")]}, {key: CAT.slot("policies[].insurer")})
     assert [e.segment_id for e in res.aligned[key].evidence] == [sid("I have life cover")]
     assert all(e.speaker_role != "advisor" for e in res.aligned[key].evidence)
@@ -114,7 +129,14 @@ async def test_a_revising_hypothesis_is_grounded_in_the_revising_segment():
     deps = deps_for("income.{p}.grossMonthly", "income", d)
     key = "income.{p}.grossMonthly#client"
     fv = value("I take home about forty-two thousand a month", [approx(42_000), approx(45_000, "more like", revises=True)])
-    fv = fv.model_copy(update={"hypotheses": [h.model_copy(update={"intermediate": h.intermediate.model_copy(update={"period": "monthly", "basis": "net"})}) for h in fv.hypotheses]})
+    fv = fv.model_copy(
+        update={
+            "hypotheses": [
+                h.model_copy(update={"intermediate": h.intermediate.model_copy(update={"period": "monthly", "basis": "net"})})
+                for h in fv.hypotheses
+            ]
+        }
+    )
     res = await align_values(deps, {key: fv}, {key: [first, second]}, {key: CAT.slot("income.{p}.grossMonthly")})
     ev = res.aligned[key].evidence
     assert [e.segment_id for e in ev] == [first, second]
@@ -131,9 +153,11 @@ async def test_a_revising_hypothesis_is_grounded_in_the_revising_segment():
 
 def test_objects_without_a_window_segment_are_rejected():
     deps = deps_for("retirementFunds[].value", "retirement_funds", disc(), "account.pension_1")
-    found = [FoundObject(entity_id="new:pension", catalog_key=None, segment_ids=[], is_new=True, name="pension"),
-             FoundObject(entity_id="new:ra", catalog_key=None, segment_ids=[sid("company pension")], is_new=True, name="RA"),
-             FoundObject(entity_id="account.ghost", catalog_key=None, segment_ids=[sid("company pension")])]
+    found = [
+        FoundObject(entity_id="new:pension", catalog_key=None, segment_ids=[], is_new=True, name="pension"),
+        FoundObject(entity_id="new:ra", catalog_key=None, segment_ids=[sid("company pension")], is_new=True, name="RA"),
+        FoundObject(entity_id="account.ghost", catalog_key=None, segment_ids=[sid("company pension")]),
+    ]
     errors = validate_objects(found, deps, {})
     assert set(errors) == {"new:pension", "account.ghost"}
     assert "no segment" in errors["new:pension"] and "not in the registry" in errors["account.ghost"]
@@ -155,9 +179,31 @@ def test_keyword_scan_finds_only_groups_the_call_talks_about():
 
 def _draft(key: str, hyps: list[Hypothesis], seg: str) -> FactDraft:
     slot = CAT.slot("retirement.{p}.retirementAge")
-    ev = [Evidence(segment_id=seg, char_start=0, char_end=5, quote="sixty", speaker_role="client_primary", t_start=0, t_end=1, asr_mean_conf=0.9, role="supports")]
+    ev = [
+        Evidence(
+            segment_id=seg,
+            char_start=0,
+            char_end=5,
+            quote="sixty",
+            speaker_role="client_primary",
+            t_start=0,
+            t_end=1,
+            asr_mean_conf=0.9,
+            role="supports",
+        )
+    ]
     fv = value("sixty", [], path="retirement.client.retirementAge")
-    return FactDraft(key=key, slot=slot, instance="client", fna_path="retirement.client.retirementAge", status="stated", value=fv, hypotheses=hyps, hedges=[], evidence=ev)
+    return FactDraft(
+        key=key,
+        slot=slot,
+        instance="client",
+        fna_path="retirement.client.retirementAge",
+        status="stated",
+        value=fv,
+        hypotheses=hyps,
+        hedges=[],
+        evidence=ev,
+    )
 
 
 def age(v: float) -> Quantity:
@@ -172,7 +218,9 @@ def test_update_of_an_earlier_extraction_uses_the_lexicon_recency_weights():
     specs, _ = to_state_ops([first], [], profile, prov, {}, LEX)
     profile = apply_state_ops(profile, make_ops(profile, specs)).profile
     later = _draft(key, [Hypothesis(value=age(62), weight=1.0, rationale="", revises=True)], "s0002")
-    tuned = Lexicon.from_text(LEX.source_text.replace("recency_weight: {revising: 0.8, revised: 0.2}", "recency_weight: {revising: 0.7, revised: 0.3}"))
+    tuned = Lexicon.from_text(
+        LEX.source_text.replace("recency_weight: {revising: 0.8, revised: 0.2}", "recency_weight: {revising: 0.7, revised: 0.3}")
+    )
     specs, _ = to_state_ops([later], [], profile, prov, {}, tuned)
     assert [s[0] for s in specs] == ["UPDATE"]
     assert specs[0][3]["weights"] == pytest.approx([0.3, 0.7])

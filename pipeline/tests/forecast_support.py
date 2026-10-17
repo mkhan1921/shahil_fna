@@ -38,8 +38,18 @@ class StubTaxModel:
         x = np.asarray(taxable_annual, dtype=float)
         return self.rate * np.clip(x - self.threshold, 0, self.top_from - self.threshold) + self.top_rate * np.maximum(x - self.top_from, 0)
 
-    def person_tax(self, *, age, gross_monthly, annual_bonus=0.0, other_taxable_monthly=0.0, retirement_contributions_annual=0.0,
-                   employer_retirement_annual=0.0, medical_scheme_members=0.0, uif_applies=True):
+    def person_tax(
+        self,
+        *,
+        age,
+        gross_monthly,
+        annual_bonus=0.0,
+        other_taxable_monthly=0.0,
+        retirement_contributions_annual=0.0,
+        employer_retirement_annual=0.0,
+        medical_scheme_members=0.0,
+        uif_applies=True,
+    ):
         gross = np.asarray(gross_monthly, dtype=float)
         cash = gross * 12 + np.asarray(annual_bonus, dtype=float) + np.asarray(other_taxable_monthly, dtype=float) * 12
         remuneration = cash + np.asarray(employer_retirement_annual, dtype=float)
@@ -50,10 +60,27 @@ class StubTaxModel:
         shape = np.broadcast_shapes(np.shape(tax), np.shape(uif))
         return PersonTax(np.broadcast_to(tax, shape).astype(float), np.broadcast_to(uif, shape).astype(float))
 
-    def gross_up_monthly(self, net_monthly, *, age, retirement_monthly=0.0, medical_members=0.0, medical_payroll_monthly=0.0,
-                         other_payroll_monthly=0.0, uif=True):
-        return gross_up_by_bisection(self, net_monthly, age=age, retirement_monthly=retirement_monthly, medical_members=medical_members,
-                                     medical_payroll_monthly=medical_payroll_monthly, other_payroll_monthly=other_payroll_monthly, uif=uif)
+    def gross_up_monthly(
+        self,
+        net_monthly,
+        *,
+        age,
+        retirement_monthly=0.0,
+        medical_members=0.0,
+        medical_payroll_monthly=0.0,
+        other_payroll_monthly=0.0,
+        uif=True,
+    ):
+        return gross_up_by_bisection(
+            self,
+            net_monthly,
+            age=age,
+            retirement_monthly=retirement_monthly,
+            medical_members=medical_members,
+            medical_payroll_monthly=medical_payroll_monthly,
+            other_payroll_monthly=other_payroll_monthly,
+            uif=uif,
+        )
 
 
 class ZeroTaxModel(StubTaxModel):
@@ -86,8 +113,17 @@ def empty_profile(call_id: str = "c-empty") -> Profile:
 
 
 def evidence(seg: str = "s0001") -> Evidence:
-    return Evidence(segment_id=seg, char_start=0, char_end=4, quote="said", speaker_role="client_primary", t_start=1, t_end=2,
-                    asr_mean_conf=0.9, role="supports")
+    return Evidence(
+        segment_id=seg,
+        char_start=0,
+        char_end=4,
+        quote="said",
+        speaker_role="client_primary",
+        t_start=1,
+        t_end=2,
+        asr_mean_conf=0.9,
+        role="supports",
+    )
 
 
 def add_fact(
@@ -133,7 +169,9 @@ def add_fact(
     return profile.model_copy(update={"facts": facts}), fid
 
 
-def mark_unknown(profile: Profile, fid: str, *, slot_id: str | None = None, path: str | None = None, instance: str | None = None) -> Profile:
+def mark_unknown(
+    profile: Profile, fid: str, *, slot_id: str | None = None, path: str | None = None, instance: str | None = None
+) -> Profile:
     payload: dict[str, Any] = {"reason": "client unsure"}
     if fid not in profile.facts:
         payload.update({"slot_id": slot_id, "instance_key": instance, "fna_path": path, "provenance": PROV})

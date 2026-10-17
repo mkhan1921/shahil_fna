@@ -54,7 +54,9 @@ async def run_discourse(
 
         lexicon = load_lexicon(pins.lexicon_version)
 
-    reg = R.seed_registry(prior.entities if prior else None, crm, secondary_speaker=any(s.speaker_role == "client_secondary" for s in transcript.segments))
+    reg = R.seed_registry(
+        prior.entities if prior else None, crm, secondary_speaker=any(s.speaker_role == "client_secondary" for s in transcript.segments)
+    )
     use_frontier = not llm.is_stub(llm.role_model_name("frontier", pins))
     use_small = not llm.is_stub(llm.role_model_name("small", pins))
     reg = await R.discover(reg, transcript, pins, use_llm=use_frontier)
@@ -64,7 +66,9 @@ async def run_discourse(
     embedder = get_embedder(pins.embedding_model)
     reg = R.link_crm(reg, crm, transcript, embedder)
 
-    rewrites, sources, rejected, u = await rewrite_segments(transcript, reg.mentions, pins, use_llm=use_small, extra_hedges=extra_hedges, lexicon=lexicon)
+    rewrites, sources, rejected, u = await rewrite_segments(
+        transcript, reg.mentions, pins, use_llm=use_small, extra_hedges=extra_hedges, lexicon=lexicon
+    )
     _add(usage, u)
 
     vectors = segment_vectors(transcript, rewrites, embedder)

@@ -331,5 +331,5 @@ def test_the_promptfoo_config_matches_the_scenarios():
             assert v["base"] in names  # free text: an attack spliced into a base scenario
         for a in [*test.get("assert", []), *cfg["defaultTest"]["assert"]]:
             path, _, fn = a["value"].removeprefix("file://").partition(":")
-            assert path == "asserts.py" and re.search(rf"^def {fn}\(", asserts_src, re.M), fn
+            assert path == "asserts.py" and re.search(rf"^def {fn}\(", asserts_src, re.MULTILINE), fn
     assert covered == names

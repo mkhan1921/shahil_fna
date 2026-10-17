@@ -64,7 +64,9 @@ def segment_vectors(transcript: Transcript, rewrites: dict[str, str], embedder: 
     return out
 
 
-def embedding_scores(vectors: dict[str, np.ndarray], groups: list[str], embedder: Embedder, thresholds: dict[str, float] | None = None) -> dict[str, dict[str, float]]:
+def embedding_scores(
+    vectors: dict[str, np.ndarray], groups: list[str], embedder: Embedder, thresholds: dict[str, float] | None = None
+) -> dict[str, dict[str, float]]:
     """segment id → {group: relevance} from similarity to each group's examples (mean of the top 3)."""
     ex = load_examples()["groups"]
     ids = list(vectors)
@@ -107,7 +109,6 @@ def fit_thresholds(vectors: dict[str, np.ndarray], gold: dict[str, set[str]], em
     return out
 
 
-
 def _topics_model(groups: list[str]) -> type[BaseModel]:
     enum = Annotated[Literal[tuple(groups)], WithJsonSchema({"type": "string", "enum": list(groups)})]  # type: ignore[valid-type]
 
@@ -129,7 +130,13 @@ topic_agent: Agent[None, BaseModel] = Agent(None, output_type=str, name="discour
 
 
 async def llm_scores(
-    transcript: Transcript, rewrites: dict[str, str], groups: list[str], pins: VersionPins, *, only: set[str] | None = None, concurrency: int = 4
+    transcript: Transcript,
+    rewrites: dict[str, str],
+    groups: list[str],
+    pins: VersionPins,
+    *,
+    only: set[str] | None = None,
+    concurrency: int = 4,
 ) -> tuple[dict[str, dict[str, float]], dict[str, int]]:
     usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0}
     segs = [s for s in transcript.segments if only is None or s.segment_id in only]
@@ -145,7 +152,9 @@ async def llm_scores(
     async def run(chunk) -> None:
         text = f"Slot groups: {', '.join(groups)}\n\n" + "\n".join(render_segment(s, rewrite=rewrites.get(s.segment_id)) for s in chunk)
         async with sem:
-            result = await topic_agent.run(text, model=rm.model, model_settings=rm.settings, instructions=prompt.text, output_type=NativeOutput(out_model))
+            result = await topic_agent.run(
+                text, model=rm.model, model_settings=rm.settings, instructions=prompt.text, output_type=NativeOutput(out_model)
+            )
         usage["requests"] += result.usage.requests
         usage["input_tokens"] += result.usage.input_tokens or 0
         usage["output_tokens"] += result.usage.output_tokens or 0

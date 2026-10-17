@@ -27,11 +27,13 @@ last 100 spot-checked calls, ``AutoAcceptMonitor`` alerts and switches auto-acce
 from __future__ import annotations
 
 import contextlib
+import itertools
 import json
 import re
-from datetime import datetime, timezone
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable, Iterator, Literal, Mapping, Protocol, Sequence
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel
 
@@ -57,11 +59,11 @@ OUTPUT_TOOL_PREFIX = "final_result"  # Pydantic AI's output tool, when a provide
 ALIGNER_AGENT = "aligner"
 ORCHESTRATOR = "orchestrator"
 
-BUDGET_ERROR = re.compile(r"UsageLimitExceeded|BudgetExceeded|budget spent|exceed(?:s|ed)? the \w+_limit|_limit of \d", re.I)
+BUDGET_ERROR = re.compile(r"UsageLimitExceeded|BudgetExceeded|budget spent|exceed(?:s|ed)? the \w+_limit|_limit of \d", re.IGNORECASE)
 SCHEMA_ERROR = re.compile(
-    r"UnexpectedModelBehavior|output validation|ValidationError|Exceeded maximum (?:output )?retries|validation error", re.I
+    r"UnexpectedModelBehavior|output validation|ValidationError|Exceeded maximum (?:output )?retries|validation error", re.IGNORECASE
 )
-GROUNDING_DROP = re.compile(r"no candidate segments|no span matched|found no span|no located span", re.I)
+GROUNDING_DROP = re.compile(r"no candidate segments|no span matched|found no span|no located span", re.IGNORECASE)
 LOOP_BLOCKED = "Error: you have called"
 
 Rule = Literal[
@@ -260,7 +262,7 @@ class RunTrace(BaseModel):
     # ------------------------------------------------------------ constructors
 
     @classmethod
-    def from_spans(cls, spans: Sequence[TraceSpan], *, profile: Any = None, outcome: Any = None, **kw: Any) -> "RunTrace":
+    def from_spans(cls, spans: Sequence[TraceSpan], *, profile: Any = None, outcome: Any = None, **kw: Any) -> RunTrace:
         """A run from its trace: tool spans in start order, agent-run spans and their errors."""
         calls, agents = [], []
         call_id = run_id = ""
@@ -285,7 +287,7 @@ class RunTrace(BaseModel):
         return run._with(profile=profile, outcome=outcome)
 
     @classmethod
-    def from_messages(cls, messages: Sequence[Any], *, profile: Any = None, outcome: Any = None, **kw: Any) -> "RunTrace":
+    def from_messages(cls, messages: Sequence[Any], *, profile: Any = None, outcome: Any = None, **kw: Any) -> RunTrace:
         """A run from the orchestrator's message history (Pydantic AI messages, or their JSON as checkpointed)."""
         from pydantic_ai.messages import (
             ModelMessagesTypeAdapter,
@@ -324,7 +326,7 @@ class RunTrace(BaseModel):
         return run._with(profile=profile, outcome=outcome)
 
     @classmethod
-    def from_result(cls, result: Any, *, spans: Sequence[TraceSpan] | None = None) -> "RunTrace":
+    def from_result(cls, result: Any, *, spans: Sequence[TraceSpan] | None = None) -> RunTrace:
         """A run from a ``PipelineResult`` (or the harness's ``AgentResult``): the spans when given, else the tool
         names it records (arguments unknown), with the outcome and the final profile."""
         outcome = get(result, "outcome")
@@ -342,7 +344,7 @@ class RunTrace(BaseModel):
         run = cls(tool_calls=calls, args_known=False, agents_known=False, **ids)
         return run._with(profile=profile, outcome=outcome)
 
-    def _with(self, *, profile: Any = None, outcome: Any = None) -> "RunTrace":
+    def _with(self, *, profile: Any = None, outcome: Any = None) -> RunTrace:
         upd: dict[str, Any] = {}
         if outcome is not None:
             upd["partial"] = bool(get(outcome, "partial"))
@@ -508,7 +510,7 @@ def _first_call_ok(calls: Sequence[ToolCall]) -> tuple[bool, int | None, str]:
     if not real:
         return False, None, "the run made no tool calls"
     i, c = real[0]
-    resumed = c.tool == "view_plan" and bool((_plan_from(c.result) or {}))
+    resumed = c.tool == "view_plan" and bool(_plan_from(c.result) or {})
     if c.tool == "make_plan" or resumed:
         return True, i, ""
     return False, i, f"the first tool call was {c.tool}, not make_plan"
@@ -656,7 +658,7 @@ def check_policy(run: RunTrace, *, catalog: Catalog | None = None) -> PolicyRepo
             v.append(
                 Violation(rule="finish_sequence", index=None, detail=f"after the last extraction the run never called {', '.join(missing)}")
             )
-        elif not all(a < b for a, b in zip(firsts, firsts[1:])):  # type: ignore[operator]
+        elif not all(a < b for a, b in itertools.pairwise(firsts)):  # type: ignore[operator]
             v.append(
                 Violation(
                     rule="finish_sequence",
@@ -767,7 +769,7 @@ def spot_check(
             verdict = not (action in WRONG_ACTIONS or action == "edit")
         if not verdict:
             wrong.append(fid)
-    return SpotCheck(call_id=call_id, run_id=run_id, at=(at or datetime.now(timezone.utc)).isoformat(), auto_accepted=auto, wrong=wrong)
+    return SpotCheck(call_id=call_id, run_id=run_id, at=(at or datetime.now(UTC)).isoformat(), auto_accepted=auto, wrong=wrong)
 
 
 class AutoAcceptSwitch(Protocol):
@@ -789,10 +791,10 @@ class FileSwitch:
         return bool(self.state().get("enabled", True))
 
     def disable(self, reason: str) -> None:
-        write_json(self.path, {"enabled": False, "reason": reason, "at": datetime.now(timezone.utc).isoformat()})
+        write_json(self.path, {"enabled": False, "reason": reason, "at": datetime.now(UTC).isoformat()})
 
     def enable(self, reason: str = "re-enabled by hand") -> None:
-        write_json(self.path, {"enabled": True, "reason": reason, "at": datetime.now(timezone.utc).isoformat()})
+        write_json(self.path, {"enabled": True, "reason": reason, "at": datetime.now(UTC).isoformat()})
 
 
 class MonitorStatus(BaseModel):

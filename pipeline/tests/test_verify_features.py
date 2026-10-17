@@ -15,7 +15,39 @@ from advisor_intel.verify.features import SPEC_FEATURES, feature_names, features
 from .verify_factories import CATALOG, ProfileBuilder, ev, money, point, segment, span, transcript
 
 # Every row of the §9.2 table (one-hot rows as prefixes).
-SPEC_TABLE = ["self_score", "entail_score", "consistency", "n_evidence", "n_supporting_segments", "asr_mean_conf", "asr_min_conf", "low_asr_overlap", "diarization_conf", "role_conf", "speaker_is_client", "resolution_conf", "crm_link_score", "hedge_strength_max", "scale_ambiguous", "revised", "restated", "n_hypotheses", "top_weight", "lexicon_miss", "constraint_soft_violations", "derived", "grammar_readings", "grammar_top_margin", "second_pass_run", "second_pass_agreement", "distance_from_prior", "aligner_score", "reopened_by_coverage", "field_retries", "term_unresolved"]
+SPEC_TABLE = [
+    "self_score",
+    "entail_score",
+    "consistency",
+    "n_evidence",
+    "n_supporting_segments",
+    "asr_mean_conf",
+    "asr_min_conf",
+    "low_asr_overlap",
+    "diarization_conf",
+    "role_conf",
+    "speaker_is_client",
+    "resolution_conf",
+    "crm_link_score",
+    "hedge_strength_max",
+    "scale_ambiguous",
+    "revised",
+    "restated",
+    "n_hypotheses",
+    "top_weight",
+    "lexicon_miss",
+    "constraint_soft_violations",
+    "derived",
+    "grammar_readings",
+    "grammar_top_margin",
+    "second_pass_run",
+    "second_pass_agreement",
+    "distance_from_prior",
+    "aligner_score",
+    "reopened_by_coverage",
+    "field_retries",
+    "term_unresolved",
+]
 
 
 def test_vector_is_complete_against_the_spec_table():

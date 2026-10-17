@@ -148,14 +148,22 @@ def for_role(role: Role, pins: VersionPins | None = None, *, thinking: bool = Fa
     routing = get_settings().models
     name = role_model_name(role, pins, routing)
     secondary = None if role == "secondary" else routing.secondary
-    return RoleModel(role=role, name=name, model=build_model(name, secondary=secondary), settings=model_settings(name, thinking=thinking, effort=effort))
+    return RoleModel(
+        role=role, name=name, model=build_model(name, secondary=secondary), settings=model_settings(name, thinking=thinking, effort=effort)
+    )
 
 
 CACHE_WRITE_MULTIPLIER = 1.25  # a cache write costs 1.25× the input price (5-minute cache)
 
 
 def usage_cost_usd(
-    name: str, *, input_tokens: int, output_tokens: int, cache_read_tokens: int = 0, cache_write_tokens: int = 0, reported: float | None = None
+    name: str,
+    *,
+    input_tokens: int,
+    output_tokens: int,
+    cache_read_tokens: int = 0,
+    cache_write_tokens: int = 0,
+    reported: float | None = None,
 ) -> float:
     """USD for one model's usage: the provider-reported cost when present, else the price table.
 
@@ -168,4 +176,6 @@ def usage_cost_usd(
         return 0.0
     p_in, p_out, p_cache = PRICES_PER_MTOK.get(model_id(name), _DEFAULT_PRICE)
     fresh_in = max(0, input_tokens - cache_read_tokens - cache_write_tokens)
-    return (fresh_in * p_in + output_tokens * p_out + cache_read_tokens * p_cache + cache_write_tokens * p_in * CACHE_WRITE_MULTIPLIER) / 1e6
+    return (
+        fresh_in * p_in + output_tokens * p_out + cache_read_tokens * p_cache + cache_write_tokens * p_in * CACHE_WRITE_MULTIPLIER
+    ) / 1e6

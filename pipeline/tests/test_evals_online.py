@@ -326,7 +326,6 @@ async def test_the_reference_run_of_the_real_harness_passes(tmp_path, monkeypatc
     from advisor_intel.models.runs import VersionPins
     from advisor_intel.testing.calls import SAMPLE_CALL
     from advisor_intel.testing.transcripts import ingested_transcript
-
     from tests.evals_fakes import small_forecast
 
     small_forecast(monkeypatch)
@@ -363,7 +362,6 @@ async def test_a_run_traced_by_the_production_telemetry_passes(tmp_path, monkeyp
     from advisor_intel.models.runs import VersionPins
     from advisor_intel.testing.calls import SAMPLE_CALL
     from advisor_intel.testing.transcripts import ingested_transcript
-
     from tests.evals_fakes import small_forecast
 
     small_forecast(monkeypatch)

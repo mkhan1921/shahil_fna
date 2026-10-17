@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from advisor_intel import llm
 from advisor_intel.discourse.run import run_discourse
 from advisor_intel.extract.align import align_values

@@ -118,7 +118,7 @@ def _container(path: str) -> tuple[str, str, type | None, str, str | None]:
 
 
 def _field_name(path: str, prefix: str) -> str:
-    rest = path[len(prefix):]
+    rest = path[len(prefix) :]
     return rest.strip(".") if rest else ""
 
 
@@ -140,7 +140,7 @@ def infer_value_type(name: str, ts_type: str, mod: TsModule) -> str:
             return "years"
         if name.endswith("Months"):
             return "months"
-        if name.endswith("Rate") or name.endswith("Percent") or name.endswith("Escalation"):
+        if name.endswith(("Rate", "Percent", "Escalation")):
             return "rate"
         if name.endswith("Members"):
             return "count"
@@ -174,7 +174,9 @@ def build_catalog(src: AppSources, annotations: dict[str, Any]) -> Catalog:
     groups = {name: SlotGroup(name=name, **(g or {})) for name, g in annotations["groups"].items()}
     slots: list[SlotDef] = []
     risk_questions = [
-        RiskQuestion(id=q.id, dimension=q.dimension, question=q.question, options=[o for o, _ in q.options], scores=[s for _, s in q.options])  # type: ignore[arg-type]
+        RiskQuestion(
+            id=q.id, dimension=q.dimension, question=q.question, options=[o for o, _ in q.options], scores=[s for _, s in q.options]
+        )  # type: ignore[arg-type]
         for q in src.risk_questions
     ]
     for ann in annotations["slots"]:
@@ -265,7 +267,9 @@ def build_catalog(src: AppSources, annotations: dict[str, Any]) -> Catalog:
         generated_from=hashes,
         groups=groups,
         slots=slots,
-        expense_items=[ExpenseItem(key=e.key, label=e.label, category=e.category, essential=e.essential, hint=e.hint) for e in src.expense_items],
+        expense_items=[
+            ExpenseItem(key=e.key, label=e.label, category=e.category, essential=e.essential, hint=e.hint) for e in src.expense_items
+        ],
         risk_questions=risk_questions,
         excluded=annotations.get("excluded") or {},
     )

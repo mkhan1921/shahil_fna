@@ -32,7 +32,9 @@ from .policy import policy_model
 from .state import HarnessState, usage_snapshot
 
 RESUME_PROMPT = "You were interrupted and are resuming. Re-read the plan with view_plan and continue where you left off."
-SOFT_BUDGET_NOTE = "The time budget is nearly spent: finish the remaining tier A tasks, skip the rest with a reason, then run the final checks and finish."
+SOFT_BUDGET_NOTE = (
+    "The time budget is nearly spent: finish the remaining tier A tasks, skip the rest with a reason, then run the final checks and finish."
+)
 
 
 class AgentResult(BaseModel):
@@ -57,8 +59,13 @@ def _merge_registry(inputs: AgentInputs) -> Profile:
     for eid, e in inputs.discourse.entities.items():  # discourse knows aliases and mentions the prior registry lacked
         if eid in ents and ents[eid] is not e:
             base = ents[eid]
-            ents[eid] = base.model_copy(update={"aliases": sorted(set(base.aliases) | set(e.aliases)), "first_mention": base.first_mention or e.first_mention,
-                                                "crm_match": base.crm_match or e.crm_match})
+            ents[eid] = base.model_copy(
+                update={
+                    "aliases": sorted(set(base.aliases) | set(e.aliases)),
+                    "first_mention": base.first_mention or e.first_mention,
+                    "crm_match": base.crm_match or e.crm_match,
+                }
+            )
     return inputs.profile.model_copy(update={"entities": ents})
 
 
@@ -96,14 +103,24 @@ async def run_agent(
         if state.finished and "outcome" in extra and "profile" in extra:
             # The loop finished but the attempt died before its caller recorded the result: hand the same
             # result back without another model call (the profile here is the final, derived one).
-            return AgentResult(outcome=AgentOutcome.model_validate(extra["outcome"]), profile=profile, plan=state.plan, notes=state.notes,
-                               followups=state.followups, sensitivity=state.sensitivity, summary=state.summary, state=cp.harness_state)
+            return AgentResult(
+                outcome=AgentOutcome.model_validate(extra["outcome"]),
+                profile=profile,
+                plan=state.plan,
+                notes=state.notes,
+                followups=state.followups,
+                sensitivity=state.sensitivity,
+                summary=state.summary,
+                state=cp.harness_state,
+            )
     loop = LoopDetector([e.args_hash for e in state.events[-10:]])
     # A resumed attempt continues the run's budgets: the orchestrator's usage so far seeds Pydantic AI's
     # limits and the wall clock already spent counts against the soft and hard limits (§13.6).
     budget = BudgetGuard(budgets=budgets, model_name=rm.name, already_elapsed=state.elapsed_s)
     prior_usage = RunUsage(**state.orchestrator_usage) if state.orchestrator_usage else None
-    deps = HarnessDeps(inputs=inputs, catalog=catalog, services=services, state=state, budget=budget, loop=loop, profile=profile, on_profile=on_profile)
+    deps = HarnessDeps(
+        inputs=inputs, catalog=catalog, services=services, state=state, budget=budget, loop=loop, profile=profile, on_profile=on_profile
+    )
     instructions = pinned("orchestrator", inputs.pins.prompt_versions).text
     # On resume the history may end with tool calls that never ran: run them first, then tell the agent.
     prompt = None if history else deps.brief()
@@ -112,8 +129,16 @@ async def run_agent(
     last_usage: Any = prior_usage or RunUsage()
     history_so_far: list[ModelMessage] = list(history or [])
     try:
-        async with orchestrator.iter(prompt, deps=deps, message_history=history, usage_limits=usage_limits(budgets), usage=prior_usage, model=model,
-                                     model_settings=rm.settings if model is rm.model else None, instructions=instructions) as run:
+        async with orchestrator.iter(
+            prompt,
+            deps=deps,
+            message_history=history,
+            usage_limits=usage_limits(budgets),
+            usage=prior_usage,
+            model=model,
+            model_settings=rm.settings if model is rm.model else None,
+            instructions=instructions,
+        ) as run:
             if history:
                 run.enqueue(RESUME_PROMPT)
             async for _node in run:
@@ -124,7 +149,9 @@ async def run_agent(
                 state.orchestrator_usage = usage_snapshot(run.usage)
                 state.elapsed_s = round(budget.elapsed(), 3)
                 extra = {"profile": deps.profile.model_dump(mode="json")} if checkpoint_profile else {}
-                await checkpoints.save(inputs.run_id, state.turn, dump_messages(history_so_far), {**state.model_dump(mode="json"), "_extra": extra})
+                await checkpoints.save(
+                    inputs.run_id, state.turn, dump_messages(history_so_far), {**state.model_dump(mode="json"), "_extra": extra}
+                )
                 if heartbeat is not None:
                     heartbeat({"turn": state.turn, "profile_version": deps.profile.version})
                 budget.check(run.usage, state.subagent_usage)
@@ -149,14 +176,25 @@ async def run_agent(
             outcome.partial = outcome.partial or not finish
             for t in plan.tasks:
                 if t.status in ("todo", "running"):
-                    t.status, t.skip_reason = "skipped", t.skip_reason or (f"not reached: {outcome.reason}" if outcome.reason else "not reached")
+                    t.status, t.skip_reason = (
+                        "skipped",
+                        t.skip_reason or (f"not reached: {outcome.reason}" if outcome.reason else "not reached"),
+                    )
     if services.derive is not None:
         await deps.set_profile(await services.derive(deps.profile, deps))
     outcome.turns = state.turn
     state.finished = True
     state.summary = finish.summary if finish else (outcome.reason or "")
-    result = AgentResult(outcome=outcome, profile=deps.profile, plan=plan, notes=state.notes, followups=state.followups, sensitivity=state.sensitivity,
-                         summary=state.summary, state=state.model_dump(mode="json"))
+    result = AgentResult(
+        outcome=outcome,
+        profile=deps.profile,
+        plan=plan,
+        notes=state.notes,
+        followups=state.followups,
+        sensitivity=state.sensitivity,
+        summary=state.summary,
+        state=state.model_dump(mode="json"),
+    )
     if checkpoint_profile:  # a retry after this point returns the same result instead of running the agent again
         final = {"profile": deps.profile.model_dump(mode="json"), "outcome": outcome.model_dump(mode="json")}
         await checkpoints.save(inputs.run_id, state.turn, dump_messages(history_so_far), {**result.state, "_extra": final})

@@ -180,7 +180,9 @@ async def test_scripted_calls_take_the_same_role_road_as_audio(monkeypatch):
 
     with R.role_agent.override(model=FunctionModel(boom)):
         auto = await transcript_from_script_async(SCRIPT, date(2026, 10, 16), roles="auto", role_agent_pins=VersionPins(), crm_names=CRM)
-        heur = await transcript_from_script_async(SCRIPT, date(2026, 10, 16), roles="heuristic", role_agent_pins=VersionPins(), crm_names=CRM)
+        heur = await transcript_from_script_async(
+            SCRIPT, date(2026, 10, 16), roles="heuristic", role_agent_pins=VersionPins(), crm_names=CRM
+        )
     assert seen == [None, False]
     assert [(s.speaker_role, s.role_conf) for s in auto.segments] == [(s.speaker_role, s.role_conf) for s in heur.segments]
 

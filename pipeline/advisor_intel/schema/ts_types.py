@@ -12,8 +12,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-_INTERFACE = re.compile(r"export interface (\w+)\s*\{(.*?)\n\}", re.S)
-_TYPE_ALIAS = re.compile(r"export type (\w+)\s*=\s*(.*?);", re.S)
+_INTERFACE = re.compile(r"export interface (\w+)\s*\{(.*?)\n\}", re.DOTALL)
+_TYPE_ALIAS = re.compile(r"export type (\w+)\s*=\s*(.*?);", re.DOTALL)
 _FIELD = re.compile(r"^\s*(\w+)(\?)?\s*:\s*(.+?);\s*(?://.*)?$")
 _LITERAL = re.compile(r"'([^']*)'")
 
@@ -70,7 +70,7 @@ def _strip_comments(body: str) -> list[tuple[str, str]]:
             if line.endswith("*/"):
                 in_block = False
             continue
-        if line.startswith("/**") or line.startswith("/*"):
+        if line.startswith(("/**", "/*")):
             text = line.strip("/* ").strip()
             if text:
                 doc.append(text)
@@ -123,7 +123,10 @@ def parse_expense_items(text: str) -> list[ExpenseItemDef]:
     start = text.index("export const EXPENSE_ITEMS")
     end = text.index("];", start)
     block = text[start:end]
-    return [ExpenseItemDef(k, lbl.replace("\\'", "'"), cat, ess == "true", (hint or "").replace("\\'", "'")) for k, lbl, cat, ess, hint in _EXPENSE.findall(block)]
+    return [
+        ExpenseItemDef(k, lbl.replace("\\'", "'"), cat, ess == "true", (hint or "").replace("\\'", "'"))
+        for k, lbl, cat, ess, hint in _EXPENSE.findall(block)
+    ]
 
 
 @dataclass
@@ -135,7 +138,7 @@ class RiskQuestionDef:
 
 
 _QUESTION = re.compile(
-    r"\{\s*id:\s*'([^']+)',\s*dimension:\s*'([^']+)',\s*question:\s*'((?:[^'\\]|\\.)*)',\s*options:\s*\[(.*?)\]\s*,?\s*\}", re.S
+    r"\{\s*id:\s*'([^']+)',\s*dimension:\s*'([^']+)',\s*question:\s*'((?:[^'\\]|\\.)*)',\s*options:\s*\[(.*?)\]\s*,?\s*\}", re.DOTALL
 )
 _OPTION = re.compile(r"\{\s*label:\s*'((?:[^'\\]|\\.)*)',\s*score:\s*(\d+)\s*\}")
 
@@ -146,7 +149,9 @@ def parse_risk_questions(text: str) -> list[RiskQuestionDef]:
     block = text[start:end]
     out = []
     for qid, dim, q, opts in _QUESTION.findall(block):
-        out.append(RiskQuestionDef(qid, dim, q.replace("\\'", "'"), [(lbl.replace("\\'", "'"), int(s)) for lbl, s in _OPTION.findall(opts)]))
+        out.append(
+            RiskQuestionDef(qid, dim, q.replace("\\'", "'"), [(lbl.replace("\\'", "'"), int(s)) for lbl, s in _OPTION.findall(opts)])
+        )
     return out
 
 

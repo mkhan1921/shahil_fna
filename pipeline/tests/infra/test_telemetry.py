@@ -66,11 +66,13 @@ def test_run_attributes_from_pins():
 
 def test_every_span_carries_run_attributes_and_schema_url(spans):
     tracer = telemetry.get_tracer()
-    with tracer.start_as_current_span("activity"):
-        with telemetry.run_context(call_id="c1", workflow_id="c1-run-a", stage="agent", pins=PINS):
-            with tracer.start_as_current_span("tool call"):
-                with tracer.start_as_current_span("model request"):
-                    pass
+    with (
+        tracer.start_as_current_span("activity"),
+        telemetry.run_context(call_id="c1", workflow_id="c1-run-a", stage="agent", pins=PINS),
+        tracer.start_as_current_span("tool call"),
+        tracer.start_as_current_span("model request"),
+    ):
+        pass
     done = {s.name: s for s in spans.get_finished_spans()}
     for name in ("tool call", "model request"):
         a = done[name].attributes

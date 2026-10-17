@@ -178,7 +178,9 @@ def test_a_window_never_runs_past_a_comma_or_full_stop():
 
 
 def test_zero_and_cents_are_literal_and_not_sent_to_the_second_pass():
-    assert segment_spans(seg("s0001", "spk_0", 0.0, ["zero", "debt,", "nothing", "on", "the", "card"])) == []  # a count-sized literal: not an amount
+    assert (
+        segment_spans(seg("s0001", "spk_0", 0.0, ["zero", "debt,", "nothing", "on", "the", "card"])) == []
+    )  # a count-sized literal: not an amount
     spans = segment_spans(seg("s0002", "spk_0", 0.0, ["I", "owe", "zero", "rand", "on", "it"]))
     assert len(spans) == 1 and spans[0].accepted and spans[0].readings[0].value == 0.0 and "low_asr" not in spans[0].flags
     s = seg("s0003", "spk_1", 0.0, [("R1234.56", 0.95, [], "one two three four rand fifty six")])

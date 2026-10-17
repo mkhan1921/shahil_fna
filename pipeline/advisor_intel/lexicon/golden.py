@@ -8,8 +8,9 @@ same check to list the cases its proposal would move, so the pull request says w
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel
@@ -96,4 +97,4 @@ def make_case(lex: Lexicon, id: str, kind: str, phrase: str, value: float | None
     return case
 
 
-__all__ = ["ABS_FLOOR", "GoldenCase", "MEDIAN_REL_TOL", "check_case", "check_cases", "load_cases", "lookup", "make_case", "summarise"]
+__all__ = ["ABS_FLOOR", "MEDIAN_REL_TOL", "GoldenCase", "check_case", "check_cases", "load_cases", "lookup", "make_case", "summarise"]

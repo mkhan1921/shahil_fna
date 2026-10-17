@@ -31,7 +31,9 @@ BATCH = 20
 CONTEXT = 5
 MAX_RATIO = 3.0
 _PRONOUNS = re.compile(r"\b(he|she|they|him|her|them|his|hers|their|it|its|that|this|those|these|there)\b", re.IGNORECASE)
-_BACKCHANNEL = re.compile(r"^\s*(ja|yes|yeah|yep|no|okay|ok|mm+|uh[- ]huh|right|sure|great|thanks|thank you|shame|eish)[.!?,\s]*$", re.IGNORECASE)
+_BACKCHANNEL = re.compile(
+    r"^\s*(ja|yes|yeah|yep|no|okay|ok|mm+|uh[- ]huh|right|sure|great|thanks|thank you|shame|eish)[.!?,\s]*$", re.IGNORECASE
+)
 
 
 class RewriteOut(BaseModel):
@@ -123,9 +125,12 @@ async def rewrite_segments(
             if m.entity_id and any(m.segment_id == b.segment_id for b in batch):
                 ref_lines.append(f"- {m.segment_id}: '{m.surface}' → {m.entity_id}")
         text = (
-            "## Context (do not rewrite)\n" + "\n".join(render_segment(s) for s in context)
-            + "\n\n## Resolved references\n" + ("\n".join(ref_lines) or "(none)")
-            + "\n\n## Rewrite these segments\n" + "\n".join(render_segment(s) for s in batch)
+            "## Context (do not rewrite)\n"
+            + "\n".join(render_segment(s) for s in context)
+            + "\n\n## Resolved references\n"
+            + ("\n".join(ref_lines) or "(none)")
+            + "\n\n## Rewrite these segments\n"
+            + "\n".join(render_segment(s) for s in batch)
         )
         async with sem:
             result = await rewrite_agent.run(text, model=rm.model, model_settings=rm.settings, instructions=prompt.text)

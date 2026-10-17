@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -17,7 +17,7 @@ from advisor_intel.models.profile import FollowUp, Profile
 from advisor_intel.models.review import FollowupEdit, ReviewResult
 from advisor_intel.models.runs import VersionPins
 
-AT = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+AT = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
 PROV = Provenance(run_id="wf-1")
 
 
@@ -37,7 +37,7 @@ def ev(quote="I want to retire at sixty"):
 
 def profile_with_facts():
     p = Profile(call_id="c1", run_id="wf-1", schema_version="profile_v1", anchor_date=date(2026, 10, 15))
-    add = lambda slot, inst, path, v, unit="age": (  # noqa: E731
+    add = lambda slot, inst, path, v, unit="age": (
         "ADD",
         f"{slot}#{inst}",
         "s0010",
@@ -346,10 +346,10 @@ def test_s3_blob_store_with_a_fake_client():
         def __init__(self):
             self.objects = {}
 
-        def put_object(self, Bucket, Key, Body):  # noqa: N803 - boto3 argument names
+        def put_object(self, Bucket, Key, Body):
             self.objects[(Bucket, Key)] = Body
 
-        def get_object(self, Bucket, Key):  # noqa: N803
+        def get_object(self, Bucket, Key):
             if (Bucket, Key) not in self.objects:
                 raise NoSuchKey(Key)
             return {"Body": Body(self.objects[(Bucket, Key)])}
@@ -421,6 +421,7 @@ def test_the_braintrust_eval_file_registers_the_experiment(tmp_path):
         [str(cli), "eval", "--list", "--no-send-logs", "advisor_intel/evals/eval_extraction.py"],
         cwd=pipeline_dir,
         env=env,
+        check=False,
         capture_output=True,
         text=True,
         timeout=300,
@@ -435,7 +436,7 @@ def test_export_snapshots_a_dataset_to_object_storage(tmp_path):
     call = generate_call(1, seed=2)
     D.sync_gold([call.gold.model_copy(update={"source": "real", "call_id": "real-1"})], store=store)
     blobs = D.LocalBlobStore(tmp_path / "blobs")
-    key = D.export_dataset("gold-calls", store=store, blobs=blobs, at=datetime(2026, 10, 16, 2, 30, tzinfo=timezone.utc))
+    key = D.export_dataset("gold-calls", store=store, blobs=blobs, at=datetime(2026, 10, 16, 2, 30, tzinfo=UTC))
     assert key == "datasets/gold-calls/2026-10-16.jsonl"
     rows = [D.DatasetRecord.model_validate_json(line) for line in blobs.read(key).decode().splitlines()]
     assert [r.id for r in rows] == ["real-1:asr", "real-1:human"] and rows[0].expected["call_id"] == "real-1"

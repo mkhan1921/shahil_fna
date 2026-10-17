@@ -10,7 +10,7 @@ scale weights, so an ambiguous "two fifty" never outweighs a second, unambiguous
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Sequence
+from collections.abc import Sequence
 
 from ..models.dists import Quantity
 from ..models.extraction import RawHypothesis

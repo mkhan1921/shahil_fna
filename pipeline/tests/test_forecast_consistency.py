@@ -47,13 +47,35 @@ def _assert_matches(result, retirement_results: dict) -> None:
 def _profile_with_uncertain_facts():
     doc = sample_document()
     prof = prior_profile(doc)
-    prof, _ = add_fact(prof, "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=61, mode=64, high=67),
-                       instance="client", unit="age", p_correct=0.7)
-    prof, _ = add_fact(prof, "income.{p}.grossMonthly", "income.spouse.grossMonthly", LogNormal(median=58_000, p10=50_000, p90=70_000),
-                       instance="spouse", period="monthly", p_correct=0.8)
+    prof, _ = add_fact(
+        prof,
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=61, mode=64, high=67),
+        instance="client",
+        unit="age",
+        p_correct=0.7,
+    )
+    prof, _ = add_fact(
+        prof,
+        "income.{p}.grossMonthly",
+        "income.spouse.grossMonthly",
+        LogNormal(median=58_000, p10=50_000, p90=70_000),
+        instance="spouse",
+        period="monthly",
+        p_correct=0.8,
+    )
     fund = next(f for f in prof.facts.values() if f.slot_id == "retirementFunds[].employeeMonthly" and f.value.dist.value == 2500)
-    prof, _ = add_fact(prof, "retirementFunds[].employeeMonthly", fund.fna_path, Triangular(low=2_000, mode=3_000, high=5_000),
-                       instance=fund.instance_key, period="monthly", p_correct=0.6, entity_refs=fund.entity_refs)
+    prof, _ = add_fact(
+        prof,
+        "retirementFunds[].employeeMonthly",
+        fund.fna_path,
+        Triangular(low=2_000, mode=3_000, high=5_000),
+        instance=fund.instance_key,
+        period="monthly",
+        p_correct=0.6,
+        entity_refs=fund.entity_refs,
+    )
     return prof, doc
 
 
@@ -76,10 +98,13 @@ def test_zero_volatility_matches_the_fna_engine_for_retirees_and_other_assumptio
     doc.client.employmentType = "retired"  # drawing income from today
     doc.client.dateOfBirth = "1958-03-02"
     doc.retirementFunds[0].type = "living-annuity"
-    doc.retirement["client"] = F.RetirementGoal(retirementAge=65, planningAge=95, targetMode="amount", targetMonthly=60_000, otherIncomeMonthly=5_000)
+    doc.retirement["client"] = F.RetirementGoal(
+        retirementAge=65, planningAge=95, targetMode="amount", targetMonthly=60_000, otherIncomeMonthly=5_000
+    )
     doc.assets[6].earmark = "retirement"  # a unit trust counted towards retirement, as the FNA does
-    doc.assumptions = doc.assumptions.model_copy(update={"cpi": 0.06, "salaryEscalation": 0.07, "preRetirementReturn": 0.10,
-                                                         "postRetirementReturn": 0.065})
+    doc.assumptions = doc.assumptions.model_copy(
+        update={"cpi": 0.06, "salaryEscalation": 0.07, "preRetirementReturn": 0.10, "postRetirementReturn": 0.065}
+    )
     analysis = engine.analyse(doc, today=ANCHOR)
     assert analysis.persons["client"].retirement.retired
     result = _median_forecast(doc, default_tax_model(doc.assumptions.taxYear))
@@ -99,14 +124,25 @@ def test_default_tax_model_is_the_fna_engines_tax():
     from advisor_intel.forecast.tax import default_tax_model
 
     m = default_tax_model("2026/27")
-    t = m.person_tax(age=40.0, gross_monthly=100_000.0, annual_bonus=100_000.0, retirement_contributions_annual=240_000.0,
-                     employer_retirement_annual=120_000.0, medical_scheme_members=4, uif_applies=True)
+    t = m.person_tax(
+        age=40.0,
+        gross_monthly=100_000.0,
+        annual_bonus=100_000.0,
+        retirement_contributions_annual=240_000.0,
+        employer_retirement_annual=120_000.0,
+        medical_scheme_members=4,
+        uif_applies=True,
+    )
     income = sample_analysis()["persons"]["client"]["income"]
     assert float(t.annual_tax) == pytest.approx(income["tax"]["annualTax"]) and float(t.monthly_uif) == pytest.approx(income["uifMonthly"])
     nets = np.array([15_000.0, 42_000.0, 79_000.0])
     ours = m.gross_up_monthly(nets, age=40.0, retirement_monthly=7_500.0, medical_members=4, medical_payroll_monthly=9_850.0)
     table = tables.table_for("2026/27")
-    theirs = [tax.gross_up_monthly(float(n), age=40.0, table=table, retirement_monthly=7_500.0, medical_members=4, medical_payroll_monthly=9_850.0)
-              for n in nets]
+    theirs = [
+        tax.gross_up_monthly(
+            float(n), age=40.0, table=table, retirement_monthly=7_500.0, medical_members=4, medical_payroll_monthly=9_850.0
+        )
+        for n in nets
+    ]
     assert np.allclose(ours, theirs, atol=1e-4)
     assert engine is not None

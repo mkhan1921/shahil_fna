@@ -20,9 +20,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import re
+from collections.abc import Callable, Sequence
 from datetime import date
 from types import SimpleNamespace
-from typing import Any, Callable, Literal, Sequence
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -75,7 +76,7 @@ class Scenario(BaseModel):
         """``role: text`` lines, the format of ``CallInput.script`` and promptfoo's prompt."""
         return "\n".join(f"{r}: {t}" for r, t in self.turns)
 
-    def with_utterance(self, text: str, *, speaker: str = "client_primary", at: int | None = None) -> "Scenario":
+    def with_utterance(self, text: str, *, speaker: str = "client_primary", at: int | None = None) -> Scenario:
         """The scenario with one more utterance (a generated injection) spliced in before the advisor's last turn."""
         turns = list(self.turns)
         turns.insert(len(turns) - 1 if at is None else at, (speaker, text))
@@ -697,9 +698,9 @@ async def run_scenario(
 
 
 __all__ = [
+    "SCENARIOS",
     "CriterionResult",
     "Expectation",
-    "SCENARIOS",
     "Scenario",
     "ScenarioOutcome",
     "check_criterion",

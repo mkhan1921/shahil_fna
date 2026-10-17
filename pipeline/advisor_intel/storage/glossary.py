@@ -10,7 +10,7 @@ extraction context pack and the agent's inputs.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import psycopg
@@ -43,7 +43,7 @@ def _row_to_entry(r: dict[str, Any]) -> GlossaryEntry:
     )
 
 
-_EPOCH = datetime.fromtimestamp(0, timezone.utc)  # a row written without a confirmation time
+_EPOCH = datetime.fromtimestamp(0, UTC)  # a row written without a confirmation time
 _GET = "SELECT * FROM glossary WHERE term = %(k)s OR %(k)s = ANY(aliases) ORDER BY (term = %(k)s) DESC LIMIT 1"
 _PUT = """
 INSERT INTO glossary (term, display_term, aliases, canonical_name, product_type, provider, kind, source, source_url,
@@ -76,7 +76,7 @@ def _put_params(entry: GlossaryEntry) -> dict[str, Any]:
         "source": entry.source,
         "source_url": entry.source_url or "",
         "by": entry.confirmed_by or None,
-        "at": entry.confirmed_at or datetime.now(timezone.utc),
+        "at": entry.confirmed_at or datetime.now(UTC),
     }
 
 

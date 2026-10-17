@@ -53,7 +53,9 @@ def run():
 
     async def go():
         t = await ingested_transcript(SAMPLE_CALL, call_id="call-pipe")  # the oracle quotes the same segments
-        pins = VersionPins(reasoning_model=llm.register_local_model("oracle-pipe", scripted_model(Oracle(t, SAMPLE_OBJECTS, SAMPLE_GOLD).handler)))
+        pins = VersionPins(
+            reasoning_model=llm.register_local_model("oracle-pipe", scripted_model(Oracle(t, SAMPLE_OBJECTS, SAMPLE_GOLD).handler))
+        )
         res = await process_call(CallInput(call_id="call-pipe", anchor_date=date(2026, 10, 15), script=SCRIPT, script_roles=ROLES), pins)
         return pins, res
 
@@ -67,7 +69,13 @@ def test_scripted_call_runs_every_installed_stage(run):
     _, res = run
     assert not res.partial and res.transcript.numeric_spans
     assert {"verify", "voi", "forecast"}.isdisjoint(res.skipped), res.skipped
-    assert res.tool_calls[0] == "make_plan" and {"extract_slot_group", "verify_facts", "check_constraints", "run_sensitivity", "draft_followups"} <= set(res.tool_calls)
+    assert res.tool_calls[0] == "make_plan" and {
+        "extract_slot_group",
+        "verify_facts",
+        "check_constraints",
+        "run_sensitivity",
+        "draft_followups",
+    } <= set(res.tool_calls)
     assert res.run_id.startswith("run-call-pipe-")
 
 
@@ -130,8 +138,23 @@ def test_cli_writes_the_files_the_app_imports(tmp_path, run, monkeypatch):
     monkeypatch.setattr(P, "process_call", cached)
     monkeypatch.setattr(P, "deployment_pins", lambda settings=None: pins)
     out = tmp_path / "out"
-    assert P.main(["--script", str(script), "--roles", ",".join(f"{k}={v}" for k, v in ROLES.items()), "--date", "2026-10-15",
-                   "--call-id", "call-pipe", "--out", str(out)]) == 0
+    assert (
+        P.main(
+            [
+                "--script",
+                str(script),
+                "--roles",
+                ",".join(f"{k}={v}" for k, v in ROLES.items()),
+                "--date",
+                "2026-10-15",
+                "--call-id",
+                "call-pipe",
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
     assert seen["call"].script_roles == ROLES and seen["call"].anchor_date == date(2026, 10, 15) and seen["pins"] is pins
     export = json.loads((out / "export.json").read_text())
     assert export["format"] == "shahil-fna" and export["document"]["income"]["spouse"]["grossMonthly"] == 35_000
@@ -140,3 +163,18 @@ def test_cli_writes_the_files_the_app_imports(tmp_path, run, monkeypatch):
     assert pkg["bundle"]["sidecar"]["fields"]["income.spouse.grossMonthly"]["status"] == "stated"
     assert pkg["bundle"]["preview_forecast"] is not None
     assert json.loads((out / "sidecar.json").read_text())["format"] == "advisor-intel-sidecar"
+
+
+def test_deployment_pins_carry_the_embedding_model(monkeypatch):
+    from advisor_intel.config import Settings
+
+    assert P.deployment_pins(Settings()).embedding_model == "google/embeddinggemma-2-270m"  # the spec's default until decided
+    assert P.deployment_pins(Settings(embedding_model="hashed-256")).embedding_model == "hashed-256"
+    monkeypatch.setenv("ADVISOR_INTEL_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
+    from advisor_intel import config
+
+    config.get_settings.cache_clear()
+    try:
+        assert P.deployment_pins().embedding_model == "Qwen/Qwen3-Embedding-0.6B"
+    finally:
+        config.get_settings.cache_clear()

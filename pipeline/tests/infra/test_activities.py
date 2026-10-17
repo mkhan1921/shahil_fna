@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -41,7 +41,7 @@ from .factories import GROSS, RET_AGE, flagged, make_transcript, sample_document
 
 pytestmark = pytest.mark.postgres
 
-NOW = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
 RUN = "call-1-run-a"
 
 

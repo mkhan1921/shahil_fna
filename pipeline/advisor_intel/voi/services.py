@@ -13,7 +13,8 @@ the call's anchor date. ``pos_runs`` (the forecast's ``sensitivity_runs``) gets 
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from ..models.profile import Profile
 from .clarify import clarify_all

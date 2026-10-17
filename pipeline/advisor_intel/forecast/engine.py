@@ -183,8 +183,11 @@ def _amortise(balance: np.ndarray, rate: np.ndarray, repayment: np.ndarray, n_ye
             np.where(
                 repayment <= 0,
                 np.inf,
-                np.where(np.abs(r) < 1e-12, np.ceil(balance / np.where(repayment > 0, repayment, 1.0)),
-                         np.where(ratio >= 1, np.inf, np.ceil(-np.log1p(-np.minimum(ratio, 1 - 1e-15)) / np.log1p(r) - 1e-9))),
+                np.where(
+                    np.abs(r) < 1e-12,
+                    np.ceil(balance / np.where(repayment > 0, repayment, 1.0)),
+                    np.where(ratio >= 1, np.inf, np.ceil(-np.log1p(-np.minimum(ratio, 1 - 1e-15)) / np.log1p(r) - 1e-9)),
+                ),
             ),
         )
     k_end = 12.0 * np.arange(1, n_years + 1)[None, :]
@@ -260,7 +263,7 @@ class _Simulation:
         table_band = getattr(tax_model, "living_annuity_band", None)
         self.band = DrawdownBand(min=float(table_band[0]), max=float(table_band[1])) if table_band else config.drawdown_band
         self.people = [self._person(p) for p in inp.persons]
-        self.loans = [_amortise(l.balance, l.rate, l.repayment, T) for l in inp.liabilities]
+        self.loans = [_amortise(loan.balance, loan.rate, loan.repayment, T) for loan in inp.liabilities]
         nominal = 1 + self.infl
         self.r_pre_m = [(g * nominal) ** (1 / 12) - 1 for g in self.port.pre]
         self.r_post_m = [(g * nominal) ** (1 / 12) - 1 for g in self.port.post]
@@ -277,11 +280,24 @@ class _Simulation:
         contrib = p.contrib_payroll_monthly + p.contrib_own_monthly + p.contrib_employer_monthly + p.contrib_earmarked_monthly
         n = self.P
         return _Person(
-            src=p, K=K, tau=tau, ret_start=ret_start, window=window, horizon=plan_eff - p.age0,
-            need_today=p.net_target_today, has_target=p.target_monthly_today > 0,
-            balance=p.capital0.astype(float).copy(), shadow=np.zeros(n), w_need=np.zeros(n), w_eff=np.zeros(n),
-            ann_balance=np.zeros(n), depleted_month=np.full(n, -1, dtype=np.int64), cap_ret=np.full(n, np.nan),
-            cap_ret_real=np.full(n, np.nan), contrib0=contrib, k_mod=K % 12,
+            src=p,
+            K=K,
+            tau=tau,
+            ret_start=ret_start,
+            window=window,
+            horizon=plan_eff - p.age0,
+            need_today=p.net_target_today,
+            has_target=p.target_monthly_today > 0,
+            balance=p.capital0.astype(float).copy(),
+            shadow=np.zeros(n),
+            w_need=np.zeros(n),
+            w_eff=np.zeros(n),
+            ann_balance=np.zeros(n),
+            depleted_month=np.full(n, -1, dtype=np.int64),
+            cap_ret=np.full(n, np.nan),
+            cap_ret_real=np.full(n, np.nan),
+            contrib0=contrib,
+            k_mod=K % 12,
         )
 
     # ------------------------------------------------------------------ retirement capital, month by month
@@ -431,13 +447,25 @@ class _Simulation:
                 any_working |= months > 0
                 gross, bonus = self._earnings(src, t, xm)
                 grow_c = (1 + self.g_salary) ** t
-                years.append({
-                    "fw": fw, "months": months, "gross": gross, "bonus": bonus, "other": src.other_taxable_monthly.at(xm),
-                    "nontax": src.non_taxable_monthly.at(xm), "c_payroll": src.contrib_payroll_monthly * grow_c,
-                    "c_own": src.contrib_own_monthly * grow_c, "c_employer": src.contrib_employer_monthly * grow_c,
-                    "c_earmarked": src.contrib_earmarked_monthly * grow_c, "drawn": flows["drawn"] / pm, "need": flows["need"] / pm,
-                    "headroom": flows["headroom"] / pm, "rental": src.rental_monthly.at(xm) * 12, "age": src.age0 + t + 0.5,
-                })
+                years.append(
+                    {
+                        "fw": fw,
+                        "months": months,
+                        "gross": gross,
+                        "bonus": bonus,
+                        "other": src.other_taxable_monthly.at(xm),
+                        "nontax": src.non_taxable_monthly.at(xm),
+                        "c_payroll": src.contrib_payroll_monthly * grow_c,
+                        "c_own": src.contrib_own_monthly * grow_c,
+                        "c_employer": src.contrib_employer_monthly * grow_c,
+                        "c_earmarked": src.contrib_earmarked_monthly * grow_c,
+                        "drawn": flows["drawn"] / pm,
+                        "need": flows["need"] / pm,
+                        "headroom": flows["headroom"] / pm,
+                        "rental": src.rental_monthly.at(xm) * 12,
+                        "age": src.age0 + t + 0.5,
+                    }
+                )
             taxes, need_taxes = self._year_tax(years)
             for j, (pp, y, tax, need_tax) in enumerate(zip(self.people, years, taxes, need_taxes)):
                 src = pp.src
@@ -464,7 +492,9 @@ class _Simulation:
             # Household spending (today's money).
             child_on = (hh.children_end_step < 0) | (t < hh.children_end_step)
             support_on = (hh.support_end_step < 0) | (t < hh.support_end_step)
-            living_ess = (hh.living_essential.at(xm) + hh.children_essential.at(xm) * child_on + hh.support_essential.at(xm) * support_on) * 12
+            living_ess = (
+                hh.living_essential.at(xm) + hh.children_essential.at(xm) * child_on + hh.support_essential.at(xm) * support_on
+            ) * 12
             living_disc = (hh.living_discretionary.at(xm) + hh.children_discretionary.at(xm) * child_on) * 12
             spend_ess = living_ess * worker_share
             spend_disc = living_disc * worker_share
@@ -581,21 +611,33 @@ class _Simulation:
         rows: list[dict[str, np.ndarray]] = []
         for pp, y in zip(self.people, years):
             fw = y["fw"]
-            rows.append({
-                "age": y["age"], "gross_monthly": y["gross"] * fw, "annual_bonus": y["bonus"] * fw,
-                "other_taxable_monthly": y["other"] * fw + (y["rental"] + y["drawn"]) / 12,
-                "retirement_contributions_annual": (y["c_payroll"] + y["c_own"] + y["c_employer"]) * 12 * fw,
-                "employer_retirement_annual": y["c_employer"] * 12 * fw, "medical_scheme_members": pp.src.medical_members,
-                "uif_applies": pp.src.uif & (y["months"] > 0),
-            })
+            rows.append(
+                {
+                    "age": y["age"],
+                    "gross_monthly": y["gross"] * fw,
+                    "annual_bonus": y["bonus"] * fw,
+                    "other_taxable_monthly": y["other"] * fw + (y["rental"] + y["drawn"]) / 12,
+                    "retirement_contributions_annual": (y["c_payroll"] + y["c_own"] + y["c_employer"]) * 12 * fw,
+                    "employer_retirement_annual": y["c_employer"] * 12 * fw,
+                    "medical_scheme_members": pp.src.medical_members,
+                    "uif_applies": pp.src.uif & (y["months"] > 0),
+                }
+            )
         needs = [i for i, y in enumerate(years) if y["need"].any()]
         zero = np.zeros(P)
         for i in needs:
-            rows.append({
-                "age": years[i]["age"], "gross_monthly": zero, "annual_bonus": zero, "other_taxable_monthly": years[i]["need"] / 12,
-                "retirement_contributions_annual": zero, "employer_retirement_annual": zero,
-                "medical_scheme_members": self.people[i].src.medical_members, "uif_applies": np.zeros(P, dtype=bool),
-            })
+            rows.append(
+                {
+                    "age": years[i]["age"],
+                    "gross_monthly": zero,
+                    "annual_bonus": zero,
+                    "other_taxable_monthly": years[i]["need"] / 12,
+                    "retirement_contributions_annual": zero,
+                    "employer_retirement_annual": zero,
+                    "medical_scheme_members": self.people[i].src.medical_members,
+                    "uif_applies": np.zeros(P, dtype=bool),
+                }
+            )
         args = {k: np.concatenate([r[k] for r in rows]) for k in rows[0]}  # every field is a (P,) array
         out = self.tax.person_tax(**args)
         tax = np.asarray(out.annual_tax, dtype=float).reshape(len(rows), P)
@@ -679,12 +721,14 @@ class _Simulation:
 
     def _net_worth(self, cash, disc, off, tfsa, edu, goal_bal, prop, biz, loan_acc, life, t: int) -> np.ndarray:
         price = self.price[:, t]
-        total = cash + disc + off + tfsa + edu + prop + biz + loan_acc + sum(goal_bal, np.zeros(self.P)) + sum(life.values(), np.zeros(self.P))
+        total = (
+            cash + disc + off + tfsa + edu + prop + biz + loan_acc + sum(goal_bal, np.zeros(self.P)) + sum(life.values(), np.zeros(self.P))
+        )
         total = total + sum((pp.balance for pp in self.people), np.zeros(self.P)) / price
         if t > 0:
             total = total - sum((ln.balance_end[:, t - 1] for ln in self.loans), np.zeros(self.P)) / price
         else:
-            total = total - sum((l.balance for l in self.inp.liabilities), np.zeros(self.P))
+            total = total - sum((loan.balance for loan in self.inp.liabilities), np.zeros(self.P))
         return total
 
 

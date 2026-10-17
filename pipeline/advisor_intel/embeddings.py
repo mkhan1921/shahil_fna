@@ -11,10 +11,12 @@ pinned per run (``VersionPins.embedding_model``) so cached vectors are never mix
 from __future__ import annotations
 
 import hashlib
+import itertools
 import re
 import unicodedata
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Protocol, Sequence
+from typing import Protocol
 
 import numpy as np
 
@@ -24,7 +26,10 @@ HASHED = "hashed-256"
 # Per-model instructions: queries and documents are encoded differently (§13.3).
 _INSTRUCTIONS: dict[str, tuple[str, str]] = {
     "google/embeddinggemma-2-270m": ("task: search result | query: ", "title: none | text: "),
-    "Qwen/Qwen3-Embedding-0.6B": ("Instruct: Given a question about a client's finances, retrieve the call segments that answer it\nQuery: ", ""),
+    "Qwen/Qwen3-Embedding-0.6B": (
+        "Instruct: Given a question about a client's finances, retrieve the call segments that answer it\nQuery: ",
+        "",
+    ),
 }
 
 
@@ -61,10 +66,10 @@ class HashedEmbedder:
         v = np.zeros(self.dim, dtype=np.float64)
         toks = _tokens(text)
         feats: list[tuple[str, float]] = [(f"w:{t}", 1.0) for t in toks]
-        feats += [(f"b:{a}_{b}", 0.7) for a, b in zip(toks, toks[1:])]
+        feats += [(f"b:{a}_{b}", 0.7) for a, b in itertools.pairwise(toks)]
         for t in toks:
             padded = f"#{t}#"
-            feats += [(f"c:{padded[i:i + 3]}", 0.35) for i in range(max(1, len(padded) - 2))]
+            feats += [(f"c:{padded[i : i + 3]}", 0.35) for i in range(max(1, len(padded) - 2))]
         for f, w in feats:
             h = int.from_bytes(hashlib.blake2b(f.encode(), digest_size=8).digest(), "little")
             idx = h % self.dim

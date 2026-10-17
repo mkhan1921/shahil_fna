@@ -47,8 +47,13 @@ class ProbeContext:
 
     def task_for(self, slot: SlotDef, instance: str | None, segment_ids: list[str], tag: str) -> ExtractionTask:
         person = person_of(slot.expand(instance)) if slot.per_person and instance in ("client", "spouse") else None
-        return ExtractionTask(task_id=f"{tag}:{slot.slot_id}#{instance or '-'}", slot_group=slot.group, slot_ids=[slot.expand(person) if person else slot.slot_id],
-                              instance_keys=[person or instance], segment_ids=segment_ids)
+        return ExtractionTask(
+            task_id=f"{tag}:{slot.slot_id}#{instance or '-'}",
+            slot_group=slot.group,
+            slot_ids=[slot.expand(person) if person else slot.slot_id],
+            instance_keys=[person or instance],
+            segment_ids=segment_ids,
+        )
 
 
 def _order(ids: list[str], variant: int) -> list[str]:
@@ -67,14 +72,32 @@ def _who(instance: str | None, profile: Profile) -> str:
     return instance or "the household"
 
 
-async def _one_field(ctx: ProbeContext, profile: Profile, slot: SlotDef, instance: str | None, segment_ids: list[str], *, role: str, variant: int,
-                     status_hint: str = "stated") -> tuple[GroupExtraction, ExtractionDeps, str]:
+async def _one_field(
+    ctx: ProbeContext,
+    profile: Profile,
+    slot: SlotDef,
+    instance: str | None,
+    segment_ids: list[str],
+    *,
+    role: str,
+    variant: int,
+    status_hint: str = "stated",
+) -> tuple[GroupExtraction, ExtractionDeps, str]:
     window = _with_context([s.segment_id for s in ctx.transcript.segments], set(segment_ids))
     task = ctx.task_for(slot, instance, window, f"probe{variant}" if role == "small" else "reopen")
     phr = PARAPHRASES[variant % len(PARAPHRASES)].format(question=slot.question, label=slot.label.lower(), who=_who(instance, profile))
     probe_slot = slot.model_copy(update={"question": phr})
-    deps = ExtractionDeps(task=task, catalog=ctx.catalog, profile=profile, transcript=ctx.transcript, discourse=ctx.discourse, pins=ctx.pins,
-                          entities={**ctx.discourse.entities, **profile.entities}, role=role, segment_order=_order(window, variant))
+    deps = ExtractionDeps(
+        task=task,
+        catalog=ctx.catalog,
+        profile=profile,
+        transcript=ctx.transcript,
+        discourse=ctx.discourse,
+        pins=ctx.pins,
+        entities={**ctx.discourse.entities, **profile.entities},
+        role=role,
+        segment_order=_order(window, variant),
+    )
     key = field_key(slot, instance)
     keys = {key: (probe_slot, instance)}
     out = GroupExtraction()
@@ -125,8 +148,12 @@ def make_reopen(ctx: ProbeContext, get_profile: Callable[[], Profile]) -> Reopen
         al = await align_values(deps, out.values, {key: segment_ids}, {key: slot})
         if key not in al.aligned:
             return []
-        draft = draft_fact(al.aligned[key], out.statuses[key], slot, key, instance, profile, lex, ctx.transcript, retries=out.retries.get(key, 0))
-        prov = Provenance(run_id=ctx.run_id, extractor_model=ctx.pins.reasoning_model, lexicon_version=lex.version, schema_version=ctx.catalog.version)
+        draft = draft_fact(
+            al.aligned[key], out.statuses[key], slot, key, instance, profile, lex, ctx.transcript, retries=out.retries.get(key, 0)
+        )
+        prov = Provenance(
+            run_id=ctx.run_id, extractor_model=ctx.pins.reasoning_model, lexicon_version=lex.version, schema_version=ctx.catalog.version
+        )
         specs, _ = to_state_ops([draft], [], profile, prov, {}, lex)
         for spec in specs:
             if spec[0] == "ADD":

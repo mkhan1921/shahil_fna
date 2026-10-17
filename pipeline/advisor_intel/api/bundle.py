@@ -75,7 +75,7 @@ def analyse_or_none(stages: StageFunctions, doc: FnaDocument, today: date) -> di
         return None
     try:
         return dump(stages.get("fna_analyse")(doc, today=today))
-    except Exception as e:  # the overlay works without it; the app runs analyse() itself
+    except Exception as e:  # noqa: BLE001 - any engine failure is logged; the overlay works without it and the app runs analyse() itself
         log.warning("FNA analysis failed for the review bundle: %s", e)
         return None
 

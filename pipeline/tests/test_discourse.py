@@ -93,14 +93,16 @@ def test_speaker_relative_spouse():
 
 
 def test_pattern_revisions_repeated_number_and_no_false_cues():
-    t = transcript_from_turns([
-        ("client_primary", "I'd rather retire at sixty than sixty-five."),  # "rather" is not a correction
-        ("client_primary", "The bond is about fifteen thousand a month."),
-        ("client_secondary", "Groceries are eight thousand a month."),
-        ("client_secondary", "Petrol is about three thousand a month."),  # a list of items, not a revision
-        ("client_primary", "The bond is fourteen thousand a month, I checked."),  # the same subject, a different number
-        ("client_primary", "Forty, sorry, I mean forty-five."),
-    ])
+    t = transcript_from_turns(
+        [
+            ("client_primary", "I'd rather retire at sixty than sixty-five."),  # "rather" is not a correction
+            ("client_primary", "The bond is about fifteen thousand a month."),
+            ("client_secondary", "Groceries are eight thousand a month."),
+            ("client_secondary", "Petrol is about three thousand a month."),  # a list of items, not a revision
+            ("client_primary", "The bond is fourteen thousand a month, I checked."),  # the same subject, a different number
+            ("client_primary", "Forty, sorry, I mean forty-five."),
+        ]
+    )
     revs = {(r.segment_id, r.revises_segment_id): r.trigger for r in pattern_revisions(t)}
     assert ("s0001", "s0001") not in revs and not any(k[0] == "s0001" for k in revs)
     assert not any(k[0] == "s0004" for k in revs)
@@ -113,7 +115,9 @@ def test_pattern_revisions_repeated_number_and_no_false_cues():
 
 
 async def test_primary_client_mentioning_a_spouse_adds_one():
-    t = transcript_from_turns([("advisor", "Who else is in the household?"), ("client_primary", "My wife, but my partner at the firm is not.")])
+    t = transcript_from_turns(
+        [("advisor", "Who else is in the household?"), ("client_primary", "My wife, but my partner at the firm is not.")]
+    )
     reg = R.seed_registry(None, None)
     assert "person.spouse" not in reg.entities
     reg = await R.discover(reg, t, VersionPins(), use_llm=False)
@@ -121,40 +125,70 @@ async def test_primary_client_mentioning_a_spouse_adds_one():
     assert "My wife" in [m.surface for m in reg.mentions if m.entity_id == "person.spouse"]
     assert "s0002" not in reg.ambiguous  # the reference is not ambiguous once the spouse exists
     # "my partner" alone may be a business partner: it resolves (pre-existing rule) but never creates the spouse.
-    reg2 = await R.discover(R.seed_registry(None, None), transcript_from_turns([("client_primary", "My partner and I run the firm.")]), VersionPins(), use_llm=False)
+    reg2 = await R.discover(
+        R.seed_registry(None, None),
+        transcript_from_turns([("client_primary", "My partner and I run the firm.")]),
+        VersionPins(),
+        use_llm=False,
+    )
     assert "person.spouse" not in reg2.entities
 
 
 def test_merge_candidates_ignore_pronoun_aliases():
-    reg = R.Registry(entities={
-        "person.thandi_1": Entity(entity_id="person.thandi_1", type="person", canonical_name="Thandi", aliases=["she", "her"], attributes={"relation": "daughter"}),
-        "person.mother_1": Entity(entity_id="person.mother_1", type="person", canonical_name="Mother", aliases=["she", "my mom"], attributes={"relation": "mother"}),
-        "policy.discovery_1": Entity(entity_id="policy.discovery_1", type="policy", canonical_name="Discovery life cover", aliases=["that policy"]),
-        "policy.discovery_life_2": Entity(entity_id="policy.discovery_life_2", type="policy", canonical_name="Discovery life"),
-    })
+    reg = R.Registry(
+        entities={
+            "person.thandi_1": Entity(
+                entity_id="person.thandi_1",
+                type="person",
+                canonical_name="Thandi",
+                aliases=["she", "her"],
+                attributes={"relation": "daughter"},
+            ),
+            "person.mother_1": Entity(
+                entity_id="person.mother_1",
+                type="person",
+                canonical_name="Mother",
+                aliases=["she", "my mom"],
+                attributes={"relation": "mother"},
+            ),
+            "policy.discovery_1": Entity(
+                entity_id="policy.discovery_1", type="policy", canonical_name="Discovery life cover", aliases=["that policy"]
+            ),
+            "policy.discovery_life_2": Entity(entity_id="policy.discovery_life_2", type="policy", canonical_name="Discovery life"),
+        }
+    )
     assert R.merge_candidates(reg) == [("policy.discovery_1", "policy.discovery_life_2")]
     assert "she" not in reg.summary() and "my mom" in reg.summary()
 
 
 def test_registry_merge_repoints_duplicates_and_low_confidence_window_merges_are_questions():
-    reg = R.Registry(entities={
-        "policy.a": Entity(entity_id="policy.a", type="policy", canonical_name="Discovery life", fna_list="policies", fna_id="row-1"),
-        "policy.b": Entity(entity_id="policy.b", type="policy", canonical_name="Discovery cover"),
-        "policy.c": Entity(entity_id="policy.c", type="policy", canonical_name="Sanlam life"),
-    })
+    reg = R.Registry(
+        entities={
+            "policy.a": Entity(entity_id="policy.a", type="policy", canonical_name="Discovery life", fna_list="policies", fna_id="row-1"),
+            "policy.b": Entity(entity_id="policy.b", type="policy", canonical_name="Discovery cover"),
+            "policy.c": Entity(entity_id="policy.c", type="policy", canonical_name="Sanlam life"),
+        }
+    )
     window = T.segments[:3]
-    R.apply_window(reg, window, R.WindowOut(new_entities=[], mentions=[], merges=[R.MergeOut(keep_id="policy.a", merge_id="policy.b", confidence=0.5)]))
+    R.apply_window(
+        reg, window, R.WindowOut(new_entities=[], mentions=[], merges=[R.MergeOut(keep_id="policy.a", merge_id="policy.b", confidence=0.5)])
+    )
     assert set(reg.entities) == {"policy.a", "policy.b", "policy.c"} and reg.possible_duplicates == [("policy.a", "policy.b")]
     reg.possible_duplicates.append(("policy.b", "policy.c"))
-    R.apply_window(reg, window, R.WindowOut(new_entities=[], mentions=[], merges=[R.MergeOut(keep_id="policy.a", merge_id="policy.b", confidence=0.9)]))
+    R.apply_window(
+        reg, window, R.WindowOut(new_entities=[], mentions=[], merges=[R.MergeOut(keep_id="policy.a", merge_id="policy.b", confidence=0.9)])
+    )
     assert "policy.b" not in reg.entities and reg.entities["policy.a"].fna_id == "row-1"
     assert reg.possible_duplicates == [("policy.a", "policy.c")]  # the settled pair is gone, the open one follows the kept id
 
 
 def test_with_rewrites_sets_rewrites_and_self_correction_flags():
     fix = seg_with("Actually no, sorry")
-    d = DiscourseOutput(entities={}, rewrites={fix.segment_id: "[Sipho's take-home pay] is more like forty-five thousand now."},
-                        revisions=[Revision(segment_id=fix.segment_id, revises_segment_id="s0007", scope="income")])
+    d = DiscourseOutput(
+        entities={},
+        rewrites={fix.segment_id: "[Sipho's take-home pay] is more like forty-five thousand now."},
+        revisions=[Revision(segment_id=fix.segment_id, revises_segment_id="s0007", scope="income")],
+    )
     out = with_rewrites(T, d)
     seg = out.segment(fix.segment_id)
     assert seg.text == fix.text and seg.rewritten_text.startswith("[Sipho") and "self_correction" in seg.flags
@@ -223,9 +257,34 @@ async def test_run_discourse_with_scripted_models():
         if thandi_seg.segment_id in prompt:
             start = thandi_seg.text.index("Thandi")
             return {
-                "new_entities": [{"ref": "new:thandi", "type": "person", "canonical_name": "Thandi", "relation": "daughter", "attributes": [{"key": "age", "value": "14"}], "first_segment_id": thandi_seg.segment_id}],
-                "mentions": [{"segment_id": thandi_seg.segment_id, "surface": "Thandi", "char_start": start, "char_end": start + 6, "entity_id": "new:thandi", "confidence": 0.95},
-                             {"segment_id": thandi_seg.segment_id, "surface": "nonexistent words", "char_start": 0, "char_end": 3, "entity_id": "person.ghost", "confidence": 0.9}],
+                "new_entities": [
+                    {
+                        "ref": "new:thandi",
+                        "type": "person",
+                        "canonical_name": "Thandi",
+                        "relation": "daughter",
+                        "attributes": [{"key": "age", "value": "14"}],
+                        "first_segment_id": thandi_seg.segment_id,
+                    }
+                ],
+                "mentions": [
+                    {
+                        "segment_id": thandi_seg.segment_id,
+                        "surface": "Thandi",
+                        "char_start": start,
+                        "char_end": start + 6,
+                        "entity_id": "new:thandi",
+                        "confidence": 0.95,
+                    },
+                    {
+                        "segment_id": thandi_seg.segment_id,
+                        "surface": "nonexistent words",
+                        "char_start": 0,
+                        "char_end": 3,
+                        "entity_id": "person.ghost",
+                        "confidence": 0.9,
+                    },
+                ],
                 "merges": [],
             }
         return {"new_entities": [], "mentions": [], "merges": []}
@@ -235,12 +294,27 @@ async def test_run_discourse_with_scripted_models():
     def small(prompt: str, schema: dict, info):
         props = schema.get("properties", {})
         if "rewrites" in props:
-            return {"rewrites": [{"segment_id": she.segment_id, "rewritten": "Thandi wants to do medicine. [Thandi] might go overseas to study, maybe the UK.", "source_segment_ids": []}]}
+            return {
+                "rewrites": [
+                    {
+                        "segment_id": she.segment_id,
+                        "rewritten": "Thandi wants to do medicine. [Thandi] might go overseas to study, maybe the UK.",
+                        "source_segment_ids": [],
+                    }
+                ]
+            }
         if "revisions" in props:
             return {"revisions": []}
-        return {"segments": [{"segment_id": she.segment_id, "groups": [{"group": "events", "relevance": 0.8}, {"group": "education", "relevance": 0.9}]}]}
+        return {
+            "segments": [
+                {"segment_id": she.segment_id, "groups": [{"group": "events", "relevance": 0.8}, {"group": "education", "relevance": 0.9}]}
+            ]
+        }
 
-    pins = VersionPins(frontier_model=llm.register_local_model("disc-frontier", scripted_model(frontier)), small_model=llm.register_local_model("disc-small", scripted_model(small)))
+    pins = VersionPins(
+        frontier_model=llm.register_local_model("disc-frontier", scripted_model(frontier)),
+        small_model=llm.register_local_model("disc-small", scripted_model(small)),
+    )
     out = await run_discourse(T, pins=pins)
     thandi = [e for e in out.entities.values() if e.canonical_name == "Thandi"]
     assert len(thandi) == 1 and thandi[0].attributes["relation"] == "daughter"

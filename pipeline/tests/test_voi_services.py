@@ -72,7 +72,7 @@ async def test_verify_and_constraints_services():
         return ProbeResult(status="stated", value=point(60, "age"))
 
     def verdicts(messages, info: AgentInfo):
-        claims = re.findall(r"^- (c\d+): ", str(messages[-1].parts[-1].content), flags=re.M)
+        claims = re.findall(r"^- (c\d+): ", str(messages[-1].parts[-1].content), flags=re.MULTILINE)
         return ModelResponse(
             parts=[TextPart(json.dumps({"verdicts": [{"claim_id": c, "verdict": "entailed", "reason": "r"} for c in claims]}))]
         )
@@ -98,7 +98,7 @@ async def test_sensitivity_then_followups_services_share_the_table():
     deps.state.sensitivity = res.data
 
     def drafts(messages, info: AgentInfo):
-        items = re.findall(r"^- (i\d+): .*Answer forms: ([A-Z_]+)", str(messages[-1].parts[-1].content), flags=re.M)
+        items = re.findall(r"^- (i\d+): .*Answer forms: ([A-Z_]+)", str(messages[-1].parts[-1].content), flags=re.MULTILINE)
         return ModelResponse(
             parts=[
                 TextPart(

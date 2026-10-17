@@ -50,7 +50,12 @@ SAMPLE_CALL: list[tuple[str, str]] = [
 SAMPLE_OBJECTS: list[dict] = [
     {"group": "dependants", "name": "Thandi", "type": "person", "quotes": ["Thandi is fourteen", "Thandi wants to do medicine"]},
     {"group": "dependants", "name": "Lwazi", "type": "person", "quotes": ["And Lwazi is nine"]},
-    {"group": "education", "name": "Thandi", "type": "person", "quotes": ["Thandi wants to do medicine", "About four thousand a month each"]},
+    {
+        "group": "education",
+        "name": "Thandi",
+        "type": "person",
+        "quotes": ["Thandi wants to do medicine", "About four thousand a month each"],
+    },
     {"group": "education", "name": "Lwazi", "type": "person", "quotes": ["About four thousand a month each"]},
     {"group": "retirement_funds", "name": "Company pension fund", "type": "account", "quotes": ["My company pension fund"]},
     {"group": "retirement_funds", "name": "Allan Gray RA", "type": "account", "quotes": ["an RA with Allan Gray"]},
@@ -59,12 +64,20 @@ SAMPLE_OBJECTS: list[dict] = [
     {"group": "liabilities", "name": "Car finance", "type": "liability", "quotes": ["And my car, about six thousand"]},
     {"group": "policies", "name": "Discovery life cover", "type": "policy", "quotes": ["life cover with Discovery"]},
     {"group": "expenses", "name": "Groceries", "type": "account", "catalog_key": "groceries", "quotes": ["Groceries are eight to ten"]},
-    {"group": "expenses", "name": "Support for mother", "type": "account", "catalog_key": "family-support", "quotes": ["We help my mother"]},
+    {
+        "group": "expenses",
+        "name": "Support for mother",
+        "type": "account",
+        "catalog_key": "family-support",
+        "quotes": ["We help my mother"],
+    },
     {"group": "events", "name": "Thandi studies overseas", "type": "goal", "quotes": ["She might go overseas to study"]},
 ]
 
 
-def _amt(kind: str, value: float = 0, *, word: str = "", period: str = "monthly", basis: str = "na", low: float = 0, high: float = 0) -> dict:
+def _amt(
+    kind: str, value: float = 0, *, word: str = "", period: str = "monthly", basis: str = "na", low: float = 0, high: float = 0
+) -> dict:
     base = {"currency": "ZAR", "period": period, "basis": basis}
     if kind == "exact":
         return {"type": "AMOUNT_EXACT", "value": value, **base}
@@ -102,11 +115,18 @@ SAMPLE_GOLD: dict[str, dict] = {
     "{p}.occupation#spouse": {"forms": [_text("teacher")], "said": "I'm a teacher at the government school."},
     "income.{p}.grossMonthly#client": {
         "forms": [_amt("approx", 42000, basis="net"), dict(_amt("approx", 45000, word="more like", basis="net"), _revises=True)],
-        "said": "I take home about forty-two thousand a month.", "hedges": ["about", "more like"],
+        "said": "I take home about forty-two thousand a month.",
+        "hedges": ["about", "more like"],
     },
-    "income.{p}.annualBonus#client": {"forms": [{"type": "AMOUNT_RELATIVE", "reference_slot": "income.client.grossMonthly", "relation_word": "a thirteenth cheque"}],
-                                      "said": "There's a thirteenth cheque in December"},
-    "income.{p}.grossMonthly#spouse": {"forms": [_amt("approx", 35000, basis="gross")], "said": "I earn about thirty-five a month gross", "hedges": ["about"]},
+    "income.{p}.annualBonus#client": {
+        "forms": [{"type": "AMOUNT_RELATIVE", "reference_slot": "income.client.grossMonthly", "relation_word": "a thirteenth cheque"}],
+        "said": "There's a thirteenth cheque in December",
+    },
+    "income.{p}.grossMonthly#spouse": {
+        "forms": [_amt("approx", 35000, basis="gross")],
+        "said": "I earn about thirty-five a month gross",
+        "hedges": ["about"],
+    },
     "dependants[].name#@thandi": {"forms": [_text("Thandi")], "said": "Thandi is fourteen"},
     "dependants[].name#@lwazi": {"forms": [_text("Lwazi")], "said": "And Lwazi is nine."},
     "dependants[].relationship#@thandi": {"status": "implied", "forms": [_cat("child")], "said": "Thandi is fourteen"},
@@ -114,32 +134,64 @@ SAMPLE_GOLD: dict[str, dict] = {
     "dependants[].dateOfBirth#@thandi": {"forms": [_age(14)], "said": "Thandi is fourteen, she's in grade nine."},
     "dependants[].dateOfBirth#@lwazi": {"forms": [_age(9)], "said": "And Lwazi is nine."},
     "dependants[].tertiary#@thandi": {"forms": [_bool(True)], "said": "Thandi wants to do medicine."},
-    "dependants[].tertiaryCostAnnual#@thandi": {"forms": [_amt("approx", 200000, word="maybe", period="annual")], "said": "maybe two hundred thousand a year",
-                                                "hedges": ["maybe"]},
+    "dependants[].tertiaryCostAnnual#@thandi": {
+        "forms": [_amt("approx", 200000, word="maybe", period="annual")],
+        "said": "maybe two hundred thousand a year",
+        "hedges": ["maybe"],
+    },
     "dependants[].schoolType#@thandi": {"forms": [_cat("public")], "said": "at the public school"},
     "dependants[].schoolType#@lwazi": {"forms": [_cat("public")], "said": "at the public school"},
-    "dependants[].schoolFeesAnnual#@thandi": {"forms": [_amt("approx", 4000)], "said": "About four thousand a month each at the public school"},
-    "dependants[].schoolFeesAnnual#@lwazi": {"forms": [_amt("approx", 4000)], "said": "About four thousand a month each at the public school"},
-    "retirement.{p}.retirementAge#client": {"forms": [_age(60), dict(_age(62), _weight=0.3)], "said": "I'd like to retire at sixty. Maybe sixty-two if we need to.",
-                                            "hedges": ["maybe"]},
+    "dependants[].schoolFeesAnnual#@thandi": {
+        "forms": [_amt("approx", 4000)],
+        "said": "About four thousand a month each at the public school",
+    },
+    "dependants[].schoolFeesAnnual#@lwazi": {
+        "forms": [_amt("approx", 4000)],
+        "said": "About four thousand a month each at the public school",
+    },
+    "retirement.{p}.retirementAge#client": {
+        "forms": [_age(60), dict(_age(62), _weight=0.3)],
+        "said": "I'd like to retire at sixty. Maybe sixty-two if we need to.",
+        "hedges": ["maybe"],
+    },
     "retirementFunds[].type#@company pension fund": {"forms": [_cat("pension")], "said": "My company pension fund"},
     "retirementFunds[].owner#@company pension fund": {"status": "implied", "forms": [_cat("client")], "said": "My company pension fund"},
-    "retirementFunds[].value#@company pension fund": {"forms": [_amt("approx", 1_200_000, period="once")], "said": "about one point two million"},
+    "retirementFunds[].value#@company pension fund": {
+        "forms": [_amt("approx", 1_200_000, period="once")],
+        "said": "about one point two million",
+    },
     "retirementFunds[].type#@allan gray ra": {"forms": [_cat("retirement-annuity")], "said": "an RA with Allan Gray"},
     "retirementFunds[].owner#@allan gray ra": {"status": "implied", "forms": [_cat("client")], "said": "an RA with Allan Gray"},
     "retirementFunds[].provider#@allan gray ra": {"forms": [_text("Allan Gray")], "said": "an RA with Allan Gray"},
-    "retirementFunds[].value#@allan gray ra": {"forms": [_amt("approx", 300_000, period="once")], "said": "of about three hundred thousand"},
-    "retirementFunds[].type#@government pension fund": {"forms": [_cat("pension")], "said": "I've got the government pension fund through work."},
-    "retirementFunds[].owner#@government pension fund": {"status": "implied", "forms": [_cat("spouse")], "said": "I've got the government pension fund through work."},
+    "retirementFunds[].value#@allan gray ra": {
+        "forms": [_amt("approx", 300_000, period="once")],
+        "said": "of about three hundred thousand",
+    },
+    "retirementFunds[].type#@government pension fund": {
+        "forms": [_cat("pension")],
+        "said": "I've got the government pension fund through work.",
+    },
+    "retirementFunds[].owner#@government pension fund": {
+        "status": "implied",
+        "forms": [_cat("spouse")],
+        "said": "I've got the government pension fund through work.",
+    },
     "liabilities[].type#@bond": {"forms": [_cat("home-loan")], "said": "The bond, we owe about one point one million"},
     "liabilities[].balance#@bond": {"forms": [_amt("approx", 1_100_000, period="once")], "said": "we owe about one point one million"},
     "liabilities[].monthlyRepayment#@bond": {"forms": [_amt("exact", 15000)], "said": "it's fifteen thousand a month"},
     "liabilities[].owner#@bond": {"status": "implied", "forms": [_cat("joint")], "said": "The bond, we owe"},
     "liabilities[].type#@car finance": {"forms": [_cat("vehicle-finance")], "said": "And my car, about six thousand a month"},
     "liabilities[].owner#@car finance": {"status": "implied", "forms": [_cat("spouse")], "said": "And my car"},
-    "liabilities[].monthlyRepayment#@car finance": {"forms": [_amt("approx", 6000)], "said": "about six thousand a month for another three years"},
+    "liabilities[].monthlyRepayment#@car finance": {
+        "forms": [_amt("approx", 6000)],
+        "said": "about six thousand a month for another three years",
+    },
     "policies[].type#@discovery life cover": {"forms": [_cat("life")], "said": "I have life cover with Discovery"},
-    "policies[].lifeAssured#@discovery life cover": {"status": "implied", "forms": [_cat("client")], "said": "I have life cover with Discovery"},
+    "policies[].lifeAssured#@discovery life cover": {
+        "status": "implied",
+        "forms": [_cat("client")],
+        "said": "I have life cover with Discovery",
+    },
     "policies[].insurer#@discovery life cover": {"forms": [_text("Discovery")], "said": "life cover with Discovery"},
     "policies[].cover#@discovery life cover": {"forms": [_amt("exact", 3_000_000, period="once")], "said": "three million"},
     "policies[].beneficiary#@discovery life cover": {"forms": [_cat("spouse")], "said": "it pays to Lerato"},
@@ -147,7 +199,10 @@ SAMPLE_GOLD: dict[str, dict] = {
     "estate.{p}.hasWill#spouse": {"forms": [_cat("yes", "I think")], "said": "We did wills years ago, I think.", "hedges": ["I think"]},
     "expenses.items[]#groceries": {"forms": [_amt("range", low=8000, high=10000)], "said": "Groceries are eight to ten thousand a month."},
     "expenses.items[]#family-support": {"forms": [_amt("approx", 3000)], "said": "We help my mother with about three thousand a month."},
-    "event[].occurs#@thandi studies overseas": {"forms": [{"type": "PROBABILITY_EVENT", "event": "study overseas", "likelihood_word": "might"}],
-                                                "said": "She might go overseas to study, maybe the UK.", "hedges": ["might", "maybe"]},
+    "event[].occurs#@thandi studies overseas": {
+        "forms": [{"type": "PROBABILITY_EVENT", "event": "study overseas", "likelihood_word": "might"}],
+        "said": "She might go overseas to study, maybe the UK.",
+        "hedges": ["might", "maybe"],
+    },
     "event[].kind#@thandi studies overseas": {"forms": [_cat("education-offshore")], "said": "She might go overseas to study"},
 }

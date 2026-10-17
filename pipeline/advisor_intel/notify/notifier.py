@@ -108,7 +108,7 @@ class Notifier:
         self._http = http
 
     @classmethod
-    def from_env(cls) -> "Notifier":
+    def from_env(cls) -> Notifier:
         return cls(smtp=smtp_from_env(), webhook=webhook_from_env())
 
     @property

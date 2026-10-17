@@ -159,7 +159,20 @@ class TextForm(BaseModel):
 
 
 IntermediateForm = Annotated[
-    AmountExact | AmountApprox | AmountRange | AmountBound | AmountRelative | AmountVague | DateAbs | DurationFromAnchor | AgeForm | RateForm | ProbabilityEvent | CategoryForm | BooleanForm | TextForm,
+    AmountExact
+    | AmountApprox
+    | AmountRange
+    | AmountBound
+    | AmountRelative
+    | AmountVague
+    | DateAbs
+    | DurationFromAnchor
+    | AgeForm
+    | RateForm
+    | ProbabilityEvent
+    | CategoryForm
+    | BooleanForm
+    | TextForm,
     Field(discriminator="type"),
 ]
 

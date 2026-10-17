@@ -20,8 +20,9 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal
 
 from pydantic import BaseModel
 

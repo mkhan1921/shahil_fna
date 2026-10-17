@@ -10,7 +10,7 @@ import asyncio
 import functools
 import json
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from pydantic_ai.messages import ModelResponse, TextPart
@@ -60,7 +60,7 @@ def _coverage_answers(target: str, segment_ids: list[str]) -> FunctionModel:
             {"question_id": q, "answer": "present", "segment_ids": segment_ids, "reason": "said"}
             if target in line
             else {"question_id": q, "answer": "absent", "segment_ids": [], "reason": "not discussed"}
-            for q, line in re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.M)
+            for q, line in re.findall(r"^- (q\d+): (.*)$", prompt, flags=re.MULTILINE)
         ]
         return ModelResponse(parts=[TextPart(json.dumps({"answers": answers}))])
 
@@ -102,7 +102,7 @@ async def test_a_recorded_answer_goes_through_the_value_stage_and_the_reducer(or
             call_id=T.call_id,
             followup_id="fu1",
             text="It's thirty-six thousand five hundred gross a month.",
-            answered_at=datetime(2026, 10, 17, tzinfo=timezone.utc),
+            answered_at=datetime(2026, 10, 17, tzinfo=UTC),
         )
         out = await intake_answer(p, answer, extract=extract)
     finally:

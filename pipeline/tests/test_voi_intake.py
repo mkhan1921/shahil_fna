@@ -85,7 +85,9 @@ async def test_answers_are_re_sourced_as_followup_whatever_the_extraction_wrote(
         }
         return make_ops(profile, [("UPDATE", fid, t.segments[0].segment_id, payload, "extractor")])
 
-    res = await intake_answer(p, FollowupAnswer(call_id="c1", followup_id="fu_abc", text="Probably sixty three", answered_at=AT), extract=extract)
+    res = await intake_answer(
+        p, FollowupAnswer(call_id="c1", followup_id="fu_abc", text="Probably sixty three", answered_at=AT), extract=extract
+    )
     assert res.profile.facts[fid].source == "followup" and res.ops[0].payload["source"] == "followup"
 
 

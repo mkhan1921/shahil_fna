@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import smtplib
+from typing import ClassVar
 
 import httpx
 import pytest
@@ -27,7 +28,7 @@ def _note(recipient="thandi@practice.co.za"):
 
 
 class FakeSMTP:
-    sent: list = []
+    sent: ClassVar[list] = []
     fail = False
 
     def __init__(self, host, port, timeout=None):
@@ -118,7 +119,7 @@ async def test_one_working_channel_is_enough_but_all_failing_raises(fake_smtp):
         assert await n.send(_note()) == "webhook"
     async with httpx.AsyncClient(transport=bad) as http:
         n = Notifier(smtp=SmtpConfig(host="smtp.test"), webhook=WebhookConfig(url="https://app.test/h"), http=http)
-        with pytest.raises(NotificationError, match="smtp: .*webhook: "):
+        with pytest.raises(NotificationError, match=r"smtp: .*webhook: "):
             await n.send(_note())
 
 

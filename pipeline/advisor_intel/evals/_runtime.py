@@ -9,9 +9,10 @@ import importlib
 import inspect
 import json
 import os
+from collections.abc import Awaitable, Callable
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Awaitable, Callable, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -38,7 +39,7 @@ def braintrust_enabled() -> bool:
     return bool(os.environ.get("BRAINTRUST_API_KEY"))
 
 
-def run_sync(value: Awaitable[T] | T) -> T:
+def run_sync[T](value: Awaitable[T] | T) -> T:
     """Resolve a value that may be awaitable, from sync code, whether or not an event loop is running."""
     if not inspect.isawaitable(value):
         return value  # type: ignore[return-value]

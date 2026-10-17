@@ -369,7 +369,9 @@ class StationaryBlockBootstrap:
     exactly as in the MVN-t model.
     """
 
-    def __init__(self, series: HistoricalSeries, model: MarketModel, *, mean_block_months: int | None = None, recentre: bool | None = None) -> None:
+    def __init__(
+        self, series: HistoricalSeries, model: MarketModel, *, mean_block_months: int | None = None, recentre: bool | None = None
+    ) -> None:
         cfg = model.config.block_bootstrap
         self.model = model
         self.series = series

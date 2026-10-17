@@ -179,7 +179,9 @@ def call_phrases(prior_fna: FnaDocument | None, *, anchor: date, crm: CrmNames |
     if crm:
         phrases += [BiasPhrase(text=n, kind="name", boost=BOOST["name"], source="crm") for n in crm.all_names() if _clean_name(n)]
         for h in crm.products:  # the client's holdings and their institutions (§5.4)
-            phrases += [BiasPhrase(text=n, kind="product", boost=BOOST["product"], source="crm") for n in (h.name, h.provider) if _clean_name(n)]
+            phrases += [
+                BiasPhrase(text=n, kind="product", boost=BOOST["product"], source="crm") for n in (h.name, h.provider) if _clean_name(n)
+            ]
     if prior_fna is not None:
         for path, name, kind in prior_names(prior_fna):
             phrases.append(BiasPhrase(text=name, kind=kind, boost=BOOST[kind], source=path))

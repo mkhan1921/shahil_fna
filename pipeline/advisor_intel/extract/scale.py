@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import itertools
 import math
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
-from typing import Callable, Sequence
 
 from pydantic import BaseModel
 
@@ -68,7 +68,7 @@ class ScaleContext:
     second_pass_factor: float = 4.0
 
     @classmethod
-    def for_fact(cls, slot: SlotDef, profile: Profile | None, fact_id: str | None, **kw) -> "ScaleContext":
+    def for_fact(cls, slot: SlotDef, profile: Profile | None, fact_id: str | None, **kw) -> ScaleContext:
         """A context with the prior FNA value of the fact being extracted, when the profile holds one."""
         prior_value = None
         f = profile.facts.get(fact_id) if profile is not None and fact_id else None
@@ -393,13 +393,13 @@ def resolve_hypotheses(
 
 
 __all__ = [
-    "AmountResolution",
     "KEEP",
     "NUMBER_FIELDS",
-    "ResolvedForm",
-    "ResolvedReading",
     "SCALE_FEATURES",
     "SINGLE",
+    "AmountResolution",
+    "ResolvedForm",
+    "ResolvedReading",
     "ScaleContext",
     "ScaleResolution",
     "ScaledHypotheses",

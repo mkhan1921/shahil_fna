@@ -12,7 +12,8 @@ without bounds are not checked.
 from __future__ import annotations
 
 import logging
-from typing import Literal, Sequence
+from collections.abc import Sequence
+from typing import Literal
 
 from pydantic import BaseModel
 

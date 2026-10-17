@@ -548,8 +548,18 @@ class ForecastPlan:
             fid = key if key in samplers else by_path.get(key)
             if fid is None:
                 slot = self.catalog.slot(_generic(key))
-                samplers[key] = _override(FactSampler(fact_id=key, slot_id=slot.slot_id, path=key, tier=slot.sensitivity_tier,
-                                                      kind="numeric", rule="override", prior=slot.population_prior), value)
+                samplers[key] = _override(
+                    FactSampler(
+                        fact_id=key,
+                        slot_id=slot.slot_id,
+                        path=key,
+                        tier=slot.sensitivity_tier,
+                        kind="numeric",
+                        rule="override",
+                        prior=slot.population_prior,
+                    ),
+                    value,
+                )
                 continue
             samplers[fid] = _override(samplers[fid], value)
         return dataclasses.replace(self, samplers=samplers)
@@ -584,8 +594,16 @@ def _override(s: FactSampler, value: Override) -> FactSampler:
     if isinstance(value, str) and value == "prior":
         return s.with_prior()
     if isinstance(value, Quantity):
-        return dataclasses.replace(s, content=value.dist, q=1.0, currency=_currency(value), scale=1.0, basis=value.basis,
-                                   kind=value_kind(value.dist), rule="override")
+        return dataclasses.replace(
+            s,
+            content=value.dist,
+            q=1.0,
+            currency=_currency(value),
+            scale=1.0,
+            basis=value.basis,
+            kind=value_kind(value.dist),
+            rule="override",
+        )
     if isinstance(value, BaseModel):  # a Dist
         return dataclasses.replace(s.with_content(value), kind=value_kind(value))  # type: ignore[arg-type]
     return dataclasses.replace(s.fixed(value), kind=value_kind(Point(value=value)))
@@ -658,7 +676,9 @@ def build_plan(
             kind = stats.mode_label(kind_fact.value.dist)
         refs = {r for f in parts.values() for r in f.entity_refs}
         rows = sorted({binding.row_id_for(profile, r) for r in refs} & dependant_rows)
-        spec = EventSpec(key=key, occurs=None, year=None, amount=parts["cashImpact"].fact_id, kind=kind, dependant_row=rows[0] if rows else None)
+        spec = EventSpec(
+            key=key, occurs=None, year=None, amount=parts["cashImpact"].fact_id, kind=kind, dependant_row=rows[0] if rows else None
+        )
         for name, attr in (("occurs", "occurs"), ("year", "year")):
             fid = parts[name].fact_id if name in parts and parts[name].fact_id in samplers else None
             if fid is None and name == "year":
@@ -711,8 +731,15 @@ def build_plan(
 def _virtual(samplers: dict[str, FactSampler], catalog: Catalog, fact_id: str, path: str) -> str:
     """A prior-only sampler for a forecast-only component the call did not cover (an event's year)."""
     slot = catalog.slot(fact_id.split("#", 1)[0])
-    samplers[fact_id] = FactSampler(fact_id=fact_id, slot_id=slot.slot_id, path=path, tier=slot.sensitivity_tier, kind="numeric",
-                                    rule="absent_component_population_prior", prior=slot.population_prior)
+    samplers[fact_id] = FactSampler(
+        fact_id=fact_id,
+        slot_id=slot.slot_id,
+        path=path,
+        tier=slot.sensitivity_tier,
+        kind="numeric",
+        rule="absent_component_population_prior",
+        prior=slot.population_prior,
+    )
     return fact_id
 
 
@@ -869,11 +896,24 @@ class _Builder:
         n = self.n
         z = lambda: np.zeros(n)
         acc: dict[str, Any] = {
-            "cash": z(), "discretionary": z(), "offshore": z(), "tfsa": z(), "education": z(), "property": z(), "business": z(),
-            "loan": z(), "goal_pool": z(), "goal_pool_monthly": z(),
-            "c_cash": z(), "c_discretionary": z(), "c_offshore": z(), "c_tfsa": z(), "c_education": z(),
+            "cash": z(),
+            "discretionary": z(),
+            "offshore": z(),
+            "tfsa": z(),
+            "education": z(),
+            "property": z(),
+            "business": z(),
+            "loan": z(),
+            "goal_pool": z(),
+            "goal_pool_monthly": z(),
+            "c_cash": z(),
+            "c_discretionary": z(),
+            "c_offshore": z(),
+            "c_tfsa": z(),
+            "c_education": z(),
             "lifestyle": {t: z() for t in LIFESTYLE_TYPES},
-            "ret_capital": {p: z() for p in persons}, "ret_monthly": {p: z() for p in persons},
+            "ret_capital": {p: z() for p in persons},
+            "ret_monthly": {p: z() for p in persons},
             "rental": {p: Money.zeros(n) for p in persons},
         }
         for row in self.doc["assets"]:
@@ -960,7 +1000,11 @@ class _Builder:
             growth = np.where(self_employed, bg.values.astype(float), growth)
         mode = self.label(f"retirement.{p}.targetMode", "percent")
         gross_eq = gross.total() + other_taxable.total() + bonus.total() / 12  # FNA grossMonthlyEquivalent
-        target = np.where(mode == "amount", self.money(f"retirement.{p}.targetMonthly").total(), self.num(f"retirement.{p}.targetPercent", 0.75) * gross_eq)
+        target = np.where(
+            mode == "amount",
+            self.money(f"retirement.{p}.targetMonthly").total(),
+            self.num(f"retirement.{p}.targetPercent", 0.75) * gross_eq,
+        )
         changes = [self._change(c) for c in self.plan.changes if c.person == p]
         return PersonIn(
             key=p,
@@ -995,8 +1039,13 @@ class _Builder:
         idx = np.flatnonzero(net)
         total = gross.total()
         up = self.tax.gross_up_monthly(
-            total[idx], age=age[idx], retirement_monthly=payroll[idx], medical_members=members[idx],
-            medical_payroll_monthly=med_payroll[idx], other_payroll_monthly=other_payroll[idx], uif=uif[idx],
+            total[idx],
+            age=age[idx],
+            retirement_monthly=payroll[idx],
+            medical_members=members[idx],
+            medical_payroll_monthly=med_payroll[idx],
+            other_payroll_monthly=other_payroll[idx],
+            uif=uif[idx],
         )
         factor = np.ones(self.n)
         factor[idx] = np.where(total[idx] > 0, up / np.where(total[idx] > 0, total[idx], 1.0), 0.0)
@@ -1020,19 +1069,21 @@ class _Builder:
         for row in self.doc["dependants"]:
             base = f"dependants[{row['id']}]"
             school_type = self.raw(base + ".schoolType") or "public"
-            out.append(DependantIn(
-                key=row["id"],
-                age0=self.completed_age(base + ".dateOfBirth"),
-                is_child=(row.get("relationship") or "child") == "child",
-                school=school_type != "none",
-                school_fees_annual=self.money(base + ".schoolFeesAnnual"),
-                tertiary=self.flag(base + ".tertiary", True),
-                tertiary_start_age=self.num(base + ".tertiaryStartAge", 19),
-                tertiary_years=self.num(base + ".tertiaryYears", 4),
-                tertiary_cost_annual=self.money(base + ".tertiaryCostAnnual", 150_000),
-                support_monthly=self.money(base + ".monthlySupport"),
-                support_years=self.num(base + ".supportYears"),
-            ))
+            out.append(
+                DependantIn(
+                    key=row["id"],
+                    age0=self.completed_age(base + ".dateOfBirth"),
+                    is_child=(row.get("relationship") or "child") == "child",
+                    school=school_type != "none",
+                    school_fees_annual=self.money(base + ".schoolFeesAnnual"),
+                    tertiary=self.flag(base + ".tertiary", True),
+                    tertiary_start_age=self.num(base + ".tertiaryStartAge", 19),
+                    tertiary_years=self.num(base + ".tertiaryYears", 4),
+                    tertiary_cost_annual=self.money(base + ".tertiaryCostAnnual", 150_000),
+                    support_monthly=self.money(base + ".monthlySupport"),
+                    support_years=self.num(base + ".supportYears"),
+                )
+            )
         return out
 
     def _household(self, assets: dict[str, Any], dependants: list[DependantIn]) -> HouseholdIn:
@@ -1073,7 +1124,8 @@ class _Builder:
             discretionary0=assets["discretionary"],
             offshore0=assets["offshore"],
             tfsa0=assets["tfsa"],
-            education0=assets["education"] + sum((self.money(f"dependants[{d.key}].educationSavings").total() for d in dependants), np.zeros(n)),
+            education0=assets["education"]
+            + sum((self.money(f"dependants[{d.key}].educationSavings").total() for d in dependants), np.zeros(n)),
             property0=assets["property"],
             business0=assets["business"],
             loan_account0=assets["loan"],
@@ -1082,7 +1134,8 @@ class _Builder:
             contrib_discretionary=assets["c_discretionary"],
             contrib_offshore=assets["c_offshore"],
             contrib_tfsa=assets["c_tfsa"],
-            contrib_education=assets["c_education"] + sum((self.money(f"dependants[{d.key}].educationSavingsMonthly").total() for d in dependants), np.zeros(n)),
+            contrib_education=assets["c_education"]
+            + sum((self.money(f"dependants[{d.key}].educationSavingsMonthly").total() for d in dependants), np.zeros(n)),
             living_essential=lines["ess"],
             living_discretionary=lines["disc"],
             children_essential=lines["child_ess"],
@@ -1110,12 +1163,14 @@ class _Builder:
         out = []
         for row in self.doc["liabilities"]:
             base = f"liabilities[{row['id']}]"
-            out.append(LiabilityIn(
-                key=row["id"],
-                balance=self.money(base + ".balance").total(),
-                rate=self.num(base + ".interestRate", 0.1075),
-                repayment=self.money(base + ".monthlyRepayment").total(),
-            ))
+            out.append(
+                LiabilityIn(
+                    key=row["id"],
+                    balance=self.money(base + ".balance").total(),
+                    rate=self.num(base + ".interestRate", 0.1075),
+                    repayment=self.money(base + ".monthlyRepayment").total(),
+                )
+            )
         return out
 
     def _premiums(self, persons: list[str]) -> list[PremiumIn]:
@@ -1124,7 +1179,13 @@ class _Builder:
             if row.get("isGroup") or row.get("lifeAssured", "client") not in persons:
                 continue
             monthly = self.money(f"policies[{row['id']}].premiumMonthly").total()
-            out.append(PremiumIn(person=persons.index(row.get("lifeAssured", "client")), monthly=monthly, escalation=float(row.get("premiumEscalation") or 0.0)))
+            out.append(
+                PremiumIn(
+                    person=persons.index(row.get("lifeAssured", "client")),
+                    monthly=monthly,
+                    escalation=float(row.get("premiumEscalation") or 0.0),
+                )
+            )
         return out
 
     def _goals(self, assets: dict[str, Any]) -> list[GoalIn]:
@@ -1135,13 +1196,15 @@ class _Builder:
         for row, cost in zip(rows, costs):
             base = f"goals[{row['id']}]"
             share = np.where(total > 0, cost.total() / np.where(total > 0, total, 1.0), 0.0)  # FNA: pool shared by cost
-            out.append(GoalIn(
-                key=self.plan.goal_keys.get(row["id"], f"goals[{row['id']}]"),
-                cost=cost,
-                step=self.step_of_year(base + ".targetYear", self.anchor.year + 5),
-                savings0=self.money(base + ".existingSavings").total() + assets["goal_pool"] * share,
-                monthly_nominal=self.money(base + ".monthlyContribution").total() + assets["goal_pool_monthly"] * share,
-            ))
+            out.append(
+                GoalIn(
+                    key=self.plan.goal_keys.get(row["id"], f"goals[{row['id']}]"),
+                    cost=cost,
+                    step=self.step_of_year(base + ".targetYear", self.anchor.year + 5),
+                    savings0=self.money(base + ".existingSavings").total() + assets["goal_pool"] * share,
+                    monthly_nominal=self.money(base + ".monthlyContribution").total() + assets["goal_pool_monthly"] * share,
+                )
+            )
         return out
 
     def _events(self, dependants: list[DependantIn]) -> list[EventIn]:
@@ -1161,13 +1224,23 @@ class _Builder:
                 if period not in ("monthly", "annual"):
                     yearly = amount.scale(1.0 / np.maximum(d.tertiary_years, 1.0))
                 start = step if e.year and not s[e.year].rule.startswith("absent") else np.full(self.n, -1, dtype=np.int64)
-                d.offshore = OffshoreStudyIn(occurs=occurs, start_step=start, annual_cost=Money(np.abs(yearly.fixed), np.abs(yearly.linked)))
+                d.offshore = OffshoreStudyIn(
+                    occurs=occurs, start_step=start, annual_cost=Money(np.abs(yearly.fixed), np.abs(yearly.linked))
+                )
                 continue
             recurring = period in ("monthly", "annual")
             if period == "monthly":
                 amount = amount.scale(12.0)
-            out.append(EventIn(key=e.key, occurs=occurs, step=step, amount=amount, recurring=recurring,
-                               essential=e.kind not in EVENT_DISCRETIONARY_KINDS))
+            out.append(
+                EventIn(
+                    key=e.key,
+                    occurs=occurs,
+                    step=step,
+                    amount=amount,
+                    recurring=recurring,
+                    essential=e.kind not in EVENT_DISCRETIONARY_KINDS,
+                )
+            )
         return out
 
 

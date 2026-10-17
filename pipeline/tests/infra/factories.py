@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -149,7 +149,7 @@ def reviewer_accept(profile: Profile, fact_id: str, reviewer: str = "adv-1") -> 
                 "CONFIRM",
                 fact_id,
                 None,
-                {"review": {"status": "accepted", "reviewer_id": reviewer, "reviewed_at": datetime.now(timezone.utc).isoformat()}},
+                {"review": {"status": "accepted", "reviewer_id": reviewer, "reviewed_at": datetime.now(UTC).isoformat()}},
                 "reviewer",
             )
         ],

@@ -75,7 +75,7 @@ def test_households_cover_the_spec_perturbations(calls):
     assert any(f.type == "living-annuity" for d in docs for f in d.retirementFunds)
     for d in docs:  # valid SA ID numbers agree with the date of birth
         assert d.client.idNumber[:6] == d.client.dateOfBirth[2:4] + d.client.dateOfBirth[5:7] + d.client.dateOfBirth[8:10]
-        assert syn._luhn(d.client.idNumber[:-1]) == int(d.client.idNumber[-1])  # noqa: SLF001
+        assert syn._luhn(d.client.idNumber[:-1]) == int(d.client.idNumber[-1])
 
 
 def test_scripts_carry_the_phenomena_extraction_must_handle(calls):
@@ -156,7 +156,7 @@ def test_llm_writer_keeps_every_keyed_phrase():
     rng = np.random.default_rng([3, 1])
     from advisor_intel.schema.slots import load_catalog
 
-    plan = syn._Planner(syn.sample_household(rng, syn.DEFAULT_ANCHOR, "family", ns="t"), rng, syn.DEFAULT_ANCHOR, load_catalog())  # noqa: SLF001
+    plan = syn._Planner(syn.sample_household(rng, syn.DEFAULT_ANCHOR, "family", ns="t"), rng, syn.DEFAULT_ANCHOR, load_catalog())
     plan.run()
     attempts = []
 

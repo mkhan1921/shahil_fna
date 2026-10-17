@@ -7,7 +7,7 @@ the app's ``shahil-fna`` export format unchanged. Defaults follow ``lib/fna/defa
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -43,12 +43,23 @@ AssetType = Literal[
 ]
 Earmark = Literal["general", "emergency", "retirement", "education", "goal"]
 LiabilityType = Literal[
-    "home-loan", "vehicle-finance", "personal-loan", "credit-card", "store-card", "overdraft", "student-loan", "business-loan", "tax", "other"
+    "home-loan",
+    "vehicle-finance",
+    "personal-loan",
+    "credit-card",
+    "store-card",
+    "overdraft",
+    "student-loan",
+    "business-loan",
+    "tax",
+    "other",
 ]
 PolicyType = Literal["life", "disability-lump", "income-protection", "severe-illness", "funeral", "family-income"]
 Beneficiary = Literal["estate", "spouse", "children", "trust", "other", "business"]
 DisabilityDefinition = Literal["own-occupation", "suited-occupation", "any-occupation", "functional", "activities-of-daily-living"]
-ExpenseCategory = Literal["housing", "transport", "household", "communication", "insurance", "medical", "children", "personal", "family", "other"]
+ExpenseCategory = Literal[
+    "housing", "transport", "household", "communication", "insurance", "medical", "children", "personal", "family", "other"
+]
 IncomeTargetMode = Literal["percent", "amount"]
 ScopeArea = Literal["risk", "retirement", "investment", "estate", "education", "debt", "medical", "short-term"]
 NeedArea = Literal[
@@ -358,7 +369,7 @@ class RiskProfile(_FnaModel):
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 class FnaDocument(_FnaModel):

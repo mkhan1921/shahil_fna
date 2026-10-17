@@ -19,7 +19,7 @@ condition is gone is closed by the system with the fact's review outcome as its 
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from ..models.facts import Fact
 from ..models.profile import BlockingFlag, Profile
@@ -28,7 +28,7 @@ from ..models.transcript import Transcript
 from ..schema.constraints import Violation, check_constraints
 from ..schema.slots import Catalog, load_catalog
 from ..verify.coverage import catalog_list_item, expected_facts
-from ..verify.features import EvidenceIndex, primary_evidence, normalization_flag, second_pass
+from ..verify.features import EvidenceIndex, normalization_flag, primary_evidence, second_pass
 from .sensitivity import SensitivityRow, need_label
 
 SCALE_TOP_WEIGHT = 0.9

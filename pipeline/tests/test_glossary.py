@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -24,7 +24,7 @@ from advisor_intel.lexicon import (
 from advisor_intel.models.fna import FnaDocument
 
 CTX = TermContext()
-AT = datetime(2026, 10, 16, 9, 30, tzinfo=timezone.utc)
+AT = datetime(2026, 10, 16, 9, 30, tzinfo=UTC)
 
 
 def lookup(term: str, context: TermContext = CTX, glossary: GlossaryStore | None = None, **kw):

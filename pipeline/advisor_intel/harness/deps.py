@@ -145,20 +145,29 @@ class HarnessDeps:
             f"Call date {t.anchor_date.isoformat()}, {len(t.segments)} segments, {t.duration / 60:.0f} minutes, ASR {t.asr_provider} {t.asr_model_version}.",
         ]
         if q:
-            lines.append(f"Quality: mean word confidence {q.mean_word_conf:.2f}, low-ASR share {q.low_asr_share:.0%}, crosstalk {q.crosstalk_share:.0%}, "
-                         f"{q.n_speakers} speakers, minimum role confidence {q.role_conf_min:.2f}." + (f" Banners: {'; '.join(q.banners)}" if q.banners else ""))
+            lines.append(
+                f"Quality: mean word confidence {q.mean_word_conf:.2f}, low-ASR share {q.low_asr_share:.0%}, crosstalk {q.crosstalk_share:.0%}, "
+                f"{q.n_speakers} speakers, minimum role confidence {q.role_conf_min:.2f}."
+                + (f" Banners: {'; '.join(q.banners)}" if q.banners else "")
+            )
         ents = self.entities
         persons = [e for e in ents.values() if e.type == "person"]
-        lines.append(f"\n## Registry\n{len(ents)} entities; people: " + ", ".join(f"{e.entity_id} ({e.canonical_name})" for e in persons[:12]))
+        lines.append(
+            f"\n## Registry\n{len(ents)} entities; people: " + ", ".join(f"{e.entity_id} ({e.canonical_name})" for e in persons[:12])
+        )
         priors = sum(1 for f in self.profile.facts.values() if f.source == "prior_fna")
-        lines.append(f"Prior FNA: {priors} fields from the client's existing document." if priors else "No prior FNA document: every field is new.")
+        lines.append(
+            f"Prior FNA: {priors} fields from the client's existing document." if priors else "No prior FNA document: every field is new."
+        )
         lines.append("\n## Topic index (segments per slot group)")
         for g in self.catalog.groups:
             lines.append(f"- {g}: {len(self.discourse.topic_index.get(g, []))}")
         tier_a = sorted({s.slot_id for s in self.catalog.tier_a()})
         lines.append("\n## Tier A slots\n" + ", ".join(tier_a))
         b = self.inputs.budgets
-        lines.append(f"\n## Budget\n{b.orchestrator_requests} requests, {b.tool_calls} tool calls, {b.total_tokens:,} tokens, ${b.usd_cap:.0f}, "
-                     f"{b.wall_clock_soft_s // 60} minutes; at most {b.reextractions_per_group} re-extractions per slot group.")
+        lines.append(
+            f"\n## Budget\n{b.orchestrator_requests} requests, {b.tool_calls} tool calls, {b.total_tokens:,} tokens, ${b.usd_cap:.0f}, "
+            f"{b.wall_clock_soft_s // 60} minutes; at most {b.reextractions_per_group} re-extractions per slot group."
+        )
         lines.append("\nStart with make_plan.")
         return "\n".join(lines)

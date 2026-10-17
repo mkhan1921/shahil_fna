@@ -63,3 +63,19 @@ markers = [
 [tool.ruff]
 line-length = 140
 target-version = "py312"
+
+[tool.ruff.lint]
+# The rule set every contributor and CI run on; `ruff check` must be clean on the whole pipeline.
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "RUF", "PIE", "ISC", "PYI", "PLR0124", "PLW1510", "TRY004", "BLE001"]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # en dashes and minus signs are deliberate in prose, and in strings the app mirrors
+    "B905",  # zip(strict=) everywhere adds noise where lengths are checked upstream
+    "RUF005", "SIM105", "SIM108", "E731",  # concatenation, suppress() and ternary style are left to the author
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]  # re-exports
+"advisor_intel/api/app.py" = ["B008"]  # FastAPI's Depends() in defaults is the framework's idiom
+"advisor_intel/fna_engine/_js.py" = ["PLR0124"]  # x != x mirrors JavaScript's NaN test, which this module reproduces
+"scripts/*.py" = ["E402"]  # the scripts put the package on sys.path before importing it
+"tests/**" = ["E402"]

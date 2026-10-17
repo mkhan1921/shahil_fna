@@ -33,8 +33,9 @@ import math
 import re
 import threading
 from collections import OrderedDict, defaultdict
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 from rapidfuzz import fuzz
@@ -512,9 +513,11 @@ def critical_misses(system: SystemCallOutput, gold: GoldCall, *, alignment: Alig
     for p in _alignment(system, gold, alignment).scoped("A"):
         if p.gold_valued:
             assert p.gold is not None
-            if not p.system_found or p.system_status != p.gold_status:
-                out.append(p)
-            elif p.gold.value is not None and not covers(p.system.value if p.system else None, p.gold.value):
+            if (
+                not p.system_found
+                or p.system_status != p.gold_status
+                or (p.gold.value is not None and not covers(p.system.value if p.system else None, p.gold.value))
+            ):
                 out.append(p)
         elif p.system is not None and p.system.extracted and p.system.status in ("stated", "implied") and p.gold_status != p.system_status:
             out.append(p)

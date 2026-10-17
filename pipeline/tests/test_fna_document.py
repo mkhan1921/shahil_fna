@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from advisor_intel.models.fna import ExportFile, FnaDocument

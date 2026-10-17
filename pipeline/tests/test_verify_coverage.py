@@ -201,7 +201,9 @@ async def test_a_failed_verifier_batch_is_reported_not_treated_as_absent():
     p = _household()
 
     def never_valid(messages, info: AgentInfo):  # answers for question ids that do not exist: the retries run out
-        return ModelResponse(parts=[TextPart(json.dumps({"answers": [{"question_id": "q99", "answer": "absent", "segment_ids": [], "reason": "r"}]}))])
+        return ModelResponse(
+            parts=[TextPart(json.dumps({"answers": [{"question_id": "q99", "answer": "absent", "segment_ids": [], "reason": "r"}]}))]
+        )
 
     with coverage_agent.override(model=FunctionModel(never_valid)):
         res = await check_coverage(p, transcript=_segments(), pins=VersionPins(), catalog=CATALOG, reopen=_no_reopen)
@@ -247,7 +249,9 @@ async def test_on_profile_sees_every_applied_batch():
             "evidence": [ev("s0003", "segment number 3").model_dump(mode="json")],
             "provenance": PROV.model_dump(mode="json"),
         }
-        return [StateOp(op="ADD", fact_id="retirement.{p}.retirementAge#client", segment_id="s0003", payload=payload, actor="extractor", seq=1)]
+        return [
+            StateOp(op="ADD", fact_id="retirement.{p}.retirementAge#client", segment_id="s0003", payload=payload, actor="extractor", seq=1)
+        ]
 
     model, _ = _responder(lambda line: ("present", ["s0003"]) if "client's target retirement age" in line else ("absent", []))
     with coverage_agent.override(model=model):

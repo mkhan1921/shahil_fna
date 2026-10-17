@@ -29,9 +29,10 @@ import io
 import math
 import pickle
 import zlib
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Literal, Mapping, Sequence
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -78,7 +79,7 @@ class LabelSet:
     names: list[str]
 
     @classmethod
-    def from_labels(cls, labels: Sequence[Label], names: list[str]) -> "LabelSet":
+    def from_labels(cls, labels: Sequence[Label], names: list[str]) -> LabelSet:
         X = np.vstack([vector(lb.features, names) for lb in labels]) if labels else np.zeros((0, len(names)))
         return cls(
             X=X,
@@ -89,7 +90,7 @@ class LabelSet:
             names=names,
         )
 
-    def take(self, idx: np.ndarray) -> "LabelSet":
+    def take(self, idx: np.ndarray) -> LabelSet:
         return LabelSet(self.X[idx], self.y[idx], self.groups[idx], self.families[idx], self.calls[idx], self.names)
 
     def __len__(self) -> int:
@@ -120,7 +121,7 @@ def reliability(p: np.ndarray, y: np.ndarray, n_bins: int = N_BINS) -> list[dict
         return []
     order = np.argsort(p, kind="stable")
     return [
-        {"mean_p": float(p[b].mean()), "frac_correct": float(y[b].mean()), "count": int(len(b))}
+        {"mean_p": float(p[b].mean()), "frac_correct": float(y[b].mean()), "count": len(b)}
         for b in np.array_split(order, min(n_bins, len(p)))
         if len(b)
     ]
@@ -138,7 +139,7 @@ def auroc(p: np.ndarray, y: np.ndarray) -> float:
 
 def calibration_metrics(p: np.ndarray, y: np.ndarray, n_bins: int = N_BINS) -> dict[str, Any]:
     return {
-        "n": int(len(y)),
+        "n": len(y),
         "base_rate": float(np.mean(y)) if len(y) else math.nan,
         "ece": ece(p, y, n_bins),
         "brier": brier(p, y),
@@ -189,7 +190,7 @@ class ScoreMap:
         self.const: float | None = None
 
     @classmethod
-    def fit(cls, kind: MapKind, s: np.ndarray, y: np.ndarray) -> "ScoreMap":
+    def fit(cls, kind: MapKind, s: np.ndarray, y: np.ndarray) -> ScoreMap:
         m = cls(kind)
         s, y = np.asarray(s, dtype=float), np.asarray(y, dtype=float)
         if len(np.unique(y)) < 2:
@@ -387,10 +388,10 @@ class Calibrator:
     trained_on: dict[str, Any] = field(default_factory=dict)
     metrics: dict[str, Any] = field(default_factory=dict)
     oof: np.ndarray | None = None  # held-out predictions in label order, with each unit's chosen map
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @classmethod
-    def identity(cls, catalog: Catalog | None = None, version: str = "cold-start") -> "Calibrator":
+    def identity(cls, catalog: Catalog | None = None, version: str = "cold-start") -> Calibrator:
         """Before any labels: ``p_correct`` is the cold-start score itself."""
         return cls(version=version, mode="identity", names=feature_names(catalog or load_catalog()))
 
@@ -435,17 +436,17 @@ class Calibrator:
         return ARTIFACT_MAGIC + bytes([ARTIFACT_FORMAT]) + zlib.compress(payload)
 
     @staticmethod
-    def from_bytes(blob: bytes) -> "Calibrator":
+    def from_bytes(blob: bytes) -> Calibrator:
         """Load an artifact this module wrote (from the pipeline's own object storage only: it is a pickle)."""
         if not blob.startswith(ARTIFACT_MAGIC) or len(blob) < len(ARTIFACT_MAGIC) + 1:
             raise ValueError("not a calibrator artifact")
         fmt = blob[len(ARTIFACT_MAGIC)]
         if fmt != ARTIFACT_FORMAT:
             raise ValueError(f"calibrator artifact format {fmt} is not supported (expected {ARTIFACT_FORMAT})")
-        data = pickle.load(io.BytesIO(zlib.decompress(blob[len(ARTIFACT_MAGIC) + 1 :])))  # noqa: S301 - our own artifact
+        data = pickle.load(io.BytesIO(zlib.decompress(blob[len(ARTIFACT_MAGIC) + 1 :])))
         cal = data["calibrator"]
         if not isinstance(cal, Calibrator):
-            raise ValueError("artifact does not hold a calibrator")
+            raise ValueError("artifact does not hold a calibrator")  # noqa: TRY004 - a corrupt artifact is a bad value, like a bad format
         return cal
 
     def experiment(self) -> dict[str, Any]:

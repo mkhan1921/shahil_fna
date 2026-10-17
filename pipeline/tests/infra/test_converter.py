@@ -84,13 +84,13 @@ class FakeS3:
     def __init__(self) -> None:
         self.objects: dict[tuple[str, str], bytes] = {}
 
-    def put_object(self, *, Bucket, Key, Body, **_):  # noqa: N803
+    def put_object(self, *, Bucket, Key, Body, **_):
         self.objects[(Bucket, Key)] = Body
 
-    def get_object(self, *, Bucket, Key):  # noqa: N803
+    def get_object(self, *, Bucket, Key):
         return {"Body": io.BytesIO(self.objects[(Bucket, Key)])}
 
-    def head_object(self, *, Bucket, Key):  # noqa: N803
+    def head_object(self, *, Bucket, Key):
         if (Bucket, Key) not in self.objects:
             e = Exception("404")
             e.response = {"Error": {"Code": "404"}}  # type: ignore[attr-defined]
@@ -103,7 +103,7 @@ async def test_offload_to_s3():
     conv = data_converter(S3ObjectStore("payloads", "temporal", client=s3), threshold=2048)
     t = _big_transcript(100)
     [payload] = await conv.encode([t])
-    assert [k for (_, k) in s3.objects][0].startswith("temporal/temporal-payloads/v1/")
+    assert next(k for (_, k) in s3.objects).startswith("temporal/temporal-payloads/v1/")
     assert (await conv.decode([payload], [Transcript]))[0] == t
 
 

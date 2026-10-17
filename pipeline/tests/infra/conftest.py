@@ -117,7 +117,9 @@ def pg_cluster():
         except psycopg.Error:
             pass
         if bin_dir is not None and data_dir is not None:
-            subprocess.run([*prefix, str(bin_dir / "pg_ctl"), "-D", data_dir, "-m", "immediate", "-w", "stop"], capture_output=True)
+            subprocess.run(
+                [*prefix, str(bin_dir / "pg_ctl"), "-D", data_dir, "-m", "immediate", "-w", "stop"], capture_output=True, check=False
+            )
             shutil.rmtree(proc_dir, ignore_errors=True)
 
 

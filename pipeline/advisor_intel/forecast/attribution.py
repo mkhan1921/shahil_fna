@@ -98,8 +98,11 @@ def sobol_groups(fc: Forecaster, seed: int, n: int) -> tuple[dict[str, float], S
     pooled = np.concatenate([y_a, y_b])
     mean = float(pooled.mean())
     var = float(pooled.var(ddof=1)) if pooled.size > 1 else 0.0
-    raw = {"market": pick_freeze(y_a, y_b, y_m, mean, var), "client_content": pick_freeze(y_a, y_b, y_c, mean, var),
-           "extraction": pick_freeze(y_a, y_b, y_e, mean, var)}
+    raw = {
+        "market": pick_freeze(y_a, y_b, y_m, mean, var),
+        "client_content": pick_freeze(y_a, y_b, y_c, mean, var),
+        "extraction": pick_freeze(y_a, y_b, y_e, mean, var),
+    }
     return raw, SobolDesign(u_a, u_b, m_a, m_b, y_a, y_b, mean, var)  # type: ignore[arg-type]
 
 
@@ -223,7 +226,9 @@ def shapley_market(fc: Forecaster, seed: int, settings: ModeSettings) -> tuple[d
     # keeping the total (the market's whole variance) unchanged.
     clipped = np.maximum(raw, 0.0)
     shares = clipped * (raw.sum() / clipped.sum()) if clipped.sum() > 0 else clipped
-    diag = {"shapley_variance": v_total, "shapley_sum": float(shapley.sum())} | {f"shapley_raw_{n}": float(raw[i]) for i, n in enumerate(PLAYERS)}
+    diag = {"shapley_variance": v_total, "shapley_sum": float(shapley.sum())} | {
+        f"shapley_raw_{n}": float(raw[i]) for i, n in enumerate(PLAYERS)
+    }
     return {name: float(shares[i]) for i, name in enumerate(PLAYERS)}, diag
 
 

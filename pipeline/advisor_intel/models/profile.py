@@ -64,7 +64,7 @@ class Profile(BaseModel):
     anchor_date: date
     entities: dict[str, Entity] = {}
     facts: dict[str, Fact] = {}  # keyed by fact_id
-    ops_log: list["StateOp"] = []  # full, replayable
+    ops_log: list[StateOp] = []  # full, replayable
     open_questions: list[FollowUp] = []
     blocking_flags: list[BlockingFlag] = []
     version: int = 0  # bumped on every applied batch; frozen at review submission

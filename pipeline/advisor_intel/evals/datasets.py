@@ -15,9 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import date, datetime, timezone
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Protocol, Sequence
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ValidationError
 
@@ -647,7 +648,7 @@ class S3BlobStore:
     def read(self, key: str) -> bytes | None:
         try:
             return self.client.get_object(Bucket=self.bucket, Key=self._key(key))["Body"].read()
-        except Exception as e:  # noqa: BLE001 - boto3 raises NoSuchKey through a dynamic exception class
+        except Exception as e:
             if type(e).__name__ in ("NoSuchKey", "ClientError") or "NoSuchKey" in str(e) or "404" in str(e):
                 return None
             raise
@@ -673,7 +674,7 @@ def export_dataset(dataset: str, *, store: DatasetStore | None = None, blobs: Bl
     Returns the dated key."""
     rows = (store or get_store()).fetch(dataset)
     blobs = blobs or default_blob_store()
-    stamp = (at or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+    stamp = (at or datetime.now(UTC)).strftime("%Y-%m-%d")
     body = "".join(json.dumps(to_jsonable(r.model_dump(mode="json")), sort_keys=True) + "\n" for r in sorted(rows, key=lambda r: r.id))
     key = f"datasets/{dataset}/{stamp}.jsonl"
     blobs.write(key, body.encode())

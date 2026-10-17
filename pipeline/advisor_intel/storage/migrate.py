@@ -77,8 +77,10 @@ def discover(directory: Path = MIGRATIONS_DIR) -> list[Migration]:
 def render_schema(directory: Path = MIGRATIONS_DIR) -> str:
     """The full schema as one file: the migrations in order, each under a header."""
     parts = [
-        "-- Advisor Call Intelligence: full Postgres schema (spec §14.2).\n"
-        "-- Rendered from storage/migrations by `python -m advisor_intel.storage.migrate render`; do not edit by hand.\n"
+        (
+            "-- Advisor Call Intelligence: full Postgres schema (spec §14.2).\n"
+            "-- Rendered from storage/migrations by `python -m advisor_intel.storage.migrate render`; do not edit by hand.\n"
+        )
     ]
     for m in discover(directory):
         parts.append(f"\n-- ===== {m.version:04d}_{m.name} =====\n\n{m.sql.strip()}\n")

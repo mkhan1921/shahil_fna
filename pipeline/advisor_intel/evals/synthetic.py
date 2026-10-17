@@ -25,10 +25,11 @@ import json
 import math
 import re
 import uuid
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, NamedTuple, Protocol, Sequence
+from typing import Any, Literal, NamedTuple, Protocol
 
 import numpy as np
 from numpy.random import Generator
@@ -835,7 +836,7 @@ def sample_household(rng: Generator, anchor: date, archetype: str, *, ns: str, s
     items: dict[str, float] = {}
     has_school = any(d["schoolType"] != "none" for d in deps)
     for key, val in base["expenses"]["items"].items():
-        if key == "school-fees" and not has_school or key in ("childcare", "extramurals", "school-other") and not n_kids:
+        if (key == "school-fees" and not has_school) or (key in ("childcare", "extramurals", "school-other") and not n_kids):
             continue
         if key == "family-support":
             sup = sum(d["monthlySupport"] for d in deps)

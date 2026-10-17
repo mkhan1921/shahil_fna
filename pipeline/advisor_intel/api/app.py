@@ -621,7 +621,9 @@ async def answer_followup(call_id: str, followup_id: str, body: AnswerRequest, d
         # The same answer sent again (a lost reply, a double click): it was taken in once; taking it in again
         # would add its hypotheses and evidence a second time.
         routed = "signal" if info.status == "RUNNING" else "intake_workflow"
-        return AnswerRouted(call_id=call_id, run_id=run.workflow_id, followup_id=followup_id, routed=routed, workflow_id=run.workflow_id, duplicate=True)
+        return AnswerRouted(
+            call_id=call_id, run_id=run.workflow_id, followup_id=followup_id, routed=routed, workflow_id=run.workflow_id, duplicate=True
+        )
     answer = FollowupAnswer(
         call_id=call_id, followup_id=followup_id, text=body.text, source=body.source, recorded_by=body.recorded_by, answered_at=_now()
     )

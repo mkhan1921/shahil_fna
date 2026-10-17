@@ -15,7 +15,17 @@ PROV = Provenance(run_id="wf-1", lexicon_version="1.3", schema_version="profile_
 
 
 def ev(seg="s0010", quote="I want to retire at sixty", role="supports"):
-    return Evidence(segment_id=seg, char_start=0, char_end=len(quote), quote=quote, speaker_role="client_primary", t_start=10, t_end=12, asr_mean_conf=0.93, role=role)
+    return Evidence(
+        segment_id=seg,
+        char_start=0,
+        char_end=len(quote),
+        quote=quote,
+        speaker_role="client_primary",
+        t_start=10,
+        t_end=12,
+        asr_mean_conf=0.93,
+        role=role,
+    )
 
 
 def age(v):
@@ -108,7 +118,12 @@ def test_seed_is_replaced_by_call_and_becomes_prior():
 def test_retract_variants():
     p = profile()
     base = apply_state_ops(p, make_ops(p, [("ADD", _fid(), "s0010", add_payload(60), "extractor")])).profile
-    mind = apply_state_ops(base, make_ops(base, [("RETRACT", _fid(), "s0040", {"reason": "change_of_mind", "evidence": [ev("s0040", "we haven't decided")]}, "extractor")])).profile
+    mind = apply_state_ops(
+        base,
+        make_ops(
+            base, [("RETRACT", _fid(), "s0040", {"reason": "change_of_mind", "evidence": [ev("s0040", "we haven't decided")]}, "extractor")]
+        ),
+    ).profile
     assert mind.facts[_fid()].status == "explicitly_unknown" and mind.facts[_fid()].value is None
     gone = apply_state_ops(base, make_ops(base, [("RETRACT", _fid(), None, {"reason": "extraction_error"}, "verifier")])).profile
     assert _fid() not in gone.facts
@@ -121,19 +136,57 @@ def test_retract_variants():
 def test_confirm_and_mark_unknown_and_reviewer_edit():
     p = profile()
     base = apply_state_ops(p, make_ops(p, [("ADD", _fid(), "s0010", add_payload(60), "extractor")])).profile
-    conf = apply_state_ops(base, make_ops(base, [("CONFIRM", _fid(), "s0011", {"evidence": [ev("s0011", "yes sixty")]}, "extractor")])).profile
+    conf = apply_state_ops(
+        base, make_ops(base, [("CONFIRM", _fid(), "s0011", {"evidence": [ev("s0011", "yes sixty")]}, "extractor")])
+    ).profile
     assert conf.facts[_fid()].speaker_attribution == "advisor_confirmed_by_client"
-    acc = apply_state_ops(conf, make_ops(conf, [("CONFIRM", _fid(), None, {"review": ReviewState(status="accepted", reviewer_id="adv1", reviewed_at=datetime(2026, 10, 16, tzinfo=UTC))}, "reviewer")])).profile
+    acc = apply_state_ops(
+        conf,
+        make_ops(
+            conf,
+            [
+                (
+                    "CONFIRM",
+                    _fid(),
+                    None,
+                    {"review": ReviewState(status="accepted", reviewer_id="adv1", reviewed_at=datetime(2026, 10, 16, tzinfo=UTC))},
+                    "reviewer",
+                )
+            ],
+        ),
+    ).profile
     assert acc.facts[_fid()].review.status == "accepted"
     edit = {
-        "replace_hypotheses": [Hypothesis(value=Quantity(dist=Triangular(low=60, mode=62, high=65), unit="age"), weight=1, rationale="reviewer")],
+        "replace_hypotheses": [
+            Hypothesis(value=Quantity(dist=Triangular(low=60, mode=62, high=65), unit="age"), weight=1, rationale="reviewer")
+        ],
         "review": ReviewState(status="edited", reviewer_id="adv1"),
     }
     ed = apply_state_ops(acc, make_ops(acc, [("UPDATE", _fid(), None, edit, "reviewer")])).profile
     f = ed.facts[_fid()]
     assert f.review.status == "edited" and f.review.original_value == age(60)
     assert isinstance(f.value.dist, Triangular)
-    unk = apply_state_ops(p, make_ops(p, [("MARK_UNKNOWN", "goals[].cost#goal.trip", "s0050", {"slot_id": "goals[].cost", "instance_key": "goal.trip", "fna_path": "goals[g1].cost", "provenance": PROV, "evidence": [ev("s0050", "no idea what it'll cost")]}, "extractor")])).profile
+    unk = apply_state_ops(
+        p,
+        make_ops(
+            p,
+            [
+                (
+                    "MARK_UNKNOWN",
+                    "goals[].cost#goal.trip",
+                    "s0050",
+                    {
+                        "slot_id": "goals[].cost",
+                        "instance_key": "goal.trip",
+                        "fna_path": "goals[g1].cost",
+                        "provenance": PROV,
+                        "evidence": [ev("s0050", "no idea what it'll cost")],
+                    },
+                    "extractor",
+                )
+            ],
+        ),
+    ).profile
     assert unk.facts["goals[].cost#goal.trip"].status == "explicitly_unknown"
     for prof in (conf, acc, ed, unk):
         assert check_profile(prof) == []
@@ -197,17 +250,35 @@ def test_reviewer_mark_unknown_and_reject_keep_the_originals():
     p = profile()
     base = apply_state_ops(p, make_ops(p, [("ADD", _fid(), "s0010", add_payload(60), "extractor")])).profile
     review = ReviewState(status="edited", reviewer_id="adv1", note="HR to confirm")
-    unk = apply_state_ops(base, make_ops(base, [("MARK_UNKNOWN", _fid(), None, {"reason": "unknown", "review": review}, "reviewer")])).profile
+    unk = apply_state_ops(
+        base, make_ops(base, [("MARK_UNKNOWN", _fid(), None, {"reason": "unknown", "review": review}, "reviewer")])
+    ).profile
     f = unk.facts[_fid()]
     assert f.status == "explicitly_unknown" and f.hypotheses == [] and f.value is None
-    assert f.review.status == "edited" and f.review.original_value == age(60) and f.review.original_status == "stated" and f.review.note == "HR to confirm"
+    assert (
+        f.review.status == "edited"
+        and f.review.original_value == age(60)
+        and f.review.original_status == "stated"
+        and f.review.note == "HR to confirm"
+    )
     # Marked unknown twice: the first originals stay.
-    unk2 = apply_state_ops(unk, make_ops(unk, [("MARK_UNKNOWN", _fid(), None, {"review": ReviewState(status="edited", reviewer_id="adv1")}, "reviewer")])).profile
+    unk2 = apply_state_ops(
+        unk, make_ops(unk, [("MARK_UNKNOWN", _fid(), None, {"review": ReviewState(status="edited", reviewer_id="adv1")}, "reviewer")])
+    ).profile
     assert unk2.facts[_fid()].review.original_value == age(60) and unk2.facts[_fid()].review.original_status == "stated"
     # An edit, then a rejection: the rejection keeps the edit's original.
-    edit = {"replace_hypotheses": [Hypothesis(value=age(62), weight=1, rationale="reviewer")], "review": ReviewState(status="edited", reviewer_id="adv1")}
+    edit = {
+        "replace_hypotheses": [Hypothesis(value=age(62), weight=1, rationale="reviewer")],
+        "review": ReviewState(status="edited", reviewer_id="adv1"),
+    }
     ed = apply_state_ops(base, make_ops(base, [("UPDATE", _fid(), None, edit, "reviewer")])).profile
-    rej = apply_state_ops(ed, make_ops(ed, [("RETRACT", _fid(), None, {"reason": "misheard", "review": ReviewState(status="rejected", reviewer_id="adv1")}, "reviewer")])).profile
+    rej = apply_state_ops(
+        ed,
+        make_ops(
+            ed,
+            [("RETRACT", _fid(), None, {"reason": "misheard", "review": ReviewState(status="rejected", reviewer_id="adv1")}, "reviewer")],
+        ),
+    ).profile
     assert rej.facts[_fid()].review.status == "rejected" and rej.facts[_fid()].review.original_value == age(60)
     # The extractor's MARK_UNKNOWN records nothing: it is not a review decision.
     ext = apply_state_ops(base, make_ops(base, [("MARK_UNKNOWN", _fid(), "s0040", {"reason": "undecided"}, "extractor")])).profile

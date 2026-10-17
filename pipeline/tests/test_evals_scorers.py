@@ -184,8 +184,8 @@ def test_span_overlap_by_time_across_transcripts():
     asr = [span("a7", 0, 4, transcript="asr", t=(10.0, 12.0))]
     human = [span("h3", 30, 40, transcript="human", t=(11.0, 13.0))]
     assert S.span_overlap_f1(asr, human) == pytest.approx(2 * 1.0 / 4.0)
-    assert S._overlaps(asr[0], human[0])  # noqa: SLF001
-    assert not S._overlaps(span("a7", 0, 4, transcript="asr", t=(1, 2)), human[0])  # noqa: SLF001
+    assert S._overlaps(asr[0], human[0])
+    assert not S._overlaps(span("a7", 0, 4, transcript="asr", t=(1, 2)), human[0])
 
 
 def test_ece_brier_and_cold_start():
@@ -435,11 +435,11 @@ def test_braintrust_adapters_return_named_scores():
     scores = S.status_accuracy_scorer(input={}, output=out, expected=exp)
     assert [s.name for s in scores] == ["status_accuracy", "status_accuracy_tier_a"]
     assert scores[0].score == pytest.approx(0.6) and scores[0].metadata["total"] == 5
-    assert S.status_accuracy_scorer._name() == "status_accuracy"  # noqa: SLF001
+    assert S.status_accuracy_scorer._name() == "status_accuracy"
     assert all(s.score is None for s in S.asr_scorer(input={}, output=out, expected=exp))
     assert all(s.score is None for s in S.slot_recall_scorer(input={}, output=None, expected=exp))
     assert len(set(S.ITEM_SCORE_NAMES)) == len(S.ITEM_SCORE_NAMES)
-    assert S.TIER_A_METRICS == [m for m in S.ITEM_SCORE_NAMES if m.endswith("_tier_a")]
+    assert [m for m in S.ITEM_SCORE_NAMES if m.endswith("_tier_a")] == S.TIER_A_METRICS
     recs = S.records_from_rows(
         [{"output": out, "expected": exp, "metadata": {"transcript_kind": "human"}}, {"output": None, "expected": exp}]
     )

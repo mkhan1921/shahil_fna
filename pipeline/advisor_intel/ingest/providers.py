@@ -27,8 +27,13 @@ class ProviderConfigError(AsrError):
     """A provider is unknown or missing its credentials (not worth retrying)."""
 
 
-ASR_CREDENTIAL = {"assemblyai": "assemblyai_api_key", "deepgram": "deepgram_api_key", "speechmatics": "speechmatics_api_key",
-                  "granite": "vllm_base_url", "parakeet": "parakeet_base_url"}
+ASR_CREDENTIAL = {
+    "assemblyai": "assemblyai_api_key",
+    "deepgram": "deepgram_api_key",
+    "speechmatics": "speechmatics_api_key",
+    "granite": "vllm_base_url",
+    "parakeet": "parakeet_base_url",
+}
 
 
 def build_asr(pins: VersionPins, settings: Settings | None = None) -> ASRProvider:
@@ -74,5 +79,7 @@ def build_second_pass(pins: VersionPins, settings: Settings | None = None) -> Se
     if method in ("", "audio-model") and s.vllm_base_url:
         return AudioModelCheck(base_url=s.vllm_base_url)
     if method:
-        raise ProviderConfigError(f"second pass {method!r} needs {'PARAKEET_BASE_URL' if method == 'constrained-redecode' else 'VLLM_BASE_URL'}")
+        raise ProviderConfigError(
+            f"second pass {method!r} needs {'PARAKEET_BASE_URL' if method == 'constrained-redecode' else 'VLLM_BASE_URL'}"
+        )
     return None

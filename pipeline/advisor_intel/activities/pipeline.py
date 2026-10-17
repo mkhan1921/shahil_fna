@@ -80,7 +80,7 @@ from ..workflows.contracts import (
     VoiOutcome,
 )
 from .keys import digest, discourse_key, ingest_key, run_key
-from .providers import Providers
+from .providers import ProviderConfigError, Providers
 from .stages import StageFunctions, heartbeating, in_activity, invoke
 
 log = logging.getLogger(__name__)
@@ -254,6 +254,7 @@ class PipelineActivities:
         if not call.audio_uri:
             raise input_error(f"call {call_id} has no audio")
         ingest_call = self.stages.get("ingest_call")
+        from ..ingest.providers import ProviderConfigError as IngestConfigError
         from ..ingest.types import CallMeta
         from ..pipeline import crm_names
 
@@ -276,17 +277,22 @@ class PipelineActivities:
         with tempfile.TemporaryDirectory(prefix="advisor-intel-audio-") as tmp:
             audio = await self.objects.download(call.audio_uri, Path(tmp) / f"call{suffix}")
             async with heartbeating("ingest"):
-                return await invoke(
-                    ingest_call,
-                    audio,
-                    meta,
-                    asr=asr,
-                    diarizer=diarizer,
-                    role_agent_pins=pins,
-                    second_pass=second_pass,
-                    prior_fna=prior,
-                    crm_names=crm_names(crm, prior),
-                )
+                try:
+                    return await invoke(
+                        ingest_call,
+                        audio,
+                        meta,
+                        asr=asr,
+                        diarizer=diarizer,
+                        role_agent_pins=pins,
+                        second_pass=second_pass,
+                        prior_fna=prior,
+                        crm_names=crm_names(crm, prior),
+                    )
+                except IngestConfigError as e:
+                    # Found only once the audio is known (a mono call needs a diarizer that is not configured): the
+                    # deployment must change, so the attempt is not retried.
+                    raise ProviderConfigError(f"ingest: {e}") from e
 
     async def _from_script(self, call: CallRecord, pins: VersionPins) -> Transcript:
         """A scripted call (synthetic and demo calls, §15): the stage 1 back half on the script's words, no audio."""

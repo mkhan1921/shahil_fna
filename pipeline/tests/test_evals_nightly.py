@@ -11,20 +11,20 @@ import pytest
 
 pytest.importorskip("advisor_intel.activities.nightly")
 
-from temporalio.testing import ActivityEnvironment  # noqa: E402
+from temporalio.testing import ActivityEnvironment
 
-from advisor_intel.activities import NightlyActivities, StageFunctions  # noqa: E402
-from advisor_intel.activities.stages import ENTRYPOINTS  # noqa: E402
-from advisor_intel.config import Settings  # noqa: E402
-from advisor_intel.evals import datasets as D  # noqa: E402
-from advisor_intel.evals import model_swap as M  # noqa: E402
-from advisor_intel.evals.extraction_eval import EvalReport  # noqa: E402
-from advisor_intel.evals.gate import TIER_A_METRICS  # noqa: E402
-from advisor_intel.models.runs import VersionPins  # noqa: E402
-from advisor_intel.review_actions import apply_reviewer_ops, followup_edit_events  # noqa: E402
-from advisor_intel.storage.records import ReviewEvent, RunRecord  # noqa: E402
-from advisor_intel.workflows import contracts as C  # noqa: E402
-from tests.test_evals_datasets import AT, profile_with_facts, review_result  # noqa: E402
+from advisor_intel.activities import NightlyActivities, StageFunctions
+from advisor_intel.activities.stages import ENTRYPOINTS
+from advisor_intel.config import Settings
+from advisor_intel.evals import datasets as D
+from advisor_intel.evals import model_swap as M
+from advisor_intel.evals.extraction_eval import EvalReport
+from advisor_intel.evals.gate import TIER_A_METRICS
+from advisor_intel.models.runs import VersionPins
+from advisor_intel.review_actions import apply_reviewer_ops, followup_edit_events
+from advisor_intel.storage.records import ReviewEvent, RunRecord
+from advisor_intel.workflows import contracts as C
+from tests.test_evals_datasets import AT, profile_with_facts, review_result
 
 WINDOW = C.NightlyWindow(since=AT - timedelta(hours=1), until=AT + timedelta(hours=1))
 

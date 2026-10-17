@@ -79,9 +79,8 @@ class Database:
 
     @contextlib.asynccontextmanager
     async def transaction(self) -> AsyncIterator[Connection]:
-        async with self.connection() as conn:
-            async with conn.transaction():
-                yield conn
+        async with self.connection() as conn, conn.transaction():
+            yield conn
 
     async def close(self) -> None:
         idle, self._idle = self._idle, []

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -61,9 +62,9 @@ async def _record(env, handle, name: str) -> None:
 
 @pytest.mark.temporal
 async def test_record_and_replay_fresh_histories(temporal_bin):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    now = datetime(2026, 10, 16, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 16, 10, 0, tzinfo=UTC)
     args = CallArgs(call_id="call-replay", advisor_id="adv-1", client_ids=["cl-1"], review_reminder_seconds=1)
     mocks = MockActivities()
     async with temporal_env(temporal_bin) as env, running_worker(env.client, mocks) as tq:

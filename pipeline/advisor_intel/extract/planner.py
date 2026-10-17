@@ -38,7 +38,188 @@ KEYWORD_TOP_K = 8
 COMMON_SHARE = 0.3  # a query word in more than this share of segments identifies nothing
 # Function words of the slot questions and of adviser–client speech (English and Afrikaans): never keywords.
 STOPWORDS = frozenset(
-    ["a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at", "by", "for", "from", "with", "without", "into", "onto", "over", "under", "about", "as", "is", "are", "was", "were", "be", "been", "being", "am", "do", "does", "did", "done", "have", "has", "had", "having", "will", "would", "shall", "should", "can", "could", "may", "might", "must", "this", "that", "these", "those", "there", "here", "it", "its", "they", "them", "their", "he", "she", "his", "her", "him", "we", "us", "our", "you", "your", "i", "me", "my", "mine", "who", "whom", "whose", "which", "what", "when", "where", "why", "how", "any", "some", "each", "every", "all", "both", "either", "neither", "no", "not", "nor", "only", "own", "same", "so", "than", "too", "very", "just", "also", "still", "yet", "again", "further", "then", "once", "such", "other", "per", "each", "one", "two", "person", "persons", "people", "client", "clients", "spouse", "household", "someone", "anyone", "this", "year", "now", "today", "currently", "die", "en", "of", "maar", "as", "van", "in", "op", "by", "met", "sonder", "oor", "onder", "is", "was", "het", "sal", "sou", "kan", "kon", "mag", "moet", "dit", "hierdie", "daardie", "daar", "hier", "hulle", "ons", "jy", "jou", "ek", "my", "hy", "sy", "wie", "wat", "wanneer", "waar", "hoekom", "hoe", "enige", "elke", "al", "nie", "geen", "net", "ook", "nog", "weer", "ja", "nee"]
+    [
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "if",
+        "of",
+        "to",
+        "in",
+        "on",
+        "at",
+        "by",
+        "for",
+        "from",
+        "with",
+        "without",
+        "into",
+        "onto",
+        "over",
+        "under",
+        "about",
+        "as",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "am",
+        "do",
+        "does",
+        "did",
+        "done",
+        "have",
+        "has",
+        "had",
+        "having",
+        "will",
+        "would",
+        "shall",
+        "should",
+        "can",
+        "could",
+        "may",
+        "might",
+        "must",
+        "this",
+        "that",
+        "these",
+        "those",
+        "there",
+        "here",
+        "it",
+        "its",
+        "they",
+        "them",
+        "their",
+        "he",
+        "she",
+        "his",
+        "her",
+        "him",
+        "we",
+        "us",
+        "our",
+        "you",
+        "your",
+        "i",
+        "me",
+        "my",
+        "mine",
+        "who",
+        "whom",
+        "whose",
+        "which",
+        "what",
+        "when",
+        "where",
+        "why",
+        "how",
+        "any",
+        "some",
+        "each",
+        "every",
+        "all",
+        "both",
+        "either",
+        "neither",
+        "no",
+        "not",
+        "nor",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "also",
+        "still",
+        "yet",
+        "again",
+        "further",
+        "then",
+        "once",
+        "such",
+        "other",
+        "per",
+        "each",
+        "one",
+        "two",
+        "person",
+        "persons",
+        "people",
+        "client",
+        "clients",
+        "spouse",
+        "household",
+        "someone",
+        "anyone",
+        "this",
+        "year",
+        "now",
+        "today",
+        "currently",
+        "die",
+        "en",
+        "of",
+        "maar",
+        "as",
+        "van",
+        "in",
+        "op",
+        "by",
+        "met",
+        "sonder",
+        "oor",
+        "onder",
+        "is",
+        "was",
+        "het",
+        "sal",
+        "sou",
+        "kan",
+        "kon",
+        "mag",
+        "moet",
+        "dit",
+        "hierdie",
+        "daardie",
+        "daar",
+        "hier",
+        "hulle",
+        "ons",
+        "jy",
+        "jou",
+        "ek",
+        "my",
+        "hy",
+        "sy",
+        "wie",
+        "wat",
+        "wanneer",
+        "waar",
+        "hoekom",
+        "hoe",
+        "enige",
+        "elke",
+        "al",
+        "nie",
+        "geen",
+        "net",
+        "ook",
+        "nog",
+        "weer",
+        "ja",
+        "nee",
+    ]
 )
 
 
@@ -153,14 +334,18 @@ def _brief(catalog: Catalog, discourse: DiscourseOutput, transcript: Transcript,
     lines.append(f"\n## Registry\n{len(discourse.entities)} entities: " + ", ".join(list(discourse.entities)[:40]))
     if transcript.quality:
         q = transcript.quality
-        lines.append(f"\n## Quality\nmean word confidence {q.mean_word_conf:.2f}; low-ASR share {q.low_asr_share:.0%}; speakers {q.n_speakers}")
+        lines.append(
+            f"\n## Quality\nmean word confidence {q.mean_word_conf:.2f}; low-ASR share {q.low_asr_share:.0%}; speakers {q.n_speakers}"
+        )
     if profile is not None:
         priors = sum(1 for f in profile.facts.values() if f.source == "prior_fna")
         lines.append(f"\n## Prior FNA\n{priors} fields from the client's existing document")
     return "\n".join(lines)
 
 
-async def propose(catalog: Catalog, discourse: DiscourseOutput, transcript: Transcript, profile: Profile | None, pins: VersionPins) -> tuple[dict[str, int], str, dict[str, int]]:
+async def propose(
+    catalog: Catalog, discourse: DiscourseOutput, transcript: Transcript, profile: Profile | None, pins: VersionPins
+) -> tuple[dict[str, int], str, dict[str, int]]:
     """The model's proposed group priorities and rationale (empty for stub pins)."""
     usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0}
     rm = llm.for_role("frontier", pins)
@@ -169,8 +354,13 @@ async def propose(catalog: Catalog, discourse: DiscourseOutput, transcript: Tran
     prompt = pinned("planner", pins.prompt_versions)
     out_model = _proposal_model(catalog.group_names())
     try:
-        result = await planner_agent.run(_brief(catalog, discourse, transcript, profile), model=rm.model, model_settings=rm.settings,
-                                         instructions=prompt.text, output_type=NativeOutput(out_model))
+        result = await planner_agent.run(
+            _brief(catalog, discourse, transcript, profile),
+            model=rm.model,
+            model_settings=rm.settings,
+            instructions=prompt.text,
+            output_type=NativeOutput(out_model),
+        )
     except UnexpectedModelBehavior as e:
         # The proposal only orders work within a tier; the enforced plan does not depend on it.
         usage["requests"] = 1
@@ -244,7 +434,9 @@ def build_plan(
                         deps.add(other.task_id)
         t.depends_on = sorted(deps)
     tasks = _topological(tasks)
-    missing = [s.slot_id for s in catalog.tier_a() if not any(s.slot_id == generic_slot_id(x) or s.slot_id == x for t in tasks for x in t.slot_ids)]
+    missing = [
+        s.slot_id for s in catalog.tier_a() if not any(s.slot_id == generic_slot_id(x) or s.slot_id == x for t in tasks for x in t.slot_ids)
+    ]
     if missing:  # pragma: no cover - every catalog slot belongs to a group, so this is a catalog error
         raise ValueError(f"tier A slots not in any task: {missing}")
     return Plan(tasks=tasks, rationale=rationale or "Deterministic plan: dependencies first, then tier A groups, then the rest.")
@@ -270,6 +462,8 @@ def _topological(tasks: list[ExtractionTask]) -> list[ExtractionTask]:
     return out
 
 
-async def make_plan(catalog: Catalog, discourse: DiscourseOutput, transcript: Transcript, profile: Profile | None, pins: VersionPins) -> tuple[Plan, dict[str, int]]:
+async def make_plan(
+    catalog: Catalog, discourse: DiscourseOutput, transcript: Transcript, profile: Profile | None, pins: VersionPins
+) -> tuple[Plan, dict[str, int]]:
     pri, rationale, usage = await propose(catalog, discourse, transcript, profile, pins)
     return build_plan(catalog, discourse, transcript, profile, proposed_priority=pri, rationale=rationale), usage

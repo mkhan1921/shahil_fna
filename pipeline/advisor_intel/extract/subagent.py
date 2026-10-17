@@ -59,8 +59,14 @@ class Usage:
         self.output_tokens += out
         self.cache_read_tokens += cache
         reported = getattr(run_usage, "cost", None)
-        self.cost_usd += llm.usage_cost_usd(model_name, input_tokens=inp, output_tokens=out, cache_read_tokens=cache,
-                                            cache_write_tokens=getattr(run_usage, "cache_write_tokens", 0) or 0, reported=float(reported) if reported else None)
+        self.cost_usd += llm.usage_cost_usd(
+            model_name,
+            input_tokens=inp,
+            output_tokens=out,
+            cache_read_tokens=cache,
+            cache_write_tokens=getattr(run_usage, "cache_write_tokens", 0) or 0,
+            reported=float(reported) if reported else None,
+        )
 
     def merge(self, other: Usage) -> None:
         for k in ("requests", "input_tokens", "output_tokens", "cache_read_tokens", "cost_usd"):
@@ -100,16 +106,33 @@ class GroupExtraction:
 def _instructions(deps: ExtractionDeps, stage: str) -> tuple[str, str]:
     stage_prompt = pinned(stage, deps.pins.prompt_versions)
     block = pinned(f"extract_slot_group/{deps.group}", deps.pins.prompt_versions)
-    return f"{stage_prompt.text}\n\n## Slot group: {deps.group}\n{block.text}", f"{stage}:{stage_prompt.version},{deps.group}:{block.version}"
+    return (
+        f"{stage_prompt.text}\n\n## Slot group: {deps.group}\n{block.text}",
+        f"{stage}:{stage_prompt.version},{deps.group}:{block.version}",
+    )
 
 
-async def _run(agent: Agent, deps: ExtractionDeps, model_type: type[BaseModel], prompt: str, instructions: str, usage: Usage, out: GroupExtraction | None = None) -> Any:
+async def _run(
+    agent: Agent,
+    deps: ExtractionDeps,
+    model_type: type[BaseModel],
+    prompt: str,
+    instructions: str,
+    usage: Usage,
+    out: GroupExtraction | None = None,
+) -> Any:
     """One stage call. Output that still fails schema validation after the agent's own retries, a
     refusal or a truncated response comes back as ``None`` (a retryable failure, §4.4 rule 6)."""
     rm = llm.for_role(deps.role, deps.pins, thinking=deps.role == "reasoning")  # type: ignore[arg-type]
     try:
-        result = await agent.run(prompt, model=rm.model, model_settings=rm.settings, instructions=instructions,
-                                 output_type=NativeOutput(model_type), usage_limits=SUBAGENT_LIMITS)
+        result = await agent.run(
+            prompt,
+            model=rm.model,
+            model_settings=rm.settings,
+            instructions=instructions,
+            output_type=NativeOutput(model_type),
+            usage_limits=SUBAGENT_LIMITS,
+        )
     except UnexpectedModelBehavior as e:
         usage.requests += 1
         if out is not None:
@@ -132,9 +155,11 @@ def validate_objects(found: list[FoundObject], deps: ExtractionDeps, types: dict
     fna_list = LIST_FNA.get(deps.list_entity or "")
     for o in found:
         if not o.segment_ids:
-            errors[o.entity_id] = f"'{o.entity_id}' lists no segment from the window: give the ids of the window segments that mention it, or leave it out"
+            errors[o.entity_id] = (
+                f"'{o.entity_id}' lists no segment from the window: give the ids of the window segments that mention it, or leave it out"
+            )
             continue
-        if o.entity_id.startswith("new:") or o.catalog_key and o.catalog_key != "custom":
+        if o.entity_id.startswith("new:") or (o.catalog_key and o.catalog_key != "custom"):
             continue
         e = deps.entities.get(o.entity_id)
         if e is None:
@@ -147,19 +172,37 @@ def validate_objects(found: list[FoundObject], deps: ExtractionDeps, types: dict
 async def stage_objects(deps: ExtractionDeps, out: GroupExtraction) -> list[FoundObject]:
     window = deps.window_ids()
     registry_ids = tuple(
-        e.entity_id for e in deps.entities.values() if e.fna_list == LIST_FNA.get(deps.list_entity or "") or e.attributes.get("list_entity") == deps.list_entity
+        e.entity_id
+        for e in deps.entities.values()
+        if e.fna_list == LIST_FNA.get(deps.list_entity or "") or e.attributes.get("list_entity") == deps.list_entity
     )
     model = C.compile_objects(deps.group, deps.catalog, registry_ids=registry_ids)
     instructions, version = _instructions(deps, "extract_objects")
     out.prompt_versions["objects"] = version
-    raw = await _run(objects_agent, deps, model, deps.prompt("Objects", "List every object of this kind mentioned in the window."), instructions, out.usage, out)
+    raw = await _run(
+        objects_agent,
+        deps,
+        model,
+        deps.prompt("Objects", "List every object of this kind mentioned in the window."),
+        instructions,
+        out.usage,
+        out,
+    )
     found = _collect_objects(raw, window) if raw is not None else []
-    for attempt in range(MAX_RETRIES):
+    for _attempt in range(MAX_RETRIES):
         errors = validate_objects(found, deps, {})
         if not errors:
             break
         listing = "\n".join(f"- {k}: {v}" for k, v in errors.items())
-        raw = await _run(objects_agent, deps, model, deps.prompt("Fix these objects", f"Return corrected entries for only these objects:\n{listing}"), instructions, out.usage, out)
+        raw = await _run(
+            objects_agent,
+            deps,
+            model,
+            deps.prompt("Fix these objects", f"Return corrected entries for only these objects:\n{listing}"),
+            instructions,
+            out.usage,
+            out,
+        )
         fixed = _collect_objects(raw, window) if raw is not None else []
         found = [o for o in found if o.entity_id not in errors] + fixed
     errors = validate_objects(found, deps, {})
@@ -182,8 +225,13 @@ def _collect_objects(raw: Any, window: set[str]) -> list[FoundObject]:
             if key_ and key_ != "custom":
                 merged[k] = FoundObject(entity_id=key_, catalog_key=key_, segment_ids=segs, name=o.name)
             else:
-                merged[k] = FoundObject(entity_id=eid, catalog_key="custom" if key_ == "custom" else None, segment_ids=segs,
-                                        is_new=eid.startswith("new:"), name=o.name)
+                merged[k] = FoundObject(
+                    entity_id=eid,
+                    catalog_key="custom" if key_ == "custom" else None,
+                    segment_ids=segs,
+                    is_new=eid.startswith("new:"),
+                    name=o.name,
+                )
     return list(merged.values())
 
 
@@ -199,14 +247,23 @@ def _register_objects(found: list[FoundObject], deps: ExtractionDeps, out: Group
         if o.entity_id.startswith("new:"):
             name = o.name or o.entity_id[4:] or deps.group
             # Reuse a near-identical new object found by an earlier task (e.g. dependants then education).
-            existing = next((e for e in deps.entities.values() if e.fna_list == fna_list and e.canonical_name.lower() == name.lower()), None)
+            existing = next(
+                (e for e in deps.entities.values() if e.fna_list == fna_list and e.canonical_name.lower() == name.lower()), None
+            )
             if existing is None:
                 eid = new_entity_id(deps.entities, etype, f"expense {name}" if deps.list_entity == "expense" else name)
                 attrs: dict[str, Any] = {"list_entity": deps.list_entity}
                 if deps.person:
                     attrs["person_key"] = deps.person
-                ent = Entity(entity_id=eid, type=etype, canonical_name=name, aliases=[name], attributes=attrs,
-                             first_mention=o.segment_ids[0] if o.segment_ids else None, fna_list=fna_list)
+                ent = Entity(
+                    entity_id=eid,
+                    type=etype,
+                    canonical_name=name,
+                    aliases=[name],
+                    attributes=attrs,
+                    first_mention=o.segment_ids[0] if o.segment_ids else None,
+                    fna_list=fna_list,
+                )
                 deps.entities[eid] = ent
                 out.new_entities[eid] = ent
                 o = FoundObject(entity_id=eid, catalog_key=o.catalog_key, segment_ids=o.segment_ids, is_new=True, name=name)
@@ -264,7 +321,11 @@ async def stage_statuses(deps: ExtractionDeps, keys: dict[str, tuple[SlotDef, st
             out.retries[f.fna_path] = out.retries.get(f.fna_path, 0) + 1
     for k, msg in validate_statuses(statuses, keys, window).items():
         out.failures[k] = msg
-        statuses[k] = FieldStatus(fna_path=k, status="contradicted", segment_ids=[s for s in (statuses.get(k).segment_ids if statuses.get(k) else []) if s in window])
+        statuses[k] = FieldStatus(
+            fna_path=k,
+            status="contradicted",
+            segment_ids=[s for s in (statuses.get(k).segment_ids if statuses.get(k) else []) if s in window],
+        )
     for k in keys:
         statuses.setdefault(k, FieldStatus(fna_path=k, status="not_discussed", segment_ids=[]))
     for k, st in statuses.items():
@@ -372,7 +433,15 @@ async def stage_values(
             break
         retry_model, rslots, _ = model_for(list(errors))
         msg = "\n".join(f"- {k}: {v}" for k, v in errors.items())
-        raw = await _run(values_agent, deps, retry_model, deps.prompt("Fix these fields", msg + "\n\n" + segments_note(list(errors))), instructions, out.usage, out)
+        raw = await _run(
+            values_agent,
+            deps,
+            retry_model,
+            deps.prompt("Fix these fields", msg + "\n\n" + segments_note(list(errors))),
+            instructions,
+            out.usage,
+            out,
+        )
         for fv in C.to_field_values(raw, rslots, resolve) if raw is not None else []:
             if fv.fna_path in errors:
                 values[fv.fna_path] = fv
@@ -380,10 +449,14 @@ async def stage_values(
     for k, msg in check().items():
         out.failures[k] = msg
     # Field values carry the concrete FnaDocument path from here on.
-    return {k: v.model_copy(update={"fna_path": concrete_path(deps.profile, keys[k][0], keys[k][1], deps.entities)}) for k, v in values.items()}
+    return {
+        k: v.model_copy(update={"fna_path": concrete_path(deps.profile, keys[k][0], keys[k][1], deps.entities)}) for k, v in values.items()
+    }
 
 
-async def stage_combined(deps: ExtractionDeps, keys: dict[str, tuple[SlotDef, str | None]], out: GroupExtraction, *, validator: Validator | None = None) -> None:
+async def stage_combined(
+    deps: ExtractionDeps, keys: dict[str, tuple[SlotDef, str | None]], out: GroupExtraction, *, validator: Validator | None = None
+) -> None:
     """Stages 2 and 3 in one call for small single-instance groups (§7.2)."""
     window = deps.window_ids()
     if not window:
@@ -398,7 +471,9 @@ async def stage_combined(deps: ExtractionDeps, keys: dict[str, tuple[SlotDef, st
     model = C.compile_combined(deps.group, slots, instances)
     listing = "\n".join(f"- {k}" for k in keys)
     raw = await _run(values_agent, deps, model, deps.prompt("Fields (status and value)", listing), instructions, out.usage, out)
-    statuses, values = C.to_combined(raw, slots, lambda s, i: field_key(s, None if i == C.NO_INSTANCE else i)) if raw is not None else ([], [])
+    statuses, values = (
+        C.to_combined(raw, slots, lambda s, i: field_key(s, None if i == C.NO_INSTANCE else i)) if raw is not None else ([], [])
+    )
     out.statuses = {s.fna_path: s for s in statuses if s.fna_path in keys}
     for k in keys:
         out.statuses.setdefault(k, FieldStatus(fna_path=k, status="not_discussed", segment_ids=[]))
@@ -407,10 +482,16 @@ async def stage_combined(deps: ExtractionDeps, keys: dict[str, tuple[SlotDef, st
     vals = {v.fna_path: v for v in values if v.fna_path in keys}
     # Validate like the separate stages; failing fields go through the stage-3 retry path.
     errs = {k: m for k, m in validate_statuses(out.statuses, keys, window).items()}
-    bad_values = [k for k, st in out.statuses.items() if st.status in ("stated", "implied") and (k not in vals or form_problems(vals[k], keys[k][0])
-                                                                                                  or (validator and validator(vals[k], keys[k][0], keys[k][1])))]
+    bad_values = [
+        k
+        for k, st in out.statuses.items()
+        if st.status in ("stated", "implied")
+        and (k not in vals or form_problems(vals[k], keys[k][0]) or (validator and validator(vals[k], keys[k][0], keys[k][1])))
+    ]
     good = {k: v for k, v in vals.items() if k not in bad_values and k not in errs}
-    out.values = {k: v.model_copy(update={"fna_path": concrete_path(deps.profile, keys[k][0], keys[k][1], deps.entities)}) for k, v in good.items()}
+    out.values = {
+        k: v.model_copy(update={"fna_path": concrete_path(deps.profile, keys[k][0], keys[k][1], deps.entities)}) for k, v in good.items()
+    }
     retry = [k for k in bad_values if k not in errs]
     if retry:
         out.values.update(await stage_values(deps, keys, out.statuses, out, validator=validator, only=retry))

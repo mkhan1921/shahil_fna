@@ -16,19 +16,41 @@ PROV = Provenance(run_id="wf-d")
 
 
 def ev(seg, quote):
-    return Evidence(segment_id=seg, char_start=0, char_end=len(quote), quote=quote, speaker_role="client_primary", t_start=1, t_end=2, asr_mean_conf=0.9, role="supports")
+    return Evidence(
+        segment_id=seg,
+        char_start=0,
+        char_end=len(quote),
+        quote=quote,
+        speaker_role="client_primary",
+        t_start=1,
+        t_end=2,
+        asr_mean_conf=0.9,
+        role="supports",
+    )
 
 
 def add(profile, slot_id, instance, path, dist, unit, said="said", seg="s0001"):
     fid = f"{slot_id}#{instance}" if instance else slot_id
-    payload = {"slot_id": slot_id, "instance_key": instance, "fna_path": path, "hypotheses": [Hypothesis(value=Quantity(dist=dist, unit=unit), weight=1, rationale="")],
-               "evidence": [ev(seg, said)], "said": said, "provenance": PROV}
+    payload = {
+        "slot_id": slot_id,
+        "instance_key": instance,
+        "fna_path": path,
+        "hypotheses": [Hypothesis(value=Quantity(dist=dist, unit=unit), weight=1, rationale="")],
+        "evidence": [ev(seg, said)],
+        "said": said,
+        "provenance": PROV,
+    }
     return apply_state_ops(profile, make_ops(profile, [("ADD", fid, seg, payload, "extractor")])).profile
 
 
 def base_profile():
-    return Profile(call_id="c", run_id="wf-d", schema_version="profile_v1", anchor_date=date(2026, 10, 15),
-                   entities={"person.client_primary": Entity(entity_id="person.client_primary", type="person", canonical_name="Sipho")})
+    return Profile(
+        call_id="c",
+        run_id="wf-d",
+        schema_version="profile_v1",
+        anchor_date=date(2026, 10, 15),
+        entities={"person.client_primary": Entity(entity_id="person.client_primary", type="person", canonical_name="Sipho")},
+    )
 
 
 def test_horizon_and_income_stability():
@@ -49,18 +71,39 @@ def test_horizon_and_income_stability():
 def test_derivations_never_override_what_was_said():
     p = base_profile()
     p = add(p, "{p}.employmentType", "client", "client.employmentType", Point(value="salaried"), "none")
-    p = add(p, "riskProfile.answers[income-stability]", None, "riskProfile.answers[income-stability]", Point(value="Very secure, with other income sources"), "none")
+    p = add(
+        p,
+        "riskProfile.answers[income-stability]",
+        None,
+        "riskProfile.answers[income-stability]",
+        Point(value="Very secure, with other income sources"),
+        "none",
+    )
     out = derive_all(p)
     assert out.facts["riskProfile.answers[income-stability]"].derivation is None
 
 
 def test_tertiary_after_matric_and_linked_asset():
     p = base_profile()
-    p = p.model_copy(update={"entities": {**p.entities,
-                                          "person.thandi_1": Entity(entity_id="person.thandi_1", type="person", canonical_name="Thandi"),
-                                          "liability.bond_1": Entity(entity_id="liability.bond_1", type="liability", canonical_name="Bond"),
-                                          "property.house_1": Entity(entity_id="property.house_1", type="property", canonical_name="House")}})
-    p = add(p, "dependants[].tertiaryStartAge", "person.thandi_1", "dependants[d1].tertiaryStartAge", Point(value=18), "age", said="straight after matric")
+    p = p.model_copy(
+        update={
+            "entities": {
+                **p.entities,
+                "person.thandi_1": Entity(entity_id="person.thandi_1", type="person", canonical_name="Thandi"),
+                "liability.bond_1": Entity(entity_id="liability.bond_1", type="liability", canonical_name="Bond"),
+                "property.house_1": Entity(entity_id="property.house_1", type="property", canonical_name="House"),
+            }
+        }
+    )
+    p = add(
+        p,
+        "dependants[].tertiaryStartAge",
+        "person.thandi_1",
+        "dependants[d1].tertiaryStartAge",
+        Point(value=18),
+        "age",
+        said="straight after matric",
+    )
     p = add(p, "liabilities[].type", "liability.bond_1", "liabilities[l1].type", Point(value="home-loan"), "none", said="the bond")
     p = add(p, "assets[].type", "property.house_1", "assets[a1].type", Point(value="primary-residence"), "none", said="our house")
     out = derive_all(p)
@@ -77,9 +120,16 @@ def test_gross_from_net_uses_the_tax_module():
     p = base_profile()
     p = add(p, "{p}.dateOfBirth", "client", "client.dateOfBirth", Point(value=1982.2), "date")
     fid = "income.{p}.grossMonthly#client"
-    payload = {"slot_id": "income.{p}.grossMonthly", "instance_key": "client", "fna_path": "income.client.grossMonthly",
-               "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=42000), unit="ZAR", period="monthly", basis="net"), weight=1, rationale="")],
-               "evidence": [ev("s0007", "I take home about forty-two thousand a month")], "provenance": PROV}
+    payload = {
+        "slot_id": "income.{p}.grossMonthly",
+        "instance_key": "client",
+        "fna_path": "income.client.grossMonthly",
+        "hypotheses": [
+            Hypothesis(value=Quantity(dist=Point(value=42000), unit="ZAR", period="monthly", basis="net"), weight=1, rationale="")
+        ],
+        "evidence": [ev("s0007", "I take home about forty-two thousand a month")],
+        "provenance": PROV,
+    }
     p = apply_state_ops(p, make_ops(p, [("ADD", fid, "s0007", payload, "extractor")])).profile
     out = derive_all(p)
     f = out.facts[fid]
@@ -107,29 +157,63 @@ def test_a_spouse_with_facts_from_the_call_is_a_partner_in_the_plan():
     from advisor_intel.schema.derivations import derive_all
 
     cat = load_catalog()
-    p = Profile(call_id="c", run_id="r", schema_version=cat.version, anchor_date=date(2026, 10, 15),
-                entities={"person.spouse": Entity(entity_id="person.spouse", type="person", canonical_name="Lerato")})
+    p = Profile(
+        call_id="c",
+        run_id="r",
+        schema_version=cat.version,
+        anchor_date=date(2026, 10, 15),
+        entities={"person.spouse": Entity(entity_id="person.spouse", type="person", canonical_name="Lerato")},
+    )
     assert "household.includeSpouse" not in derive_all(p).facts  # no spouse facts: nothing to infer
     seg = "s0010"
-    ev = Evidence(segment_id=seg, char_start=0, char_end=6, quote="I earn", speaker_role="client_secondary", t_start=0, t_end=1, asr_mean_conf=0.95, role="supports")
-    spec = ("ADD", "income.{p}.grossMonthly#spouse", seg, {"slot_id": "income.{p}.grossMonthly", "instance_key": "spouse", "fna_path": "income.spouse.grossMonthly",
+    ev = Evidence(
+        segment_id=seg,
+        char_start=0,
+        char_end=6,
+        quote="I earn",
+        speaker_role="client_secondary",
+        t_start=0,
+        t_end=1,
+        asr_mean_conf=0.95,
+        role="supports",
+    )
+    spec = (
+        "ADD",
+        "income.{p}.grossMonthly#spouse",
+        seg,
+        {
+            "slot_id": "income.{p}.grossMonthly",
+            "instance_key": "spouse",
+            "fna_path": "income.spouse.grossMonthly",
             "hypotheses": [Hypothesis(value=Quantity(dist=Point(value=35000), unit="ZAR", period="monthly"), weight=1, rationale="")],
-            "evidence": [ev], "provenance": Provenance(run_id="r")}, "extractor")
+            "evidence": [ev],
+            "provenance": Provenance(run_id="r"),
+        },
+        "extractor",
+    )
     p = apply_state_ops(p, make_ops(p, [spec])).profile
     d = derive_all(p)
     f = d.facts["household.includeSpouse"]
     assert f.status == "implied" and f.derivation == "partner_on_call" and f.value.dist.p > 0.9 and f.evidence[0].segment_id == seg
     ms = d.facts["household.maritalStatus"]
-    assert ms.status == "implied" and stats.mode_label(ms.value.dist) == "married" and set(ms.value.dist.probs) == {"married", "life-partner"}
+    assert (
+        ms.status == "implied" and stats.mode_label(ms.value.dist) == "married" and set(ms.value.dist.probs) == {"married", "life-partner"}
+    )
 
 
 def test_emergency_answer_needs_asset_information():
     p = base_profile()
     p = add(p, "expenses.items[]", "groceries", "expenses.items[groceries]", Point(value=9000), "ZAR", said="groceries are nine thousand")
     assert "riskProfile.answers[emergency]" not in derive_all(p).facts  # expenses alone say nothing about savings
-    with_cash = p.model_copy(update={"entities": {**p.entities, "account.savings_1": Entity(entity_id="account.savings_1", type="account", canonical_name="Savings")}})
+    with_cash = p.model_copy(
+        update={
+            "entities": {**p.entities, "account.savings_1": Entity(entity_id="account.savings_1", type="account", canonical_name="Savings")}
+        }
+    )
     with_cash = add(with_cash, "assets[].type", "account.savings_1", "assets[a1].type", Point(value="cash"), "none", said="we have savings")
-    with_cash = add(with_cash, "assets[].value", "account.savings_1", "assets[a1].value", Point(value=54_000), "ZAR", said="about fifty-four thousand")
+    with_cash = add(
+        with_cash, "assets[].value", "account.savings_1", "assets[a1].value", Point(value=54_000), "ZAR", said="about fifty-four thousand"
+    )
     out = derive_all(with_cash)
     em = out.facts["riskProfile.answers[emergency]"]
     assert em.derivation == "emergency_from_cash_flow" and em.status == "implied"
@@ -138,15 +222,33 @@ def test_emergency_answer_needs_asset_information():
 
 def test_target_mode_follows_the_target_the_client_gave():
     p = base_profile()
-    p = add(p, "retirement.{p}.targetMonthly", "client", "retirement.client.targetMonthly", Point(value=30_000), "ZAR", said="about thirty thousand a month")
+    p = add(
+        p,
+        "retirement.{p}.targetMonthly",
+        "client",
+        "retirement.client.targetMonthly",
+        Point(value=30_000),
+        "ZAR",
+        said="about thirty thousand a month",
+    )
     out = derive_all(p)
     mode = out.facts["retirement.{p}.targetMode#client"]
     assert mode.status == "implied" and mode.derivation == "target_mode_from_target" and stats.mode_label(mode.value.dist) == "amount"
     assert mode.evidence[0].quote == "about thirty thousand a month"
     q = base_profile()
-    q = add(q, "retirement.{p}.targetPercent", "client", "retirement.client.targetPercent", Point(value=0.7), "pct", said="seventy percent of what I earn")
+    q = add(
+        q,
+        "retirement.{p}.targetPercent",
+        "client",
+        "retirement.client.targetPercent",
+        Point(value=0.7),
+        "pct",
+        said="seventy percent of what I earn",
+    )
     assert stats.mode_label(derive_all(q).facts["retirement.{p}.targetMode#client"].value.dist) == "percent"
     both = add(q, "retirement.{p}.targetMonthly", "client", "retirement.client.targetMonthly", Point(value=30_000), "ZAR")
     assert "retirement.{p}.targetMode#client" not in derive_all(both).facts  # both given: the review decides
-    said = add(p, "retirement.{p}.targetMode", "client", "retirement.client.targetMode", Point(value="percent"), "none", said="as a percentage")
+    said = add(
+        p, "retirement.{p}.targetMode", "client", "retirement.client.targetMode", Point(value="percent"), "none", said="as a percentage"
+    )
     assert derive_all(said).facts["retirement.{p}.targetMode#client"].derivation is None

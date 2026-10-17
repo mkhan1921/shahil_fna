@@ -69,12 +69,25 @@ def normalise_value(
 ) -> tuple[list[Hypothesis], dict[str, Any], list[str], list[str]]:
     """(hypotheses, normalization record, flags, dropped log) for one field value."""
     person = person_of(key)
-    scaled = resolve_hypotheses(fv.hypotheses, spans_for(transcript, segment_ids), slot, context=ScaleContext.for_fact(slot, profile, key, consistency=consistency))
+    scaled = resolve_hypotheses(
+        fv.hypotheses, spans_for(transcript, segment_ids), slot, context=ScaleContext.for_fact(slot, profile, key, consistency=consistency)
+    )
     values: list[Normalized | None] = []
     for it in scaled.items:
         try:
-            values.append(normalize_value(it.raw.intermediate, slot, profile, lex, anchor_date=profile.anchor_date, fact_id=key, person=person, assumptions=assumptions,
-                                          priced_year=getattr(it.raw.intermediate, "priced_year", 0) or None))
+            values.append(
+                normalize_value(
+                    it.raw.intermediate,
+                    slot,
+                    profile,
+                    lex,
+                    anchor_date=profile.anchor_date,
+                    fact_id=key,
+                    person=person,
+                    assumptions=assumptions,
+                    priced_year=getattr(it.raw.intermediate, "priced_year", 0) or None,
+                )
+            )
         except (ValueError, TypeError, KeyError) as e:  # a form the normaliser cannot read: dropped, logged
             values.append(None)
             scaled.flags.append(f"normalisation_error:{type(e).__name__}")
@@ -91,8 +104,16 @@ def normalise_value(
     return hyps, record, flags, list(bounds.dropped)
 
 
-def field_problems(fv: FieldValue, slot: SlotDef, key: str, profile: Profile, lex: Lexicon, transcript: Transcript, segment_ids: list[str],
-                   assumptions: Assumptions | None = None) -> list[str]:
+def field_problems(
+    fv: FieldValue,
+    slot: SlotDef,
+    key: str,
+    profile: Profile,
+    lex: Lexicon,
+    transcript: Transcript,
+    segment_ids: list[str],
+    assumptions: Assumptions | None = None,
+) -> list[str]:
     """Validation for stage 3 (§7.2): forms that cannot be normalised, or values all outside the slot's bounds."""
     try:
         hyps, _rec, flags, dropped = normalise_value(fv, slot, key, profile, lex, transcript, segment_ids, assumptions=assumptions)
@@ -102,7 +123,11 @@ def field_problems(fv: FieldValue, slot: SlotDef, key: str, profile: Profile, le
     if not hyps:
         if dropped:
             lo, hi = slot.bounds or (None, None)
-            problems.append(f"every value is outside the plausible range {lo:g}–{hi:g} for this field; check the scale and the unit" if slot.bounds else "the value is not usable")
+            problems.append(
+                f"every value is outside the plausible range {lo:g}–{hi:g} for this field; check the scale and the unit"
+                if slot.bounds
+                else "the value is not usable"
+            )
         elif any(f in flags for f in ("form_slot_mismatch", "form_not_allowed", "label_unmatched")):
             problems.append("the form or label does not fit this field: use one of the allowed forms and labels")
         else:
@@ -126,14 +151,30 @@ def draft_fact(
 ) -> FactDraft:
     fv = aligned.value
     seg_ids = list(dict.fromkeys([e.segment_id for e in aligned.evidence] + status.segment_ids))
-    hyps, record, flags, dropped = normalise_value(fv, slot, key, profile, lex, transcript, seg_ids, assumptions=assumptions, consistency=consistency)
+    hyps, record, flags, dropped = normalise_value(
+        fv, slot, key, profile, lex, transcript, seg_ids, assumptions=assumptions, consistency=consistency
+    )
     hedges = lookup_hedges(fv.hedges, lex)
     record["hedge_lookups"] = hedges.lookups
     for f in hedges.flags:
         if f not in flags:
             flags.append(f)
-    return FactDraft(key=key, slot=slot, instance=instance, fna_path=fv.fna_path, status=status.status, value=fv, hypotheses=hyps, hedges=hedges.hedges,
-                     evidence=aligned.evidence, normalization=record, dropped=dropped, flags=flags, aligner_score=aligned.aligner_score, retries=retries)
+    return FactDraft(
+        key=key,
+        slot=slot,
+        instance=instance,
+        fna_path=fv.fna_path,
+        status=status.status,
+        value=fv,
+        hypotheses=hyps,
+        hedges=hedges.hedges,
+        evidence=aligned.evidence,
+        normalization=record,
+        dropped=dropped,
+        flags=flags,
+        aligner_score=aligned.aligner_score,
+        retries=retries,
+    )
 
 
 def _entity_refs(profile: Profile, draft: FactDraft, mentions_by_segment: dict[str, set[str]]) -> list[str]:
@@ -172,7 +213,9 @@ def to_state_ops(
     dropped: list[str] = []
     for d in drafts:
         if not d.hypotheses and d.status != "contradicted":
-            dropped.append(f"{d.key}: no usable value after normalisation and bounds ({'; '.join(d.dropped) or ', '.join(d.flags) or 'empty'})")
+            dropped.append(
+                f"{d.key}: no usable value after normalisation and bounds ({'; '.join(d.dropped) or ', '.join(d.flags) or 'empty'})"
+            )
             continue
         hyps = d.hypotheses or [Hypothesis(value=None, weight=1.0, rationale=d.failure or "the value could not be read; see the quote")]
         seg = d.evidence[0].segment_id if d.evidence else None
@@ -212,9 +255,22 @@ def to_state_ops(
                 continue
         specs.append(("ADD", d.key, seg, payload, "extractor"))
     for key, slot, instance, fna_path, evidence in unknown:
-        specs.append(("MARK_UNKNOWN", key, evidence[0].segment_id if evidence else None,
-                      {"reason": "the client said they don't know or haven't decided", "evidence": evidence, "slot_id": slot.slot_id, "instance_key": instance,
-                       "fna_path": fna_path, "provenance": provenance}, "extractor"))
+        specs.append(
+            (
+                "MARK_UNKNOWN",
+                key,
+                evidence[0].segment_id if evidence else None,
+                {
+                    "reason": "the client said they don't know or haven't decided",
+                    "evidence": evidence,
+                    "slot_id": slot.slot_id,
+                    "instance_key": instance,
+                    "fna_path": fna_path,
+                    "provenance": provenance,
+                },
+                "extractor",
+            )
+        )
     return specs, dropped
 
 

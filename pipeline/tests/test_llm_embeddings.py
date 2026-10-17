@@ -39,7 +39,9 @@ def test_cost_estimate():
     usd = llm.usage_cost_usd("anthropic:claude-opus-5-5", input_tokens=1_000_000, output_tokens=100_000, cache_read_tokens=500_000)
     assert abs(usd - (0.5 * 4.0 + 0.1 * 20.0 + 0.5 * 0.20)) < 1e-9
     # Cache writes are part of input_tokens and cost 1.25× the input price.
-    written = llm.usage_cost_usd("anthropic:claude-opus-5-5", input_tokens=1_000_000, output_tokens=0, cache_read_tokens=500_000, cache_write_tokens=200_000)
+    written = llm.usage_cost_usd(
+        "anthropic:claude-opus-5-5", input_tokens=1_000_000, output_tokens=0, cache_read_tokens=500_000, cache_write_tokens=200_000
+    )
     assert abs(written - (0.3 * 4.0 + 0.5 * 0.20 + 0.2 * 4.0 * 1.25)) < 1e-9
     assert llm.usage_cost_usd("test", input_tokens=10, output_tokens=10) == 0.0
     assert llm.usage_cost_usd("anthropic:x", input_tokens=1, output_tokens=1, reported=0.42) == 0.42

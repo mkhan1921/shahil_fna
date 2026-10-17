@@ -57,7 +57,7 @@ def run_attributes(
     call_id: str | None = None,
     workflow_id: str | None = None,
     stage: str | None = None,
-    pins: "VersionPins | None" = None,
+    pins: VersionPins | None = None,
     model: str | None = None,
     prompt_version: str | None = None,
 ) -> dict[str, str]:
@@ -151,7 +151,7 @@ class RunAttributesProcessor(SpanProcessor):
 # --------------------------------------------------------------------------- setup
 
 
-def otlp_exporter(settings: "Settings") -> SpanExporter | None:
+def otlp_exporter(settings: Settings) -> SpanExporter | None:
     """OTLP/HTTP to Braintrust, or None when no API key is configured (local runs, tests)."""
     if not settings.braintrust_api_key:
         return None
@@ -165,7 +165,7 @@ def otlp_exporter(settings: "Settings") -> SpanExporter | None:
 
 
 def setup_telemetry(
-    settings: "Settings | None" = None,
+    settings: Settings | None = None,
     *,
     service_name: str = "advisor-intel",
     exporter: SpanExporter | None = None,

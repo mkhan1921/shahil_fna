@@ -137,7 +137,7 @@ def test_gepa_optimises_the_instruction_block_and_promotes_it(setup):
 
     held = GA.heldout_ids(setup["cases"], n=6)
     runner = make_runner(setup["golds"])
-    summary, result = GA.optimize_group(
+    summary, _result = GA.optimize_group(
         "retirement",
         setup["cases"],
         runner=runner,

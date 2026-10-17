@@ -43,7 +43,9 @@ def _cap(result: Any, cap: int) -> Any:
     text = result if isinstance(result, str) else json.dumps(result, default=str)
     if len(text) <= cap:
         return result
-    return text[: cap - 200] + f"\n…[truncated at {cap} characters: ask for fewer items, a narrower slot group, or page with smaller id lists]"
+    return (
+        text[: cap - 200] + f"\n…[truncated at {cap} characters: ask for fewer items, a narrower slot group, or page with smaller id lists]"
+    )
 
 
 def guarded(name: str, cap: int = RESULT_CAP):
@@ -167,8 +169,14 @@ async def update_plan(
             raise ModelRetry(f"Unknown slot group {slot_group!r}; valid: {', '.join(d.catalog.groups)}")
         slots = d.catalog.in_group(slot_group)
         ids = [s for s in (segment_ids or []) if s in d.transcript.index()]
-        new = ExtractionTask(task_id=task_id, slot_group=slot_group, slot_ids=[s.expand(instance) if instance and s.per_person else s.slot_id for s in slots],
-                             instance_keys=[instance], segment_ids=ids, priority=1)
+        new = ExtractionTask(
+            task_id=task_id,
+            slot_group=slot_group,
+            slot_ids=[s.expand(instance) if instance and s.per_person else s.slot_id for s in slots],
+            instance_keys=[instance],
+            segment_ids=ids,
+            priority=1,
+        )
         if any(t.task_id == task_id for t in plan.tasks):
             raise ModelRetry(f"Task {task_id} already exists; pick a new id.")
         plan.tasks.append(new)
@@ -183,7 +191,9 @@ async def update_plan(
     half = len(task.segment_ids) // 2
     if half < 1:
         raise ModelRetry("This task's window is too small to split.")
-    second = task.model_copy(update={"task_id": f"{task.task_id}:b", "segment_ids": task.segment_ids[half:], "status": "todo", "attempts": 0})
+    second = task.model_copy(
+        update={"task_id": f"{task.task_id}:b", "segment_ids": task.segment_ids[half:], "status": "todo", "attempts": 0}
+    )
     task.segment_ids = task.segment_ids[:half]
     plan.tasks.insert(plan.tasks.index(task) + 1, second)
     return plan_view(d)
@@ -204,12 +214,24 @@ async def view_profile(
         if slot_group and slot.group != slot_group:
             continue
         if only:
-            keep = ("gaps" in only and slot.sensitivity_tier == "A" and f.status in ("not_discussed", "explicitly_unknown")) or (
-                "low_conf" in only and f.p_correct < 0.6 and f.source == "call") or ("conflicts" in only and f.status == "contradicted")
+            keep = (
+                ("gaps" in only and slot.sensitivity_tier == "A" and f.status in ("not_discussed", "explicitly_unknown"))
+                or ("low_conf" in only and f.p_correct < 0.6 and f.source == "call")
+                or ("conflicts" in only and f.status == "contradicted")
+            )
             if not keep:
                 continue
-        rows.append({"fact_id": f.fact_id, "status": f.status, "value": describe_value(f.value), "p": round(f.p_correct, 2), "source": f.source,
-                     "attribution": f.speaker_attribution, "tier": slot.sensitivity_tier})
+        rows.append(
+            {
+                "fact_id": f.fact_id,
+                "status": f.status,
+                "value": describe_value(f.value),
+                "p": round(f.p_correct, 2),
+                "source": f.source,
+                "attribution": f.speaker_attribution,
+                "tier": slot.sensitivity_tier,
+            }
+        )
     return rows
 
 
@@ -251,7 +273,9 @@ def _rrf(*rankings: list[str], k: int = 60) -> list[str]:
 
 @retrieval.tool
 @guarded("search_transcript")
-async def search_transcript(ctx: RunContext[HarnessDeps], query: str, mode: Literal["keyword", "semantic"] | None = None, k: int = 10) -> list[dict[str, Any]]:
+async def search_transcript(
+    ctx: RunContext[HarnessDeps], query: str, mode: Literal["keyword", "semantic"] | None = None, k: int = 10
+) -> list[dict[str, Any]]:
     """Search the call: keyword (BM25), semantic (embeddings), or both merged when mode is not set. Returns segment ids with snippets."""
     d = ctx.deps
     k = max(1, min(20, k))
@@ -268,7 +292,11 @@ async def search_transcript(ctx: RunContext[HarnessDeps], query: str, mode: Lite
     if mode in (None, "semantic"):
         emb = get_embedder(d.pins.embedding_model)
         vecs = d.discourse.segment_vectors
-        mat = np.asarray([vecs[s.segment_id] for s in segs], dtype=np.float32) if all(s.segment_id in vecs for s in segs) else emb.embed_documents([s.text for s in segs])
+        mat = (
+            np.asarray([vecs[s.segment_id] for s in segs], dtype=np.float32)
+            if all(s.segment_id in vecs for s in segs)
+            else emb.embed_documents([s.text for s in segs])
+        )
         sims = cosine(emb.embed_queries([query]), mat)[0]
         semantic = [segs[i].segment_id for i in np.argsort(-sims)][: k * 2]
     ranked = _rrf(keyword, semantic) if mode is None else (keyword or semantic)
@@ -319,7 +347,11 @@ async def extract_slot_group(ctx: RunContext[HarnessDeps], task_id: str) -> dict
     task = next((t for t in plan.tasks if t.task_id == task_id), None)
     if task is None:
         raise ModelRetry(f"No task {task_id}; call view_plan.")
-    unmet = [dep for dep in task.depends_on if next((t.status for t in plan.tasks if t.task_id == dep), "done") not in ("done", "skipped", "failed")]
+    unmet = [
+        dep
+        for dep in task.depends_on
+        if next((t.status for t in plan.tasks if t.task_id == dep), "done") not in ("done", "skipped", "failed")
+    ]
     if unmet:
         raise ModelRetry(f"Task {task_id} depends on {', '.join(unmet)}: run those first.")
     # Re-extractions are budgeted per slot group and person (§13.6), whichever task asks: re-running a done
@@ -361,7 +393,11 @@ async def verify_facts(ctx: RunContext[HarnessDeps], slot_group: str | None = No
     d = ctx.deps
     if slot_group is not None and slot_group not in d.catalog.groups:
         raise ModelRetry(f"Unknown slot group {slot_group!r}")
-    ids = fact_ids or [f.fact_id for f in d.profile.facts.values() if f.source == "call" and (slot_group is None or d.catalog.slot(f.slot_id).group == slot_group)]
+    ids = fact_ids or [
+        f.fact_id
+        for f in d.profile.facts.values()
+        if f.source == "call" and (slot_group is None or d.catalog.slot(f.slot_id).group == slot_group)
+    ]
     if slot_group and slot_group not in d.state.verified_groups:
         d.state.verified_groups.append(slot_group)
     if d.services.verify is None:
@@ -400,9 +436,13 @@ async def apply_state_ops(ctx: RunContext[HarnessDeps], ops: list[AgentOp]) -> d
         except KeyError as e:
             raise ModelRetry(f"Unknown slot in fact id {o.fact_id!r}") from e
         if o.op == "MARK_UNKNOWN":
-            payload = {"reason": o.reason, "slot_id": slot.slot_id, "instance_key": instance or None,
-                       "fna_path": concrete_path(d.profile, slot, instance or None),
-                       "provenance": Provenance(run_id=d.inputs.run_id, schema_version=d.catalog.version)}
+            payload = {
+                "reason": o.reason,
+                "slot_id": slot.slot_id,
+                "instance_key": instance or None,
+                "fna_path": concrete_path(d.profile, slot, instance or None),
+                "provenance": Provenance(run_id=d.inputs.run_id, schema_version=d.catalog.version),
+            }
         elif o.op == "RETRACT":
             payload = {"reason": "change_of_mind" if "mind" in o.reason.lower() else "extraction_error", "note": o.reason}
         else:
@@ -455,7 +495,19 @@ async def lookup_term(ctx: RunContext[HarnessDeps], term: str, context: str = ""
 
 TOOLSETS = [planning.filtered(_enabled), retrieval.filtered(_enabled), work.filtered(_enabled)]
 TOOL_NAMES = [
-    "make_plan", "view_plan", "update_plan", "view_profile", "note",
-    "get_segments", "search_transcript", "get_entity",
-    "extract_slot_group", "verify_facts", "check_constraints", "apply_state_ops", "run_sensitivity", "draft_followups", "lookup_term",
+    "make_plan",
+    "view_plan",
+    "update_plan",
+    "view_profile",
+    "note",
+    "get_segments",
+    "search_transcript",
+    "get_entity",
+    "extract_slot_group",
+    "verify_facts",
+    "check_constraints",
+    "apply_state_ops",
+    "run_sensitivity",
+    "draft_followups",
+    "lookup_term",
 ]

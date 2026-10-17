@@ -3,9 +3,10 @@ real ``Profile`` (through the shared reducer and binding) from a gold call, with
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 

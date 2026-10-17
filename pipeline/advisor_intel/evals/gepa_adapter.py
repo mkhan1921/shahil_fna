@@ -23,8 +23,9 @@ import os
 import re
 import shutil
 import tempfile
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Callable, Iterator, Mapping, Sequence
+from typing import Any
 
 from gepa import EvaluationBatch
 from pydantic import BaseModel

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from pydantic_ai import ModelResponse, TextPart
@@ -17,7 +17,7 @@ from advisor_intel.models.runs import VersionPins
 from advisor_intel.schema.slots import fact_id_for, load_catalog
 
 CAT = load_catalog()
-NOW = datetime(2026, 10, 16, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 16, 12, 0, tzinfo=UTC)
 RA, INC, SMOKER, WILL = "retirement.{p}.retirementAge", "income.{p}.grossMonthly", "{p}.smoker", "estate.{p}.hasWill"
 
 
@@ -54,7 +54,7 @@ PRODUCTION = [
     row(f"{RA}#spouse", "reject", "not_what_they_meant", quotes=["sometime in my sixties"], features={"hedge_strength_max": 0.7}),
     row(f"{RA}#client", "reject", "other", quotes=["in ten years"], features={"derived": 1.0}),
     row(f"{INC}#spouse", "reject", "other", quotes=["two point five"], features={"scale_ambiguous": 1.0}),
-    row(f"{WILL}#client", "reject", "misheard", quotes=["old"], at=datetime(2026, 8, 1, tzinfo=timezone.utc)),
+    row(f"{WILL}#client", "reject", "misheard", quotes=["old"], at=datetime(2026, 8, 1, tzinfo=UTC)),
 ]
 EXPECTED_CAUSES = ["asr", "attribution", "diarization", "coreference", "extraction_miss", "lexicon", "derivation", "wrong_scale", "asr"]
 
@@ -68,7 +68,7 @@ def test_errors_from_production_rows_with_suggested_causes():
     assert e.quotes == ["I earn fifteen thousand"] and e.note == "fifty, not fifteen"
     assert e.text == '"I earn fifteen thousand" · fifty, not fifteen'
     assert errors[4].kind == "missed" and errors[4].text == f"missed {SMOKER}"
-    recent = EA.errors_from_dataset(records, since=datetime(2026, 10, 9, tzinfo=timezone.utc))
+    recent = EA.errors_from_dataset(records, since=datetime(2026, 10, 9, tzinfo=UTC))
     assert len(recent) == len(PRODUCTION) - 1  # the August rejection is outside the week
 
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from advisor_intel.extract.reducer import annotate, make_ops
 from advisor_intel.models.dists import Categorical, Triangular
@@ -12,7 +12,7 @@ from advisor_intel.verify.labels import build_labels, labels_from_review, summar
 
 from .verify_factories import CATALOG, PROV, ProfileBuilder, ev, money, point, qty
 
-AT = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+AT = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
 
 
 def rv(status="accepted"):
@@ -47,7 +47,7 @@ def _before():
 
 
 def _ops(p, ids):
-    hyp = lambda q: [Hypothesis(value=q, weight=1.0, rationale="reviewer")]  # noqa: E731
+    hyp = lambda q: [Hypothesis(value=q, weight=1.0, rationale="reviewer")]
     specs = [
         ("CONFIRM", ids["acc"], None, {"review": rv()}, "reviewer"),
         ("UPDATE", ids["in"], None, {"replace_hypotheses": hyp(point(60, "age")), "review": rv("edited")}, "reviewer"),

@@ -70,7 +70,14 @@ def test_category_labels_are_enums_and_round_trip():
     payload[key] = [
         {
             "instance": "-",
-            "hypotheses": [{"intermediate": {"type": "CATEGORY", "label": "anc-accrual", "certainty_word": "I think"}, "weight": 0, "rationale": "said ANC with accrual", "revises": False}],
+            "hypotheses": [
+                {
+                    "intermediate": {"type": "CATEGORY", "label": "anc-accrual", "certainty_word": "I think"},
+                    "weight": 0,
+                    "rationale": "said ANC with accrual",
+                    "revises": False,
+                }
+            ],
             "hedges": ["I think"],
             "speaker_attribution": "client",
             "said": "we signed an ANC with accrual I think",
@@ -82,21 +89,52 @@ def test_category_labels_are_enums_and_round_trip():
     vals = to_field_values(out, slots, lambda s, i: s.fna_path)
     assert len(vals) == 1 and isinstance(vals[0].hypotheses[0].intermediate, CategoryForm)
     bad = dict(payload)
-    bad[key] = [dict(payload[key][0], hypotheses=[{"intermediate": {"type": "CATEGORY", "label": "married-ish", "certainty_word": ""}, "weight": 0, "rationale": "", "revises": False}])]
+    bad[key] = [
+        dict(
+            payload[key][0],
+            hypotheses=[
+                {
+                    "intermediate": {"type": "CATEGORY", "label": "married-ish", "certainty_word": ""},
+                    "weight": 0,
+                    "rationale": "",
+                    "revises": False,
+                }
+            ],
+        )
+    ]
     with pytest.raises(ValidationError):
         ts.values.model_validate(bad)
 
 
 def test_amount_forms_round_trip_and_statuses():
     slots = [CAT.slot("income.{p}.grossMonthly")]
-    ts = compile_task("income", CAT, slot_ids=[s.slot_id for s in slots], instances={"income.{p}.grossMonthly": ("client", "spouse")}, concrete_paths=["income.client.grossMonthly"])
+    ts = compile_task(
+        "income",
+        CAT,
+        slot_ids=[s.slot_id for s in slots],
+        instances={"income.{p}.grossMonthly": ("client", "spouse")},
+        concrete_paths=["income.client.grossMonthly"],
+    )
     out = ts.values.model_validate(
         {
             _key("income.{p}.grossMonthly"): [
                 {
                     "instance": "client",
                     "hypotheses": [
-                        {"intermediate": {"type": "AMOUNT_APPROX", "value": 42000, "approx_word": "about", "currency": "ZAR", "period": "monthly", "basis": "net", "priced_year": 0}, "weight": 0, "rationale": "take-home", "revises": False}
+                        {
+                            "intermediate": {
+                                "type": "AMOUNT_APPROX",
+                                "value": 42000,
+                                "approx_word": "about",
+                                "currency": "ZAR",
+                                "period": "monthly",
+                                "basis": "net",
+                                "priced_year": 0,
+                            },
+                            "weight": 0,
+                            "rationale": "take-home",
+                            "revises": False,
+                        }
                     ],
                     "hedges": [],
                     "speaker_attribution": "client",

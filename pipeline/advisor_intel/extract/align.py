@@ -215,8 +215,18 @@ def evidence_for(seg: Segment, start: int, end: int, *, role: str = "supports", 
     t0 = covered[0].t_start if covered else seg.t_start
     t1 = covered[-1].t_end if covered else seg.t_end
     conf = float(np.mean([w.conf for w in covered])) if covered else seg.mean_conf
-    return Evidence(segment_id=seg.segment_id, char_start=start, char_end=end, quote=seg.text[start:end], speaker_role=seg.speaker_role,
-                    t_start=t0, t_end=t1, asr_mean_conf=round(conf, 4), role=role, aligner_score=None if score is None else round(score, 4))  # type: ignore[arg-type]
+    return Evidence(
+        segment_id=seg.segment_id,
+        char_start=start,
+        char_end=end,
+        quote=seg.text[start:end],
+        speaker_role=seg.speaker_role,
+        t_start=t0,
+        t_end=t1,
+        asr_mean_conf=round(conf, 4),
+        role=role,
+        aligner_score=None if score is None else round(score, 4),
+    )  # type: ignore[arg-type]
 
 
 def candidates(deps: ExtractionDeps, fv: FieldValue, slot: SlotDef, status_segments: list[str]) -> list[Segment]:
@@ -281,8 +291,13 @@ async def align_values(
         top = al.evidence[0]
         seg = deps.transcript.segment(top.segment_id)
         if fuzz.partial_ratio(canon(al.value.said), canon(top.quote)) < SAID_MATCH:
-            res.aligned[key] = Aligned(value=al.value.model_copy(update={"said": seg.text[top.char_start : top.char_end] or top.quote}),
-                                       evidence=al.evidence, aligner_score=al.aligner_score, method=al.method, said_replaced=True)
+            res.aligned[key] = Aligned(
+                value=al.value.model_copy(update={"said": seg.text[top.char_start : top.char_end] or top.quote}),
+                evidence=al.evidence,
+                aligner_score=al.aligner_score,
+                method=al.method,
+                said_replaced=True,
+            )
     return res
 
 
@@ -326,7 +341,9 @@ def _revision_evidence(fv: FieldValue, evidence: list[Evidence], cands: list[Seg
     return out[:2]
 
 
-async def _model_align(deps: ExtractionDeps, values: dict[str, FieldValue], unresolved: dict[str, list[Segment]], slots: dict[str, SlotDef], res: AlignResult) -> None:
+async def _model_align(
+    deps: ExtractionDeps, values: dict[str, FieldValue], unresolved: dict[str, list[Segment]], slots: dict[str, SlotDef], res: AlignResult
+) -> None:
     rm = llm.for_role("verifier", deps.pins)
     res.model = rm.name
     prompt = pinned("aligner", deps.pins.prompt_versions)
@@ -336,15 +353,21 @@ async def _model_align(deps: ExtractionDeps, values: dict[str, FieldValue], unre
         if llm.is_stub(rm.name):
             res.dropped[key] = "no span matched the quoted words and no aligner model is configured"
             continue
-        claim = f"Field: {slot.label} ({slot.slot_id}) for {key.split('#', 1)[-1] if '#' in key else 'the household'}\nValue as quoted: \"{fv.said}\"\nReading: {fv.interpretation}"
+        claim = f'Field: {slot.label} ({slot.slot_id}) for {key.split("#", 1)[-1] if "#" in key else "the household"}\nValue as quoted: "{fv.said}"\nReading: {fv.interpretation}'
         text = f"{claim}\n\n## Candidate segments\n" + "\n".join(render_segment(s) for s in cands)
         result = await aligner_agent.run(text, model=rm.model, model_settings=rm.settings, instructions=prompt.text)
         res.requests += result.usage.requests
         res.input_tokens += result.usage.input_tokens or 0
         res.output_tokens += result.usage.output_tokens or 0
         by_id = {s.segment_id: s for s in cands}
-        kept = sorted(((max(0.0, min(1.0, sc.score)), by_id[sc.segment_id]) for sc in result.output.scores if sc.segment_id in by_id and sc.score >= KEEP_SCORE),
-                      key=lambda t: -t[0])
+        kept = sorted(
+            (
+                (max(0.0, min(1.0, sc.score)), by_id[sc.segment_id])
+                for sc in result.output.scores
+                if sc.segment_id in by_id and sc.score >= KEEP_SCORE
+            ),
+            key=lambda t: -t[0],
+        )
         if not kept:
             res.dropped[key] = "the aligner found no span stating or implying the value"
             continue

@@ -19,8 +19,16 @@ CFG = load_config()
 ZERO = CFG.with_(zero_volatility=True)
 CMA_ = load_cma()
 TAX = StubTaxModel()
-SETTINGS = ModeSettings(n_paths=1_000, attribution_n=1_000, shapley_paths=400, shapley_contexts=20, shapley_permutations=70,
-                        shapley_inner=3, top_drivers=5, need_bands_k=10)
+SETTINGS = ModeSettings(
+    n_paths=1_000,
+    attribution_n=1_000,
+    shapley_paths=400,
+    shapley_contexts=20,
+    shapley_permutations=70,
+    shapley_inner=3,
+    top_drivers=5,
+    need_bands_k=10,
+)
 
 
 def forecaster(profile, doc, config=CFG):
@@ -38,10 +46,18 @@ def test_only_market_randomness_gives_a_market_share_of_one():
 
 def test_only_extraction_risk_gives_an_extraction_share_of_one():
     doc = sample_document()
-    prof, _ = add_fact(prior_profile(doc), "retirement.{p}.retirementAge", "retirement.client.retirementAge", point(58), instance="client",
-                       unit="age", p_correct=0.5)
-    prof, _ = add_fact(prof, "income.{p}.grossMonthly", "income.client.grossMonthly", point(100_000), instance="client", period="monthly",
-                       p_correct=0.5)
+    prof, _ = add_fact(
+        prior_profile(doc),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        point(58),
+        instance="client",
+        unit="age",
+        p_correct=0.5,
+    )
+    prof, _ = add_fact(
+        prof, "income.{p}.grossMonthly", "income.client.grossMonthly", point(100_000), instance="client", period="monthly", p_correct=0.5
+    )
     fc = forecaster(prof, doc, ZERO)  # no market risk; the facts are certain if heard right
     raw, design = sobol_groups(fc, 12, 1_000)
     assert design.variance > 0
@@ -51,8 +67,15 @@ def test_only_extraction_risk_gives_an_extraction_share_of_one():
 
 def test_only_client_content_gives_a_content_share_of_one():
     doc = sample_document()
-    prof, _ = add_fact(prior_profile(doc), "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=55, mode=60, high=70),
-                       instance="client", unit="age", review="accepted")
+    prof, _ = add_fact(
+        prior_profile(doc),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=55, mode=60, high=70),
+        instance="client",
+        unit="age",
+        review="accepted",
+    )
     fc = forecaster(prof, doc, ZERO)
     raw, _ = sobol_groups(fc, 13, 1_000)
     assert raw["client_content"] == pytest.approx(1.0, abs=0.12)
@@ -76,10 +99,24 @@ def test_shapley_effects_sum_to_the_market_share():
 
 def test_top_drivers_rank_a_wide_fact_above_a_narrow_one():
     doc = sample_document()
-    prof, wide = add_fact(prior_profile(doc), "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=55, mode=62, high=70),
-                          instance="client", unit="age", review="accepted")
-    prof, narrow = add_fact(prof, "income.{p}.grossMonthly", "income.client.grossMonthly", Triangular(low=99_000, mode=100_000, high=101_000),
-                            instance="client", period="monthly", review="accepted")
+    prof, wide = add_fact(
+        prior_profile(doc),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=55, mode=62, high=70),
+        instance="client",
+        unit="age",
+        review="accepted",
+    )
+    prof, narrow = add_fact(
+        prof,
+        "income.{p}.grossMonthly",
+        "income.client.grossMonthly",
+        Triangular(low=99_000, mode=100_000, high=101_000),
+        instance="client",
+        period="monthly",
+        review="accepted",
+    )
     fc = forecaster(prof, doc, ZERO)
     _, design = sobol_groups(fc, 14, 1_000)
     drivers = dict(top_drivers(fc, design, limit=5))
@@ -89,10 +126,24 @@ def test_top_drivers_rank_a_wide_fact_above_a_narrow_one():
 
 def test_the_driver_screen_keeps_the_dominant_fact(monkeypatch):
     doc = sample_document()
-    prof, wide = add_fact(prior_profile(doc), "retirement.{p}.retirementAge", "retirement.client.retirementAge", Triangular(low=55, mode=62, high=70),
-                          instance="client", unit="age", review="accepted")
-    prof, _ = add_fact(prof, "income.{p}.grossMonthly", "income.client.grossMonthly", Triangular(low=99_000, mode=100_000, high=101_000),
-                       instance="client", period="monthly", review="accepted")
+    prof, wide = add_fact(
+        prior_profile(doc),
+        "retirement.{p}.retirementAge",
+        "retirement.client.retirementAge",
+        Triangular(low=55, mode=62, high=70),
+        instance="client",
+        unit="age",
+        review="accepted",
+    )
+    prof, _ = add_fact(
+        prof,
+        "income.{p}.grossMonthly",
+        "income.client.grossMonthly",
+        Triangular(low=99_000, mode=100_000, high=101_000),
+        instance="client",
+        period="monthly",
+        review="accepted",
+    )
     fc = forecaster(prof, doc, ZERO)
     _, design = sobol_groups(fc, 15, 1_000)
     monkeypatch.setattr(attribution, "DRIVER_MARGIN", 0)  # one pick-freeze run for two candidates: the screen decides
@@ -116,4 +167,7 @@ def test_attribution_sentence():
     assert pct == [63, 26, 11] and sum(pct) == 100
     assert "markets" in s and "hasn't decided" in s and "misheard" in s
     assert attribution_sentence({"market": 0.0, "client_content": 0.0, "extraction": 0.0}).startswith("There is no measurable")
-    assert np.isclose(sum(int(x) for x in re.findall(r"(\d+)%", attribution_sentence({"market": 1 / 3, "client_content": 1 / 3, "extraction": 1 / 3}))), 100)
+    assert np.isclose(
+        sum(int(x) for x in re.findall(r"(\d+)%", attribution_sentence({"market": 1 / 3, "client_content": 1 / 3, "extraction": 1 / 3}))),
+        100,
+    )

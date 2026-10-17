@@ -201,10 +201,7 @@ def _chosen_number(fact: Fact) -> float | None:
 
 
 def _same_reading(a: float, b: float) -> bool:
-    for x in (b, b * 12, b / 12):
-        if abs(a - x) <= SECOND_PASS_TOL * max(abs(a), abs(x), 1e-9):
-            return True
-    return False
+    return any(abs(a - x) <= SECOND_PASS_TOL * max(abs(a), abs(x), 1e-09) for x in (b, b * 12, b / 12))
 
 
 def second_pass(fact: Fact, spans: Iterable[NumericSpan]) -> tuple[bool, bool | None]:

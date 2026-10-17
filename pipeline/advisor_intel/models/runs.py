@@ -7,7 +7,7 @@ object storage (§13.1), so a 90-minute call never bloats the workflow history.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum, IntEnum
+from enum import IntEnum, StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -24,7 +24,7 @@ class Stage(IntEnum):
     REVIEW = 6
 
 
-class RunState(str, Enum):
+class RunState(StrEnum):
     STARTED = "STARTED"
     INGESTED = "INGESTED"
     DISCOURSE_DONE = "DISCOURSE_DONE"

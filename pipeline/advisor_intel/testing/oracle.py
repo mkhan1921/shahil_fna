@@ -85,7 +85,12 @@ class Oracle:
         for o in self.objects:
             if o["group"] != g:
                 continue
-            item = {"entity_id": f"new:{_slug(o['name'])}", "entity_type": o["type"], "name": o["name"], "segment_ids": self.seg_ids(o["quotes"])}
+            item = {
+                "entity_id": f"new:{_slug(o['name'])}",
+                "entity_type": o["type"],
+                "name": o["name"],
+                "segment_ids": self.seg_ids(o["quotes"]),
+            }
             if g == "expenses":
                 item["catalog_key"] = o.get("catalog_key", "custom")
             out.append(item)
@@ -104,7 +109,9 @@ class Oracle:
             slot, _, ginst = gk.partition("#")
             if re.sub(r"[^A-Za-z0-9]+", "_", slot.replace("{p}", "p")).strip("_") != prop:
                 continue
-            inst_ok = ginst == instance or (ginst.startswith("@") and _slug(ginst[1:]) in _slug(instance)) or (not ginst and instance == "-")
+            inst_ok = (
+                ginst == instance or (ginst.startswith("@") and _slug(ginst[1:]) in _slug(instance)) or (not ginst and instance == "-")
+            )
             if not inst_ok:
                 continue
             hyps = []
@@ -112,13 +119,31 @@ class Oracle:
                 form = {k: v for k, v in f.items() if not k.startswith("_")}
                 if "currency" in form and form["type"] != "AMOUNT_RELATIVE":
                     form.setdefault("priced_year", 0)  # the strict schema requires it; gold omits it when the amount is undated
-                hyps.append({"intermediate": form, "weight": f.get("_weight", 0), "rationale": "as said", "revises": bool(f.get("_revises", False))})
-            ans = {"instance": instance, "hypotheses": hyps, "hedges": g.get("hedges", []), "speaker_attribution": g.get("attribution", "client"),
-                   "said": g["said"], "interpretation": g.get("interpretation", "as the client said"), "self_score": g.get("self_score", 0.9)}
+                hyps.append(
+                    {"intermediate": form, "weight": f.get("_weight", 0), "rationale": "as said", "revises": bool(f.get("_revises", False))}
+                )
+            ans = {
+                "instance": instance,
+                "hypotheses": hyps,
+                "hedges": g.get("hedges", []),
+                "speaker_attribution": g.get("attribution", "client"),
+                "said": g["said"],
+                "interpretation": g.get("interpretation", "as the client said"),
+                "self_score": g.get("self_score", 0.9),
+            }
             if combined:
                 ans.update(status=g.get("status", "stated"), segment_ids=self.seg_ids(g.get("quotes", g["said"])))
             return ans
         if combined:
-            return {"instance": instance, "hypotheses": [], "hedges": [], "speaker_attribution": "client", "said": "", "interpretation": "",
-                    "self_score": 0.0, "status": "not_discussed", "segment_ids": []}
+            return {
+                "instance": instance,
+                "hypotheses": [],
+                "hedges": [],
+                "speaker_attribution": "client",
+                "said": "",
+                "interpretation": "",
+                "self_score": 0.0,
+                "status": "not_discussed",
+                "segment_ids": [],
+            }
         return None

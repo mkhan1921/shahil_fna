@@ -106,8 +106,16 @@ def speaker_relative_mentions(seg: Segment, entities: dict[str, Entity]) -> list
             target = "person.spouse"
         elif seg.speaker_role == "client_secondary":
             target = "person.client_primary"
-        out.append(Mention(segment_id=seg.segment_id, char_start=m.start(), char_end=m.end(), surface=m.group(0), entity_id=target,
-                           resolution_conf=0.95 if target else 0.0))
+        out.append(
+            Mention(
+                segment_id=seg.segment_id,
+                char_start=m.start(),
+                char_end=m.end(),
+                surface=m.group(0),
+                entity_id=target,
+                resolution_conf=0.95 if target else 0.0,
+            )
+        )
     return out
 
 
@@ -118,8 +126,41 @@ def _slug(s: str) -> str:
 # Surface forms that are aliases in the spec's sense ("she", "that policy") but never identify an entity:
 # two people both called "she" are not the same person, and the model gains nothing from seeing them.
 _NON_NAMES = frozenset(
-    {"he", "she", "they", "him", "her", "them", "his", "hers", "their", "theirs", "it", "its", "that", "this", "those", "these",
-     "there", "the", "my", "our", "your", "mine", "ours", "yours", "one", "who", "which", "what", "we", "you", "i", "me", "us"}
+    {
+        "he",
+        "she",
+        "they",
+        "him",
+        "her",
+        "them",
+        "his",
+        "hers",
+        "their",
+        "theirs",
+        "it",
+        "its",
+        "that",
+        "this",
+        "those",
+        "these",
+        "there",
+        "the",
+        "my",
+        "our",
+        "your",
+        "mine",
+        "ours",
+        "yours",
+        "one",
+        "who",
+        "which",
+        "what",
+        "we",
+        "you",
+        "i",
+        "me",
+        "us",
+    }
 )
 
 
@@ -211,13 +252,31 @@ class Registry:
 def seed_registry(prior_entities: dict[str, Entity] | None, crm: CrmRecord | None, *, secondary_speaker: bool = False) -> Registry:
     """The prior file's people, the client and the adviser; a second client on the call is the spouse."""
     ents = dict(prior_entities or {})
-    ents.setdefault("person.client_primary", Entity(entity_id="person.client_primary", type="person", canonical_name="Client", attributes={"person_key": "client"}))
+    ents.setdefault(
+        "person.client_primary",
+        Entity(entity_id="person.client_primary", type="person", canonical_name="Client", attributes={"person_key": "client"}),
+    )
     if secondary_speaker:
         name = next((p.name for p in crm.household if p.role == "spouse" and p.name), "") if crm else ""
-        ents.setdefault("person.spouse", Entity(entity_id="person.spouse", type="person", canonical_name=name or "Spouse",
-                                                aliases=[name.split()[0]] if name else [], attributes={"person_key": "spouse"}))
-    ents.setdefault("person.advisor", Entity(entity_id="person.advisor", type="person", canonical_name=(crm.adviser_name if crm else "") or "Adviser",
-                                             attributes={"role": "advisor"}))
+        ents.setdefault(
+            "person.spouse",
+            Entity(
+                entity_id="person.spouse",
+                type="person",
+                canonical_name=name or "Spouse",
+                aliases=[name.split()[0]] if name else [],
+                attributes={"person_key": "spouse"},
+            ),
+        )
+    ents.setdefault(
+        "person.advisor",
+        Entity(
+            entity_id="person.advisor",
+            type="person",
+            canonical_name=(crm.adviser_name if crm else "") or "Adviser",
+            attributes={"role": "advisor"},
+        ),
+    )
     return Registry(entities=ents)
 
 
@@ -257,8 +316,14 @@ def apply_window(reg: Registry, window: list[Segment], out: WindowOut) -> None:
         attrs: dict[str, Any] = {kv.key: kv.value for kv in ne.attributes if kv.key}
         if ne.relation:
             attrs["relation"] = ne.relation
-        reg.entities[eid] = Entity(entity_id=eid, type=ne.type, canonical_name=ne.canonical_name.strip(), aliases=[],
-                                   attributes=attrs, first_mention=ne.first_segment_id if ne.first_segment_id in by_id else window[0].segment_id)
+        reg.entities[eid] = Entity(
+            entity_id=eid,
+            type=ne.type,
+            canonical_name=ne.canonical_name.strip(),
+            aliases=[],
+            attributes=attrs,
+            first_mention=ne.first_segment_id if ne.first_segment_id in by_id else window[0].segment_id,
+        )
         refs[ne.ref] = eid
     for mo in out.mentions:
         seg = by_id.get(mo.segment_id)
@@ -271,8 +336,16 @@ def apply_window(reg: Registry, window: list[Segment], out: WindowOut) -> None:
         conf = max(0.0, min(1.0, mo.confidence))
         if target is not None and (target not in reg.entities or conf < RESOLVE_MIN):
             target = None
-        reg.add_mention(Mention(segment_id=seg.segment_id, char_start=span[0], char_end=span[1], surface=seg.text[span[0] : span[1]],
-                                entity_id=target, resolution_conf=conf))
+        reg.add_mention(
+            Mention(
+                segment_id=seg.segment_id,
+                char_start=span[0],
+                char_end=span[1],
+                surface=seg.text[span[0] : span[1]],
+                entity_id=target,
+                resolution_conf=conf,
+            )
+        )
     for mg in out.merges:
         keep, drop = refs.get(mg.keep_id, mg.keep_id), refs.get(mg.merge_id, mg.merge_id)
         if keep == drop or keep not in reg.entities or drop not in reg.entities:
@@ -293,8 +366,13 @@ async def discover(reg: Registry, transcript: Transcript, pins: VersionPins, *, 
     for seg in transcript.segments:
         if seg.speaker_role == "client_primary" and "person.spouse" not in reg.entities and _SPOUSE_SURE.search(seg.text):
             # The client has a spouse the prior file and CRM did not know about: "my wife" is not an ambiguous reference.
-            reg.entities["person.spouse"] = Entity(entity_id="person.spouse", type="person", canonical_name="Spouse",
-                                                   attributes={"person_key": "spouse"}, first_mention=seg.segment_id)
+            reg.entities["person.spouse"] = Entity(
+                entity_id="person.spouse",
+                type="person",
+                canonical_name="Spouse",
+                attributes={"person_key": "spouse"},
+                first_mention=seg.segment_id,
+            )
         for m in speaker_relative_mentions(seg, reg.entities):
             reg.add_mention(m)
     if not use_llm:
@@ -351,7 +429,11 @@ async def merge_pass(reg: Registry, pins: VersionPins, *, use_llm: bool) -> Regi
     for a, b in pairs:
         d = decided.get((a, b)) or decided.get((b, a))
         if d is not None and d.same and d.confidence >= MERGE_MIN:
-            keep, drop = (a, b) if (reg.entities.get(a) and reg.entities[a].fna_id) or not (reg.entities.get(b) and reg.entities[b].fna_id) else (b, a)
+            keep, drop = (
+                (a, b)
+                if (reg.entities.get(a) and reg.entities[a].fna_id) or not (reg.entities.get(b) and reg.entities[b].fna_id)
+                else (b, a)
+            )
             reg.merge(keep, drop)
         elif a in reg.entities and b in reg.entities and (a, b) not in reg.possible_duplicates and (b, a) not in reg.possible_duplicates:
             reg.possible_duplicates.append((a, b))
@@ -385,7 +467,9 @@ def link_crm(reg: Registry, crm: CrmRecord | None, transcript: Transcript, embed
         for i, p in enumerate(crm.products):
             name_score = fuzz.token_set_ratio(" ".join([e.canonical_name, *e.aliases]), f"{p.provider} {p.product}") / 100.0
             type_words = _PRODUCT_WORDS.get(e.type, ())
-            type_score = 1.0 if (p.fna_type and p.fna_type in str(e.attributes.values())) or any(w in descs[i].lower() for w in type_words) else 0.0
+            type_score = (
+                1.0 if (p.fna_type and p.fna_type in str(e.attributes.values())) or any(w in descs[i].lower() for w in type_words) else 0.0
+            )
             amount_score = 0.0
             try:
                 amt = float(e.attributes.get("amount", "nan"))

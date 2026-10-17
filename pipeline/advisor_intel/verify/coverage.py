@@ -634,7 +634,9 @@ async def check_coverage(
         if offline and all(offline):
             result.skipped = OFFLINE_SKIP
         else:
-            result.unanswered += [q.item.fact_id for q in questions if q.question_id not in answers and q.item.fact_id not in result.unanswered]
+            result.unanswered += [
+                q.item.fact_id for q in questions if q.question_id not in answers and q.item.fact_id not in result.unanswered
+            ]
         next_round: list[ExpectedFact] = []
         for q in questions:
             a = answers.get(q.question_id)
