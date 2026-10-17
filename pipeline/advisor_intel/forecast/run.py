@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import inspect
 import math
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -27,7 +28,7 @@ from ..models.forecast import ForecastResult
 from ..models.profile import Profile
 from .config import CMA, ForecastConfig, load_cma, load_config
 from .engine import EngineResult, simulate
-from .mapper import ForecastInput, ForecastPlan, Override, build_plan
+from .mapper import ForecastInput, ForecastPlan, Override, build_plan, plan_from_document
 from .returns import BootstrapShocks, HistoricalSeries, MarketModel, MarketPaths, MarketShocks, StationaryBlockBootstrap
 from .sampling import FactUniforms, Uniforms, derive_seed
 from .tax import TaxModel, default_tax_model
@@ -223,20 +224,41 @@ def _finite(x: float | None, decimals: int = 6) -> float | None:
     return round(float(x), decimals)
 
 
+DETERMINISTIC_KEYS = ("currentAge", "retirementAge", "planningAge", "yearsToRetirement", "currentCapital", "monthlyContributions",
+                      "projectedCapital", "projectedCapitalReal", "targetMonthlyToday", "targetMonthlyAtRetirement", "requiredCapital",
+                      "requiredCapitalReal", "shortfall", "shortfallReal", "funded", "initialDrawdown", "sustainableMonthlyToday",
+                      "replacementRatio", "targetReplacementRatio", "depletionAge")
+
+
+def _snake(name: str) -> str:
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
 def deterministic_projection(analysis: Any) -> dict[str, float | None]:
-    """The FNA's retirement projection per person, flattened for side-by-side display (§12.8)."""
+    """The FNA's retirement projection per person, flattened for side-by-side display (§12.8).
+
+    Keys are ``"<person>.<field>"`` in snake case (``client.projected_capital``, ``spouse.depletion_age``), as the
+    app's review overlay reads them (``lib/review/impact.ts`` ``forecastDeterministic``).
+    """
     data = analysis.model_dump(mode="json") if hasattr(analysis, "model_dump") else analysis
     persons = (data or {}).get("persons") or {}
     out: dict[str, float | None] = {}
-    keys = ("currentAge", "retirementAge", "planningAge", "yearsToRetirement", "currentCapital", "monthlyContributions",
-            "projectedCapital", "projectedCapitalReal", "targetMonthlyToday", "targetMonthlyAtRetirement", "requiredCapital",
-            "shortfall", "funded", "initialDrawdown", "sustainableMonthlyToday", "depletionAge")
     for person in sorted(persons):
         ret = (persons[person] or {}).get("retirement") or {}
-        for k in keys:
+        for k in DETERMINISTIC_KEYS:
             v = ret.get(k)
-            out[f"{person}.{k}"] = _finite(float(v)) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+            out[f"{person}.{_snake(k)}"] = _finite(float(v)) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
     return out
+
+
+def zero_volatility_capital(plan: ForecastPlan, tax_model: TaxModel) -> dict[str, float | None]:
+    """§12.8's consistency figure, ``"<person>.mc_zero_vol_capital"``: the Monte Carlo capital at retirement with every
+    volatility switched off and every fact at its median (the plan's median document), which must agree with the
+    FNA's ``projectedCapital`` within 0.5%."""
+    median = F.FnaDocument.model_validate(plan.doc)
+    zero = plan_from_document(median, anchor=plan.anchor, config=plan.config.with_(zero_volatility=True), cma=plan.cma, call_id=plan.profile_id)
+    result = Forecaster(zero, tax_model).run(0, 2).result
+    return {f"{k}.mc_zero_vol_capital": _finite(float(v[0])) for k, v in sorted(result.capital_at_retirement.items())}
 
 
 def summarise(ev: Evaluation) -> dict[str, Any]:
@@ -254,10 +276,10 @@ def summarise(ev: Evaluation) -> dict[str, Any]:
         "goal_funding": {k: round(float(v.mean()), 6) for k, v in sorted(r.goal_funded.items())},
         "ages": [int(a) for a in r.ages],
         "net_worth_bands": _bands(r.net_worth_real),
-        "shortfall": {
+        "shortfall": {  # §12.4: P(any), median first shortfall age, p90 total real shortfall
             "p_any": round(1 - successes / n, 6),
-            "median_first_age": _finite(float(np.median(failing)), 2) if failing.size else None,
-            "p90_total_real": round(float(np.percentile(r.total_shortfall_real, 90)), 0),
+            "median_first_shortfall_age": _finite(float(np.median(failing)), 2) if failing.size else None,
+            "p90_total_real_shortfall": round(float(np.percentile(r.total_shortfall_real, 90)), 0),
         },
         "liquidity_breach_prob": round(float(r.liquidity_breach.mean()), 6),
         "retirement_income_bands": _bands(r.retirement_income_real),
@@ -315,7 +337,10 @@ def run_forecast(
     attribution = attribute(fc, seed, settings)
 
     median_doc = F.FnaDocument.model_validate(plan.doc)
-    deterministic = deterministic_projection(_call(fna_analyse, median_doc, profile.anchor_date)) if fna_analyse else {}
+    deterministic: dict[str, float | None] = {}
+    if fna_analyse:
+        deterministic = deterministic_projection(_call(fna_analyse, median_doc, profile.anchor_date))
+        deterministic.update(zero_volatility_capital(plan, tax_model))
     need_bands: dict[str, dict[str, float]] = {}
     if fna_bands:
         docs = binding.materialise_draws(profile, settings.need_bands_k, seed=seed, base=base_document)

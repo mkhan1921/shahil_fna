@@ -34,22 +34,23 @@ def analyse_batch(docs: Iterable[FnaDocument], *, today: date | datetime | None 
 
 
 def need_shortfalls(analysis: Analysis) -> dict[str, float]:
-    """Every need's shortfall in one analysis, keyed ``"<person>.<area>"`` for personal needs (client, spouse)
-    and by area for household needs; children and goals by their document ids.
+    """Every need's shortfall in one analysis, keyed as the app's review overlay keys its need lines
+    (``lib/review/impact.ts``): ``"<area>.<person>"`` for personal needs (client, spouse) and ``"<area>.household"``
+    for the household's; each child's tertiary need as ``"education.<dependantId>"`` and goals as ``"goal.<id>"``.
 
     Income protection is a monthly benefit; retirement is the capital short at retirement (nominal); estate is
     the liquidity shortfall; ``education.<dependantId>`` is the shortfall in today's money."""
     out: dict[str, float] = {}
     for key, p in analysis.persons.items():
-        out[f"{key}.life"] = p.death.shortfall
-        out[f"{key}.disability"] = p.disability.shortfall
-        out[f"{key}.income-protection"] = p.incomeProtection.shortfall
-        out[f"{key}.severe-illness"] = p.severeIllness.shortfall
-        out[f"{key}.funeral"] = p.funeral.shortfall
-        out[f"{key}.estate"] = p.estate.liquidityShortfall
-        out[f"{key}.retirement"] = p.retirement.shortfall
-    out["emergency"] = analysis.emergency.shortfall
-    out["education"] = analysis.educationTotal.shortfall
+        out[f"life.{key}"] = p.death.shortfall
+        out[f"disability.{key}"] = p.disability.shortfall
+        out[f"income-protection.{key}"] = p.incomeProtection.shortfall
+        out[f"severe-illness.{key}"] = p.severeIllness.shortfall
+        out[f"funeral.{key}"] = p.funeral.shortfall
+        out[f"estate.{key}"] = p.estate.liquidityShortfall
+        out[f"retirement.{key}"] = p.retirement.shortfall
+    out["emergency.household"] = analysis.emergency.shortfall
+    out["education.household"] = analysis.educationTotal.shortfall
     for e in analysis.education:
         out[f"education.{e.dependantId}"] = e.shortfallToday
     for g in analysis.goals:

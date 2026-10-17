@@ -68,11 +68,12 @@ def test_every_result_field_is_filled(household):
     assert np.all(np.diff(bands, axis=0) >= 0)
     assert r.net_worth_bands["p50"][0] == pytest.approx(4_920_000, rel=1e-6)
     assert all(len(v) == 60 for v in r.retirement_income_bands.values())
-    assert r.shortfall["p_any"] == pytest.approx(1 - r.pos) and r.shortfall["p90_total_real"] >= 0
+    assert r.shortfall["p_any"] == pytest.approx(1 - r.pos) and r.shortfall["p90_total_real_shortfall"] >= 0
+    assert set(r.shortfall) == {"p_any", "median_first_shortfall_age", "p90_total_real_shortfall"}  # §12.4, as the review fixture names them
     assert 0 <= r.liquidity_breach_prob <= 1
     assert set(r.variance_attribution) == {"market", "client_content", "extraction", "interaction"}
     assert r.variance_attribution["market"] > 0.3 and r.variance_attribution["extraction"] > 0
-    assert set(r.market_attribution) == {"za_equity", "za_bonds", "za_cash", "global_equity", "global_bonds", "fx", "inflation"}
+    assert set(r.market_attribution) == {"za_equity", "za_bonds", "za_cash", "global_equity", "global_bonds", "fx_usdzar", "inflation"}
     assert sum(r.market_attribution.values()) == pytest.approx(r.variance_attribution["market"], abs=2e-3)
     assert r.top_drivers and r.top_drivers[0][0] in prof.facts and r.top_drivers == sorted(r.top_drivers, key=lambda kv: -kv[1])
     off = run_forecast(prof, base_document=doc, mode="final", config=CFG, tax_model=TAX, seed=3, fna_analyse=False, fna_bands=False)
@@ -85,10 +86,16 @@ def test_fna_side_by_side_defaults_to_the_ported_engine(household):
     pytest.importorskip("advisor_intel.fna_engine", reason="the deterministic projection and need bands come from the ported FNA engine")
     prof, doc = household
     r = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3)
-    assert r.deterministic["client.retirementAge"] == 63  # the median document: retirement age at the fact's median
-    assert r.deterministic["client.projectedCapital"] > 0 and "spouse.depletionAge" in r.deterministic
-    assert {"client.life", "client.retirement", "education"} <= set(r.need_bands)
+    det = r.deterministic
+    assert det["client.retirement_age"] == 63  # the median document: retirement age at the fact's median
+    assert det["client.projected_capital"] > 0 and "spouse.depletion_age" in det and det["client.replacement_ratio"] > 0
+    # §12.8 consistency figure beside the FNA's own: zero volatility, every fact at its median, within 0.5%.
+    for p in ("client", "spouse"):
+        assert abs(det[f"{p}.mc_zero_vol_capital"] / det[f"{p}.projected_capital"] - 1) < 0.005, p
+    # Need bands are keyed as the app's review overlay keys its need lines (lib/review/impact.ts).
+    assert {"life.client", "retirement.client", "retirement.spouse", "education.household", "emergency.household"} <= set(r.need_bands)
     assert all(b["p10"] <= b["p50"] <= b["p90"] for b in r.need_bands.values())
+    assert r.need_bands["retirement.client"]["p50"] == pytest.approx(det["client.shortfall"], rel=0.25)  # the band sits around the median document's shortfall
     injected = run_forecast(prof, base_document=doc, config=CFG, tax_model=TAX, seed=3, fna_analyse=fna_engine_analyse, fna_bands=fna_engine_bands)
     assert injected == r
     called = {}
