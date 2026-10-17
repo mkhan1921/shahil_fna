@@ -19,6 +19,7 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from advisor_intel import llm, stats
 from advisor_intel.discourse.run import run_discourse
 from advisor_intel.extract.followup import followup_ops
+from advisor_intel.extract.probes import ProbeContext, make_reextract
 from advisor_intel.extract.reducer import check_profile
 from advisor_intel.models.profile import FollowUp, Profile
 from advisor_intel.models.runs import FollowupAnswer, VersionPins
@@ -28,9 +29,12 @@ from advisor_intel.testing.calls import SAMPLE_CALL, SAMPLE_GOLD, SAMPLE_OBJECTS
 from advisor_intel.testing.fakes import scripted_model
 from advisor_intel.testing.oracle import Oracle
 from advisor_intel.testing.transcripts import ingested_transcript, transcript_from_turns
+from advisor_intel.verify.consistency import run_consistency
 from advisor_intel.verify.coverage import coverage_agent
 from advisor_intel.verify.services import verify_after_agent
 from advisor_intel.voi.intake import intake_answer
+
+from .verify_factories import ProfileBuilder, ev
 
 CAT = load_catalog()
 T = transcript_from_turns(SAMPLE_CALL)
@@ -80,6 +84,33 @@ async def test_stage5_after_the_agent_reopens_probes_and_scores_with_the_real_ex
     # then scored: the cold-start calibrator, and no auto-accept without conformal thresholds
     assert 0 < f.p_correct < 1 and f.features and f.verification["auto_accept"]["accepted"] is False
     assert check_profile(res.profile) == []
+
+
+async def test_probes_answer_status_to_status_for_an_explicitly_unknown_fact():
+    """§9.1b: a probe reports the field-status stage's status, so a fact the client said they do not know is
+    compared status to status (and agrees), instead of every probe "disagreeing" with a stated/not_discussed answer."""
+    seg = next(s for s in T.segments if "When would you like to stop working" in s.text)
+    b = ProfileBuilder(spouse=True, call_id=T.call_id)
+    fid = b.add(
+        "retirement.{p}.retirementAge",
+        "spouse",
+        None,
+        status="explicitly_unknown",
+        evidence=[ev(seg.segment_id, seg.text, speaker="client_secondary")],
+    )
+    profile = b.build()
+    gold = {fid: {"status": "explicitly_unknown", "said": seg.text}}
+    oracle = Oracle(T, [], gold)
+    name = llm.register_local_model("oracle-unknown", scripted_model(oracle.handler))
+    try:
+        ctx = ProbeContext(catalog=CAT, transcript=T, discourse=DISC, pins=VersionPins(small_model=name), run_id="wf-s5")
+        res = await run_consistency(profile, [fid], catalog=CAT, reextract=make_reextract(ctx, lambda: profile))
+    finally:
+        llm.unregister_local_model("oracle-unknown")
+    r = res[fid]
+    assert r.kind == "status" and r.answered == 3 and r.failures == 0 and r.consistency == 1.0
+    assert [p["status"] for p in r.probes] == ["explicitly_unknown"] * 3 and all(p["value"] is None for p in r.probes)
+    assert oracle.calls.count("fields") == 3 and "values" not in oracle.calls  # the value stage is not asked for an unknown field
 
 
 async def test_a_recorded_answer_goes_through_the_value_stage_and_the_reducer(oracle_pins):

@@ -195,6 +195,7 @@ export const bundleFromFiles = (median: FnaDocument, sidecar: Sidecar, prior: Fn
     spot_check: false,
     versions: { ...DEFAULT_VERSIONS, schema_version: sidecar.schema_version },
     attribution_text: null,
+    warnings: [],
   };
   const problems = coherence(bundle);
   if (problems.length) throw new ImportError(`The client file and the sidecar do not belong together: ${shorten(problems)}.`);

@@ -18,7 +18,7 @@ import { derivationText, factSubject, instanceChoices } from '@/lib/review/label
 import { REJECT_REASONS, type RejectReason } from '@/lib/review/ops';
 import { IDENTITY_FIELD, isListContainer, parsePath } from '@/lib/review/paths';
 import { pBand } from '@/lib/review/queue';
-import { applyAction, isDecided, isUsable, type ReviewAction, type ReviewFact, type ReviewSession } from '@/lib/review/session';
+import { applyAction, hasValue, isDecided, isUsable, type ReviewAction, type ReviewFact, type ReviewSession } from '@/lib/review/session';
 import { clock, readingText, readingsFor, speakerName } from '@/lib/review/transcript';
 import type { Attribution, FactStatus } from '@/lib/review/types';
 import { toEditor } from '@/lib/review/values';
@@ -342,9 +342,21 @@ export default function FieldPopover({
         <footer className="border-t border-line-strong bg-wash px-3 py-2">
           {panel === 'view' && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button size="sm" variant="primary" icon={<Check size={14} />} onClick={() => act({ type: 'accept', factId: fact.factId })} title="Accept and move on (Enter)">
-                {fact.review.status === 'accepted' || fact.review.status === 'edited' ? 'Keep' : 'Accept'}
-              </Button>
+              {flags.length > 0 && !hasValue(fact) ? (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={<Check size={14} />}
+                  onClick={() => act({ type: 'setStatus', factId: fact.factId, status: 'explicitly_unknown' })}
+                  title="No value to accept: mark the field unknown (Enter, U), or give one (E)"
+                >
+                  Mark unknown
+                </Button>
+              ) : (
+                <Button size="sm" variant="primary" icon={<Check size={14} />} onClick={() => act({ type: 'accept', factId: fact.factId })} title="Accept and move on (Enter)">
+                  {fact.review.status === 'accepted' || fact.review.status === 'edited' ? 'Keep' : 'Accept'}
+                </Button>
+              )}
               <Button size="sm" icon={<Pencil size={13} />} onClick={() => setPanel('edit')} title="Edit the value (E)">
                 Edit
               </Button>

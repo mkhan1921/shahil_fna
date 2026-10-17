@@ -216,6 +216,21 @@ describe('each reviewer action is a stamped, numbered op, and the sheet follows 
 });
 
 describe('blocking flags hold back submission', () => {
+  it('never records "accepted" on a flagged field without a value: it is marked unknown, and "accept all" leaves it', () => {
+    const s = fresh();
+    expect(s.facts[F.disabilityCover].quantity).toBeNull();
+    expect(() => act(s, { type: 'accept', factId: F.disabilityCover })).toThrow(/no value to accept/);
+    expect(() => act(s, { type: 'clearFlag', flagId: 'flag-disability-cover', resolution: 'accepted' })).toThrow(/no value to accept/);
+    const many = act(s, { type: 'acceptMany', factIds: [F.disabilityCover, F.smoker] });
+    expect(many.facts[F.smoker].review.status).toBe('accepted');
+    expect(many.facts[F.disabilityCover].review.status).not.toBe('accepted');
+    expect(openFlags(many).some((f) => f.flag_id === 'flag-disability-cover')).toBe(true);
+    const unknown = act(s, { type: 'clearFlag', flagId: 'flag-disability-cover', resolution: 'marked_unknown' });
+    expect(unknown.ops.map((o) => o.op)).toEqual(['MARK_UNKNOWN']);
+    expectValidOps(unknown.ops);
+    expect(unknown.flagClearances).toEqual([{ flag_id: 'flag-disability-cover', resolution: 'marked_unknown', reviewer_id: STAMP.reviewerId, at: STAMP.at, note: '' }]);
+  });
+
   it('until each is cleared by accepting, editing, marking unknown or dismissing with a reason', () => {
     let s = fresh();
     expect(() => submit(s, STAMP.at)).toThrow(/blocking flag/);

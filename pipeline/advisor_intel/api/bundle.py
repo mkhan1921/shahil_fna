@@ -56,6 +56,18 @@ def attribution_text(f: ForecastResult | None) -> str | None:
     return f"Of the uncertainty in this plan, about {listed}."
 
 
+WARNING_STAGES = ("agent", "voi")  # stage outputs that record checks which failed or did not run (``runs.check_warnings``)
+
+
+async def run_warnings(store: Store, run_id: str) -> list[str]:
+    """Checks that failed or did not run on this run, from its stored stage outputs (§9): the latest record per stage."""
+    latest: dict[str, list[str]] = {}
+    for rec in await store.stage_outputs_for_run(run_id):
+        if rec.stage in WARNING_STAGES:
+            latest[rec.stage] = [str(w) for w in rec.output.get("warnings") or []]
+    return [w for stage in WARNING_STAGES for w in latest.get(stage, [])]
+
+
 async def prior_document(store: Store, call: CallRecord) -> FnaDocument | None:
     doc_id = call.meta.get("prior_document_id")
     if doc_id:
@@ -127,4 +139,5 @@ async def build_bundle(
         spot_check=spot_check(run.workflow_id, settings.spot_check_rate),
         versions=run.versions,
         attribution_text=attribution_text(preview),
+        warnings=await run_warnings(store, run.workflow_id),
     )

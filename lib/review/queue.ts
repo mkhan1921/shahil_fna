@@ -9,7 +9,7 @@
  */
 import { formatIn } from './dist';
 import { derivationText } from './labels';
-import { isDecided, isReviewItem, openFlags, type ReviewFact, type ReviewSession } from './session';
+import { hasValue, isDecided, isReviewItem, openFlags, type ReviewFact, type ReviewSession } from './session';
 import type { BlockingFlag, FlagKind } from './types';
 
 /** Facts below half a point of success probability, and auto-accepted, are collapsed (§10.3). */
@@ -187,7 +187,8 @@ const termOpen = (f: ReviewFact) => !!f.termResolution && f.termResolution.statu
 /**
  * The keyboard flow of §11.1 on the queue entry `current`: Enter accepts and moves to the next
  * undecided entry (an unknown term opens its confirmation instead; a flag on the whole call is
- * marked checked); Tab and the arrows move without deciding; E and R open the editor or the reject
+ * marked checked; a flag on a field with no value marks it unknown, since "accepted" is kept for
+ * facts with a value, §10.3); Tab and the arrows move without deciding; E and R open the editor or the reject
  * reasons; U marks the fact unknown; P plays its first quote; D opens the dismissal of the flag in
  * view; A accepts everything left under "Check quickly"; Escape closes the popover. Null when the
  * key should keep its usual meaning — Tab past either end leaves the queue.
@@ -211,6 +212,7 @@ export const flowStep = (s: ReviewSession, order: string[], current: string | nu
       if (flag && !f) return { do: 'clearFlag', flagId: flag.flag_id, next: nextUndecided(s, order, current, null) };
       if (!f) return null;
       if (flag?.kind === 'unresolved_term' && termOpen(f)) return { do: 'confirmTerm', factId: f.factId };
+      if (flag && !hasValue(f)) return { do: 'unknown', factId: f.factId, next: nextUndecided(s, order, current, f.factId) };
       return { do: 'accept', factId: f.factId, next: nextUndecided(s, order, current, f.factId) };
     }
     case 'edit':

@@ -18,7 +18,7 @@ import { pyPercent } from '@/lib/review/dist';
 import { attributionSentence, ciText, forecastDeterministic, needBand, needLines, retirementViews, type NeedDelta } from '@/lib/review/impact';
 import { factTitle } from '@/lib/review/labels';
 import { FLAG_LABEL, GROUP_LABEL, badgeOf, pBand, progress, type Queue, type QueueGroup } from '@/lib/review/queue';
-import { isDecided, type ReviewFact, type ReviewSession } from '@/lib/review/session';
+import { hasValue, isDecided, type ReviewFact, type ReviewSession } from '@/lib/review/session';
 import { Button, StatusPill, cx } from '../ui';
 import { ImpactList, shortValue } from './FieldPopover';
 
@@ -248,7 +248,7 @@ export function ReviewQueue({
   onSelect: (entry: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   onAcceptGroup: (group: QueueGroup) => void;
-  onClearFlag: (flagId: string, resolution: 'accepted' | 'dismissed', note?: string) => boolean;
+  onClearFlag: (flagId: string, resolution: 'accepted' | 'marked_unknown' | 'dismissed', note?: string) => boolean;
   /** The flag whose dismissal form is open (the D key opens it for the flag in view). */
   dismissing: string | null;
   setDismissing: (flagId: string | null) => void;
@@ -313,7 +313,8 @@ export function ReviewQueue({
           </p>
         )}
         <p className="mt-1 text-[10.5px] leading-[14px] text-muted">
-          <kbd className="font-sans font-semibold">Enter</kbd> accept · <kbd className="font-sans font-semibold">Tab</kbd> skip · <kbd className="font-sans font-semibold">E</kbd> edit · <kbd className="font-sans font-semibold">R</kbd> reject ·{' '}
+          <kbd className="font-sans font-semibold">Enter</kbd> accept (a flagged field with no value: mark unknown) · <kbd className="font-sans font-semibold">Tab</kbd> skip ·{' '}
+          <kbd className="font-sans font-semibold">E</kbd> edit · <kbd className="font-sans font-semibold">R</kbd> reject ·{' '}
           <kbd className="font-sans font-semibold">U</kbd> unknown · <kbd className="font-sans font-semibold">P</kbd> play · <kbd className="font-sans font-semibold">D</kbd> dismiss flag ·{' '}
           <kbd className="font-sans font-semibold">A</kbd> accept all quick
         </p>
@@ -361,6 +362,20 @@ export function ReviewQueue({
                             className="text-[11px] font-semibold text-brand-2 hover:underline"
                           >
                             Mark checked
+                          </button>
+                        )}
+                        {fact && !hasValue(fact) && (
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClearFlag(flag.flag_id, 'marked_unknown');
+                            }}
+                            className="text-[11px] font-semibold text-brand-2 hover:underline"
+                            title="No value to accept: mark the field unknown (Enter), or give one (E)"
+                          >
+                            Mark unknown
                           </button>
                         )}
                         <button

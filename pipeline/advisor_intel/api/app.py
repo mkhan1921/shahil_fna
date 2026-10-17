@@ -2,7 +2,10 @@
 
 =======================================  ==============================================================
 ``POST /calls``                          upload (multipart ``audio`` + ``metadata``) or JSON with ``audio_uri`` or a
-                                         scripted call (``script``) → ``{call_id, workflow_id}``; starts ``CallPipelineWorkflow``
+                                         scripted call (``script``) → ``{call_id, workflow_id}``; starts ``CallPipelineWorkflow``.
+                                         The same request sent again (its ``call_id`` or ``Idempotency-Key`` header, with
+                                         the same payload) gets the first answer back (200); a different payload under
+                                         the same id is a conflict (409)
 ``GET  /calls/{id}``                     run state (Temporal query), quality report, versions
 ``GET  /calls/{id}/profile``             the profile (latest fact versions)
 ``GET  /calls/{id}/forecast``            the latest ``ForecastResult``
@@ -23,13 +26,16 @@
 =======================================  ==============================================================
 
 Every endpoint but ``/healthz`` needs ``Authorization: Bearer <Settings.api_token>``; without a token
-configured the API is open only in local and test environments. CORS admits the FNA app's origin
-(``ADVISOR_INTEL_FNA_APP_ORIGIN``). Storage and Temporal are injected, so tests run against fakes.
+configured the API is open only in local and test environments, and ``main`` then serves it only on a
+loopback address (``bind_decision``: a bind beyond loopback with no token refuses to start). CORS admits
+the FNA app's origin (``ADVISOR_INTEL_FNA_APP_ORIGIN``). Storage and Temporal are injected, so tests run
+against fakes.
 """
 
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import hmac
 import json
 import logging
@@ -90,6 +96,33 @@ from .temporal import ClientGateway, ResetRefused, TemporalGateway
 log = logging.getLogger(__name__)
 
 OPEN_ENVS = ("local", "test", "dev", "development")
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+@dataclass(frozen=True)
+class BindDecision:
+    """How ``main`` may start the API: the address to listen on, why it must not, or what to warn about (``bind_decision``)."""
+
+    host: str
+    refusal: str | None = None  # the API must not start as configured
+    warning: str | None = None  # it starts, but the operator should know
+
+
+def bind_decision(settings: Settings, host: str | None) -> BindDecision:
+    """Whether the API may listen on ``host`` (``ADVISOR_INTEL_API_HOST``; by default loopback without a token, every
+    interface with one). Without ``ADVISOR_INTEL_API_TOKEN`` the API is unauthenticated in the open environments and
+    closed (503) elsewhere, which is acceptable only on a loopback address: a bind beyond loopback with no token is refused."""
+    host = host or ("0.0.0.0" if settings.api_token else "127.0.0.1")
+    if settings.api_token:
+        return BindDecision(host)
+    if host.strip("[]").lower() not in LOOPBACK_HOSTS:
+        return BindDecision(
+            host,
+            refusal=f"ADVISOR_INTEL_API_TOKEN is not set and ADVISOR_INTEL_API_HOST={host} is not a loopback address: "
+            "the API would be open to the network. Set a token, or bind to 127.0.0.1.",
+        )
+    state = "open to every local process" if settings.env in OPEN_ENVS else "closed (every request is answered 503)"
+    return BindDecision(host, warning=f"ADVISOR_INTEL_API_TOKEN is not set: the API on {host} is {state} (env={settings.env}).")
 
 
 def max_upload_bytes() -> int:
@@ -340,9 +373,16 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
                 raise HTTPException(422, "send the recording as a multipart 'audio' file, or give one of 'audio_uri' and 'script'")
     except ValidationError as e:
         raise _validation(e) from e
-    call_id = meta.call_id or f"call-{_now():%Y%m%d}-{uuid.uuid4().hex[:8]}"
-    if await d.store.get_call(call_id) is not None:
-        raise HTTPException(409, f"call {call_id} exists; use POST /calls/{call_id}/rerun")
+    # The client's idempotency key is its call_id, or an Idempotency-Key header (the call id is derived from it), so the
+    # same request sent again (a lost reply) finds the call it created.
+    key = request.headers.get("idempotency-key", "").strip()
+    call_id = meta.call_id or (
+        f"call-{hashlib.sha256(key.encode()).hexdigest()[:16]}" if key else f"call-{_now():%Y%m%d}-{uuid.uuid4().hex[:8]}"
+    )
+    fingerprint = await request_digest(meta, upload)
+    existing = await d.store.get_call(call_id)
+    if existing is not None:
+        return await _create_again(d, existing, meta, fingerprint)
     script_uri: str | None = None
     if upload is not None:
         name = Path(upload.filename or "call.wav").name
@@ -380,6 +420,7 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
         if v is not None and v != ""
     }
     call_meta["prior_document_id"] = prior_id  # the prior is the document as it stood before this call (§3.6)
+    call_meta["request_digest"] = fingerprint  # what was asked for, so the same request again is told apart from a clash
     if meta.script:
         call_meta.update(script_uri=script_uri, script_roles=dict(meta.script_roles))
     run_id = new_run_id(call_id)
@@ -395,6 +436,22 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
         )
     )
     await d.store.register_run(run_id, call_id, pins, start_stage=Stage.INGEST)
+    return await _start_run(d, meta, call_id, run_id, pins)
+
+
+async def request_digest(meta: CallCreate, upload: UploadFile | None) -> str:
+    """What a ``POST /calls`` asked for, as a digest: the metadata and the recording's bytes (or its URI, or the script)."""
+    h = hashlib.sha256(meta.model_dump_json(exclude_none=True).encode())
+    if upload is not None:
+        h.update(f"\0{upload.filename or ''}\0{upload.content_type or ''}\0".encode())
+        await upload.seek(0)
+        while chunk := await upload.read(1 << 20):
+            h.update(chunk)
+        await upload.seek(0)
+    return h.hexdigest()
+
+
+async def _start_run(d: ApiDeps, meta: CallCreate, call_id: str, run_id: str, pins: VersionPins) -> CallCreated:
     args = CallArgs(call_id=call_id, advisor_id=meta.advisor_id, client_ids=meta.client_ids, versions=pins, budget_usd=meta.budget_usd)
     if meta.review_reminder_seconds:
         args = args.model_copy(update={"review_reminder_seconds": meta.review_reminder_seconds})
@@ -402,6 +459,30 @@ async def create_call(request: Request, d: ApiDeps = Depends(deps)) -> CallCreat
         await d.temporal.start_call(args, workflow_id=run_id)
     await d.store.set_call_workflow(call_id, run_id)
     return CallCreated(call_id=call_id, workflow_id=run_id, run_id=run_id)
+
+
+def _first_answer(call_id: str, run_id: str) -> JSONResponse:
+    created = CallCreated(call_id=call_id, workflow_id=run_id, run_id=run_id, duplicate=True)
+    return JSONResponse(status_code=200, content=created.model_dump(mode="json"))
+
+
+async def _create_again(d: ApiDeps, call: CallRecord, meta: CallCreate, fingerprint: str) -> CallCreated | JSONResponse:
+    """``POST /calls`` for a call that exists. The same request again (its reply was lost) gets the first answer, as
+    resent ops and answers do; a different request under the same id is a conflict, since a call is created once
+    (re-runs go through ``/rerun``, §14.3). A first request that stopped before its run started is finished here."""
+    if call.meta.get("request_digest") != fingerprint:
+        raise HTTPException(409, f"call {call.call_id} exists with a different request; use POST /calls/{call.call_id}/rerun")
+    if call.workflow_id:
+        return _first_answer(call.call_id, call.workflow_id)
+    run = await d.store.latest_run(call.call_id)
+    if run is None:
+        pins = _apply_overrides(await d.pins(), meta.versions)
+        run = await d.store.register_run(new_run_id(call.call_id), call.call_id, pins, start_stage=Stage.INGEST)
+    elif (await d.temporal.describe(run.workflow_id)).status != "NOT_FOUND":
+        await d.store.set_call_workflow(call.call_id, run.workflow_id)  # started, but the first request did not get to record it
+        return _first_answer(call.call_id, run.workflow_id)
+    log.info("call %s: the first request stopped before its run started; starting run %s now", call.call_id, run.workflow_id)
+    return await _start_run(d, meta, call.call_id, run.workflow_id, run.versions)
 
 
 @router.get("/calls/{call_id}", response_model=CallView)
@@ -823,9 +904,16 @@ def main() -> None:
 
     logging.basicConfig(level=os.environ.get("ADVISOR_INTEL_LOG_LEVEL", "INFO"))
     settings = get_settings()
+    decision = bind_decision(settings, os.environ.get("ADVISOR_INTEL_API_HOST"))
+    if decision.refusal:
+        log.error("refusing to start: %s", decision.refusal)
+        raise SystemExit(f"advisor-intel-api: {decision.refusal}")
+    if decision.warning:
+        log.warning(decision.warning)
     setup_telemetry(settings, service_name="advisor-intel-api")
-    host = os.environ.get("ADVISOR_INTEL_API_HOST") or ("0.0.0.0" if settings.api_token else "127.0.0.1")
-    uvicorn.run(create_app(settings=settings), host=host, port=int(os.environ.get("ADVISOR_INTEL_API_PORT", "8000")), proxy_headers=True)
+    uvicorn.run(
+        create_app(settings=settings), host=decision.host, port=int(os.environ.get("ADVISOR_INTEL_API_PORT", "8000")), proxy_headers=True
+    )
 
 
 if __name__ == "__main__":

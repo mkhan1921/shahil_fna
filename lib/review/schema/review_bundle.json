@@ -2746,6 +2746,14 @@
       ],
       "default": null,
       "title": "Attribution Text"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
     }
   },
   "required": [

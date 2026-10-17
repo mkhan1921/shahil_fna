@@ -36,7 +36,7 @@ from .models.facts import Provenance
 from .models.fna import ExportFile, FnaDocument
 from .models.profile import BlockingFlag, FollowUp, Profile
 from .models.review import ReviewBundle, ReviewPackage
-from .models.runs import AgentOutcome, RunState, VersionPins, forecast_seed
+from .models.runs import AgentOutcome, RunState, VersionPins, check_warnings, forecast_seed
 from .models.transcript import SpeakerRole, Transcript
 from .schema.slots import load_catalog
 
@@ -105,6 +105,7 @@ class PipelineResult:
             quality=self.transcript.quality,
             versions=self.pins,
             attribution_text=attribution(self.forecast) if attribution is not None and self.forecast is not None else None,
+            warnings=list(self.warnings),
         )
         return ReviewPackage(bundle=bundle)
 
@@ -246,9 +247,7 @@ async def process_call(
             profile, transcript=transcript, discourse=discourse, pins=pins, catalog=catalog, run_id=run_id, settings=settings
         )
         profile = checked.profile
-        warnings += [f"verify: {e}" for e in getattr(checked, "errors", [])] + [
-            f"verify skipped {s}" for s in getattr(checked, "skipped", [])
-        ]
+        warnings += check_warnings(getattr(checked, "errors", []), getattr(checked, "skipped", []))
     else:
         skipped.append("verify")
     followups, flags = list(agent.followups or profile.open_questions), list(profile.blocking_flags)
@@ -271,7 +270,7 @@ async def process_call(
             seed=forecast_seed(run_id),
         )
         profile, followups, flags = out.profile, list(out.followups), list(out.flags)
-        warnings += [f"voi: {e}" for e in getattr(out, "errors", [])]
+        warnings += check_warnings(getattr(out, "errors", []), [], stage="voi")
     else:
         skipped.append("voi")
     if transcript.quality is not None and transcript.quality.role_review_needed and not any(f.kind == "role_review" for f in flags):

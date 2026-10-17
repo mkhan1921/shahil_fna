@@ -6,6 +6,7 @@ object storage (§13.1), so a 90-minute call never bloats the workflow history.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from enum import IntEnum, StrEnum
 from typing import Literal
@@ -96,6 +97,13 @@ class AgentOutcome(BaseModel):
     turns: int = 0
     unfinished_groups: list[str] = []
     usage: dict[str, float] = {}
+    warnings: list[str] = []  # checks after the agent that failed or did not run (``check_warnings``), stored for the review (§9)
+
+
+def check_warnings(errors: Iterable[str], skipped: Iterable[str], stage: str = "verify") -> list[str]:
+    """A stage's checks that failed (``errors``) or did not run at all (``skipped``) as review warnings: a check that
+    did not run is named, never a silent zero (§9, §10). The in-process runner and the activities word them alike."""
+    return [f"{stage}: {e}" for e in errors] + [f"{stage} skipped {s}" for s in skipped]
 
 
 class ReviewSubmission(BaseModel):

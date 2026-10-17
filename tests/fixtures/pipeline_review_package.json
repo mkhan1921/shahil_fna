@@ -16438,6 +16438,10 @@
    "cma_version": "2026Q4",
    "fna_tables_version": "za_2026_27"
   },
-  "attribution_text": null
+  "attribution_text": null,
+  "warnings": [
+   "verify skipped consistency probes (no re-extraction callable: the small role is a stub)",
+   "verify skipped omission check (the verifier role is a stub: the omission check did not run)"
+  ]
  }
 }

@@ -65,6 +65,9 @@ class ReviewBundle(BaseModel):
     spot_check: bool = False  # this review also shows every auto-accepted fact under "Needs you" (§11.3)
     versions: VersionPins = Field(default_factory=VersionPins)
     attribution_text: str | None = None  # "Of the uncertainty in this plan, about X% is markets, …" (§12.5)
+    # Checks that failed or did not run on this call (stage 5's omission check and probes, VOI; ``runs.check_warnings``):
+    # the overlay shows them, so a check that did not run is never read as a clean result (§9).
+    warnings: list[str] = []
 
 
 class FlagClearance(BaseModel):

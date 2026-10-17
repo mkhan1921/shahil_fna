@@ -560,6 +560,8 @@ export interface ReviewBundle {
   spot_check: boolean;
   versions: VersionPins;
   attribution_text: string | null;
+  /** Checks that failed or did not run on this call (stage 5's omission check and probes, VOI): shown, never read as clean (§9). */
+  warnings: string[];
 }
 
 export const REVIEW_PACKAGE_FORMAT = 'advisor-intel-review';
