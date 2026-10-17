@@ -76,5 +76,5 @@ def test_a_batch_of_1000_draws_takes_under_two_seconds(record_property):
     band_seconds = time.perf_counter() - start
     record_property("batch_seconds", round(seconds, 3))
     print(f"\nanalyse_batch: {seconds:.2f}s for 1,000 draws; need_bands {band_seconds:.2f}s")
-    assert len(analyses) == 1000 and bands["client.life"]["p10"] <= bands["client.life"]["p90"]
+    assert len(analyses) == 1000 and bands["life.client"]["p10"] <= bands["life.client"]["p90"]
     assert seconds < 2.0 * SLACK

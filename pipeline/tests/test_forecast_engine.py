@@ -110,6 +110,70 @@ def test_drawdown_is_clamped_to_the_living_annuity_band():
     assert r.net_worth_real[0, 1] == pytest.approx(1_000_000 - 12_000)  # only the R12,000 spent leaves; the rest is invested
 
 
+def test_unmet_spend_within_the_tolerance_is_neither_failure_nor_shortfall():
+    """R14,590 a month is R175,080 a year against a R175,000 band maximum: the R80 gap is within the 0.1% tolerance,
+    so the path succeeds and, consistently, reports no shortfall (P(any shortfall) stays 1 − PoS). Two years are
+    funded (65 to the planning age); a 20% return holds the balance, so the band is binding in the first year only."""
+    a = {"cpi": 0.0, "salaryEscalation": 0.0, "preRetirementReturn": 0.0, "postRetirementReturn": 0.20, "riskCapitalReturn": 0.0,
+         "educationInflation": 0.0}
+    retired = {"employment": "retired", "dob": "1961-10-15", "retire": 60, "plan": 66, "gross": 0, "items": {}, "assumptions": a}
+    fund = [F.RetirementFund(type="living-annuity", value=1_000_000)]
+    r = run_doc(doc_with(target=14_590, funds=fund, assets=[], **retired))
+    assert np.allclose(r.retirement_income_real[:, 0], 175_000) and r.retirement_income_real[0, 1] == pytest.approx(175_080)  # band binds in year 1 only
+    assert r.success.all() and np.all(r.total_shortfall_real == 0) and np.all(np.isnan(r.first_shortfall_age))
+    # R14,700 a month leaves R1,400 unmet in the first year, above the tolerance: a failure, counted in full.
+    r = run_doc(doc_with(target=14_700, funds=fund, assets=[], **retired))
+    assert not r.success.any() and np.all(r.total_shortfall_real >= 1_400) and np.all(np.isfinite(r.first_shortfall_age))
+
+
+def test_drawdown_band_comes_from_the_shared_table_not_the_config():
+    """§12.7: SARS values live in fna_tables; the engine takes the living annuity band from the FNA tax model's table."""
+    pytest.importorskip("advisor_intel.fna_engine", reason="the band comes from the table the ported FNA engine reads")
+    from advisor_intel.forecast.config import DrawdownBand
+    from advisor_intel.forecast.tax import default_tax_model
+
+    retired = {"employment": "retired", "dob": "1961-10-15", "retire": 60, "plan": 90, "gross": 0, "items": {}}
+    doc = doc_with(target=20_000, funds=[F.RetirementFund(type="living-annuity", value=1_000_000)], assets=[], **retired)
+    loose = ZERO.with_(drawdown_band=DrawdownBand(min=0.01, max=0.5))
+    tax = default_tax_model(doc.assumptions.taxYear)
+    assert tax.living_annuity_band == (0.025, 0.175)
+    r = run_doc(doc, config=loose, tax=tax)
+    assert np.allclose(r.retirement_income_real[:, 0], 175_000)  # 17.5% from the table, not 50% from the config
+    assert np.allclose(run_doc(doc, config=loose).retirement_income_real[:, 0], 240_000)  # a stub without a table: the config's band allows the need
+
+
+def test_every_committed_parity_document_forecasts_finite_and_consistent():
+    """The generated households (retirees, empty documents, ICOP, every asset and liability type): no NaN or
+    infinity anywhere, success exactly when no essential spend went unmet, ages in range."""
+    pytest.importorskip("advisor_intel.fna_engine", reason="the committed parity subset is read through the FNA engine package")
+    from datetime import datetime
+
+    from advisor_intel.fna_parity.harness import FIXTURE, read_records
+    from advisor_intel.forecast.tax import default_tax_model
+
+    seen = 0
+    for rec in read_records(FIXTURE):
+        if "meta" in rec:
+            continue
+        doc = F.FnaDocument.model_validate(rec["doc"])
+        now = datetime.fromisoformat(rec["now"]).date()
+        plan = plan_from_document(doc, anchor=now, config=CFG, cma=CMA_)
+        r = Forecaster(plan, default_tax_model(doc.assumptions.taxYear)).run(11, 40).result
+        where = f"document {rec['i']} {rec['tags']}"
+        for name in ("funded_ratio", "total_shortfall_real", "net_worth_real", "retirement_income_real", "liquidity_breach"):
+            assert np.all(np.isfinite(getattr(r, name))), (where, name)
+        assert np.all(r.total_shortfall_real >= 0) and np.all(r.retirement_income_real >= -1e-9) and np.all(r.funded_ratio >= 0), where
+        assert np.array_equal(r.success, r.total_shortfall_real == 0), where
+        assert np.array_equal(r.success, ~np.isfinite(r.first_shortfall_age)), where
+        for key, capital in r.capital_at_retirement.items():
+            assert np.all(np.isfinite(capital)) and np.all(capital >= 0), (where, key)  # every person reaches retirement in the horizon
+            depletion = r.depletion_age[key]
+            assert np.all(depletion[np.isfinite(depletion)] <= 130), (where, key)
+        assert len(r.ages) == r.net_worth_real.shape[1] == r.retirement_income_real.shape[1] + 1, where
+        seen += 1
+    assert seen == 25
+
+
 def test_liquidity_breach_and_essential_shortfall():
     # Essential spending above income with no liquid assets: a breach, and a shortfall once the RA debit order is cut too.
     r = run_doc(doc_with(gross=10_000, items={"groceries": 15_000}, assets=[], retire=62, plan=63))

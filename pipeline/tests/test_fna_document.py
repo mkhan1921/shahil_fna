@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from advisor_intel.models.fna import ExportFile, FnaDocument
@@ -28,6 +29,10 @@ def test_defaults_match_new_document(empty_fna_json):
     """Every default in the mirror equals lib/fna/defaults.ts newDocument()."""
     ours = _strip(FnaDocument().model_dump(mode="json"))
     theirs = _strip(empty_fna_json)
+    # Both sides default the meeting date to the day the document is made: the fixture carries the day it was
+    # exported, so only the form is compared.
+    date.fromisoformat(ours["engagement"].pop("meetingDate"))
+    date.fromisoformat(theirs["engagement"].pop("meetingDate"))
     assert ours == theirs
 
 

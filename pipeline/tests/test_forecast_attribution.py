@@ -63,7 +63,7 @@ def test_shapley_effects_sum_to_the_market_share():
     doc = sample_document()
     fc = forecaster(prior_profile(doc), doc)
     shares, diag = shapley_market(fc, 21, SETTINGS)
-    assert set(shares) == {"za_equity", "za_bonds", "za_cash", "global_equity", "global_bonds", "fx", "inflation"}
+    assert set(shares) == {"za_equity", "za_bonds", "za_cash", "global_equity", "global_bonds", "fx_usdzar", "inflation"}
     assert sum(shares.values()) == pytest.approx(1.0, abs=1e-9) and min(shares.values()) >= 0
     assert diag["shapley_sum"] == pytest.approx(diag["shapley_variance"], rel=1e-9)  # efficiency: the effects add up
     # With only market randomness the market variance is the whole variance of Y (estimated independently).

@@ -194,13 +194,15 @@ def test_need_bands_summarise_each_shortfall_over_the_draws():
     analyses = analyse_batch(draws, today=TODAY)
     bands = need_bands(analyses)
     life = sorted(a.persons["client"].death.shortfall for a in analyses)
-    assert bands["client.life"] == pytest.approx({"p10": life[4], "p50": life[20], "p90": life[36]})
-    assert {"client.life", "spouse.income-protection", "client.estate", "spouse.retirement", "emergency", "education"} <= set(bands)
+    assert bands["life.client"] == pytest.approx({"p10": life[4], "p50": life[20], "p90": life[36]})
+    # Keyed as the app's review overlay keys its need lines (lib/review/impact.ts): "<area>.<person>" / "<area>.household".
+    assert {"life.client", "income-protection.spouse", "estate.client", "retirement.spouse", "emergency.household", "education.household"} <= set(bands)
+    assert {f"education.{d.id}" for d in sample.dependants if d.relationship == "child"} <= set(bands)
     assert all(b["p10"] <= b["p50"] <= b["p90"] for b in bands.values())
     single = analyse(new_document(), today=TODAY)
-    assert "spouse.life" not in need_shortfalls(single)
+    assert "life.spouse" not in need_shortfalls(single)
     mixed = need_bands([single, analyses[0]])
-    assert mixed["spouse.life"]["p50"] == analyses[0].persons["spouse"].death.shortfall  # summarised over the draws that have it
+    assert mixed["life.spouse"]["p50"] == analyses[0].persons["spouse"].death.shortfall  # summarised over the draws that have it
 
 
 # --------------------------------------------------------------------------- normaliseDocument

@@ -319,7 +319,7 @@
     "deathIncomeFixedYears": 15.0
    },
    "engagement": {
-    "meetingDate": "2026-10-16",
+    "meetingDate": "2026-10-17",
     "meetingType": "in-person",
     "adviceType": "comprehensive",
     "scope": [
@@ -13840,8 +13840,8 @@
    },
    "shortfall": {
     "p_any": 0.2889,
-    "median_first_age": 52.56,
-    "p90_total_real": 7767690.0
+    "median_first_shortfall_age": 52.56,
+    "p90_total_real_shortfall": 7767690.0
    },
    "liquidity_breach_prob": 0.2044,
    "retirement_income_bands": {
@@ -14253,7 +14253,7 @@
     "za_cash": 0.0045,
     "global_equity": 0.005,
     "global_bonds": 0.0039,
-    "fx": 0.0,
+    "fx_usdzar": 0.0,
     "inflation": 0.0047
    },
    "top_drivers": [
@@ -14298,8 +14298,142 @@
      0.018269
     ]
    ],
-   "deterministic": {},
-   "need_bands": {}
+   "deterministic": {
+    "client.current_age": 44.288384,
+    "client.retirement_age": 60.0,
+    "client.planning_age": 92.0,
+    "client.years_to_retirement": 15.711616,
+    "client.current_capital": 1500000.0,
+    "client.monthly_contributions": 0.0,
+    "client.projected_capital": 5421377.330781,
+    "client.projected_capital_real": 2714949.874629,
+    "client.target_monthly_today": 47903.96,
+    "client.target_monthly_at_retirement": 95657.546103,
+    "client.required_capital": 24189781.585914,
+    "client.required_capital_real": 12113903.990986,
+    "client.shortfall": 18768404.255133,
+    "client.shortfall_real": 9398954.116357,
+    "client.funded": 0.224118,
+    "client.initial_drawdown": 0.211734,
+    "client.sustainable_monthly_today": 10736.163197,
+    "client.replacement_ratio": 0.168089,
+    "client.target_replacement_ratio": 0.75,
+    "client.depletion_age": 65.25,
+    "spouse.current_age": 41.287638,
+    "spouse.retirement_age": 65.0,
+    "spouse.planning_age": 92.0,
+    "spouse.years_to_retirement": 23.712362,
+    "spouse.current_capital": 0.0,
+    "spouse.monthly_contributions": 0.0,
+    "spouse.projected_capital": 0.0,
+    "spouse.projected_capital_real": 0.0,
+    "spouse.target_monthly_today": 26250.0,
+    "spouse.target_monthly_at_retirement": 74545.548281,
+    "spouse.required_capital": 16906410.40235,
+    "spouse.required_capital_real": 5953316.908897,
+    "spouse.shortfall": 16906410.40235,
+    "spouse.shortfall_real": 5953316.908897,
+    "spouse.funded": 0.0,
+    "spouse.initial_drawdown": 0.0,
+    "spouse.sustainable_monthly_today": 0.0,
+    "spouse.replacement_ratio": 0.0,
+    "spouse.target_replacement_ratio": 0.75,
+    "spouse.depletion_age": 65.083333,
+    "client.mc_zero_vol_capital": 5421377.330781,
+    "spouse.mc_zero_vol_capital": 0.0
+   },
+   "need_bands": {
+    "disability.client": {
+     "p10": 136053.6,
+     "p50": 678371.94,
+     "p90": 1248489.2
+    },
+    "disability.spouse": {
+     "p10": 150000.0,
+     "p50": 667731.83,
+     "p90": 751468.46
+    },
+    "education.a39cc439-d709-52ed-aed7-e9558c4e53de": {
+     "p10": 565887.47,
+     "p50": 568544.22,
+     "p90": 576589.54
+    },
+    "education.eb56d0c5-a014-525c-b931-1e3626660937": {
+     "p10": 0.0,
+     "p50": 747228.53,
+     "p90": 879560.85
+    },
+    "education.household": {
+     "p10": 568544.22,
+     "p50": 1286960.16,
+     "p90": 1440560.33
+    },
+    "emergency.household": {
+     "p10": 50471.3,
+     "p50": 92641.93,
+     "p90": 144819.46
+    },
+    "estate.client": {
+     "p10": 50000.0,
+     "p50": 595222.88,
+     "p90": 1180739.92
+    },
+    "estate.spouse": {
+     "p10": 50000.0,
+     "p50": 577545.11,
+     "p90": 655116.91
+    },
+    "funeral.client": {
+     "p10": 0.0,
+     "p50": 0.0,
+     "p90": 50000.0
+    },
+    "funeral.spouse": {
+     "p10": 0.0,
+     "p50": 50000.0,
+     "p90": 50000.0
+    },
+    "income-protection.client": {
+     "p10": 20338.9,
+     "p50": 46208.57,
+     "p90": 51358.2
+    },
+    "income-protection.spouse": {
+     "p10": 13660.3,
+     "p50": 28497.62,
+     "p90": 56998.49
+    },
+    "life.client": {
+     "p10": 0.0,
+     "p50": 3599631.26,
+     "p90": 6880346.98
+    },
+    "life.spouse": {
+     "p10": 1753664.21,
+     "p50": 4679787.91,
+     "p90": 7023331.47
+    },
+    "retirement.client": {
+     "p10": 0.0,
+     "p50": 16672311.89,
+     "p90": 26280987.93
+    },
+    "retirement.spouse": {
+     "p10": 6191381.74,
+     "p50": 16149053.26,
+     "p90": 32378944.91
+    },
+    "severe-illness.client": {
+     "p10": 339998.33,
+     "p50": 1474390.69,
+     "p90": 1686046.73
+    },
+    "severe-illness.spouse": {
+     "p10": 360749.52,
+     "p50": 833373.6,
+     "p90": 1913221.44
+    }
+   }
   },
   "deterministic_analysis": {
    "table": {

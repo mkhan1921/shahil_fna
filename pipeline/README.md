@@ -136,7 +136,9 @@ the reference: `analyse(doc, today=...)` returns the same `Analysis` the app com
 `draft_recommendations(doc, analysis, today=...)` the same drafts. `tax` is the one tax implementation in
 the pipeline (the Monte Carlo layer uses `income_tax_vec` / `person_tax_vec`); `analyse_batch` and
 `need_bands` turn materialised draws into shortfall bands. SARS values come from `fna_tables/` at the repo
-root, which the app reads too.
+root, which the app reads too. `forecast.run_forecast` reports the engine's own retirement projection
+(`deterministic`) and the need bands beside the Monte Carlo result by default (§12.8), and takes the living
+annuity drawdown band from the table through the engine's tax model.
 
 The parity harness (`advisor_intel/fna_parity`) runs the TypeScript engine on 2,000 seeded documents
 through Node and checks the Python results: money within R1, ratios within 1e-6, text exactly. Without

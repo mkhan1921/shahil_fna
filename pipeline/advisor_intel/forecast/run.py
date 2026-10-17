@@ -4,15 +4,17 @@
   same inputs, config and seed give identical result bytes (§12.6).
 - Monte Carlo error: PoS carries a Wilson 95% interval; while it is wider than 2 points the path count is
   raised (to ``n_paths_max``).
-- Side by side (§12.8): ``deterministic`` holds the FNA's own retirement projection from an injected
-  ``fna_analyse(doc, today)``; ``need_bands`` holds an injected ``fna_bands(docs, today)`` over K documents from
-  ``binding.materialise_draws`` (§12.7). Both are injected so this package never computes FNA needs itself.
+- Side by side (§12.8): ``deterministic`` holds the FNA's own retirement projection from ``fna_analyse(doc, today)``;
+  ``need_bands`` holds ``fna_bands(docs, today)`` over K documents from ``binding.materialise_draws`` (§12.7). Both
+  default to the ported FNA engine when it is importable and can be injected (a stub, or ``False`` to leave the
+  field empty); this package never computes FNA needs itself.
 """
 
 from __future__ import annotations
 
 import inspect
 import math
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -26,7 +28,7 @@ from ..models.forecast import ForecastResult
 from ..models.profile import Profile
 from .config import CMA, ForecastConfig, load_cma, load_config
 from .engine import EngineResult, simulate
-from .mapper import ForecastInput, ForecastPlan, Override, build_plan
+from .mapper import ForecastInput, ForecastPlan, Override, build_plan, plan_from_document
 from .returns import BootstrapShocks, HistoricalSeries, MarketModel, MarketPaths, MarketShocks, StationaryBlockBootstrap
 from .sampling import FactUniforms, Uniforms, derive_seed
 from .tax import TaxModel, default_tax_model
@@ -37,6 +39,15 @@ MAX_BATCH_PATHS = 12_000  # paths per engine call when a batch is split
 
 FnaAnalyse = Callable[..., Any]  # fna_analyse(doc) or fna_analyse(doc, today=...)
 FnaBands = Callable[..., dict[str, dict[str, float]]]  # fna_bands(docs) or fna_bands(docs, today=...)
+
+
+def _engine_hook(name: str) -> Callable[..., Any] | None:
+    """The ported FNA engine's ``analyse`` or ``bands`` hook, or None when the engine is not installed."""
+    try:
+        from .. import fna_engine  # noqa: F401 - only to find out whether the port is importable
+    except ImportError:
+        return None
+    return fna_engine_analyse if name == "analyse" else fna_engine_bands
 
 
 def _call(fn: Callable[..., Any], arg: Any, today: date) -> Any:
@@ -213,20 +224,41 @@ def _finite(x: float | None, decimals: int = 6) -> float | None:
     return round(float(x), decimals)
 
 
+DETERMINISTIC_KEYS = ("currentAge", "retirementAge", "planningAge", "yearsToRetirement", "currentCapital", "monthlyContributions",
+                      "projectedCapital", "projectedCapitalReal", "targetMonthlyToday", "targetMonthlyAtRetirement", "requiredCapital",
+                      "requiredCapitalReal", "shortfall", "shortfallReal", "funded", "initialDrawdown", "sustainableMonthlyToday",
+                      "replacementRatio", "targetReplacementRatio", "depletionAge")
+
+
+def _snake(name: str) -> str:
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
 def deterministic_projection(analysis: Any) -> dict[str, float | None]:
-    """The FNA's retirement projection per person, flattened for side-by-side display (§12.8)."""
+    """The FNA's retirement projection per person, flattened for side-by-side display (§12.8).
+
+    Keys are ``"<person>.<field>"`` in snake case (``client.projected_capital``, ``spouse.depletion_age``), as the
+    app's review overlay reads them (``lib/review/impact.ts`` ``forecastDeterministic``).
+    """
     data = analysis.model_dump(mode="json") if hasattr(analysis, "model_dump") else analysis
     persons = (data or {}).get("persons") or {}
     out: dict[str, float | None] = {}
-    keys = ("currentAge", "retirementAge", "planningAge", "yearsToRetirement", "currentCapital", "monthlyContributions",
-            "projectedCapital", "projectedCapitalReal", "targetMonthlyToday", "targetMonthlyAtRetirement", "requiredCapital",
-            "shortfall", "funded", "initialDrawdown", "sustainableMonthlyToday", "depletionAge")
     for person in sorted(persons):
         ret = (persons[person] or {}).get("retirement") or {}
-        for k in keys:
+        for k in DETERMINISTIC_KEYS:
             v = ret.get(k)
-            out[f"{person}.{k}"] = _finite(float(v)) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+            out[f"{person}.{_snake(k)}"] = _finite(float(v)) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
     return out
+
+
+def zero_volatility_capital(plan: ForecastPlan, tax_model: TaxModel) -> dict[str, float | None]:
+    """§12.8's consistency figure, ``"<person>.mc_zero_vol_capital"``: the Monte Carlo capital at retirement with every
+    volatility switched off and every fact at its median (the plan's median document), which must agree with the
+    FNA's ``projectedCapital`` within 0.5%."""
+    median = F.FnaDocument.model_validate(plan.doc)
+    zero = plan_from_document(median, anchor=plan.anchor, config=plan.config.with_(zero_volatility=True), cma=plan.cma, call_id=plan.profile_id)
+    result = Forecaster(zero, tax_model).run(0, 2).result
+    return {f"{k}.mc_zero_vol_capital": _finite(float(v[0])) for k, v in sorted(result.capital_at_retirement.items())}
 
 
 def summarise(ev: Evaluation) -> dict[str, Any]:
@@ -244,10 +276,10 @@ def summarise(ev: Evaluation) -> dict[str, Any]:
         "goal_funding": {k: round(float(v.mean()), 6) for k, v in sorted(r.goal_funded.items())},
         "ages": [int(a) for a in r.ages],
         "net_worth_bands": _bands(r.net_worth_real),
-        "shortfall": {
+        "shortfall": {  # §12.4: P(any), median first shortfall age, p90 total real shortfall
             "p_any": round(1 - successes / n, 6),
-            "median_first_age": _finite(float(np.median(failing)), 2) if failing.size else None,
-            "p90_total_real": round(float(np.percentile(r.total_shortfall_real, 90)), 0),
+            "median_first_shortfall_age": _finite(float(np.median(failing)), 2) if failing.size else None,
+            "p90_total_real_shortfall": round(float(np.percentile(r.total_shortfall_real, 90)), 0),
         },
         "liquidity_breach_prob": round(float(r.liquidity_breach.mean()), 6),
         "retirement_income_bands": _bands(r.retirement_income_real),
@@ -265,8 +297,8 @@ def run_forecast(
     n_paths: int | None = None,
     tax_model: TaxModel | None = None,
     overrides: dict[str, Override] | None = None,
-    fna_analyse: FnaAnalyse | None = None,
-    fna_bands: FnaBands | None = None,
+    fna_analyse: FnaAnalyse | Literal[False] | None = None,
+    fna_bands: FnaBands | Literal[False] | None = None,
 ) -> ForecastResult:
     """The Monte Carlo forecast of one profile version (§12): PoS with its Wilson interval, goal funding, bands,
     shortfall, liquidity breach, variance attribution and drivers, and the FNA's deterministic view beside it.
@@ -274,6 +306,9 @@ def run_forecast(
     ``overrides`` fixes facts (by fact id) or document fields (by concrete path) for what-if runs: a value fixes
     it on every path, a ``Dist``/``Quantity`` resamples it with the fact's own draws, ``"prior"`` replaces it with
     the slot's population prior.
+
+    ``fna_analyse`` and ``fna_bands`` default to the ported FNA engine (§12.7, §12.8 "report both"); pass a
+    hook to replace it or ``False`` to leave ``deterministic`` / ``need_bands`` empty.
     """
     from .attribution import attribute
 
@@ -284,6 +319,10 @@ def run_forecast(
     plan = build_plan(profile, base_document=base_document, config=config, cma=cma, overrides=overrides)
     tax_model = tax_model or default_tax_model(str(plan.doc["assumptions"]["taxYear"]))
     fc = Forecaster(plan, tax_model)
+    if fna_analyse is None:
+        fna_analyse = _engine_hook("analyse")
+    if fna_bands is None:
+        fna_bands = _engine_hook("bands")
 
     n = int(n_paths or settings.n_paths)
     ev = fc.run(seed, n)
@@ -298,9 +337,12 @@ def run_forecast(
     attribution = attribute(fc, seed, settings)
 
     median_doc = F.FnaDocument.model_validate(plan.doc)
-    deterministic = deterministic_projection(_call(fna_analyse, median_doc, profile.anchor_date)) if fna_analyse else {}
+    deterministic: dict[str, float | None] = {}
+    if fna_analyse:
+        deterministic = deterministic_projection(_call(fna_analyse, median_doc, profile.anchor_date))
+        deterministic.update(zero_volatility_capital(plan, tax_model))
     need_bands: dict[str, dict[str, float]] = {}
-    if fna_bands is not None:
+    if fna_bands:
         docs = binding.materialise_draws(profile, settings.need_bands_k, seed=seed, base=base_document)
         bands = _call(fna_bands, docs, profile.anchor_date)
         need_bands = {k: {q: round(float(v), 2) for q, v in sorted(d.items())} for k, d in sorted(bands.items())}

@@ -20,7 +20,7 @@ success_definition:
   allow_property_sale: false
   tolerance: 0.001             # unmet essential spend below 0.1% of the year's essential spend is rounding, not failure
 portfolio_policy: from_profile_or_default     # the client's risk-profile mix, else the default glide path by age
-drawdown_band: {min: 0.025, max: 0.175}       # living annuity drawdown (§12.3 step 7)
+drawdown_band: {min: 0.025, max: 0.175}       # living annuity drawdown (§12.3 step 7) for tax models without a table; the FNA engine's model supplies the table's band
 expenses:
   children_end_age: 18         # child-related expense lines stop when the youngest child turns 18 (end of matric)
   support_keys: [family-support]   # stop when the supported dependants' support years end

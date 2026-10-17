@@ -33,7 +33,7 @@ from .config import ASSET_CLASSES, CMA, ForecastConfig
 from .sampling import stream
 
 N_CLASSES = len(ASSET_CLASSES)
-PLAYERS: tuple[str, ...] = (*ASSET_CLASSES, "fx", "inflation")  # the market inputs Shapley effects split (§12.5)
+PLAYERS: tuple[str, ...] = (*ASSET_CLASSES, "fx_usdzar", "inflation")  # the market inputs Shapley effects split (§12.5)
 
 
 @dataclass(frozen=True)
