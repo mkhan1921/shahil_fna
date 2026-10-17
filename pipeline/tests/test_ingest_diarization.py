@@ -62,10 +62,10 @@ async def test_pyannote_upload_submit_poll_and_confidence():
 
     d = PyannoteAIDiarizer(api_key="pa-key", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)), poll_interval_s=0)
     assert isinstance(d, Diarizer)
-    turns = await d.diarize(speech_like(3, seed=1), 16_000, min_speakers=2, max_speakers=4, key="call-1")
-    assert seen["media"] == "media://advisor-intel/call-1.wav" and seen["put"][0] == "PUT" and seen["put"][1] == "audio/wav"
+    turns = await d.diarize(speech_like(3, seed=1), 16_000, min_speakers=2, max_speakers=4, key="call 1/ch0 (Mokoena)")
+    assert seen["media"] == "media://advisor-intel/call-1-ch0-Mokoena.wav" and seen["put"][0] == "PUT" and seen["put"][1] == "audio/wav"
     assert seen["body"] == {
-        "url": "media://advisor-intel/call-1.wav",
+        "url": "media://advisor-intel/call-1-ch0-Mokoena.wav",
         "model": "precision-3",
         "minSpeakers": 2,
         "maxSpeakers": 4,

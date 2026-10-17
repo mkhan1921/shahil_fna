@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import bisect
 import random
+import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -107,7 +108,8 @@ class PyannoteAIDiarizer(HttpProvider):
         self, samples: np.ndarray, sample_rate: int, *, min_speakers: int, max_speakers: int, key: str = ""
     ) -> list[SpeakerTurn]:
         http = self.http()
-        media = f"media://advisor-intel/{key or uuid.uuid4().hex}.wav"
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "-", key).strip("-") if key else ""  # media:// keys take a slug, not a free call id
+        media = f"media://advisor-intel/{safe or uuid.uuid4().hex}.wav"
         up = self.json_or_raise(await http.post(f"{self.base_url}/media/input", json={"url": media}, headers=self._headers()), "pyannoteAI")
         put = await http.put(up["url"], content=wav_bytes(samples, sample_rate), headers={"Content-Type": "audio/wav"})
         self.json_or_raise(put, "pyannoteAI upload")
