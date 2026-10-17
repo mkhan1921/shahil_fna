@@ -1,8 +1,12 @@
 """Single-field re-extraction for verification (spec §9.1b, §9.1d).
 
-``make_reextract`` builds the consistency-probe callable: the same slot re-extracted with a
-paraphrased question and a reordered window on the small model, normalised like the main extraction,
-returning the probe's status and value. Probes vary the prompt wording, never the sampling (§13.7).
+``make_reextract`` builds the consistency-probe callable: the same slot re-extracted on the small model
+with a reordered window, through the field-status stage and then, for a stated or implied field, the
+value stage with a paraphrased question, normalised like the main extraction. The probe answers with
+the status stage's status (``explicitly_unknown`` and ``not_discussed`` included), so §9.1b compares
+status to status and values only where both sides have one. A probe whose stages gave no valid answer
+raises ``ProbeFailed`` and is left out and counted, never read as a disagreement. Probes vary the
+prompt wording and order, never the sampling (§13.7).
 ``make_reopen`` builds the omission check's callable: one targeted value extraction over the
 segments the coverage check pointed at, aligned and turned into ops (not applied: the caller runs
 them through the reducer).
@@ -27,7 +31,12 @@ from .context import ExtractionDeps, concrete_path, field_key
 from .ops import draft_fact, normalise_value, to_state_ops
 from .planner import _with_context
 from .reducer import make_ops
-from .subagent import GroupExtraction, stage_values
+from .subagent import GroupExtraction, stage_statuses, stage_values
+
+
+class ProbeFailed(RuntimeError):
+    """A probe's stages gave no valid answer after their retries: the probe is left out, not counted as a disagreement."""
+
 
 PARAPHRASES = (
     "{question}",
@@ -82,7 +91,10 @@ async def _one_field(
     role: str,
     variant: int,
     status_hint: str = "stated",
+    decide_status: bool = False,
 ) -> tuple[GroupExtraction, ExtractionDeps, str]:
+    """One field through the value stage, after the field-status stage when ``decide_status`` (a probe), else with the
+    status the caller already knows (``status_hint``: the omission check found the field present)."""
     window = _with_context([s.segment_id for s in ctx.transcript.segments], set(segment_ids))
     task = ctx.task_for(slot, instance, window, f"probe{variant}" if role == "small" else "reopen")
     phr = PARAPHRASES[variant % len(PARAPHRASES)].format(question=slot.question, label=slot.label.lower(), who=_who(instance, profile))
@@ -101,9 +113,12 @@ async def _one_field(
     key = field_key(slot, instance)
     keys = {key: (probe_slot, instance)}
     out = GroupExtraction()
-    statuses = {key: FieldStatus(fna_path=key, status=status_hint, segment_ids=[s for s in segment_ids if s in set(window)])}  # type: ignore[arg-type]
+    if decide_status:
+        statuses = await stage_statuses(deps, keys, out, variant=variant)
+    else:
+        statuses = {key: FieldStatus(fna_path=key, status=status_hint, segment_ids=[s for s in segment_ids if s in set(window)])}  # type: ignore[arg-type]
     out.statuses = statuses
-    out.values = await stage_values(deps, keys, statuses, out, variant=variant)
+    out.values = await stage_values(deps, keys, statuses, out, variant=variant)  # only for a stated, implied or contradicted field
     return out, deps, key
 
 
@@ -123,14 +138,19 @@ def make_reextract(ctx: ProbeContext, get_profile: Callable[[], Profile]) -> Ree
         segs = list(dict.fromkeys(e.segment_id for e in fact.evidence))
         if not segs:
             return ProbeResult(status="not_discussed")
-        out, _deps, key = await _one_field(ctx, profile, slot, fact.instance_key, segs, role="small", variant=variant + 1)
+        out, _deps, key = await _one_field(
+            ctx, profile, slot, fact.instance_key, segs, role="small", variant=variant + 1, decide_status=True
+        )
+        if key in out.failures:
+            raise ProbeFailed(f"{key}: {out.failures[key]}")
+        status = out.statuses[key].status
         fv = out.values.get(key)
-        if fv is None or key in out.failures:
-            return ProbeResult(status="not_discussed")
+        if fv is None:  # not discussed or explicitly unknown: the comparison is status to status (§9.1b)
+            return ProbeResult(status=status)
         hyps, _, _, _ = normalise_value(fv.model_copy(update={"fna_path": key}), slot, key, profile, lex, ctx.transcript, segs)
         from .reducer import merged_value
 
-        return ProbeResult(status="stated", value=merged_value(hyps))
+        return ProbeResult(status=status, value=merged_value(hyps))
 
     return reextract
 

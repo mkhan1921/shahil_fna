@@ -298,12 +298,17 @@ def validate_statuses(statuses: dict[str, FieldStatus], keys: dict[str, tuple[Sl
     return errors
 
 
-async def stage_statuses(deps: ExtractionDeps, keys: dict[str, tuple[SlotDef, str | None]], out: GroupExtraction) -> dict[str, FieldStatus]:
+async def stage_statuses(
+    deps: ExtractionDeps, keys: dict[str, tuple[SlotDef, str | None]], out: GroupExtraction, *, variant: int = 0
+) -> dict[str, FieldStatus]:
+    """Each field's status and the segments that discuss it. ``variant`` marks a consistency probe's re-run (§9.1b)."""
     window = deps.window_ids()
     if not window:
         return {k: FieldStatus(fna_path=k, status="not_discussed", segment_ids=[]) for k in keys}
     instructions, version = _instructions(deps, "extract_fields")
     out.prompt_versions["fields"] = version
+    if variant:
+        instructions += f"\n\n(Probe {variant}: decide the same fields independently; the wording and order of the window may differ.)"
     listing = "\n".join(f"- {k}" for k in keys)
     model = C.compile_statuses(deps.group, list(keys))
     raw = await _run(fields_agent, deps, model, deps.prompt("Fields to decide", listing), instructions, out.usage, out)
