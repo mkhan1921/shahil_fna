@@ -298,7 +298,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
     if (facts.length) dispatch({ type: 'acceptMany', factIds: facts.map((f) => f.factId) });
   };
 
-  const clearFlag = (flagId: string, resolution: 'accepted' | 'dismissed', note?: string) => {
+  const clearFlag = (flagId: string, resolution: 'accepted' | 'marked_unknown' | 'dismissed', note?: string) => {
     const ok = dispatch({ type: 'clearFlag', flagId, resolution, note });
     if (ok && current === `flag:${flagId}`) {
       const next = nextUndecided(session, order, current, null);
@@ -479,6 +479,7 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
   /* ---------------------------------------------------------------- */
 
   const quality = session.bundle.quality ?? session.bundle.transcript.quality;
+  const checkWarnings = session.bundle.warnings ?? []; // a session stored before the pipeline sent them
   const openFollowups = session.followups.filter((q) => q.status === 'open').length;
   const submittable = canSubmit(session);
   const submitTitle = done ? 'Submitted' : flags.length ? `Clear the ${flags.length} blocking flag${flags.length === 1 ? '' : 's'} first` : session.pending.length ? 'Finish the field you are editing first' : 'Submit the review';
@@ -570,6 +571,16 @@ function Workspace({ handle, session }: { handle: ReviewHandle; session: ReviewS
         </Callout>
       ))}
       {quality?.role_review_needed && <Callout tone="warning">The system was unsure who was speaking: check that the adviser’s and the client’s turns are labelled correctly in the transcript.</Callout>}
+      {checkWarnings.length > 0 && (
+        <Callout tone="warning" title={checkWarnings.length === 1 ? 'A check did not run on this call' : `${checkWarnings.length} checks did not run on this call`}>
+          What those checks would have caught can look clean here, so read the values against the recording.
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {checkWarnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </Callout>
+      )}
       {refused.length > 0 && (
         <Callout tone="warning" title={`The pipeline refused ${refused.length} of your change${refused.length === 1 ? '' : 's'}`}>
           {refused.length === 1 ? 'It stays' : 'They stay'} in this review and its result file; the pipeline’s own reviewed file will differ there.{' '}

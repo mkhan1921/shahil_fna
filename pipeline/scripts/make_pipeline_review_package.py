@@ -83,6 +83,7 @@ async def build() -> ReviewPackage:
         deterministic_analysis=res.analysis,
         quality=res.transcript.quality,
         versions=pins,
+        warnings=list(res.warnings),
     )
     return ReviewPackage(bundle=bundle)
 

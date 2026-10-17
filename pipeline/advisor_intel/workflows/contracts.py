@@ -96,6 +96,7 @@ class VoiOutcome(BaseModel):
     n_followups: int = 0
     n_flags: int = 0
     skipped: bool = False  # VOI is not installed in this worker: the agent's follow-ups and flags stand
+    warnings: list[str] = []  # VOI checks that failed (``runs.check_warnings``), stored for the review (§10)
 
 
 class ForecastOutcome(BaseModel):

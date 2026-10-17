@@ -5,7 +5,11 @@ runs its stage, saves the outputs, and is idempotent on ``(call_id, stage, versi
   re-run never re-transcribes (§5) and extraction experiments start from the cache (§15.1). A
   scripted call (no audio) runs the stage 1 back half on the script's words.
 - ``run_agent`` drives the harness with ``activity.heartbeat`` and a Postgres checkpoint store, so
-  a retry resumes from the last turn (§13.2); it saves the profile, facts and ops.
+  a retry resumes from the last turn (§13.2); it saves the profile, facts and ops. Stage saves are
+  conditional on the version the attempt read (``Store.save_profile(after=)``): an attempt whose
+  heartbeat timed out but is still running has its save refused and logged, never applied over the
+  retry's. The outcome of the checks after the agent (a check that failed or did not run) is stored
+  with the stage output, so the review can show it (§9).
 - ``run_voi_and_followups``, ``run_forecast``, ``render_meeting_note`` record their output per run
   and stage inputs; ``apply_review`` and ``intake_followup_answer`` per submission and answer;
   notifications per scheduled activity, so a retry never sends twice.
@@ -42,7 +46,7 @@ from ..models.facts import Provenance
 from ..models.fna import FnaDocument
 from ..models.forecast import ForecastResult
 from ..models.profile import BlockingFlag, FollowUp, Profile, StateOp
-from ..models.runs import AgentOutcome, VersionPins, forecast_seed
+from ..models.runs import AgentOutcome, VersionPins, check_warnings, forecast_seed
 from ..models.transcript import Transcript
 from ..note import MeetingNote, apply_note, generate_note, update_note
 from ..notify import Notifier, ReviewSummary, compose
@@ -52,7 +56,7 @@ from ..storage.checkpoints import PostgresCheckpointStore
 from ..storage.glossary import PostgresGlossaryStore, SyncGlossaryStore, glossary_lines
 from ..storage.objects import ObjectStore, safe_segment
 from ..storage.records import CallRecord, ReviewEvent, RunRecord
-from ..storage.store import Store
+from ..storage.store import StaleProfile, Store
 from ..telemetry import run_context
 from ..voi.intake import answer_transcript
 from ..workflows.contracts import (
@@ -215,12 +219,18 @@ class PipelineActivities:
                 return await self.store.save_profile(copy)
         raise input_error(f"run {run_id} has no profile and no earlier run of call {call_id} has one; run from the agent stage")
 
-    async def _save_new_profile(self, profile: Profile) -> Profile:
-        """Save a stage's profile, superseding any version an interrupted attempt stored."""
-        versions = await self.store.profile_versions(profile.run_id)
-        if versions and versions[-1].version >= profile.version:
-            profile = profile.model_copy(update={"version": versions[-1].version + 1})
-        saved = await self.store.save_profile(profile)
+    async def _save_new_profile(self, profile: Profile, *, after: int) -> Profile:
+        """Save a stage's profile as the version after ``after``, the latest version this attempt read.
+
+        The store refuses the save (``StaleProfile``) when another attempt saved first: a retry's result is
+        never overwritten by an attempt whose heartbeat timed out but that is still running (§13.1). The
+        refusal fails this attempt, whose result Temporal has already discarded.
+        """
+        try:
+            saved = await self.store.save_profile(profile, after=after)
+        except StaleProfile as e:
+            log.error("run %s: a stale attempt's profile save was refused, another attempt saved first: %s", profile.run_id, e)
+            raise
         await self.objects.put_json(f"profiles/{safe_segment(profile.run_id)}/v{saved.version}.json", saved)
         return saved
 
@@ -372,6 +382,8 @@ class PipelineActivities:
             doc, crm = await self._prior(call)
             catalog = self._catalog(pins)
             transcript = with_rewrites(transcript, discourse)
+            # Every save of this attempt builds on the latest version it read: a save after another attempt's is refused.
+            after = await self.store.latest_profile_version(inp.run_id)
             # The agent loop's result is recorded on its own, so a retry of the checks after it does not rerun the loop.
             loop_key = run_key("agent_loop", inp.run_id, pins, execution=scope)
             looped = await self.store.get_stage_output(args.call_id, "agent_loop", loop_key)
@@ -381,7 +393,8 @@ class PipelineActivities:
                 if profile is None:
                     raise input_error(f"run {inp.run_id} lost profile version {looped.output['profile_version']}")
             else:
-                outcome, profile = await self._agent_loop(inp, transcript, discourse, doc, crm, catalog, scope)
+                outcome, profile = await self._agent_loop(inp, transcript, discourse, doc, crm, catalog, scope, after=after)
+                after = profile.version
                 await self.store.put_stage_output(
                     args.call_id,
                     "agent_loop",
@@ -408,9 +421,13 @@ class PipelineActivities:
                         conformal=conformal,
                         settings=self.settings,
                     )
-                await self._save_new_profile(Profile.model_validate(dump(checked.profile)))
+                await self._save_new_profile(Profile.model_validate(dump(checked.profile)), after=after)
+                warnings = check_warnings(getattr(checked, "errors", []), getattr(checked, "skipped", []))
             else:
                 log.warning("run %s: verification is not installed in this worker; facts are not scored", inp.run_id)
+                warnings = check_warnings([], ["every check (verification is not installed in this worker: facts are not scored)"])
+            # The checks' outcome is part of the stored stage output: a check that did not run is never a silent zero (§9).
+            outcome = outcome.model_copy(update={"warnings": warnings})
             await self.store.put_stage_output(
                 args.call_id, "agent", key, inp.run_id, outcome.model_dump(mode="json"), pins.model_dump(mode="json")
             )
@@ -425,8 +442,11 @@ class PipelineActivities:
         crm: CrmRecord | None,
         catalog: Catalog,
         scope: str,
+        *,
+        after: int,
     ) -> tuple[AgentOutcome, Profile]:
-        """The orchestrator over the client's prior profile (§13.2), checkpointed per turn; returns its saved profile."""
+        """The orchestrator over the client's prior profile (§13.2), checkpointed per turn; returns its saved profile
+        (the version after ``after``, the latest this attempt read)."""
         args, pins = inp.args, inp.args.versions
         provenance = Provenance(
             run_id=inp.run_id,
@@ -477,7 +497,7 @@ class PipelineActivities:
         followups = [FollowUp.model_validate(dump(q)) for q in getattr(result, "followups", None) or []]
         if followups:  # the agent's drafts stand until VOI ranks them (§10.5)
             profile = profile.model_copy(update={"open_questions": followups})
-        return outcome, await self._save_new_profile(profile)
+        return outcome, await self._save_new_profile(profile, after=after)
 
     async def _calibration(self, version: str) -> tuple[Any, Any]:
         """The run's pinned calibrator and conformal thresholds from the registry and object storage (§9.4–9.5).
@@ -539,6 +559,7 @@ class PipelineActivities:
             profile = await self._run_profile(inp.run_id, args.call_id)
             transcript = await self._transcript(args.call_id, pins)
             voi = self.stages.optional("run_voi_and_followups")
+            warnings: list[str] = []
             if voi is None:  # as in the in-process runner: the agent's follow-ups and flags stand
                 log.warning("run %s: VOI is not installed in this worker; the review gets the agent's follow-ups", inp.run_id)
                 new, followups, flags = profile, list(profile.open_questions), list(profile.blocking_flags)
@@ -560,6 +581,7 @@ class PipelineActivities:
                 new = Profile.model_validate(dump(out.profile))
                 followups = [FollowUp.model_validate(dump(q)) for q in out.followups]
                 flags = [BlockingFlag.model_validate(dump(f)) for f in out.flags]
+                warnings = check_warnings(getattr(out, "errors", []), [], stage="voi")
             if transcript.quality and transcript.quality.role_review_needed and not any(f.kind == "role_review" for f in flags):
                 flags.insert(
                     0,
@@ -573,9 +595,16 @@ class PipelineActivities:
             # A flag the reviewer already cleared stays cleared when VOI raises it again.
             cleared = {f.flag_id: f for f in profile.blocking_flags if f.cleared}
             flags = [cleared.get(f.flag_id, f) for f in flags]
-            saved = await self.store.save_profile(new.model_copy(update={"open_questions": followups, "blocking_flags": flags}))
+            # Saved as the version after the one this attempt read: a stale attempt's save is refused (§13.1).
+            saved = await self._save_new_profile(
+                new.model_copy(update={"open_questions": followups, "blocking_flags": flags}), after=profile.version
+            )
             result = VoiOutcome(
-                profile_version=saved.version, n_followups=len(followups), n_flags=sum(not f.cleared for f in flags), skipped=voi is None
+                profile_version=saved.version,
+                n_followups=len(followups),
+                n_flags=sum(not f.cleared for f in flags),
+                skipped=voi is None,
+                warnings=warnings,
             )
             if voi is not None:  # a skipped VOI is not recorded: a worker with VOI installed runs it on a retry or re-run
                 await self.store.put_stage_output(

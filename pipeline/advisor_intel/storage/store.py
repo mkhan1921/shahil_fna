@@ -253,11 +253,33 @@ class Store:
 
     # ------------------------------------------------------------------ profiles
 
-    async def save_profile(self, profile: Profile) -> Profile:
-        """Persist what changed since the last save; returns the profile as saved (its version may be bumped)."""
+    async def save_profile(self, profile: Profile, *, after: int | None = None) -> Profile:
+        """Persist what changed since the last save; returns the profile as saved (its version may be bumped).
+
+        With ``after``, the save is conditional (optimistic concurrency for a writer that read the profile
+        outside this transaction, such as a stage activity's attempt): under the run's lock the latest stored
+        version must still be ``after`` (0 for none), and the profile is stored as version ``after + 1``.
+        Otherwise ``StaleProfile`` is raised and nothing is written, so an attempt whose heartbeat timed out
+        but is still running never saves over the retry's result (§13.1).
+        """
         async with self.db.transaction() as conn:
             await self._lock_run(conn, profile.run_id)
+            if after is not None:
+                latest = await self._latest_version(conn, profile.run_id)
+                if latest != after:
+                    raise StaleProfile(f"run {profile.run_id}: saving after version {after} but version {latest} is the latest stored")
+                profile = profile.model_copy(update={"version": after + 1})
             return await self._save_profile(conn, profile)
+
+    @staticmethod
+    async def _latest_version(conn: Connection, run_id: str) -> int:
+        cur = await conn.execute("SELECT COALESCE(MAX(version), 0) AS v FROM profiles WHERE workflow_id = %s", (run_id,))
+        return int((await cur.fetchone())["v"])
+
+    async def latest_profile_version(self, run_id: str) -> int:
+        """The run's latest stored profile version, 0 when it has none: what a conditional save builds on."""
+        async with self.db.connection() as conn:
+            return await self._latest_version(conn, run_id)
 
     async def load_profile(self, run_id: str, version: int | None = None) -> Profile | None:
         async with self.db.connection() as conn:

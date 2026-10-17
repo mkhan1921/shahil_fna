@@ -42635,6 +42635,7 @@
    "cma_version": "2026Q4",
    "fna_tables_version": "za_2026_27"
   },
-  "attribution_text": "Of the uncertainty in this plan, about 58% is markets, 27% is what the client hasn't decided, 11% is facts we may have misheard."
+  "attribution_text": "Of the uncertainty in this plan, about 58% is markets, 27% is what the client hasn't decided, 11% is facts we may have misheard.",
+  "warnings": []
  }
 }

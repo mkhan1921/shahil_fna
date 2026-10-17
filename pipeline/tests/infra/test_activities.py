@@ -23,6 +23,7 @@ from advisor_intel import binding
 from advisor_intel.activities import NightlyActivities, PipelineActivities, StageFunctions
 from advisor_intel.activities.pipeline import forecast_seed
 from advisor_intel.activities.providers import Providers
+from advisor_intel.api.bundle import run_warnings
 from advisor_intel.config import Settings
 from advisor_intel.extract.reducer import annotate, make_ops
 from advisor_intel.harness.deps import AgentInputs
@@ -35,6 +36,7 @@ from advisor_intel.models.profile import StateOp
 from advisor_intel.models.runs import AgentOutcome, CallArgs, FollowupAnswer, ReviewSubmission, Stage, VersionPins
 from advisor_intel.notify.notifier import Notification
 from advisor_intel.storage import CalibratorRecord, CallRecord, GlossaryEntry, PostgresGlossaryStore, Store, SyncGlossaryStore
+from advisor_intel.storage.store import StaleProfile
 from advisor_intel.workflows import contracts as C
 
 from .factories import GROSS, RET_AGE, flagged, make_transcript, sample_document, with_call_facts
@@ -58,9 +60,20 @@ class Fakes:
         self.sensitivity_base: list[Any] = []
         self.verified_with: tuple[Any, Any] | None = None
         self.verify_failures = 0
+        self.verify_errors: list[str] = []
+        self.verify_skipped: list[str] = []
+        # A stalled attempt (its heartbeat would time out): the next agent or VOI call waits on ``stall`` and sets ``stalled``.
+        self.stall: asyncio.Event | None = None
+        self.stalled = asyncio.Event()
 
     def count(self, name: str) -> None:
         self.calls[name] = self.calls.get(name, 0) + 1
+
+    async def _maybe_stall(self) -> None:
+        if self.stall is not None:
+            ev, self.stall = self.stall, None
+            self.stalled.set()
+            await ev.wait()
 
     async def ingest(self, audio, meta, *, asr, diarizer, role_agent_pins, second_pass=None, prior_fna=None, crm_names=None):
         self.count("ingest")
@@ -86,6 +99,7 @@ class Fakes:
         cp = await checkpoints.load(inputs.run_id)
         start = cp.turn if cp else 0
         self.resumed_from.append(start)
+        await self._maybe_stall()
         for turn in range(start + 1, 4):
             heartbeat({"turn": turn})
             await checkpoints.save(inputs.run_id, turn, [{"turn": t} for t in range(1, turn + 1)], {"turn": turn})
@@ -103,7 +117,11 @@ class Fakes:
             raise RuntimeError("verifier timed out")
         assert transcript.segment("s0002").rewritten_text and discourse.rewrites and run_id == profile.run_id
         self.verified_with = (calibrator, conformal)
-        return SimpleNamespace(profile=annotate(profile, RET_AGE, p_correct=0.91, p_raw=0.88))
+        return SimpleNamespace(
+            profile=annotate(profile, RET_AGE, p_correct=0.91, p_raw=0.88),
+            errors=list(self.verify_errors),
+            skipped=list(self.verify_skipped),
+        )
 
     def sensitivity(self, profile, fact_ids, *, n_paths=1000, seed, base_document=None):
         self.sensitivity_base.append(base_document)
@@ -111,6 +129,7 @@ class Fakes:
 
     async def voi(self, profile, *, catalog, pins, pos_runs, analyse, transcript, settings, base_document, seed):
         self.count("voi")
+        await self._maybe_stall()
         assert analyse(binding.materialise(profile)) == {"needs": {"retirement": "shortfall"}, "as_of": transcript.anchor_date.isoformat()}
         rows = await pos_runs(profile, [RET_AGE], n_paths=1000, seed=seed)
         assert rows[RET_AGE]["pos_q90"] == 0.8 and base_document is not None and seed == forecast_seed(profile.run_id)
@@ -326,6 +345,74 @@ async def test_checks_after_the_agent_use_the_pinned_calibrator_and_retry_withou
     with pytest.raises(ApplicationError, match="not in the registry") as ei:
         await env(execution="exec-2").run(ctx.acts.run_agent, stage_in(versions=VersionPins(calibrator_version="cal-404")))
     assert ei.value.non_retryable
+
+
+async def test_a_stale_agent_attempt_cannot_save_over_the_retrys_profile(ctx, caplog):
+    e = env()
+    await e.run(ctx.acts.ingest_audio, stage_in())
+    await e.run(ctx.acts.run_discourse, stage_in())
+    # Attempt 1 stalls inside the harness (its heartbeat times out, Temporal retries in the same execution) but keeps running.
+    stall = asyncio.Event()
+    ctx.fakes.stall, ctx.fakes.stalled = stall, asyncio.Event()
+    zombie = asyncio.create_task(env().run(ctx.acts.run_agent, stage_in()))
+    await asyncio.wait_for(ctx.fakes.stalled.wait(), 10)
+    outcome = await env().run(ctx.acts.run_agent, stage_in())  # the retry does the work
+    assert outcome.turns == 3
+    latest = await ctx.store.load_profile(RUN)
+    assert latest.open_questions == [] and latest.facts[RET_AGE].p_correct == 0.91
+    # The stale attempt wakes up with a different result: its save is refused and logged, never applied.
+    ctx.fakes.agent_followups = True
+    stall.set()
+    with pytest.raises(StaleProfile, match="latest stored"):
+        await zombie
+    assert "stale attempt" in caplog.text
+    again = await ctx.store.load_profile(RUN)
+    assert again.version == latest.version and again.facts == latest.facts and again.open_questions == []
+    assert await ctx.store.latest_profile_version(RUN) == latest.version
+    assert not await ctx.objects.exists(f"profiles/{RUN}/v{latest.version + 1}.json")
+    # The run carries on from the retry's result: VOI builds the next version on it.
+    out = await env().run(ctx.acts.run_voi_and_followups, stage_in())
+    assert out.profile_version == latest.version + 1
+
+
+async def test_a_stale_voi_attempt_cannot_save_over_the_retrys_profile(ctx):
+    e = env()
+    for step in (ctx.acts.ingest_audio, ctx.acts.run_discourse, ctx.acts.run_agent):
+        await e.run(step, stage_in())
+    stall = asyncio.Event()
+    ctx.fakes.stall, ctx.fakes.stalled = stall, asyncio.Event()
+    zombie = asyncio.create_task(env().run(ctx.acts.run_voi_and_followups, stage_in()))
+    await asyncio.wait_for(ctx.fakes.stalled.wait(), 10)
+    out = await env().run(ctx.acts.run_voi_and_followups, stage_in())
+    stall.set()
+    with pytest.raises(StaleProfile):
+        await zombie
+    assert await ctx.store.latest_profile_version(RUN) == out.profile_version and ctx.fakes.calls["voi"] == 2
+    assert (await env().run(ctx.acts.run_voi_and_followups, stage_in())).cached  # the retry's outcome stands
+
+
+async def test_the_checks_outcome_is_stored_with_the_agent_stage(ctx):
+    e = env()
+    await e.run(ctx.acts.ingest_audio, stage_in())
+    await e.run(ctx.acts.run_discourse, stage_in())
+    ctx.fakes.verify_errors = [f"{RET_AGE}: consistency probes all failed (verifier down)"]
+    ctx.fakes.verify_skipped = ["omission check (no reopen callable: the reasoning role is a stub)"]
+    outcome = await e.run(ctx.acts.run_agent, stage_in())
+    expected = [
+        f"verify: {RET_AGE}: consistency probes all failed (verifier down)",
+        "verify skipped omission check (no reopen callable: the reasoning role is a stub)",
+    ]
+    assert outcome.warnings == expected
+    stored = [r for r in await ctx.store.stage_outputs_for_run(RUN) if r.stage == "agent"]
+    assert stored and stored[-1].output["warnings"] == expected
+    await e.run(ctx.acts.run_voi_and_followups, stage_in())
+    assert await run_warnings(ctx.store, RUN) == expected  # what the review bundle shows (api.bundle)
+    # A worker without verification installed says so, instead of handing the review unscored facts quietly.
+    overrides = {k: v for k, v in ctx.fakes.overrides().items() if k != "verify_after_agent"}
+    table = {k: v for k, v in ctx.acts.stages.table.items() if k != "verify_after_agent"}
+    ctx.acts.stages = StageFunctions(overrides, table=table)
+    bare = await env(execution="exec-2").run(ctx.acts.run_agent, stage_in())
+    assert bare.warnings == ["verify skipped every check (verification is not installed in this worker: facts are not scored)"]
 
 
 async def test_voi_saves_followups_flags_and_a_role_review_flag(ctx):

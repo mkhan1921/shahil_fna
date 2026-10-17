@@ -259,8 +259,12 @@ async def test_rerun_by_reset_rewinds_to_the_stage_and_reuses_earlier_outputs(st
                     )
 
                 await _until(back_in_review)
-                # Stages before VOI were not run again; VOI ran in the new execution; the unchanged preview forecast was reused.
-                assert fakes.calls["ingest"] == 1 and fakes.calls["agent"] == 1 and fakes.calls["forecast"] == 1
+                # Stages before VOI were not run again; VOI ran in the new execution and, as every stage save does, wrote a
+                # new profile version (a stale attempt can never overwrite one in place, §13.1), so the preview forecast,
+                # cached per profile version, was computed again for it.
+                assert fakes.calls["ingest"] == 1 and fakes.calls["agent"] == 1 and fakes.calls["forecast"] == 2
+                versions = await store.profile_versions(run_id)
+                assert [v.version for v in versions] == list(range(1, len(versions) + 1)) and len(versions) >= 3
                 bad = await c.post(
                     "/calls/call-reset/rerun", json={"from_stage": "review", "mode": "reset", "versions": {"cma_version": "x"}}
                 )
