@@ -59,6 +59,9 @@ async def build() -> ReviewPackage:
     document = res.document.model_copy(
         update={"id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"advisor-intel/{CALL_ID}/document")), "createdAt": stamp, "updatedAt": stamp}
     )
+    # engagement.meetingDate defaults to today (the app sets it from the call metadata): pin it to the call date too,
+    # or the fixture goes stale at midnight.
+    document = document.model_copy(update={"engagement": document.engagement.model_copy(update={"meetingDate": ANCHOR.isoformat()})})
     bundle = ReviewBundle(
         call_id=res.call_id,
         run_id=res.run_id,

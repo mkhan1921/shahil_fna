@@ -6,6 +6,8 @@ client (at most 8) → blocking flags. Facts are only annotated (``reducer.annot
 flags are written to ``Profile.open_questions`` and ``Profile.blocking_flags``, keeping follow-ups already
 asked or answered and every flag decision the reviewer made. ``VoiOutput.followups`` and ``.flags`` are
 exactly those two lists (so a caller may write them back); ``.drafted`` holds this round's new questions.
+A view that failed (the PoS runs, the FNA analysis) leaves its terms at 0 and is named in ``.errors``, as
+is a drafting failure that fell back to template questions: a zero from a failure is never silent.
 
 The in-process runner and the activity call it as ``await run_voi_and_followups(profile, catalog=…,
 pins=…, pos_runs=forecast.sensitivity.sensitivity_runs, analyse=fna_engine.analysis.analyse,

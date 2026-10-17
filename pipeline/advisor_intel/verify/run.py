@@ -10,6 +10,10 @@
 - ``verify_stage`` chains them for the activity: verify, omission check, verify what it reopened, score.
   After the orchestrator it verifies only facts the checks have not seen in their current form: each
   verified fact records a fingerprint of its status and hypotheses (``verification["checked_fingerprint"]``).
+
+A check that fails to run never passes as a quiet NaN or "absent": ``VerifyResult.errors`` names the facts
+whose verifier call or probes failed, ``Stage5Result.errors`` collects those with the omission check's, and
+``Stage5Result.skipped`` names the checks a deployment did not run at all (a stub verifier, no probes).
 """
 
 from __future__ import annotations
