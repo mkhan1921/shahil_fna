@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from advisor_intel.models.extraction import AmountApprox, CategoryForm
 from advisor_intel.schema.compiler import (
@@ -82,7 +83,7 @@ def test_category_labels_are_enums_and_round_trip():
     assert len(vals) == 1 and isinstance(vals[0].hypotheses[0].intermediate, CategoryForm)
     bad = dict(payload)
     bad[key] = [dict(payload[key][0], hypotheses=[{"intermediate": {"type": "CATEGORY", "label": "married-ish", "certainty_word": ""}, "weight": 0, "rationale": "", "revises": False}])]
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ts.values.model_validate(bad)
 
 

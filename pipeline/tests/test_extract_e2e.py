@@ -46,7 +46,7 @@ def fact(res, key: str):
 
 
 def test_run_completes_and_every_gold_field_is_a_fact(run):
-    t, oracle, r = run
+    _, oracle, r = run
     assert not r.outcome.partial, r.outcome.reason
     assert not r.state["tool_errors"]
     found = {oracle._gold_key(fid) for fid in r.profile.facts}
@@ -65,6 +65,15 @@ def test_every_call_fact_quotes_the_transcript(run):
         for e in f.evidence:
             assert e.quote and e.quote in idx[e.segment_id].text, (f.fact_id, e.quote)
             assert e.segment_id != injected, f.fact_id
+
+
+def test_evidence_cites_the_right_segment_only(run):
+    t, _, r = run
+    pension = fact(run, "retirementFunds[].value#@company pension fund")
+    assert [t.index()[e.segment_id].text for e in pension.evidence] == [next(s.text for s in t.segments if "one point two million" in s.text)]
+    insurer = fact(run, "policies[].insurer#@discovery life cover")
+    assert all(e.speaker_role != "advisor" for e in insurer.evidence)  # 'Life cover?' is the question, not the answer
+    assert "riskProfile.answers[emergency]" not in r.profile.facts  # no savings were discussed: nothing to divide
 
 
 def test_values_follow_the_lexicon_and_the_derivations(run):

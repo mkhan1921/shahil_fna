@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..extract.reducer import ReducerResult, apply_state_ops, make_ops
+from ..extract.reducer import ReducerResult, apply_state_ops, check_profile, make_ops
 from ..lexicon.loader import load_lexicon
 from ..models.extraction import ExtractionResult, ExtractionTask
 from ..models.facts import Provenance
@@ -121,6 +121,8 @@ async def extract_task(task: ExtractionTask, hdeps: HarnessDeps) -> tuple[Profil
     usage["requests"] += aligned.requests
     usage["input_tokens"] += aligned.input_tokens
     usage["output_tokens"] += aligned.output_tokens
+    # §7.5: the invariants hold after every batch; a violation is reported with the task, never hidden.
+    invariants = [f"invariant: {m}" for m in check_profile(result.profile, replay=False)]
     gaps = []
     for s in deps.slots:
         if s.sensitivity_tier != "A":
@@ -133,7 +135,7 @@ async def extract_task(task: ExtractionTask, hdeps: HarnessDeps) -> tuple[Profil
         ops_applied=len(result.applied),
         new_fact_ids=[f for f in result.touched if f in result.profile.facts],
         gaps=gaps,
-        warnings=out.warnings + [f"{r.op.fact_id}: {r.reason}" for r in result.rejected] + [f"{k}: {v}" for k, v in out.failures.items()],
+        warnings=out.warnings + [f"{r.op.fact_id}: {r.reason}" for r in result.rejected] + [f"{k}: {v}" for k, v in out.failures.items()] + invariants,
         dropped=[f"{k}: {v}" for k, v in aligned.dropped.items()] + dropped + [d for dr in drafts for d in dr.dropped],
         usage=usage,
     )
