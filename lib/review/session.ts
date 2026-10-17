@@ -153,6 +153,14 @@ export interface ReviewSession {
   submittedAt: string | null;
   /** API mode: ops up to this seq have been accepted by POST /calls/{id}/ops. */
   sentSeq: number;
+  /** API mode: ops the pipeline refused (by the seq the app gave them). They stay in the review and its result file. */
+  refused: RefusedOp[];
+}
+
+export interface RefusedOp {
+  seq: number;
+  reason: string;
+  at: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -255,6 +263,8 @@ const reduce = (f: ReviewFact | undefined, op: StateOp): ReviewFact => {
     const p = op.payload;
     const slot = slotById(p.slot_id);
     const seeded = f && SEED_SOURCES.has(f.source) && !f.moved;
+    // A statement about a slot the reviewer rejected or moved away replaces that fact, which keeps its prior.
+    const replaced = f && !seeded && (f.moved || f.review.status === 'rejected');
     const added: ReviewFact = {
       factId: op.fact_id,
       slotId: p.slot_id,
@@ -271,8 +281,8 @@ const reduce = (f: ReviewFact | undefined, op: StateOp): ReviewFact => {
       hypotheses: p.hypotheses ?? [],
       valueText: '',
       // A statement about a seeded field: the seed becomes the prior.
-      prior: seeded ? (f.prior ?? summarise(f.quantity)) : null,
-      priorText: seeded ? (f.priorText ?? (f.quantity ? phrase(f.quantity) : null)) : null,
+      prior: seeded ? (f.prior ?? summarise(f.quantity)) : replaced ? f.prior : null,
+      priorText: seeded ? (f.priorText ?? (f.quantity ? phrase(f.quantity) : null)) : replaced ? f.priorText : null,
       pCorrect: 1,
       autoAccepted: false,
       priority: f?.priority ?? 0,
@@ -290,7 +300,7 @@ const reduce = (f: ReviewFact | undefined, op: StateOp): ReviewFact => {
       edited: true,
       moved: false,
     };
-    if (!f || f.moved || seeded) return finalise(added);
+    if (!f || seeded || replaced) return finalise(added);
     // An ADD on a call fact merges hypotheses: identical values pool their weight.
     const merged = [...f.hypotheses];
     for (const h of added.hypotheses) {
@@ -298,7 +308,10 @@ const reduce = (f: ReviewFact | undefined, op: StateOp): ReviewFact => {
       if (i >= 0) merged[i] = { ...merged[i], weight: merged[i].weight + h.weight };
       else merged.push(h);
     }
-    return finalise({ ...f, hypotheses: merged, evidence: [...f.evidence, ...added.evidence], edited: true });
+    const seen = new Set(f.evidence.map((e) => `${e.segment_id}:${e.char_start}:${e.char_end}:${e.role}`));
+    const evidence = [...f.evidence, ...added.evidence.filter((e) => !seen.has(`${e.segment_id}:${e.char_start}:${e.char_end}:${e.role}`))];
+    const status = (f.status === 'not_discussed' || f.status === 'explicitly_unknown') && (added.status === 'stated' || added.status === 'implied') ? added.status : f.status;
+    return finalise({ ...f, status, hypotheses: merged, evidence, entityRefs: [...new Set([...f.entityRefs, ...added.entityRefs])].sort(), edited: true });
   }
   if (!f) throw new ReviewError(`${op.op} names unknown fact ${op.fact_id}`);
   switch (op.op) {
@@ -334,8 +347,15 @@ const reduce = (f: ReviewFact | undefined, op: StateOp): ReviewFact => {
         moved: f.moved || p.reason === 'wrong_entity',
       });
     }
-    case 'MARK_UNKNOWN':
-      return finalise({ ...f, status: 'explicitly_unknown', hypotheses: [], review: op.payload.review ? keepOriginal(f.review, op.payload.review) : f.review, edited: true });
+    case 'MARK_UNKNOWN': {
+      // What was there is kept, for the label of §9.3 ("status changed → 0 for the original").
+      const originals: ReviewState = {
+        ...f.review,
+        ...(f.review.original_value || f.quantity ? { original_value: f.review.original_value ?? f.quantity } : {}),
+        ...(f.review.original_status || f.status !== 'explicitly_unknown' ? { original_status: f.review.original_status ?? f.status } : {}),
+      };
+      return finalise({ ...f, status: 'explicitly_unknown', hypotheses: [], review: keepOriginal(originals, op.payload.review ?? originals), edited: true });
+    }
   }
 };
 
@@ -501,9 +521,13 @@ export const createSession = (bundle: ReviewBundle, o: CreateOptions): ReviewSes
     activeSeconds: 0,
     submittedAt: null,
     sentSeq: 0,
+    refused: [],
   };
   return o.local && bundle.prior_document ? rebase(session, o.local, { reviewerId: o.reviewerId, at: o.now }) : session;
 };
+
+/** A session saved by an earlier build of the app: fields added since take their defaults. */
+export const normaliseSession = (s: ReviewSession): ReviewSession => ({ ...s, refused: s.refused ?? [], conflicts: s.conflicts ?? [], pending: s.pending ?? [], sentSeq: s.sentSeq ?? 0 });
 
 const listOfDoc = (doc: FnaDocument, container: ListContainer): unknown[] =>
   container === 'expenses.custom' ? doc.expenses.custom : (doc as unknown as Record<string, unknown[]>)[container];
@@ -683,6 +707,12 @@ const run = (s: Draft<ReviewSession>, a: ReviewAction, stamp: Stamp): void => {
       const f = factOf(s, a.factId);
       const slot = slotOfFact(f);
       if (slot.cardinality === 'one') throw new ReviewError(`${f.label} belongs to the household as a whole.`);
+      if (a.to.kind === 'instance' && (a.to.instance === f.instanceKey || a.to.instance === null)) return;
+      // The target must be free: merging two live statements about one field would make a value nobody said.
+      const target = a.to.kind === 'instance' ? s.facts[factIdFor(slot.slot_id, a.to.instance)] : undefined;
+      if (target && isReviewItem(plain(target as ReviewFact)) && target.review.status !== 'rejected') {
+        throw new ReviewError(`${target.label} already has a value there: reject or edit that one first.`);
+      }
       const to = resolveTarget(s, slot, a.to);
       if (to.instance === f.instanceKey || to.instance === null) return;
       emit(s, reattributeOps(f, { instance: to.instance, path: to.path, entityRefs: to.refs }, stamp, reviewerProvenance(s.bundle), a.note));
@@ -948,13 +978,26 @@ export const addActiveTime = (session: ReviewSession, seconds: number): ReviewSe
     s.activeSeconds += seconds;
   });
 
-export const markSent = (session: ReviewSession, seq: number): ReviewSession =>
+/**
+ * The API answered a batch: everything up to `seq` has been seen by the pipeline. Ops it refused
+ * are recorded (once each) so the adviser is told, and are not sent again: the pipeline's reducer
+ * is deterministic, so the answer would be the same.
+ */
+export const markSent = (session: ReviewSession, seq: number, refused: { seq: number; reason: string }[] = [], at = new Date().toISOString()): ReviewSession =>
   produce(session, (s) => {
     s.sentSeq = Math.max(s.sentSeq, seq);
+    for (const r of refused) if (!s.refused.some((x) => x.seq === r.seq)) s.refused.push({ seq: r.seq, reason: r.reason, at });
   });
 
 /** Ops not yet accepted by the API. */
 export const unsentOps = (s: ReviewSession): StateOp[] => s.ops.filter((o) => o.seq > s.sentSeq);
+
+/** The facts the pipeline's refusals concern, with the reason, for the adviser. */
+export const refusedFacts = (s: ReviewSession): { op: StateOp; fact: ReviewFact | undefined; reason: string }[] =>
+  s.refused.flatMap((r) => {
+    const op = s.ops.find((o) => o.seq === r.seq);
+    return op ? [{ op, fact: s.facts[op.fact_id], reason: r.reason }] : [];
+  });
 
 /** The ids of the facts each follow-up is about, that are still in this review. */
 export const followupFacts = (s: ReviewSession, q: FollowUp): ReviewFact[] => q.fact_ids.map((id) => s.facts[id]).filter((f): f is ReviewFact => !!f && !f.moved);

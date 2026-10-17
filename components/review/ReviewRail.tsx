@@ -236,6 +236,8 @@ export function ReviewQueue({
   onKeyDown,
   onAcceptGroup,
   onClearFlag,
+  dismissing,
+  setDismissing,
   listRef,
 }: {
   session: ReviewSession;
@@ -247,10 +249,13 @@ export function ReviewQueue({
   onKeyDown: (e: KeyboardEvent<HTMLElement>) => void;
   onAcceptGroup: (group: QueueGroup) => void;
   onClearFlag: (flagId: string, resolution: 'accepted' | 'dismissed', note?: string) => boolean;
+  /** The flag whose dismissal form is open (the D key opens it for the flag in view). */
+  dismissing: string | null;
+  setDismissing: (flagId: string | null) => void;
   listRef?: Ref<HTMLDivElement>;
 }) {
-  const [dismissing, setDismissing] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  useEffect(() => setNote(''), [dismissing]);
   const p = progress(session, queue);
   const done = !!session.submittedAt;
 
@@ -309,7 +314,8 @@ export function ReviewQueue({
         )}
         <p className="mt-1 text-[10.5px] leading-[14px] text-muted">
           <kbd className="font-sans font-semibold">Enter</kbd> accept · <kbd className="font-sans font-semibold">Tab</kbd> skip · <kbd className="font-sans font-semibold">E</kbd> edit · <kbd className="font-sans font-semibold">R</kbd> reject ·{' '}
-          <kbd className="font-sans font-semibold">U</kbd> unknown · <kbd className="font-sans font-semibold">P</kbd> play
+          <kbd className="font-sans font-semibold">U</kbd> unknown · <kbd className="font-sans font-semibold">P</kbd> play · <kbd className="font-sans font-semibold">D</kbd> dismiss flag ·{' '}
+          <kbd className="font-sans font-semibold">A</kbd> accept all quick
         </p>
       </div>
       <div
@@ -363,7 +369,6 @@ export function ReviewQueue({
                           onClick={(e) => {
                             e.stopPropagation();
                             setDismissing(flag.flag_id);
-                            setNote('');
                           }}
                           className="text-[11px] font-semibold text-muted hover:text-ink hover:underline"
                         >
@@ -381,7 +386,21 @@ export function ReviewQueue({
                           if (onClearFlag(flag.flag_id, 'dismissed', note)) setDismissing(null);
                         }}
                       >
-                        <input autoFocus className="control h-7 min-h-0 px-2 py-0.5 text-[12px]" placeholder="Why it does not apply (needed)" value={note} onChange={(e) => setNote(e.target.value)} />
+                        <input
+                          autoFocus
+                          aria-label="Why the flag does not apply"
+                          className="control h-7 min-h-0 px-2 py-0.5 text-[12px]"
+                          placeholder="Why it does not apply (needed)"
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              e.preventDefault();
+                              setDismissing(null);
+                              (listRef as { current?: HTMLDivElement | null } | undefined)?.current?.focus();
+                            }
+                          }}
+                        />
                         <div className="flex justify-end gap-1">
                           <Button size="sm" variant="ghost" className="h-7" onClick={() => setDismissing(null)}>
                             Cancel

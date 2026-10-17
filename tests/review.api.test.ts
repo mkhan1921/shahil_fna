@@ -61,7 +61,7 @@ describe('calls', () => {
       'POST https://intel.practice.co.za/api/calls/c1/followups/fu-1/answer',
       'POST https://intel.practice.co.za/api/clients/client-9/fna',
     ]);
-    expect(JSON.parse(String(calls[1][1].body))).toEqual({ text: 'About 62', source: 'followup' });
+    expect(JSON.parse(String(calls[1][1].body))).toEqual({ text: 'About 62', source: 'followup', recorded_by: 'adviser-sipho' });
     expect(JSON.parse(String(calls[2][1].body))).toMatchObject({ format: 'shahil-fna', version: 1, encrypted: false });
     expect(calls[0][1].headers).toMatchObject({ 'Content-Type': 'application/json' });
   });

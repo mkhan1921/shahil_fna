@@ -28,20 +28,37 @@ const loadSchemas = async (): Promise<Schemas> => {
   return { pkg: pkg.default as unknown as JsonSchema, sidecar: sidecar.default as unknown as JsonSchema };
 };
 
+/** Whether the median document has the list row a sidecar path names (a dict key, like a budget line, always may). */
+const rowExists = (doc: FnaDocument, path: string): boolean => {
+  const pp = parsePath(path);
+  if (pp.key === null || !isListContainer(pp.container)) return true;
+  const rows = pp.container === 'expenses.custom' ? doc.expenses?.custom : (doc as unknown as Record<string, { id?: string }[] | undefined>)[pp.container];
+  return Array.isArray(rows) && rows.some((r) => r?.id === pp.key);
+};
+
 /** What the schemas cannot say: the parts of a package must belong together. */
-const coherence = (b: ReviewBundle): string[] => {
+export const coherence = (b: ReviewBundle): string[] => {
   const out: string[] = [];
   const side = b.sidecar;
   if (side.call_id !== b.call_id || side.run_id !== b.run_id) out.push('the sidecar belongs to another call or run');
-  const ids = new Set(Object.values(side.fields).map((f) => f.fact_id));
+  if (side.profile_version !== b.profile_version) out.push(`the sidecar is of profile version ${side.profile_version}, the review of version ${b.profile_version}`);
+  if (!(side.last_seq >= 0)) out.push('the sidecar has no last op number');
+  const ids = new Set<string>();
+  for (const [path, f] of Object.entries(side.fields)) {
+    if (ids.has(f.fact_id)) out.push(`fact ${f.fact_id} stands at two paths (${path} and another)`);
+    ids.add(f.fact_id);
+  }
   for (const flag of b.blocking_flags) if (flag.fact_id && !ids.has(flag.fact_id)) out.push(`flag ${flag.flag_id} names a fact the sidecar does not have`);
   for (const q of b.followups) for (const id of q.fact_ids) if (!ids.has(id)) out.push(`follow-up ${q.followup_id} names a fact the sidecar does not have`);
   const segments = new Set(b.transcript.segments.map((s) => s.segment_id));
   for (const [path, f] of Object.entries(side.fields)) {
     if (f.exported && !isDocumentPath(path)) out.push(`${path} is not a place in the client file`);
+    // A usable fact's row must be in the median document, or the sheet has nowhere to show it.
+    if (f.exported && f.quantity && f.review.status !== 'rejected' && !rowExists(b.median_document, path)) out.push(`${path} is a row the client file does not have`);
     for (const q of [f.quantity, ...f.hypotheses.map((h) => h.quantity)]) if (q) out.push(...checkDist(q.dist, path));
     if (segments.size) for (const e of f.evidence) if (!segments.has(e.segment_id)) out.push(`${path} quotes segment ${e.segment_id}, which the transcript does not have`);
   }
+  if (b.prior_document && b.prior_document.id !== b.median_document.id) out.push('the client file before the call and the reviewed one are different clients');
   return out;
 };
 

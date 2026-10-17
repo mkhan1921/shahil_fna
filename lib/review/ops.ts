@@ -10,7 +10,9 @@
  *   Reject               RETRACT {reason, note, review: rejected}
  *   Remove a prior row   RETRACT {reason: removed} on the row's identity fact
  *   Re-attribute         RETRACT {reason: wrong_entity} + ADD the same hypotheses and evidence under
- *                        the right instance (source reviewer); a speaker fix is an UPDATE
+ *                        the right instance (source reviewer); a speaker fix is an UPDATE. The ADD
+ *                        replaces a fact the reviewer rejected there and would merge into a live one,
+ *                        so the session refuses a target that already has a live statement
  *   Add fact             ADD (source reviewer, optional evidence span) + CONFIRM: the reviewer's own value
  *   Accept all in group  one CONFIRM per fact
  *

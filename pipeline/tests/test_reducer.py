@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -123,7 +123,7 @@ def test_confirm_and_mark_unknown_and_reviewer_edit():
     base = apply_state_ops(p, make_ops(p, [("ADD", _fid(), "s0010", add_payload(60), "extractor")])).profile
     conf = apply_state_ops(base, make_ops(base, [("CONFIRM", _fid(), "s0011", {"evidence": [ev("s0011", "yes sixty")]}, "extractor")])).profile
     assert conf.facts[_fid()].speaker_attribution == "advisor_confirmed_by_client"
-    acc = apply_state_ops(conf, make_ops(conf, [("CONFIRM", _fid(), None, {"review": ReviewState(status="accepted", reviewer_id="adv1", reviewed_at=datetime(2026, 10, 16, tzinfo=timezone.utc))}, "reviewer")])).profile
+    acc = apply_state_ops(conf, make_ops(conf, [("CONFIRM", _fid(), None, {"review": ReviewState(status="accepted", reviewer_id="adv1", reviewed_at=datetime(2026, 10, 16, tzinfo=UTC))}, "reviewer")])).profile
     assert acc.facts[_fid()].review.status == "accepted"
     edit = {
         "replace_hypotheses": [Hypothesis(value=Quantity(dist=Triangular(low=60, mode=62, high=65), unit="age"), weight=1, rationale="reviewer")],
@@ -169,3 +169,48 @@ def test_merged_value_basis():
     h1 = Hypothesis(value=Quantity(dist=Point(value=40000), unit="ZAR", period="monthly", basis="gross"), weight=0.5, rationale="")
     h2 = Hypothesis(value=Quantity(dist=Point(value=30000), unit="ZAR", period="monthly", basis="net"), weight=0.5, rationale="")
     assert merged_value([h1, h2]).basis == "unknown"
+
+
+def test_reviewer_restates_a_slot_they_rejected():
+    """A re-attribution back onto a rejected slot (§11.2) replaces the rejected fact, keeping its prior."""
+    p = profile()
+    seed = add_payload(65, status="not_discussed", source="prior_fna", evidence=False)
+    seed["prior_value"] = age(65)
+    r = apply_state_ops(p, make_ops(p, [("ADD", _fid(), None, seed, "loader")])).profile
+    r = apply_state_ops(r, make_ops(r, [("ADD", _fid(), "s0010", add_payload(60), "extractor")])).profile
+    rej = apply_state_ops(r, make_ops(r, [("RETRACT", _fid(), None, {"reason": "wrong_entity"}, "reviewer")])).profile
+    assert rej.facts[_fid()].review.status == "rejected"
+    again = add_payload(62, "sixty-two", source="reviewer")
+    back = apply_state_ops(rej, make_ops(rej, [("ADD", _fid(), "s0010", again, "reviewer")])).profile
+    f = back.facts[_fid()]
+    assert f.review.status == "pending" and f.source == "reviewer"
+    assert [h.value.dist.value for h in f.hypotheses] == [62]  # replaced, not merged with the rejected 60
+    assert f.prior_value == age(65) and f.change == "changed"
+    # The extractor's ADD onto a rejected fact still merges: only the reviewer's statement replaces.
+    merged = apply_state_ops(rej, make_ops(rej, [("ADD", _fid(), "s0011", add_payload(62, "sixty-two", "s0011"), "extractor")])).profile
+    assert len(merged.facts[_fid()].hypotheses) == 2 and merged.facts[_fid()].review.status == "rejected"
+    assert check_profile(back) == [] and check_profile(merged) == []
+
+
+def test_reviewer_mark_unknown_and_reject_keep_the_originals():
+    """What the reviewer replaced stays on record for the label of §9.3 (status changed → 0 for the original)."""
+    p = profile()
+    base = apply_state_ops(p, make_ops(p, [("ADD", _fid(), "s0010", add_payload(60), "extractor")])).profile
+    review = ReviewState(status="edited", reviewer_id="adv1", note="HR to confirm")
+    unk = apply_state_ops(base, make_ops(base, [("MARK_UNKNOWN", _fid(), None, {"reason": "unknown", "review": review}, "reviewer")])).profile
+    f = unk.facts[_fid()]
+    assert f.status == "explicitly_unknown" and f.hypotheses == [] and f.value is None
+    assert f.review.status == "edited" and f.review.original_value == age(60) and f.review.original_status == "stated" and f.review.note == "HR to confirm"
+    # Marked unknown twice: the first originals stay.
+    unk2 = apply_state_ops(unk, make_ops(unk, [("MARK_UNKNOWN", _fid(), None, {"review": ReviewState(status="edited", reviewer_id="adv1")}, "reviewer")])).profile
+    assert unk2.facts[_fid()].review.original_value == age(60) and unk2.facts[_fid()].review.original_status == "stated"
+    # An edit, then a rejection: the rejection keeps the edit's original.
+    edit = {"replace_hypotheses": [Hypothesis(value=age(62), weight=1, rationale="reviewer")], "review": ReviewState(status="edited", reviewer_id="adv1")}
+    ed = apply_state_ops(base, make_ops(base, [("UPDATE", _fid(), None, edit, "reviewer")])).profile
+    rej = apply_state_ops(ed, make_ops(ed, [("RETRACT", _fid(), None, {"reason": "misheard", "review": ReviewState(status="rejected", reviewer_id="adv1")}, "reviewer")])).profile
+    assert rej.facts[_fid()].review.status == "rejected" and rej.facts[_fid()].review.original_value == age(60)
+    # The extractor's MARK_UNKNOWN records nothing: it is not a review decision.
+    ext = apply_state_ops(base, make_ops(base, [("MARK_UNKNOWN", _fid(), "s0040", {"reason": "undecided"}, "extractor")])).profile
+    assert ext.facts[_fid()].review.original_value is None and ext.facts[_fid()].review.original_status is None
+    for prof in (unk, unk2, rej, ext):
+        assert check_profile(prof) == []

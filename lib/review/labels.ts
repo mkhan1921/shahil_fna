@@ -69,6 +69,7 @@ const DERIVATION: Record<string, string> = {
   emergency_from_cash_flow: 'Answered from the cash flow and savings',
   income_stability_from_employment: 'Answered from the type of employment',
   linked_asset_from_registry: 'Linked to the asset it finances',
+  partner_on_call: 'The spouse spoke on the call, so the plan treats them as a partner',
 };
 
 /** "Grossed up from take-home pay" for the sidecar's `derivation` (a rule name). */

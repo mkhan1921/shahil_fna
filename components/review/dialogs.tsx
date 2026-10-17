@@ -6,11 +6,13 @@
  */
 import { CheckCircle2, Download, ExternalLink, MessageSquarePlus, Plus, Send, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EXPENSE_ITEMS } from '@/lib/fna/catalog';
+import type { MeetingNote } from '@/lib/review/api';
 import { CATALOG, categoryLabel, fieldLabel, groupLabel, slotById, type SlotDef } from '@/lib/review/catalog';
 import { pyPercent } from '@/lib/review/dist';
-import { factTitle, instanceChoices, type InstanceChoice } from '@/lib/review/labels';
+import { factTitle, householdName, instanceChoices, type InstanceChoice } from '@/lib/review/labels';
+import { getPath } from '@/lib/review/paths';
 import { buildQueue } from '@/lib/review/queue';
 import { followupFacts, isDecided, isReviewItem, type ReviewAction, type ReviewFact, type ReviewSession } from '@/lib/review/session';
 import { clock, speakerName } from '@/lib/review/transcript';
@@ -515,6 +517,125 @@ export function TranscriptDialog({ session, open, onClose, audio, fact }: { sess
 }
 
 /* ------------------------------------------------------------------ */
+/* The meeting note (§11.6)                                            */
+/* ------------------------------------------------------------------ */
+
+const NOTE_SECTION: Record<string, string> = {
+  reason_for_advice: 'Reason for advice',
+  objectives: 'Client objectives',
+  concerns: 'Client concerns',
+  summary: 'Summary (draft)',
+};
+
+export const NOTE_FIELD_LABEL: Record<string, string> = {
+  'engagement.reasonForAdvice': 'Reason for advice',
+  'engagement.clientObjectives': 'Client objectives',
+  'engagement.clientConcerns': 'Client concerns',
+  'advice.summary': 'Advice summary (draft)',
+};
+
+/**
+ * The meeting note the pipeline renders from the reviewed facts after the review is submitted
+ * (§11.6): every sentence names the facts it rests on. Applying it writes the narrative fields
+ * into the client's file; it never changes a fact.
+ */
+export function NoteDialog({
+  session,
+  open,
+  onClose,
+  load,
+  onApply,
+}: {
+  session: ReviewSession;
+  open: boolean;
+  onClose: () => void;
+  load: () => Promise<MeetingNote>;
+  onApply: (fields: Record<string, string>) => Promise<void>;
+}) {
+  const [state, setState] = useState<{ kind: 'loading' } | { kind: 'ready'; note: MeetingNote } | { kind: 'error'; message: string }>({ kind: 'loading' });
+  const [applied, setApplied] = useState<'no' | 'busy' | 'done' | string>('no');
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    setState({ kind: 'loading' });
+    setApplied('no');
+    load()
+      .then((note) => alive && setState({ kind: 'ready', note }))
+      .catch((e) => alive && setState({ kind: 'error', message: e instanceof Error ? e.message : String(e) }));
+    return () => {
+      alive = false;
+    };
+  }, [open, load]);
+  const note = state.kind === 'ready' ? state.note : null;
+  const fields = note?.narrative_fields ?? {};
+  const same = note ? Object.entries(fields).every(([path, text]) => getPath(session.working, path) === text) : false;
+  const sections = note ? [...new Set(note.sentences.map((s) => s.section))] : [];
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Meeting note"
+      width="max-w-2xl"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+          {note && Object.keys(fields).length > 0 && (
+            <Button
+              variant="primary"
+              icon={<CheckCircle2 size={14} />}
+              disabled={applied === 'busy' || applied === 'done' || same}
+              onClick={() => {
+                setApplied('busy');
+                onApply(fields)
+                  .then(() => setApplied('done'))
+                  .catch((e) => setApplied(e instanceof Error ? e.message : String(e)));
+              }}
+            >
+              {same || applied === 'done' ? 'In the client file' : applied === 'busy' ? 'Applying…' : 'Apply to the client file'}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="max-h-[65vh] space-y-3 overflow-y-auto text-[13px] text-ink-2">
+        <p className="text-[12.5px] text-muted">
+          Rendered from the reviewed facts, never from the transcript: each sentence rests on the facts named under it. Applying it fills the narrative fields of the client file; the facts themselves do not change.
+        </p>
+        {state.kind === 'loading' && <p className="text-muted">Fetching the note from the pipeline…</p>}
+        {state.kind === 'error' && (
+          <Callout tone={/404|no meeting note/i.test(state.message) ? 'info' : 'warning'}>
+            {/404|no meeting note/i.test(state.message) ? 'The pipeline has not written the meeting note yet: it follows the review once the run resumes. Try again in a moment.' : state.message}
+          </Callout>
+        )}
+        {note && note.sentences.length === 0 && <Callout tone="info">The note has no sentences: nothing in the reviewed facts could be written up.</Callout>}
+        {sections.map((sec) => (
+          <section key={sec}>
+            <h3 className="mb-1 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted">{NOTE_SECTION[sec] ?? sec}</h3>
+            <ul className="space-y-1">
+              {note!.sentences
+                .filter((s) => s.section === sec)
+                .map((s, i) => {
+                  const about = s.fact_ids.map((id) => session.facts[id]).filter((f): f is ReviewFact => !!f);
+                  return (
+                    <li key={i} className="rounded-md border border-line px-2.5 py-1.5">
+                      <p className="leading-5 text-ink">{s.text}</p>
+                      {about.length > 0 && <p className="mt-0.5 text-[11px] text-muted">From: {about.map((f) => factTitle(session, f)).join('; ')}</p>}
+                    </li>
+                  );
+                })}
+            </ul>
+          </section>
+        ))}
+        {applied !== 'no' && applied !== 'busy' && applied !== 'done' && <Callout tone="critical">{applied}</Callout>}
+        {applied === 'done' && <Callout tone="good">The narrative fields are in {householdName(session.working)}’s file.</Callout>}
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Submitting (§11.2 "Submit")                                         */
 /* ------------------------------------------------------------------ */
 
@@ -544,6 +665,7 @@ export function SubmitDialog({
   error,
   household,
   localChanged,
+  refused = 0,
   notice,
   onDownloadResult,
   onDownloadFile,
@@ -558,6 +680,8 @@ export function SubmitDialog({
   household: string;
   /** The client's file was edited on this device while the review was open. */
   localChanged: boolean;
+  /** API mode: changes the pipeline refused (they stay in this review and its result file). */
+  refused?: number;
   /** After an API submission: how the pipeline's reviewed file compares with the one saved here. */
   notice: SubmitNotice | null;
   onDownloadResult: () => void;
@@ -642,6 +766,11 @@ export function SubmitDialog({
         {localChanged && (
           <Callout tone="warning" title="The client file changed while you reviewed">
             It was edited on this device after this review started. Submitting replaces those edits with the reviewed file: make them again in the sheet here first if they matter.
+          </Callout>
+        )}
+        {refused > 0 && (
+          <Callout tone="warning" title={`The pipeline refused ${refused} of your change${refused === 1 ? '' : 's'}`}>
+            The file saved here keeps {refused === 1 ? 'it' : 'them'}; the pipeline’s reviewed file will differ there. The banner above the sheet names {refused === 1 ? 'it' : 'them'}.
           </Callout>
         )}
         <fieldset className="space-y-1.5">

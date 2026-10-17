@@ -471,7 +471,7 @@ export const describe = (q: Quantity | null): string => {
 const WHOLE_UNITS = new Set(['age', 'years', 'months', 'count']);
 
 /** A number as the adviser reads it: whole years and counts, rand, percent, dates. */
-const readable = (q: Pick<Quantity, 'unit'>, x: number): string => (WHOLE_UNITS.has(q.unit) ? formatIn(q, pyRound(x)) : formatIn(q, x));
+export const readable = (q: Pick<Quantity, 'unit'>, x: number): string => (WHOLE_UNITS.has(q.unit) ? formatIn(q, pyRound(x)) : formatIn(q, x));
 
 /**
  * The value as a short phrase for the overlay (§11.1): a range reads as it was stated —

@@ -125,9 +125,12 @@ export const nextUndecided = (s: ReviewSession, order: string[], from: string | 
   return e;
 };
 
-export type QueueKey = 'accept' | 'next' | 'prev' | 'edit' | 'reject' | 'unknown' | 'play' | 'close';
+export type QueueKey = 'accept' | 'next' | 'prev' | 'edit' | 'reject' | 'unknown' | 'play' | 'close' | 'dismiss' | 'acceptQuick';
 
-/** The queue's keys: Enter accepts and moves on, Tab moves on, Shift goes back, E edits, R rejects, U marks unknown, P plays. */
+/**
+ * The queue's keys: Enter accepts and moves on, Tab moves on, Shift goes back, E edits, R rejects,
+ * U marks unknown, P plays, D dismisses the flag in view, A accepts every "Check quickly" item.
+ */
 export const queueKey = (e: { key: string; shiftKey?: boolean; altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }): QueueKey | null => {
   if (e.altKey || e.ctrlKey || e.metaKey) return null;
   switch (e.key) {
@@ -153,6 +156,12 @@ export const queueKey = (e: { key: string; shiftKey?: boolean; altKey?: boolean;
     case 'p':
     case 'P':
       return 'play';
+    case 'd':
+    case 'D':
+      return 'dismiss';
+    case 'a':
+    case 'A':
+      return 'acceptQuick';
     case 'Escape':
       return 'close';
     default:
@@ -165,6 +174,8 @@ export type FlowStep =
   | { do: 'select'; entry: string }
   | { do: 'accept'; factId: string; next: string | null }
   | { do: 'clearFlag'; flagId: string; next: string | null }
+  | { do: 'dismissFlag'; flagId: string }
+  | { do: 'acceptGroup'; group: 'quick'; factIds: string[] }
   | { do: 'confirmTerm'; factId: string }
   | { do: 'panel'; panel: 'edit' | 'reject'; factId: string }
   | { do: 'unknown'; factId: string; next: string | null }
@@ -177,8 +188,9 @@ const termOpen = (f: ReviewFact) => !!f.termResolution && f.termResolution.statu
  * The keyboard flow of §11.1 on the queue entry `current`: Enter accepts and moves to the next
  * undecided entry (an unknown term opens its confirmation instead; a flag on the whole call is
  * marked checked); Tab and the arrows move without deciding; E and R open the editor or the reject
- * reasons; U marks the fact unknown; P plays its first quote; Escape closes the popover. Null when
- * the key should keep its usual meaning — Tab past either end leaves the queue.
+ * reasons; U marks the fact unknown; P plays its first quote; D opens the dismissal of the flag in
+ * view; A accepts everything left under "Check quickly"; Escape closes the popover. Null when the
+ * key should keep its usual meaning — Tab past either end leaves the queue.
  */
 export const flowStep = (s: ReviewSession, order: string[], current: string | null, key: QueueKey, popoverOpen = false): FlowStep | null => {
   const f = current ? entryFact(s, current) : undefined;
@@ -206,6 +218,17 @@ export const flowStep = (s: ReviewSession, order: string[], current: string | nu
       return f && open ? { do: 'panel', panel: key, factId: f.factId } : null;
     case 'unknown':
       return f && open ? { do: 'unknown', factId: f.factId, next: nextUndecided(s, order, current, f.factId) } : null;
+    case 'dismiss': {
+      const flag = current?.startsWith('flag:') ? s.flags.find((x) => `flag:${x.flag_id}` === current) : undefined;
+      return flag && !flag.cleared && open ? { do: 'dismissFlag', flagId: flag.flag_id } : null;
+    }
+    case 'acceptQuick': {
+      if (!open) return null;
+      const ids = buildQueue(s)
+        .quick.filter((x) => !isDecided(x))
+        .map((x) => x.factId);
+      return ids.length ? { do: 'acceptGroup', group: 'quick', factIds: ids } : null;
+    }
     case 'play':
       return f?.evidence.length ? { do: 'play', factId: f.factId } : null;
     case 'close':
