@@ -40,7 +40,17 @@ from ..models.fna import FnaDocument
 from ..models.runs import VersionPins
 from ..models.transcript import Transcript
 from ._runtime import braintrust_enabled, data_dir, lazy_attr, prompts_dir, run_sync, to_jsonable, write_json
-from .datasets import EVAL_BASELINES, EVAL_PROJECT, CachedCall, DatasetRecord, DatasetStore, Stage12Builder, Stage12Cache, get_store
+from .datasets import (
+    EVAL_BASELINES,
+    EVAL_PROJECT,
+    GOLD_TRANSCRIPTS,
+    CachedCall,
+    DatasetRecord,
+    DatasetStore,
+    Stage12Builder,
+    Stage12Cache,
+    get_store,
+)
 from .gold import GoldCall
 from .records import EvalRecord, SystemCallOutput, summarise_result
 from .scorers import ITEM_SCORE_NAMES, ITEM_SCORERS, ItemScorer, asr_metrics, item_metrics, summary_scores
@@ -129,29 +139,38 @@ def latest_prompt_versions(root: Path | None = None) -> dict[str, str]:
     return out
 
 
-def _lexicon_version() -> str | None:
-    lex_dir = PIPELINE_DIR / "advisor_intel" / "lexicon"
-    files = sorted(lex_dir.glob("v*.yaml")) if lex_dir.exists() else []
+_LEXICON_FILE = re.compile(r"^v(\d+(?:\.\d+)*)\.yaml$")
+
+
+def _version_key(text: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in text.split("."))
+
+
+def _lexicon_version(lex_dir: Path | None = None) -> str | None:
+    """The newest lexicon file's version (``lexicon/v{major.minor}.yaml``, compared numerically: v1.10 > v1.3)."""
+    lex_dir = lex_dir or (PIPELINE_DIR / "advisor_intel" / "lexicon")
+    files = [p for p in lex_dir.glob("v*.yaml") if _LEXICON_FILE.match(p.name)] if lex_dir.exists() else []
     if not files:
         return None
+    newest = max(files, key=lambda p: _version_key(_LEXICON_FILE.match(p.name).group(1)))  # type: ignore[union-attr]
     try:
-        v = yaml.safe_load(files[-1].read_text()).get("version")
+        v = yaml.safe_load(newest.read_text()).get("version")
     except (OSError, AttributeError, yaml.YAMLError):
         return None
     return str(v) if v is not None else None
 
 
 def current_version_pins(*, prompts_root: Path | None = None) -> VersionPins:
-    """The pins this checkout would run with: model routing from settings, the newest prompt and lexicon versions,
-    and ``ADVISOR_INTEL_PIN_<FIELD>`` overrides (e.g. ``ADVISOR_INTEL_PIN_CALIBRATOR_VERSION``)."""
-    routing = get_settings().models
-    pins = VersionPins(
-        frontier_model=routing.frontier,
-        reasoning_model=routing.reasoning,
-        verifier_model=routing.verifier,
-        small_model=routing.small,
-        prompt_versions=latest_prompt_versions(prompts_root),
-    )
+    """The pins this checkout would run with: the deployment's model routing and ASR provider
+    (``advisor_intel.pipeline.deployment_pins``, the same pins a production call starts with), the newest prompt and
+    lexicon versions, and ``ADVISOR_INTEL_PIN_<FIELD>`` overrides (e.g. ``ADVISOR_INTEL_PIN_CALIBRATOR_VERSION``)."""
+    deployment = lazy_attr("advisor_intel.pipeline", "deployment_pins")
+    if deployment is not None:
+        pins = deployment(get_settings())
+    else:  # the evals without the pipeline installed: the model routing alone
+        m = get_settings().models
+        pins = VersionPins(frontier_model=m.frontier, reasoning_model=m.reasoning, verifier_model=m.verifier, small_model=m.small)
+    pins = pins.model_copy(update={"prompt_versions": latest_prompt_versions(prompts_root)})
     updates: dict[str, Any] = {}
     lex = _lexicon_version()
     if lex:
@@ -210,6 +229,21 @@ def load_cached_call(
     meta.setdefault("dataset", input.get("dataset", SYNTHETIC_DATASET))
     record = DatasetRecord(id=str(input.get("row_id") or input["call_id"]), input=input, metadata=meta)
     return (cache or _CONTEXT.cache or Stage12Cache()).load_call(record, pins, build=build or _CONTEXT.build)
+
+
+def gold_transcript_lookup(store: DatasetStore | None = None, *, kind: str = "human") -> Callable[[str], Transcript | None]:
+    """call id → the gold call's professional transcript from ``gold-transcripts`` (None when it was not synced): the
+    reference for the §15.3 ASR and diarization rows of an ASR-transcript run."""
+    rows: dict[str, DatasetRecord] | None = None
+
+    def lookup(call_id: str) -> Transcript | None:
+        nonlocal rows
+        if rows is None:
+            rows = {r.id: r for r in (store or get_store()).fetch(GOLD_TRANSCRIPTS)}
+        row = rows.get(f"{call_id}:{kind}")
+        return Transcript.model_validate(row.expected) if row is not None and row.expected else None
+
+    return lookup
 
 
 def run_stages_3_to_6_from_cache(input: dict[str, Any], hooks: Any = None) -> dict[str, Any]:
@@ -478,7 +512,11 @@ def gate_reporter(*, dataset: str, gate: bool | None = None, name: str = "adviso
         experiment = getattr(result.summary, "experiment_name", None)
         rep = _report_from_braintrust(result, eval_name=EVAL_NAME, dataset=dataset, experiment=experiment)
         path = save_report(rep)
-        print(f"[{EVAL_NAME}] {rep.n_items} items, {rep.n_errors} errors; report {path}")
+        if jsonl:  # what the default reporter prints under ``braintrust eval --jsonl``: the eval action reads it for its comment
+            summary = result.summary.as_dict() if hasattr(result.summary, "as_dict") else dict(result.summary or {})
+            print(json.dumps(summary | {"report": str(path), "summary_scores": to_jsonable(rep.summary)}, default=str))
+        else:
+            print(f"[{EVAL_NAME}] {rep.n_items} items, {rep.n_errors} errors; report {path}")
         return rep
 
     def report_run(reports: list[EvalReport], verbose: bool, jsonl: bool) -> bool:
@@ -568,6 +606,8 @@ def main(argv: list[str] | None = None) -> int:
 
     build = _CONTEXT.build or stage12_builder()  # Stage 1–2 on a cache miss
     gold_pos = _CONTEXT.gold_pos or forecast_gold_pos()  # the gold profile's PoS through the forecast engine
+    if _CONTEXT.reference_transcript is None:
+        configure(reference_transcript=gold_transcript_lookup())  # the human transcripts: the ASR rows' reference
     report = run_local(cases, dataset=args.dataset, experiment=args.experiment, save=args.out or True, build=build, gold_pos=gold_pos)
     print(f"{report.n_items} items, {report.n_errors} errors")
     for k, v in sorted(report.scores.items()):

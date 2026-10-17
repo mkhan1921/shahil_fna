@@ -552,17 +552,24 @@ def numbers_in(text: str) -> list[list[float]]:
 
 
 def _anchors(f: SystemFact) -> list[float]:
+    """The numbers a fact supports in a note sentence: its quantiles or P(true), the calendar year of a date, a
+    categorical fact's label (as a number, or the numbers inside it: 'Less than 1 month') and its option
+    probabilities (the note's '(100%)' certainty), and P(false) for a boolean said the other way round."""
     v = f.value
     if v is None:
         return []
     xs = [x for x in (v.p10, v.p50, v.p90, v.p_true) if x is not None]
     if v.kind == "numeric" and v.p50 is not None and 1000 < v.p50 < 3000:
         xs.append(math.floor(v.p50))  # dates as decimal years: the calendar year
-    if v.kind == "categorical" and v.label:
-        try:
-            xs.append(float(v.label))
-        except ValueError:
-            pass
+    if v.kind in ("boolean", "probability") and v.p_true is not None:
+        xs.append(1.0 - v.p_true)
+    if v.kind == "categorical":
+        if v.label:
+            try:
+                xs.append(float(v.label))
+            except ValueError:
+                xs.extend(c for cands in numbers_in(v.label) for c in cands)
+        xs.extend(p for p in v.probs.values() if p is not None)
     return xs
 
 
@@ -644,31 +651,34 @@ def topic_recall(system: SystemCallOutput, gold: GoldCall) -> MetricResult:
     return ratio(hits, total, misses)
 
 
-_ASR_METRIC_NAMES: dict[str, tuple[str, ...]] = {
-    "numeric_wer": ("numeric_wer", "wer_numeric", "numeric_token_wer"),
-    "der": ("der", "diarization_error_rate"),
-    "role_accuracy": ("role_accuracy", "speaker_role_accuracy"),
-}
+def _turns(transcript: Any, turn_type: Any) -> list[Any]:
+    return [turn_type(speaker=s.speaker_label, start=float(s.t_start), end=float(s.t_end)) for s in transcript.segments]
 
 
 def asr_metrics(reference: Any, hypothesis: Any) -> dict[str, float | None]:
-    """Numeric-token WER, DER and speaker-role accuracy, passed through from ``advisor_intel.ingest.metrics``
-    (§15.3 ASR and diarization rows). Empty when ingestion is not installed."""
+    """The §15.3 ASR and diarization rows for one call, from ``advisor_intel.ingest.metrics``: numeric-token WER of
+    the ASR transcript's text against the human transcript's, DER of its speaker turns against the human turns,
+    and the share of human speech time whose ASR segment carries the gold role. Both arguments are
+    ``Transcript``s (the professional ``human`` one is the reference). Empty when ingestion is not installed."""
     import importlib
 
     try:
-        mod = importlib.import_module("advisor_intel.ingest.metrics")
+        metrics = importlib.import_module("advisor_intel.ingest.metrics")
+        types = importlib.import_module("advisor_intel.ingest.types")
     except ImportError:
         return {}
-    out: dict[str, float | None] = {}
-    for name, candidates in _ASR_METRIC_NAMES.items():
-        fn = next((getattr(mod, c) for c in candidates if callable(getattr(mod, c, None))), None)
-        if fn is None:
-            out[name] = None
-            continue
-        v = fn(reference, hypothesis)
-        out[name] = None if v is None else float(v)
-    return out
+    if not getattr(reference, "segments", None) or not getattr(hypothesis, "segments", None):
+        return {"numeric_wer": None, "der": None, "role_accuracy": None}
+    ref_text = " ".join(s.text for s in reference.segments)
+    hyp_text = " ".join(s.text for s in hypothesis.segments)
+    wer = metrics.numeric_wer(ref_text, hyp_text)
+    diar = metrics.der(_turns(reference, types.SpeakerTurn), _turns(hypothesis, types.SpeakerTurn))
+    gold_roles = [(float(s.t_start), float(s.t_end), s.speaker_role) for s in reference.segments if s.speaker_role != "unknown"]
+    return {
+        "numeric_wer": float(wer.wer),
+        "der": float(diar.der),
+        "role_accuracy": float(metrics.speaker_role_accuracy(gold_roles, hypothesis)) if gold_roles else None,
+    }
 
 
 # --------------------------------------------------------------------------- calibration and conformal summaries

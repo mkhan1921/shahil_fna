@@ -59,6 +59,7 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }} # the Google provider reads GOOGLE_API_KEY, then the legacy GEMINI_API_KEY
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
       PROMPTFOO_DISABLE_TELEMETRY: "1"
@@ -77,7 +78,7 @@ jobs:
         with:
           node-version: 22
       - name: Model keys
-        run: test -n "$ANTHROPIC_API_KEY$OPENAI_API_KEY$GEMINI_API_KEY" || { echo "::error::no model API key is available to this run"; exit 1; }
+        run: test -n "$ANTHROPIC_API_KEY$OPENAI_API_KEY$GOOGLE_API_KEY$GEMINI_API_KEY" || { echo "::error::no model API key is available to this run"; exit 1; }
       - name: promptfoo eval
         working-directory: pipeline/redteam
         run: PROMPTFOO_PYTHON="$(command -v python)" npx --yes promptfoo@0.123.1 eval -c promptfooconfig.yaml --no-cache -o results.json

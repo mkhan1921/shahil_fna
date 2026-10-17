@@ -427,3 +427,28 @@ def test_the_braintrust_eval_file_registers_the_experiment(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert "advisor-extraction" in proc.stdout
+
+
+def test_export_snapshots_a_dataset_to_object_storage(tmp_path):
+    """§15.1: the gold calls are exported nightly to object storage, dated and as ``latest``."""
+    store = D.LocalStore(tmp_path / "ds")
+    call = generate_call(1, seed=2)
+    D.sync_gold([call.gold.model_copy(update={"source": "real", "call_id": "real-1"})], store=store)
+    blobs = D.LocalBlobStore(tmp_path / "blobs")
+    key = D.export_dataset("gold-calls", store=store, blobs=blobs, at=datetime(2026, 10, 16, 2, 30, tzinfo=timezone.utc))
+    assert key == "datasets/gold-calls/2026-10-16.jsonl"
+    rows = [D.DatasetRecord.model_validate_json(line) for line in blobs.read(key).decode().splitlines()]
+    assert [r.id for r in rows] == ["real-1:asr", "real-1:human"] and rows[0].expected["call_id"] == "real-1"
+    assert blobs.read("datasets/gold-calls/latest.jsonl") == blobs.read(key)
+    assert D.export_dataset("gold-transcripts", store=store, blobs=blobs).startswith("datasets/gold-transcripts/")
+    assert blobs.read("datasets/gold-transcripts/latest.jsonl") == b""  # nothing synced yet: an empty snapshot, not an error
+
+
+def test_the_export_cli_writes_the_default_datasets(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("BRAINTRUST_API_KEY", raising=False)
+    monkeypatch.setenv("ADVISOR_INTEL_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ADVISOR_INTEL_OBJECT_STORE_URI", f"file://{tmp_path / 'objects'}")
+    assert D.main(["export"]) == 0
+    out = capsys.readouterr().out
+    assert "gold-calls exported to datasets/gold-calls/" in out and "gold-transcripts exported to" in out
+    assert (tmp_path / "cache" / "datasets" / "gold-calls" / "latest.jsonl").exists()  # the local blob store under the data dir

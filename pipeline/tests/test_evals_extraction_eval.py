@@ -97,6 +97,17 @@ def test_current_version_pins_read_prompt_versions(tmp_path, monkeypatch):
     pins = E.current_version_pins(prompts_root=root)
     assert pins.prompt_versions == {"entailment": "v2", "extract_slot_group/income": "v3"}
     assert pins.calibrator_version == "cal-7"
+    # the same routing and ASR pins a production call starts with (advisor_intel.pipeline.deployment_pins)
+    runner = pytest.importorskip("advisor_intel.pipeline")
+    from advisor_intel.config import get_settings
+
+    deployed = runner.deployment_pins(get_settings())
+    assert (pins.asr_provider, pins.asr_model_version, pins.reasoning_model) == (
+        deployed.asr_provider,
+        deployed.asr_model_version,
+        deployed.reasoning_model,
+    )
+    assert pins.asr_provider == get_settings().asr_provider != "fake"
 
 
 def test_report_metric_lookup():
@@ -137,6 +148,39 @@ def test_braintrust_eval_runs_offline_and_the_reporter_gates(world, monkeypatch,
     monkeypatch.setenv(E.BASELINE_ENV, str(world["tmp"] / "missing.json"))
     assert reporter.report_run([rep], False, False) is True  # no baseline: nothing to gate
     assert "gate skipped" in capsys.readouterr().out
+    # under ``braintrust eval --jsonl`` (the eval action) the reporter prints the summary as one JSON line, as the default one does
+    import json
+
+    reporter.report_eval(None, result, False, True)
+    line = capsys.readouterr().out.strip().splitlines()[-1]
+    printed = json.loads(line)
+    assert printed["scores"] and printed["report"].endswith("advisor-extraction-synthetic-calls-latest.json")
+    assert printed["summary_scores"]["ece"] == pytest.approx(rep.summary["ece"])
+
+
+def test_the_asr_rows_use_the_gold_human_transcript_as_reference(world):
+    """An ASR-transcript run is scored for numeric WER, DER and role accuracy against the call's human transcript
+    from gold-transcripts; a human-transcript run, or a call without one, is not."""
+    from advisor_intel.evals.datasets import GOLD_CALLS, sync_gold, sync_transcripts
+
+    call = world["calls"][0]
+    gold = call.gold.model_copy(update={"source": "real", "call_id": "real-0"})
+    human = call.transcript().model_copy(update={"call_id": "real-0"})
+    asr_t = human.model_copy(update={"segments": [s.model_copy(update={"speaker_role": "advisor"}) for s in human.segments]})
+    sync_gold([gold], store=world["store"])
+    sync_transcripts([human], store=world["store"], kind="human")
+    sync_transcripts([asr_t], store=world["store"], kind="asr")
+    lookup = E.gold_transcript_lookup(world["store"])
+    assert lookup("real-0") == human and lookup("nope") is None
+    fake = FakePipeline({"real-0": gold}.__getitem__)
+    E.configure(runner=fake, pins=VersionPins(), cache=world["cache"], build=stage12_builder(store=world["store"], discourse=False))
+    E.configure(reference_transcript=lookup)
+    by_kind = {c["input"]["transcript_kind"]: c for c in E.eval_cases(GOLD_CALLS, store=world["store"])}
+    asr_out = E.run_stages_3_to_6_from_cache(by_kind["asr"]["input"], by_kind["asr"]["metadata"])
+    human_out = E.run_stages_3_to_6_from_cache(by_kind["human"]["input"], by_kind["human"]["metadata"])
+    assert asr_out["transcript_metrics"]["numeric_wer"] == 0.0 and asr_out["transcript_metrics"]["der"] == 0.0
+    assert asr_out["transcript_metrics"]["role_accuracy"] < 1.0  # every ASR segment carries the advisor role
+    assert human_out["transcript_metrics"] == {}
 
 
 async def test_the_default_runner_writes_the_meeting_note(monkeypatch):
@@ -175,3 +219,25 @@ def test_cli_runs_the_local_dataset(world, monkeypatch):
     assert E.main(["--dataset", "synthetic-calls", "--limit", "2", "--out", str(out)]) == 0
     assert E.load_report(Path(out)).n_items == 2
     assert E.main(["--dataset", "gold-calls"]) == 2  # empty dataset
+
+
+def test_the_lexicon_version_pin_compares_versions_numerically(tmp_path):
+    lex = tmp_path / "lexicon"
+    lex.mkdir()
+    for name, version in (("v1.3.yaml", "1.3"), ("v1.10.yaml", "1.10"), ("catalogue_za_v1.yaml", "za-1")):
+        (lex / name).write_text(f"version: '{version}'\n")
+    assert E._lexicon_version(lex) == "1.10"  # noqa: SLF001 - lexicographic order would pick v1.3
+    assert E._lexicon_version(tmp_path / "missing") is None  # noqa: SLF001
+    assert E.current_version_pins().lexicon_version == E._lexicon_version()  # noqa: SLF001 - the checkout's newest lexicon
+
+
+def test_the_eval_reads_the_pipelines_own_forecast_seed():
+    """§15.3: the gold profile is forecast on the system run's seed, which is one function shared by the in-process
+    runner and the Temporal activities."""
+    from advisor_intel.models.runs import forecast_seed
+
+    assert forecast_seed("run-1") == forecast_seed("run-1") != forecast_seed("run-2")
+    runner = pytest.importorskip("advisor_intel.pipeline")
+    assert runner.forecast_seed is forecast_seed
+    activities = pytest.importorskip("advisor_intel.activities.pipeline")
+    assert activities.forecast_seed is forecast_seed

@@ -7,7 +7,7 @@ from typing import Any
 
 from advisor_intel.models.fna import ExportFile, FnaDocument
 
-VOLATILE = {"id", "createdAt", "updatedAt", "exportedAt"}
+VOLATILE = {"id", "createdAt", "updatedAt", "exportedAt", "meetingDate"}  # meetingDate: "today" on both sides, frozen in the fixture
 
 
 def _strip(x: Any) -> Any:

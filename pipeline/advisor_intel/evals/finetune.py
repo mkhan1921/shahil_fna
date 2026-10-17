@@ -37,6 +37,7 @@ from ..models.profile import Profile
 from ..models.transcript import Transcript
 from ..schema.slots import Catalog, SlotDef, load_catalog
 from ._runtime import stable_hash, unit_hash
+from .datasets import heldout_call_ids
 from .extraction_eval import EvalReport
 from .gold import GoldFact
 from .rl_reward import HackingReport, RewardBreakdown, RolloutFact, reward
@@ -262,14 +263,15 @@ def export_training_data(
     calls: Iterable[ReviewedCall],
     *,
     render_prompt: PromptRenderer,
-    heldout_ids: Iterable[str] = (),
+    heldout_ids: Iterable[str] | None = None,
     gold_weight: float = GOLD_WEIGHT,
     ratios: tuple[float, float, float] = (0.8, 0.1, 0.1),
     catalog: Catalog | None = None,
 ) -> tuple[list[TrainingExample], ExportStats]:
-    """Supervised examples from reviewed calls (§15.8)."""
+    """Supervised examples from reviewed calls (§15.8). ``heldout_ids`` defaults to the gold dataset's held-out calls
+    (``datasets.heldout_call_ids``), so a reviewed call whose ``heldout`` flag was not set is still kept out."""
     catalog = catalog or load_catalog()
-    held = set(heldout_ids)
+    held = set(heldout_ids) if heldout_ids is not None else heldout_call_ids()
     examples: list[TrainingExample] = []
     st = ExportStats()
     for c in calls:
@@ -560,13 +562,14 @@ def grpo_train(
     reference_client: SamplingClientLike,
     postprocess: Postprocess,
     config: GRPOConfig | None = None,
-    heldout_ids: Iterable[str] = (),
+    heldout_ids: Iterable[str] | None = None,
     on_step: Callable[[StepMetrics], None] | None = None,
 ) -> GRPOResult:
     """GRPO on the extractor: per prompt, ``group_size`` samples; reward from ``rl_reward.reward`` minus
-    ``kl_coef`` × the sampled tokens' log-ratio to the reference; advantages normalised within the group."""
+    ``kl_coef`` × the sampled tokens' log-ratio to the reference; advantages normalised within the group.
+    ``heldout_ids`` defaults to the gold dataset's held-out calls (§15.9: never used for RL)."""
     cfg = config or GRPOConfig()
-    held = set(heldout_ids)
+    held = set(heldout_ids) if heldout_ids is not None else heldout_call_ids()
     if any(p.call_id in held for p in prompts):
         raise ValueError("held-out gold calls are never used for RL (§15.9)")
     types = tinker_types()

@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import functools
-import hashlib
 import importlib
 import json
 import logging
@@ -37,7 +36,7 @@ from .models.facts import Provenance
 from .models.fna import ExportFile, FnaDocument
 from .models.profile import BlockingFlag, FollowUp, Profile
 from .models.review import ReviewBundle, ReviewPackage
-from .models.runs import AgentOutcome, RunState, VersionPins
+from .models.runs import AgentOutcome, RunState, VersionPins, forecast_seed
 from .models.transcript import SpeakerRole, Transcript
 from .schema.slots import load_catalog
 
@@ -103,10 +102,6 @@ class PipelineResult:
 def run_id_for(call_id: str, pins: VersionPins) -> str:
     """A stable run id per call and version pins (re-running the same versions is the same run)."""
     return f"run-{call_id}-{pins.key()}"
-
-
-def forecast_seed(run_id: str) -> int:
-    return int(hashlib.sha256(run_id.encode()).hexdigest()[:8], 16)
 
 
 def _optional(module: str, attr: str) -> Any | None:

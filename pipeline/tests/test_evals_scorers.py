@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sys
-import types
 from datetime import date
 from pathlib import Path
 
@@ -304,6 +302,29 @@ def test_meeting_note_completeness_and_support():
     assert S.unsupported_sentences(system) == ["He earns R90,000 a month.", "They seem happy."]
 
 
+def test_note_numbers_supported_by_categorical_certainty_labels_and_booleans():
+    """The note writes a categorical fact's mode with its probability ('pension (100%)', 'Less than 1 month (80%)') and
+    a boolean as a likelihood; those numbers come from the fact and are supported. Other numbers are not."""
+    will = sf(WILL, "client", value=ValueSummary(kind="categorical", label="yes", probs={"yes": 0.8, "unsure": 0.2}))
+    horizon = SystemFact(
+        fact_id="riskProfile.answers[emergency]",
+        slot_id="riskProfile.answers[emergency]",
+        status="stated",
+        value=ValueSummary(kind="categorical", label="Less than 1 month", probs={"Less than 1 month": 1.0}),
+    )
+    smoker = sf(SMOKER, "client", value=ValueSummary(kind="boolean", p_true=0.03))
+    note = [
+        NoteLine(text="The will (client) is yes (80%).", fact_ids=[will.fact_id]),
+        NoteLine(text="The emergency answer is Less than 1 month (100%).", fact_ids=[horizon.fact_id]),
+        NoteLine(text="The smoker (client) is 3% likely.", fact_ids=[smoker.fact_id]),
+        NoteLine(text="Not a smoker (97% likely).", fact_ids=[smoker.fact_id]),
+        NoteLine(text="The will (client) is yes (95%).", fact_ids=[will.fact_id]),  # a certainty the fact does not carry
+        NoteLine(text="The emergency answer is Less than 3 months.", fact_ids=[horizon.fact_id]),  # not the fact's label
+    ]
+    system = SystemCallOutput(call_id="c", facts=[will, horizon, smoker], note=note)
+    assert S.unsupported_sentences(system) == ["The will (client) is yes (95%).", "The emergency answer is Less than 3 months."]
+
+
 def test_discourse_metrics():
     gold = GoldCall(
         call_id="c",
@@ -330,21 +351,60 @@ def test_discourse_metrics():
     assert (t.hits, t.total) == (2, 3)
 
 
-def test_asr_metrics_pass_through_from_ingest(monkeypatch):
+def _transcript(turns, call_id="c"):
+    """(speaker_label, role, t_start, t_end, text) → a Transcript."""
+    from advisor_intel.models.transcript import Segment, Transcript, Word
+
+    segs = [
+        Segment(
+            segment_id=f"s{i}",
+            speaker_label=label,
+            speaker_role=role,
+            t_start=t0,
+            t_end=t1,
+            text=text,
+            words=[Word(text=w, t_start=t0, t_end=t0 + 0.1, conf=0.9) for w in text.split()],
+        )
+        for i, (label, role, t0, t1, text) in enumerate(turns)
+    ]
+    return Transcript(call_id=call_id, anchor_date=date(2026, 10, 15), segments=segs, asr_provider="x", asr_model_version="1")
+
+
+def test_asr_metrics_compare_the_asr_transcript_with_the_human_one():
+    """§15.3 ASR and diarization rows: numeric-token WER, DER and role accuracy from ``ingest.metrics`` on two
+    transcripts. The human transcript is the reference; the ASR one misreads a number and gives one segment to the
+    wrong speaker and role."""
     if importlib.util.find_spec("advisor_intel.ingest") is None:
         assert S.asr_metrics(None, None) == {}
-    fake = types.ModuleType("advisor_intel.ingest.metrics")
-    fake.numeric_wer = lambda ref, hyp: 0.06
-    fake.der = lambda ref, hyp: 0.08
-    fake.role_accuracy = lambda ref, hyp: 0.99
-    pkg = types.ModuleType("advisor_intel.ingest")
-    pkg.metrics = fake
-    monkeypatch.setitem(sys.modules, "advisor_intel.ingest", pkg)
-    monkeypatch.setitem(sys.modules, "advisor_intel.ingest.metrics", fake)
-    assert S.asr_metrics("ref", "hyp") == {"numeric_wer": 0.06, "der": 0.08, "role_accuracy": 0.99}
-    out = SystemCallOutput(call_id="c", transcript_metrics={"numeric_wer": 0.06, "der": 0.08, "role_accuracy": 0.99})
-    m = S.item_metrics(out, GoldCall(call_id="c", anchor_date=date(2026, 1, 1)))
-    assert m["numeric_word_accuracy"].value == pytest.approx(0.94) and m["diarization_accuracy"].value == pytest.approx(0.92)
+        pytest.skip("ingestion is not installed")
+    from advisor_intel.ingest import metrics as IM
+
+    human = _transcript(
+        [
+            ("spk_0", "advisor", 0.0, 2.0, "What do you earn each month?"),
+            ("spk_1", "client_primary", 2.0, 5.0, "About forty thousand rand a month."),
+            ("spk_0", "advisor", 5.0, 6.0, "Thanks."),
+        ]
+    )
+    asr = _transcript(
+        [
+            ("spk_0", "advisor", 0.0, 2.0, "What do you earn each month?"),
+            ("spk_0", "advisor", 2.0, 5.0, "About fourteen thousand rand a month."),  # misheard, and the wrong speaker and role
+            ("spk_0", "advisor", 5.0, 6.0, "Thanks."),
+        ]
+    )
+    m = S.asr_metrics(human, asr)
+    assert set(m) == {"numeric_wer", "der", "role_accuracy"}
+    assert m["role_accuracy"] == pytest.approx(3.0 / 6.0)  # 6 s of gold speech; the 3 s client turn carries the advisor role
+    ref_text, hyp_text = " ".join(s.text for s in human.segments), " ".join(s.text for s in asr.segments)
+    assert 0 < m["numeric_wer"] < 1 and m["numeric_wer"] == pytest.approx(IM.numeric_wer(ref_text, hyp_text).wer)
+    assert 0 < m["der"] == pytest.approx(3.0 / 6.0, abs=0.1)  # 3 s attributed to the wrong speaker, inside the ±0.25 s collars
+    assert S.asr_metrics(human, human) == {"numeric_wer": 0.0, "der": 0.0, "role_accuracy": 1.0}
+    assert S.asr_metrics(human, _transcript([])) == {"numeric_wer": None, "der": None, "role_accuracy": None}
+    out = SystemCallOutput(call_id="c", transcript_metrics=m)
+    im = S.item_metrics(out, GoldCall(call_id="c", anchor_date=date(2026, 1, 1)))
+    assert im["numeric_word_accuracy"].value == pytest.approx(1 - m["numeric_wer"]) and im["role_accuracy"].value == pytest.approx(0.5)
+    assert im["diarization_accuracy"].value == pytest.approx(1 - m["der"])
 
 
 def test_operations_metrics():
@@ -384,3 +444,48 @@ def test_braintrust_adapters_return_named_scores():
         [{"output": out, "expected": exp, "metadata": {"transcript_kind": "human"}}, {"output": None, "expected": exp}]
     )
     assert len(recs) == 1 and recs[0].transcript_kind == "human"
+
+
+def test_ece_uses_equal_mass_bins_not_equal_width():
+    """§9.4 / §15.3: 15 equal-mass bins. With four facts, every fact is its own bin: ECE is the mean |p − y|.
+    Equal-width bins would pool the two 0.2s (mean y 0.5) and the two 0.8s (mean y 1.0) and give 0.25."""
+    p, y = [0.2, 0.2, 0.8, 0.8], [0, 1, 1, 1]
+    assert S.ece(p, y) == pytest.approx(0.35)
+    # six facts in three bins of two: |mean p − mean y| per bin, weighted by the bin's share
+    p6, y6 = [0.1, 0.2, 0.5, 0.6, 0.9, 0.9], [0, 0, 1, 0, 1, 1]
+    assert S.ece(p6, y6, n_bins=3) == pytest.approx((abs(0.15 - 0.0) + abs(0.55 - 0.5) + abs(0.9 - 1.0)) / 3)
+
+
+def test_calibration_summary_per_group_and_against_the_cold_start_baseline():
+    """ECE per slot group, Brier, and the improvement over §9.4's cold-start score. With one call the baseline is not
+    cross-fitted (no other call to fit on), so it is the cold-start score itself: 0.4·entail + 0.3·consistency +
+    0.2·self + 0.1·asr."""
+    feats = {"entail_score": 1.0, "consistency": 1.0, "self_score": 1.0, "asr_mean_conf": 1.0}
+    rows = [
+        S.LabelRow("c1", "income", INC, "A", 0.9, 1, feats, False),
+        S.LabelRow("c1", "income", INC, "A", 0.6, 0, feats, False),
+        S.LabelRow("c1", "retirement", RA, "A", 0.8, 1, {**feats, "entail_score": 0.5}, True),
+    ]
+    out = S.calibration_summary(rows)
+    assert out["n_labelled_facts"] == 3 and out["ece_counts"] == {"income": 2, "retirement": 1}
+    assert out["ece_by_group"]["income"] == pytest.approx((abs(0.6 - 0) + abs(0.9 - 1)) / 2)  # two bins of one fact
+    assert out["ece_by_group"]["retirement"] == pytest.approx(0.2)
+    assert out["ece"] == pytest.approx((0.6 + 0.1 + 0.2) / 3)
+    assert out["brier"] == pytest.approx((0.01 + 0.36 + 0.04) / 3)
+    # cold-start scores: 1.0, 1.0, 0.4·0.5 + 0.3 + 0.2 + 0.1 = 0.8 → Brier (0 + 1 + 0.04) / 3
+    assert out["brier_cold_start"] == pytest.approx(1.04 / 3)
+    assert out["brier_improvement"] == pytest.approx(1 - (0.41 / 3) / (1.04 / 3))
+    assert S.calibration_summary([])["ece"] is None and S.calibration_summary([])["brier_improvement"] is None
+
+
+def test_the_cold_start_baseline_is_cross_fitted_by_call():
+    """§9.4: split by call, never by fact — a call's own labels never calibrate its facts."""
+    feats = {"entail_score": 1.0, "consistency": 1.0, "self_score": 1.0, "asr_mean_conf": 1.0}
+    labels = (("c1", 1), ("c2", 0), ("c3", 1), ("c4", 0))
+    rows = []
+    for call, label in labels:
+        rows += [S.LabelRow(call, "income", INC, "A", 0.5, label, feats, False)] * 3
+    base = S.cold_start_baseline(rows, folds=4)
+    # every row has the same cold-start score, so each call's prediction is the mean label of the other three calls
+    for i, (_, label) in enumerate(labels):
+        assert base[3 * i] == pytest.approx((2 - label) / 3)

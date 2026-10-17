@@ -89,6 +89,12 @@ def test_baseline_store_and_cli(tmp_path, monkeypatch, capsys):
     save_report(report(dataset="gold-calls"), other)
     assert G.main(["check", "--current", str(other)]) == 0  # no gold-calls baseline yet: skipped
     assert G.main(["check", "--current", str(other), "--require-baseline"]) == 2
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")  # in a workflow the skip is a visible annotation, not a silent pass
+    capsys.readouterr()
+    assert G.main(["check", "--current", str(other)]) == 0
+    assert capsys.readouterr().out.startswith("::warning::no baseline for advisor-extraction/gold-calls")
+    assert G.main(["check", "--current", str(other), "--require-baseline"]) == 2
+    assert capsys.readouterr().out.startswith("::error::")
 
 
 def test_model_swap_wins_only_when_better_and_not_dearer():

@@ -197,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         baseline = BaselineStore().get(current.eval_name, current.dataset, args.baseline_ref)
     if baseline is None:
         msg = f"no baseline for {current.eval_name}/{current.dataset}; gate {'failed' if args.require_baseline else 'skipped'}"
-        print(msg)
+        print(f"::{'error' if args.require_baseline else 'warning'}::{msg}" if os.environ.get("GITHUB_ACTIONS") else msg)
         _write_summary(msg)
         return 2 if args.require_baseline else 0
     result = compare(current, baseline)
