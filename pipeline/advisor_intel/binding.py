@@ -17,13 +17,14 @@ Concrete FnaDocument paths: ``client.dateOfBirth``, ``income.spouse.grossMonthly
 
 from __future__ import annotations
 
+import gc
 import math
 import re
 import uuid
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 import numpy as np
 from numpy.random import Generator
@@ -543,35 +544,51 @@ def materialise(
     draw: one sample per fact; an unreviewed fact is replaced by a draw from its slot's population
     prior with probability 1 − p_correct (the extraction-risk mixture, §12.2).
     Facts with no value keep the base document's value (the prior FNA), else the app default.
+    Many draws of one profile go through ``materialise_draws``, which does the draw-independent work once.
     """
     catalog = catalog or load_catalog(profile.schema_version)
-    doc = base.model_dump(mode="json") if base is not None else empty_document(profile.anchor_date)
-    _ensure_rows(doc, profile, catalog)
+    if mode == "draw":
+        return _DrawPlan(profile, catalog, base).draw(rng)
+    doc = _template(profile, catalog, base)
     removed_rows: set[tuple[str, str]] = set()
     for f in sorted(profile.facts.values(), key=lambda x: x.fact_id):
         slot = catalog.slot(f.slot_id)
         if not slot.exported:
             continue
-        pp = parse_path(f.fna_path)
-        if f.change == "removed" and pp.container in IDENTITY_FIELD and pp.field == IDENTITY_FIELD[pp.container] and pp.key:
-            removed_rows.add((pp.container, pp.key))
+        removed = _removed_row(f)
+        if removed is not None:
+            removed_rows.add(removed)
             continue
         if not _usable(f):
             continue
-        dist = f.value.dist  # type: ignore[union-attr]
-        if mode == "draw":
-            trusted = f.review.status in ("accepted", "edited") or f.auto_accepted or f.source in ("prior_fna", "reviewer")
-            q = 1.0 if trusted else f.p_correct
-            if slot.population_prior is not None and rng is not None and rng.random() >= q:
-                dist = slot.population_prior
-        value = to_fna_value(slot, dist, mode, rng)
+        value = to_fna_value(slot, f.value.dist, "median")  # type: ignore[union-attr]
         if value is None:
             continue
         set_path(doc, _row_path(profile, f), value, anchor=profile.anchor_date)
-    for container, key in removed_rows:
+    _drop_rows(doc, removed_rows)
+    return F.FnaDocument.model_validate(doc)
+
+
+def _template(profile: Profile, catalog: Catalog, base: F.FnaDocument | None) -> dict[str, Any]:
+    """The document the facts are written into: the base (the prior FNA) or an empty one, with a row for every
+    entity the call added."""
+    doc = base.model_dump(mode="json") if base is not None else empty_document(profile.anchor_date)
+    _ensure_rows(doc, profile, catalog)
+    return doc
+
+
+def _removed_row(f: Fact) -> tuple[str, str] | None:
+    """The list row a reviewer-removed identity fact removes (§3.6 "removed"), as (container, row id)."""
+    pp = parse_path(f.fna_path)
+    if f.change == "removed" and pp.container in IDENTITY_FIELD and pp.field == IDENTITY_FIELD[pp.container] and pp.key:
+        return (pp.container, pp.key)
+    return None
+
+
+def _drop_rows(doc: dict[str, Any], removed: set[tuple[str, str]]) -> None:
+    for container, key in removed:
         rows = _container(doc, container)
         rows[:] = [r for r in rows if r.get("id") != key]
-    return F.FnaDocument.model_validate(doc)
 
 
 def _ensure_rows(doc: dict[str, Any], profile: Profile, catalog: Catalog) -> None:
@@ -601,11 +618,159 @@ def _row_path(profile: Profile, f: Fact) -> str:
     return f"{pp.container}[{rid}].{pp.field}"
 
 
-def materialise_draws(profile: Profile, k: int, seed: int = 0, *, base: F.FnaDocument | None = None) -> list[F.FnaDocument]:
-    """K draw documents for the FNA engine's uncertainty bands (§12.7, use 2)."""
+# --------------------------------------------------------------------------- draws
+
+
+class _DrawItem(NamedTuple):
+    """One exported, usable fact in materialisation order: where it is written and how it is drawn."""
+
+    container: str
+    key: str | None  # row id or dict key
+    field: str | None
+    value: Callable[[Generator], Any]  # a draw of the fact's own value
+    prior: Callable[[Generator], Any] | None  # a draw of the slot's population prior (None: the slot has none)
+    trust: float  # P(the fact's own value is used); otherwise the prior (the extraction-risk mixture, §12.2)
+
+
+class _DrawPlan:
+    """What ``materialise(profile, "draw")`` computes that does not depend on the draw, computed once.
+
+    ``materialise_draws`` makes its K documents from one plan. Each draw copies the template, consumes the random
+    stream exactly as the per-fact loop of ``materialise`` does (facts in fact-id order; one uniform for the
+    extraction-risk mixture wherever the slot has a population prior, trusted or not; then the value's own
+    draw), writes the values and validates. So draw k of a seed is the same whatever K is, and the same as the
+    k-th of K single ``materialise`` calls sharing a generator.
+    """
+
+    def __init__(self, profile: Profile, catalog: Catalog, base: F.FnaDocument | None) -> None:
+        self.anchor = profile.anchor_date
+        self.fresh = base is None  # an empty document: each draw gets its own id and timestamps, as FnaDocument() does
+        self.template = _template(profile, catalog, base)
+        self.removed: set[tuple[str, str]] = set()
+        self.items: list[_DrawItem] = []
+        for f in sorted(profile.facts.values(), key=lambda x: x.fact_id):
+            slot = catalog.slot(f.slot_id)
+            if not slot.exported:
+                continue
+            removed = _removed_row(f)
+            if removed is not None:
+                self.removed.add(removed)
+                continue
+            if not _usable(f):
+                continue
+            trusted = f.review.status in ("accepted", "edited") or f.auto_accepted or f.source in ("prior_fna", "reviewer")
+            pp = parse_path(_row_path(profile, f))
+            prior = _draw_value(slot, slot.population_prior) if slot.population_prior is not None else None
+            value = _draw_value(slot, f.value.dist)  # type: ignore[union-attr]
+            self.items.append(_DrawItem(pp.container, pp.key, pp.field, value, prior, 1.0 if trusted else f.p_correct))
+
+    def draw(self, rng: Generator | None) -> F.FnaDocument:
+        if rng is None and self.items:
+            raise ValueError("draw needs an rng")
+        doc = _copy_doc(self.template)
+        if self.fresh:
+            doc["id"] = F.uid()
+            doc["createdAt"] = doc["updatedAt"] = F._now_iso()
+        nodes: dict[str, Any] = {}  # container → its node in doc
+        rows: dict[tuple[str, str], dict[str, Any]] = {}  # (list container, row id) → the row
+        for container, key, field, value, prior, trust in self.items:
+            v = prior(rng) if prior is not None and rng.random() >= trust else value(rng)  # type: ignore[union-attr]
+            if v is None:
+                continue
+            node = nodes.get(container)
+            if node is None:
+                node = nodes[container] = _container(doc, container)
+            if key is None:
+                node[field] = v
+            elif container in DICT_CONTAINERS:
+                node[key] = v
+            else:
+                row = rows.get((container, key))
+                if row is None:
+                    row = next((r for r in node if r.get("id") == key), None)
+                    if row is None:  # a row no entity announced: created on first write, as set_path does
+                        row = new_row(container, key, self.anchor)
+                        node.append(row)
+                    rows[(container, key)] = row
+                row[field] = v
+        _drop_rows(doc, self.removed)
+        return F.FnaDocument.model_validate(doc)
+
+
+def _draw_value(slot: SlotDef, dist: Dist) -> Callable[[Generator], Any]:
+    """``to_fna_value(slot, dist, "draw", rng)`` as a function of the rng: the same value from the same random
+    stream, with the slot and distribution tests done once. A Point needs no randomness, so its value is fixed."""
+    if slot.value_type == "text":
+        text = to_fna_value(slot, dist, "median")  # the likelier reading; no randomness in either mode
+        return lambda rng: text
+    if slot.value_type in ("boolean", "probability") or stats.is_boolean(dist):
+        p = stats.p_true(dist)
+        return lambda rng: bool(rng.random() < p)
+    one = stats.draw_one(dist)
+    if slot.value_type in ("category", "count") or stats.is_categorical(dist):
+        if slot.store_as == "index" and slot.categories:
+            categories = slot.categories
+
+            def fn(rng: Generator) -> Any:
+                label = str(one(rng))
+                return categories.index(label) if label in categories else None
+
+        elif slot.store_as == "int":
+
+            def fn(rng: Generator) -> Any:
+                return int(float(str(one(rng))))
+
+        else:
+
+            def fn(rng: Generator) -> Any:
+                return str(one(rng))
+
+    elif isinstance(dist, Point) and isinstance(dist.value, str):
+        exact = dist.value  # an exact ISO date
+        return lambda rng: exact
+    elif slot.value_type == "date":
+
+        def fn(rng: Generator) -> Any:
+            return stats.year_to_iso(float(one(rng)))
+
+    else:
+
+        def fn(rng: Generator) -> Any:
+            return _round(slot, float(one(rng)))
+
+    if isinstance(dist, Point):
+        fixed = fn(None)  # type: ignore[arg-type]
+        return lambda rng: fixed
+    return fn
+
+
+def _copy_doc(node: Any) -> Any:
+    """A copy of a dumped document (dicts, lists and immutable leaves); ``deepcopy`` takes four times as long."""
+    if type(node) is dict:
+        return {k: _copy_doc(v) for k, v in node.items()}
+    if type(node) is list:
+        return [_copy_doc(v) for v in node]
+    return node
+
+
+def materialise_draws(
+    profile: Profile, k: int, seed: int = 0, *, base: F.FnaDocument | None = None, catalog: Catalog | None = None
+) -> list[F.FnaDocument]:
+    """K draw documents for the FNA engine's uncertainty bands (§12.7, use 2): about a millisecond each, the
+    draw-independent work (template, paths, slots, samplers) being done once for the batch.
+
+    The cyclic garbage collector is paused while the batch runs, as in ``fna_engine.analyse_batch``: the documents
+    hold no reference cycles, and the collector would otherwise rescan every one built so far as the batch grows.
+    """
     rng = np.random.default_rng(seed)
-    catalog = load_catalog(profile.schema_version)
-    return [materialise(profile, "draw", rng, base=base, catalog=catalog) for _ in range(k)]
+    plan = _DrawPlan(profile, catalog or load_catalog(profile.schema_version), base)
+    enabled = gc.isenabled()
+    gc.disable()
+    try:
+        return [plan.draw(rng) for _ in range(k)]
+    finally:
+        if enabled:
+            gc.enable()
 
 
 # --------------------------------------------------------------------------- sidecar and export

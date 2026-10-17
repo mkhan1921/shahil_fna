@@ -125,6 +125,17 @@ def test_verification_voi_and_the_forecast_ran(run):
     assert not any(w.startswith(("verify: ", "voi: ")) for w in res.warnings)  # nothing failed
 
 
+def test_need_band_draws_match_the_reference_materialisation(run):
+    """The forecast's need bands materialise K draws in one batch; on the real profile those are the documents K
+    single draws of the per-fact loop give (``tests/test_binding.py`` keeps that loop as the reference)."""
+    from advisor_intel import binding
+
+    from .test_binding import dumps, reference_draws
+
+    prof = run[1].profile
+    assert dumps(binding.materialise_draws(prof, 20, seed=9)) == dumps(reference_draws(prof, 20, 9))
+
+
 def test_cli_writes_the_files_the_app_imports(tmp_path, run, monkeypatch):
     pins, res = run
     script = tmp_path / "call.txt"
