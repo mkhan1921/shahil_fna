@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import httpx
@@ -28,7 +28,7 @@ from .factories import GROSS, RET_AGE, flagged, make_transcript, sample_document
 pytestmark = pytest.mark.postgres
 
 TOKEN = "s3cret-token"
-NOW = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 16, 9, 0, tzinfo=UTC)
 
 
 class FakeGateway:
