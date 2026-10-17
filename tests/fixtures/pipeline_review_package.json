@@ -8484,7 +8484,9 @@
      ],
      "text": "Yes, still salaried there. I take home about forty-two thousand a month. Actually no, sorry, it went up in April, it's more like forty-five now.",
      "rewritten_text": null,
-     "flags": []
+     "flags": [
+      "self_correction"
+     ]
     },
     {
      "segment_id": "s0008",

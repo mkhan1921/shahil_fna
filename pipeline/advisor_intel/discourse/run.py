@@ -8,6 +8,8 @@ model pin ("test") the model passes are skipped and the deterministic passes sti
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from .. import llm
@@ -18,6 +20,9 @@ from ..models.profile import Profile
 from ..models.runs import VersionPins
 from ..models.transcript import Transcript
 from ..schema.slots import Catalog, load_catalog
+
+if TYPE_CHECKING:
+    from ..lexicon.loader import Lexicon
 from . import registry as R
 from .revisions import detect_revisions
 from .rewrite import rewrite_segments
@@ -38,11 +43,16 @@ async def run_discourse(
     catalog: Catalog | None = None,
     llm_topic_pass: str = "all",  # "all" | "untagged" | "off" (§6.5: reduce once embeddings reach recall)
     extra_hedges: tuple[str, ...] = (),
+    lexicon: Lexicon | None = None,  # the run's vagueness lexicon; its hedge table backs the rewrite checks (§6.3)
 ) -> DiscourseOutput:
     pins = pins or VersionPins()
     catalog = catalog or load_catalog(pins.schema_version)
     groups = catalog.group_names()
     usage: dict[str, int] = {}
+    if lexicon is None:
+        from ..lexicon.loader import load_lexicon
+
+        lexicon = load_lexicon(pins.lexicon_version)
 
     reg = R.seed_registry(prior.entities if prior else None, crm, secondary_speaker=any(s.speaker_role == "client_secondary" for s in transcript.segments))
     use_frontier = not llm.is_stub(llm.role_model_name("frontier", pins))
@@ -54,7 +64,7 @@ async def run_discourse(
     embedder = get_embedder(pins.embedding_model)
     reg = R.link_crm(reg, crm, transcript, embedder)
 
-    rewrites, sources, rejected, u = await rewrite_segments(transcript, reg.mentions, pins, use_llm=use_small, extra_hedges=extra_hedges)
+    rewrites, sources, rejected, u = await rewrite_segments(transcript, reg.mentions, pins, use_llm=use_small, extra_hedges=extra_hedges, lexicon=lexicon)
     _add(usage, u)
 
     vectors = segment_vectors(transcript, rewrites, embedder)
@@ -90,8 +100,19 @@ async def run_discourse(
 
 
 def with_rewrites(transcript: Transcript, discourse: DiscourseOutput | None) -> Transcript:
-    """Stage 2's self-contained rewrites on the segments, for the agent and verification (the original text is never overwritten, §6)."""
-    if discourse is None or not discourse.rewrites:
+    """Stage 2's output on the segments, for the agent and verification: the self-contained rewrites in
+    ``rewritten_text`` (the original text is never overwritten, §6) and the ``self_correction`` flag on
+    segments that revise an earlier value (§3.1, §6.4)."""
+    if discourse is None or not (discourse.rewrites or discourse.revisions):
         return transcript
-    segs = [s.model_copy(update={"rewritten_text": discourse.rewrites.get(s.segment_id, s.rewritten_text)}) for s in transcript.segments]
+    revising = {r.segment_id for r in discourse.revisions}
+    segs = [
+        s.model_copy(
+            update={
+                "rewritten_text": discourse.rewrites.get(s.segment_id, s.rewritten_text),
+                "flags": (s.flags | {"self_correction"}) if s.segment_id in revising else s.flags,
+            }
+        )
+        for s in transcript.segments
+    ]
     return transcript.model_copy(update={"segments": segs})

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, NativeOutput
@@ -23,11 +24,14 @@ from ..models.transcript import Segment, Transcript
 from ..prompts import pinned
 from .text import hedges_in, numbers_in, render_segment
 
+if TYPE_CHECKING:
+    from ..lexicon.loader import Lexicon
+
 BATCH = 20
 CONTEXT = 5
 MAX_RATIO = 3.0
-_PRONOUNS = re.compile(r"\b(he|she|they|him|her|them|his|hers|their|it|its|that|this|those|these|there)\b", re.I)
-_BACKCHANNEL = re.compile(r"^\s*(ja|yes|yeah|yep|no|okay|ok|mm+|uh[- ]huh|right|sure|great|thanks|thank you|shame|eish)[.!?,\s]*$", re.I)
+_PRONOUNS = re.compile(r"\b(he|she|they|him|her|them|his|hers|their|it|its|that|this|those|these|there)\b", re.IGNORECASE)
+_BACKCHANNEL = re.compile(r"^\s*(ja|yes|yeah|yep|no|okay|ok|mm+|uh[- ]huh|right|sure|great|thanks|thank you|shame|eish)[.!?,\s]*$", re.IGNORECASE)
 
 
 class RewriteOut(BaseModel):
@@ -49,8 +53,10 @@ class RewriteCheck:
     reason: str = ""
 
 
-def check_rewrite(original: Segment, rewritten: str, sources: list[Segment], extra_hedges: tuple[str, ...] = ()) -> RewriteCheck:
-    """The three §6.3 checks."""
+def check_rewrite(
+    original: Segment, rewritten: str, sources: list[Segment], extra_hedges: tuple[str, ...] = (), lexicon: Lexicon | None = None
+) -> RewriteCheck:
+    """The three §6.3 checks. Hedges are the built-in list, ``extra_hedges`` and, with a ``lexicon``, its hedge table."""
     if not rewritten.strip():
         return RewriteCheck(False, "empty")
     if len(rewritten) > MAX_RATIO * max(len(original.text), 1):
@@ -62,6 +68,11 @@ def check_rewrite(original: Segment, rewritten: str, sources: list[Segment], ext
     if new_numbers:
         return RewriteCheck(False, f"new numbers {sorted(new_numbers)[:3]}")
     lost = hedges_in(original.text, extra_hedges) - hedges_in(rewritten, extra_hedges)
+    if lexicon is not None:
+        from ..lexicon.hedges import find_hedges
+
+        kept = {h.lexicon_key for h in find_hedges(rewritten, lexicon)}
+        lost |= {h.term for h in find_hedges(original.text, lexicon) if h.lexicon_key not in kept}
     if lost:
         return RewriteCheck(False, f"hedges removed: {sorted(lost)}")
     return RewriteCheck(True)
@@ -88,6 +99,7 @@ async def rewrite_segments(
     use_llm: bool,
     extra_hedges: tuple[str, ...] = (),
     concurrency: int = 4,
+    lexicon: Lexicon | None = None,
 ) -> tuple[dict[str, str], dict[str, list[str]], dict[str, str], dict[str, int]]:
     """Returns (rewrites that passed, their source segments, rejected rewrites with reasons, usage)."""
     usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0}
@@ -126,7 +138,7 @@ async def rewrite_segments(
                 continue
             seg = segs[index[rw.segment_id]]
             srcs = [segs[index[sid]] for sid in rw.source_segment_ids if sid in index and index[sid] < index[rw.segment_id]]
-            chk = check_rewrite(seg, rw.rewritten, srcs, extra_hedges)
+            chk = check_rewrite(seg, rw.rewritten, srcs, extra_hedges, lexicon)
             if chk.ok:
                 accepted[rw.segment_id] = rw.rewritten.strip()
                 sources[rw.segment_id] = [s.segment_id for s in srcs]

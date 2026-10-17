@@ -109,6 +109,43 @@ def test_median_and_draw_modes():
     assert np.std(draws) > 1.0
 
 
+def test_values_are_written_at_the_fields_grain():
+    # Whole ages and years, cents, six decimals of a rate: for spreads and for certain values alike (VOI's
+    # sensitivity ends depend on whole ages), so a fractional prior age does not survive a round trip.
+    doc = F.FnaDocument(dependants=[F.Dependant(dependencyEndAge=25.25, tertiaryStartAge=18)])
+    prof = _load(doc)
+    assert binding.materialise(prof, "median").dependants[0].dependencyEndAge == 25
+    prof, _ = _add(prof, "retirement.{p}.retirementAge", "client", "retirement.client.retirementAge", Point(value=62.4))
+    prof, _ = _add(prof, "retirement.{p}.planningAge", "client", "retirement.client.planningAge", Triangular(low=88, mode=92, high=97))
+    prof, _ = _add(prof, "income.{p}.grossMonthly", "client", "income.client.grossMonthly", Point(value=51234.5678), unit="ZAR", period="monthly")
+    med = binding.materialise(prof, "median", base=doc)
+    assert med.retirement["client"].retirementAge == 62 and med.retirement["client"].planningAge == 92
+    assert med.income["client"].grossMonthly == 51234.57
+
+
+def test_new_documents_and_rows_are_dated_by_the_call_not_the_clock():
+    # A run without a prior file must give the same document whenever it runs (§1.5: the meeting date is call metadata).
+    prof = _load(None)
+    assert binding.materialise(prof, "median").engagement.meetingDate == ANCHOR.isoformat()
+    prof = prof.model_copy(update={"entities": {**prof.entities, "goal.trip_1": binding.Entity(entity_id="goal.trip_1", type="goal", canonical_name="Overseas trip")}})
+    rid = binding.row_id_for(prof, "goal.trip_1")
+    prof, _ = _add(prof, "goals[].name", "goal.trip_1", f"goals[{rid}].name", Point(value="Overseas trip"), unit="none")
+    med = binding.materialise(prof, "median")
+    assert med.goals[0].name == "Overseas trip" and med.goals[0].targetYear == ANCHOR.year + 5
+    base = F.FnaDocument(engagement=F.Engagement(meetingDate="2025-01-01"))
+    assert binding.materialise(prof, "median", base=base).engagement.meetingDate == "2025-01-01"  # a prior file keeps its own date
+
+
+def test_text_slot_with_two_readings_keeps_the_likelier():
+    prof = _load(F.FnaDocument())
+    hyps = [Hypothesis(value=Quantity(dist=Point(value="teacher"), unit="none"), weight=0.7, rationale=""),
+            Hypothesis(value=Quantity(dist=Point(value="lecturer"), unit="none"), weight=0.3, rationale="")]
+    payload = {"slot_id": "{p}.occupation", "instance_key": "client", "fna_path": "client.occupation", "hypotheses": hyps, "evidence": [_ev()], "provenance": PROV}
+    prof = apply_state_ops(prof, make_ops(prof, [("ADD", "{p}.occupation#client", "s0001", payload, "extractor")])).profile
+    assert binding.materialise(prof, "median").client.occupation == "teacher"
+    assert check_profile(prof) == []
+
+
 def test_probabilistic_event_and_new_rows():
     prof = _load(F.FnaDocument())
     prof = prof.model_copy(update={"entities": {**prof.entities, "person.thandi_1": binding.Entity(entity_id="person.thandi_1", type="person", canonical_name="Thandi", attributes={"relation": "child"})}})

@@ -8,8 +8,8 @@ stored as a ``Mixture`` of 50 equally weighted quantile points fitted from 10 00
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Sequence
 from datetime import date
-from typing import Iterable, Sequence
 
 import numpy as np
 from numpy.random import Generator
@@ -35,13 +35,13 @@ def iso_to_year(s: str) -> float:
 
 
 def year_to_iso(y: float) -> str:
-    year = int(math.floor(y))
+    year = math.floor(y)
     start = date(year, 1, 1).toordinal()
     days = date(year + 1, 1, 1).toordinal() - start
-    return date.fromordinal(start + min(days - 1, max(0, int(round((y - year) * days))))).isoformat()
+    return date.fromordinal(start + min(days - 1, max(0, round((y - year) * days)))).isoformat()
 
 
-def as_number(v: bool | int | float | str) -> float:
+def as_number(v: bool | float | str) -> float:
     """A point value as a number: booleans as 0/1, ISO dates as decimal years."""
     if isinstance(v, bool):
         return 1.0 if v else 0.0
@@ -87,6 +87,14 @@ def is_boolean(dist: Dist) -> bool:
 # --------------------------------------------------------------------------- sampling
 
 
+def _weights(ws: Sequence[float]) -> np.ndarray:
+    """Weights as a probability vector: the models tolerate rounding noise (a weight of -1e-7, a sum of
+    1 ± 1e-4), which ``Generator.choice`` does not."""
+    w = np.clip(np.asarray(ws, dtype=float), 0.0, None)
+    total = w.sum()
+    return w / total if total > 0 else np.full(len(w), 1.0 / len(w))
+
+
 def sample(dist: Dist, rng: Generator, n: int) -> np.ndarray:
     """n draws. Numeric dists give float arrays; categorical ones give object arrays of labels."""
     if isinstance(dist, Point):
@@ -95,12 +103,11 @@ def sample(dist: Dist, rng: Generator, n: int) -> np.ndarray:
         return np.full(n, as_number(dist.value), dtype=float)
     if isinstance(dist, Categorical):
         labels = list(dist.probs)
-        p = np.asarray([dist.probs[k] for k in labels], dtype=float)
-        idx = rng.choice(len(labels), size=n, p=p / p.sum())
-        return np.asarray(labels, dtype=object)[idx]
+        p = _weights([dist.probs[k] for k in labels])
+        return np.asarray(labels, dtype=object)[rng.choice(len(labels), size=n, p=p)]
     if isinstance(dist, Discrete):
-        w = np.asarray(dist.weights, dtype=float)
-        return np.asarray(dist.support, dtype=float)[rng.choice(len(w), size=n, p=w / w.sum())]
+        w = _weights(dist.weights)
+        return np.asarray(dist.support, dtype=float)[rng.choice(len(w), size=n, p=w)]
     if isinstance(dist, Triangular):
         if dist.high - dist.low <= 0:
             return np.full(n, dist.mode, dtype=float)
@@ -112,8 +119,8 @@ def sample(dist: Dist, rng: Generator, n: int) -> np.ndarray:
     if isinstance(dist, Bernoulli):
         return (rng.random(n) < dist.p).astype(float)
     if isinstance(dist, Mixture):
-        w = np.asarray([c[0] for c in dist.components], dtype=float)
-        idx = rng.choice(len(w), size=n, p=w / w.sum())
+        w = _weights([c[0] for c in dist.components])
+        idx = rng.choice(len(w), size=n, p=w)
         categorical = is_categorical(dist)
         out = np.empty(n, dtype=object if categorical else float)
         for k, (_, comp) in enumerate(dist.components):
