@@ -5,9 +5,11 @@
 name: Nightly gold suite
 
 on:
-  schedule:
-    - cron: "30 0 * * *" # 02:30 SAST, after the nightly_feedback schedule (02:00)
-    - cron: "0 5 * * 1" # Mondays 07:00 SAST: the weekly error analysis
+  # The nightly and Monday schedules are switched off until the Braintrust and model API keys exist: without them
+  # every run fails after a minute and only spends Actions minutes. To turn them back on, restore under `on:`
+  #   schedule:
+  #     - cron: "30 0 * * *" # 02:30 SAST, after the nightly_feedback schedule (02:00)
+  #     - cron: "0 5 * * 1" # Mondays 07:00 SAST: the weekly error analysis
   push:
     tags: ["v*"] # before every release
   workflow_dispatch:
